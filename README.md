@@ -2,7 +2,9 @@
 
 This project is part of a POC of the Tableland project.
 
-It implements a JSON-RPC server responsible for updating a Postgres database. It can be seen as a fake validator of the Tableland blockchain.
+![Tableland](https://user-images.githubusercontent.com/1233473/143463929-e5e0ee72-6dc6-4dda-a444-ea15268f227b.png)
+
+It implements the validator as a JSON-RPC server responsible for updating a Postgres database.
 
 ## API Spec
 
