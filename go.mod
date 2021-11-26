@@ -1,4 +1,4 @@
-module github.com/brunocalza/go-tableland
+module github.com/textileio/go-tableland
 
 go 1.17
 

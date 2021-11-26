@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/brunocalza/go-tableland/internal/tableland"
-	"github.com/brunocalza/go-tableland/internal/tableland/impl"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/jackc/pgx/v4"
+	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/internal/tableland/impl"
 )
 
 func main() {

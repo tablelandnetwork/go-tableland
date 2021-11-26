@@ -1,7 +1,7 @@
 package impl
 
 import (
-	"github.com/brunocalza/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/internal/tableland"
 )
 
 // TablelandMock is a dummy implementation of Tableland

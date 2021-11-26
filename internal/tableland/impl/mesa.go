@@ -1,9 +1,9 @@
 package impl
 
 import (
-	"github.com/brunocalza/go-tableland/internal/tableland"
-	"github.com/brunocalza/go-tableland/pkg/sqlstore"
-	"github.com/brunocalza/go-tableland/pkg/tableregistry"
+	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/sqlstore"
+	"github.com/textileio/go-tableland/pkg/tableregistry"
 )
 
 // TablelandMesa is the main implementation of Tableland spec
