@@ -12,7 +12,7 @@ It implements the validator as a JSON-RPC server responsible for updating a Post
 
 ## Current state of the project (and design decisions)
 
-- The JSON-RPC server is just a mock with fixed responses
+- Only the `CreateTable` feature is implemented in the The JSON-RPC server. All other features are mocked with fixed responses
 - The JSON-RPC is implemented using Ethereum's [implementation](https://pkg.go.dev/github.com/ethereum/go-ethereum/rpc) of the [2.0 spec](https://www.jsonrpc.org/specification)
 - The JSON-RPC server is an HTTP server (Just for clarification. It could also be just a TCP server.)
 - The server is currently deployed as a `docker` container inside a [Compute Engine VM](https://console.cloud.google.com/compute/instances?project=textile-310716&authuser=1)
