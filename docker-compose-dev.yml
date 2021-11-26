@@ -1,0 +1,33 @@
+version: "3"
+services:
+  api:
+    build:
+      context: .
+      dockerfile: ./cmd/api/Dockerfile
+    platform: linux/{{platform}}
+    entrypoint: ["./with-postgres.sh", "./api"]
+    environment:
+      - POSTGRES_USER=admin # used only in with-postgres.sh
+      - POSTGRES_PASSWORD=admin # used only in with-postgres.sh
+      - HTTP_PORT=8080
+      - IMPL=mock
+      - DB_HOST=database
+      - DB_POST=5432
+      - DB_PASS=dev_password
+      - DB_NAME=dev_database
+      - DB_USER=dev_user
+    ports:
+      - "127.0.0.1:8080:8080"
+    security_opt:
+      - "seccomp:unconfined"
+    cap_add:
+      - SYS_PTRACE
+    depends_on:
+      - database
+    restart: unless-stopped
+  database:
+    image: postgres:11
+    platform: linux/{{platform}}
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin

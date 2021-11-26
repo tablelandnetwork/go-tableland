@@ -15,9 +15,16 @@ type config struct {
 	HTTP struct {
 		Port string `default:"8080"` // HTTP port (e.g. 8080)
 	}
+	DB struct {
+		Host string `default:"database"`
+		Port string `default:"5432"`
+		User string `default:"dev_user"`
+		Pass string `default:"dev_password"`
+		Name string `default:"dev_database"`
+	}
 }
 
-func SetupConfig() *config {
+func setupConfig() *config {
 	conf := &config{}
 	confFiles := uconfig.Files{
 		{configFilename, json.Unmarshal},

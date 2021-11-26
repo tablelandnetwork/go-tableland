@@ -17,6 +17,8 @@ It implements the validator as a JSON-RPC server responsible for updating a Post
 - The JSON-RPC server is an HTTP server (Just for clarification. It could also be just a TCP server.)
 - The server is currently deployed as a `docker` container inside a [Compute Engine VM](https://console.cloud.google.com/compute/instances?project=textile-310716&authuser=1)
 - Configs can be passed with flags, config.json file or env variables (it uses the [uConfig](https://github.com/omeid/uconfig) package)
+- There is a Postgres database running inside the same [Compute Engine VM](https://console.cloud.google.com/compute/instances?project=textile-310716&authuser=1) as the container
+- For local development, there is a `docker-compose` file. Just execute `make up` to have the validator up and running.
 
 ## How to publish a new version
 
@@ -30,9 +32,13 @@ make publish  # publishes to Artifact Registry
 Make sure you have `gcloud` installed and configured.
 If you get an error while trying to publish, try to run `gcloud auth configure-docker us-west1-docker.pkg.dev`
 
+## How to deploy
+
+```bash
+docker run -d --name api -p 80:8080 --add-host=database:172.17.0.1 -e DB_HOST=database -e DB_PASS=[[PASSWORD]] -e DB_USER=validator -e DB_NAME=tableland -e DB_PORT=5432 [[IMAGE]]
+```
+
 ## Next steps
 
-- Setup a Postgres database
-- Add Postgres integration
 - Add Infura (Ethereum) integration
 - Implement the main use cases (CreateTable, UpdateTable, RunSQL)

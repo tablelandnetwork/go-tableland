@@ -10,22 +10,25 @@ GOVVV_FLAGS=$(shell $(GOVVV) -flags -version $(BIN_VERSION) -pkg $(shell go list
 HTTP_PORT ?= 8080
 GCP_PROJECT=textile-310716
 
+# Local development with docker-compose
+
+up:
+	sed "s/{{platform}}/$(PLATFORM)/g" docker-compose-dev.yml | COMPOSE_DOCKER_CLI_BUILD=1 docker-compose -f - up --build
+.PHONY: up
+
+down:
+	docker-compose -f docker-compose-dev.yml down
+.PHONY: down
+
+# Building and publishing image to GCP
+
 build-api: $(GOVVV)
 	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/api
 .PHONY: build-api
 
 image:
-	docker build --platform linux/amd64 -t tableland/api:sha-$(HEAD_SHORT) -t tableland/api:latest .
+	docker build --platform linux/amd64 -t tableland/api:sha-$(HEAD_SHORT) -t tableland/api:latest -f ./cmd/api/Dockerfile .
 .PHONY: image
-
-run:
-	docker run -d --name api -p ${HTTP_PORT}:8080 tableland/api
-.PHONY: run
-
-stop:
-	docker stop api
-	docker rm api
-.PHONY: stop
 
 publish:
 	docker tag tableland/api:sha-$(HEAD_SHORT) us-west1-docker.pkg.dev/${GCP_PROJECT}/textile/tableland/api:sha-$(HEAD_SHORT)

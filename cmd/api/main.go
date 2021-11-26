@@ -1,15 +1,20 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/brunocalza/go-tableland/internal/tableland"
 	"github.com/brunocalza/go-tableland/internal/tableland/impl"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/jackc/pgx/v4"
 )
 
 func main() {
-	config := SetupConfig()
+	config := setupConfig()
+	testDatabaseConnection(config)
 
 	server := rpc.NewServer()
 
@@ -35,4 +40,25 @@ func getTablelandService(config *config) (string, tableland.Tableland) {
 
 	}
 	return tableland.ServiceName, new(impl.TablelandMock)
+}
+
+func testDatabaseConnection(conf *config) {
+	databaseUrl := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable&timezone=UTC", conf.DB.User, conf.DB.Pass, conf.DB.Host, conf.DB.Port, conf.DB.Name)
+
+	conn, err := pgx.Connect(context.Background(), databaseUrl)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
+		os.Exit(1)
+	}
+
+	var s string
+	err = conn.QueryRow(context.Background(), "select 'Hello Database!'").Scan(&s)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println(s)
+
+	defer conn.Close(context.Background())
 }
