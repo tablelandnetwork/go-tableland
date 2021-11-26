@@ -17,7 +17,7 @@ func (t *TablelandMesa) CreateTable(args tableland.SQLArgs) (tableland.Response,
 	if err == nil {
 		return tableland.Response{Message: "Table created"}, nil
 	}
-	return tableland.Response{Message: err.Error()}, nil
+	return tableland.Response{Message: err.Error()}, err
 }
 
 func (t *TablelandMesa) UpdateTable(args tableland.SQLArgs) (tableland.Response, error) {
