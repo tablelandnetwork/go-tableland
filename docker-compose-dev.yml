@@ -10,7 +10,7 @@ services:
       - POSTGRES_USER=admin # used only in with-postgres.sh
       - POSTGRES_PASSWORD=admin # used only in with-postgres.sh
       - HTTP_PORT=8080
-      - IMPL=mock
+      - IMPL=mesa
       - DB_HOST=database
       - DB_POST=5432
       - DB_PASS=dev_password
