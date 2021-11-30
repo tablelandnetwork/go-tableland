@@ -20,6 +20,8 @@ func main() {
 	server.RegisterName(name, svc)
 
 	http.HandleFunc("/rpc", func(rw http.ResponseWriter, r *http.Request) {
+		rw.Header().Set("Access-Control-Allow-Origin", "*")
+		rw.Header().Set("Access-Control-Allow-Headers", "*")
 		server.ServeHTTP(rw, r)
 	})
 
