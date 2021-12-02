@@ -10,6 +10,12 @@ GOVVV_FLAGS=$(shell $(GOVVV) -flags -version $(BIN_VERSION) -pkg $(shell go list
 HTTP_PORT ?= 8080
 GCP_PROJECT=textile-310716
 
+# Code generation
+
+contract:
+	go run github.com/ethereum/go-ethereum/cmd/abigen@v1.10.13 --abi ./pkg/tableregistry/impl/contract/abi.json --pkg contract --type Contract --out pkg/tableregistry/impl/contract/contract.go
+.PHONY: contract
+
 # Local development with docker-compose
 
 up:
