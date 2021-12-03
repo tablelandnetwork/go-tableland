@@ -8,12 +8,19 @@ import (
 
 // TablelandMesa is the main implementation of Tableland spec
 type TablelandMesa struct {
-	Store    sqlstore.SQLStore
-	Registry tableregistry.TableRegistry
+	store    sqlstore.SQLStore
+	registry tableregistry.TableRegistry
+}
+
+func NewTablelandMesa(store sqlstore.SQLStore, registry tableregistry.TableRegistry) *TablelandMesa {
+	return &TablelandMesa{
+		store:    store,
+		registry: registry,
+	}
 }
 
 func (t *TablelandMesa) CreateTable(args tableland.SQLArgs) (tableland.Response, error) {
-	err := t.Store.Query(args.Statement)
+	err := t.store.Query(args.Statement)
 	if err == nil {
 		return tableland.Response{Message: "Table created"}, nil
 	}

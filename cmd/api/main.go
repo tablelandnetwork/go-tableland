@@ -4,10 +4,12 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/internal/tableland/impl"
 	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
+	"github.com/textileio/go-tableland/pkg/tableregistry/impl/erc1155"
 )
 
 func main() {
@@ -38,7 +40,11 @@ func getTablelandService(ctx context.Context, conf *config) (string, tableland.T
 		if err != nil {
 			panic(err)
 		}
-		return tableland.ServiceName, &impl.TablelandMesa{sqlstore, nil}
+		registry, err := erc1155.NewClient(conf.Registry.EthEndpoint, common.HexToAddress(conf.Registry.ContractAddress))
+		if err != nil {
+			panic(err)
+		}
+		return tableland.ServiceName, impl.NewTablelandMesa(sqlstore, registry)
 
 	case "mock":
 		return tableland.ServiceName, new(impl.TablelandMock)
