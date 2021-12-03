@@ -1,5 +1,7 @@
 package sqlstore
 
 type SQLStore interface {
-	Query(string) error
+	Write(string) error
+	Read(string) (interface{}, error)
+	Close()
 }

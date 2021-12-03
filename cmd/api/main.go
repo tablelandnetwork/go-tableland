@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/internal/tableland/impl"
+	"github.com/textileio/go-tableland/pkg/sqlstore"
 	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
 )
 
@@ -16,7 +17,14 @@ func main() {
 	server := rpc.NewServer()
 
 	ctx := context.Background()
-	name, svc := getTablelandService(ctx, config)
+
+	sqlstore, err := sqlstoreimpl.NewPostgres(ctx, config.DB.Host, config.DB.Port, config.DB.User, config.DB.Pass, config.DB.Name)
+	if err != nil {
+		panic(err)
+	}
+	defer sqlstore.Close()
+
+	name, svc := getTablelandService(ctx, config, sqlstore)
 	server.RegisterName(name, svc)
 
 	http.HandleFunc("/rpc", func(rw http.ResponseWriter, r *http.Request) {
@@ -25,20 +33,16 @@ func main() {
 		server.ServeHTTP(rw, r)
 	})
 
-	err := http.ListenAndServe(":"+config.HTTP.Port, nil)
+	err = http.ListenAndServe(":"+config.HTTP.Port, nil)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func getTablelandService(ctx context.Context, conf *config) (string, tableland.Tableland) {
+func getTablelandService(ctx context.Context, conf *config, store sqlstore.SQLStore) (string, tableland.Tableland) {
 	switch conf.Impl {
 	case "mesa":
-		sqlstore, err := sqlstoreimpl.NewPostgres(ctx, conf.DB.Host, conf.DB.Port, conf.DB.User, conf.DB.Pass, conf.DB.Name)
-		if err != nil {
-			panic(err)
-		}
-		return tableland.ServiceName, &impl.TablelandMesa{sqlstore, nil}
+		return tableland.ServiceName, &impl.TablelandMesa{Store: store}
 
 	case "mock":
 		return tableland.ServiceName, new(impl.TablelandMock)
