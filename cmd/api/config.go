@@ -23,7 +23,7 @@ type config struct {
 		Name string `default:"dev_database"`
 	}
 	Registry struct {
-		EthEndpoint     string `default:"node_endpoint"`
+		EthEndpoint     string `default:"eth_endpoint"`
 		ContractAddress string `default:"contract_address"`
 	}
 }
