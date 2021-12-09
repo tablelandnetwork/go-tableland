@@ -17,22 +17,24 @@ import (
 )
 
 func TestIsOwner(t *testing.T) {
-	backend, key, txnOpts, contract, client := setup(t)
-	toTxnOpts := requireNewTxnOpts(t, backend)
-	requireTxn(t, backend, key, txnOpts.From, toTxnOpts.From, big.NewInt(1000000000000000000))
-	tokenID := requireMint(t, backend, contract, toTxnOpts, toTxnOpts.From)
+	backend, key, fromAuth, contract, client := setup(t)
+	_, toAuth := requireNewAuth(t)
+	requireAuthGas(t, backend, toAuth)
+	requireTxn(t, backend, key, fromAuth.From, toAuth.From, big.NewInt(1000000000000000000))
+	tokenID := requireMint(t, backend, contract, toAuth, toAuth.From)
 
-	owner, err := client.IsOwner(context.Background(), toTxnOpts.From, tokenID)
+	owner, err := client.IsOwner(context.Background(), toAuth.From, tokenID)
 	require.NoError(t, err)
 	require.True(t, owner)
 
-	owner, err = client.IsOwner(context.Background(), txnOpts.From, tokenID)
+	owner, err = client.IsOwner(context.Background(), fromAuth.From, tokenID)
 	require.NoError(t, err)
 	require.False(t, owner)
 }
 
 func requireMint(t *testing.T, backend *backends.SimulatedBackend, contract *Contract, txOpts *bind.TransactOpts, to common.Address) *big.Int {
 	tokenID := big.NewInt(0)
+
 	txn, err := contract.Mint(txOpts, to, tokenID, big.NewInt(1), nil)
 	require.NoError(t, err)
 
@@ -80,39 +82,36 @@ func requireTxn(t *testing.T, backend *backends.SimulatedBackend, key *ecdsa.Pri
 	require.NotNil(t, receipt)
 }
 
-func requireNewTxnOpts(t *testing.T, backend *backends.SimulatedBackend) *bind.TransactOpts {
-	key, err := crypto.GenerateKey()
-	require.NoError(t, err)
-	auth := bind.NewKeyedTransactor(key)
-
+func requireAuthGas(t *testing.T, backend *backends.SimulatedBackend, auth *bind.TransactOpts) {
 	gas, err := backend.SuggestGasPrice(context.Background())
 	require.NoError(t, err)
 	auth.GasPrice = gas
-
-	return auth
 }
 
-func setup(t *testing.T) (*backends.SimulatedBackend, *ecdsa.PrivateKey, *bind.TransactOpts, *Contract, *Client) {
-	//Setup simulated block chain
+func requireNewAuth(t *testing.T) (*ecdsa.PrivateKey, *bind.TransactOpts) {
 	key, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	auth := bind.NewKeyedTransactor(key)
+	return key, auth
+}
+
+func setup(t *testing.T) (*backends.SimulatedBackend, *ecdsa.PrivateKey, *bind.TransactOpts, *Contract, *Client) {
+	key, auth := requireNewAuth(t)
 
 	alloc := make(core.GenesisAlloc)
 	alloc[auth.From] = core.GenesisAccount{Balance: big.NewInt(math.MaxInt64)}
-	blockchain := backends.NewSimulatedBackend(alloc, math.MaxInt64)
+	backend := backends.NewSimulatedBackend(alloc, math.MaxInt64)
 
-	gas, err := blockchain.SuggestGasPrice(context.Background())
-	require.NoError(t, err)
-	auth.GasPrice = gas
+	requireAuthGas(t, backend, auth)
 
 	//Deploy contract
 	address, _, contract, err := DeployContract(
 		auth,
-		blockchain,
+		backend,
 	)
+
 	// commit all pending transactions
-	blockchain.Commit()
+	backend.Commit()
 
 	require.NoError(t, err)
 
@@ -120,8 +119,8 @@ func setup(t *testing.T) (*backends.SimulatedBackend, *ecdsa.PrivateKey, *bind.T
 		t.Error("Expected a valid deployment address. Received empty address byte array instead")
 	}
 
-	client, err := NewClient(blockchain, address)
+	client, err := NewClient(backend, address)
 	require.NoError(t, err)
 
-	return blockchain, key, auth, contract, client
+	return backend, key, auth, contract, client
 }
