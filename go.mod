@@ -4,6 +4,8 @@ go 1.17
 
 require (
 	github.com/ethereum/go-ethereum v1.10.13
+	github.com/jackc/pgproto3/v2 v2.2.0
+	github.com/jackc/pgtype v1.9.0
 	github.com/jackc/pgx/v4 v4.14.0
 	github.com/omeid/uconfig v1.2.0
 	github.com/stretchr/testify v1.7.0
@@ -29,9 +31,7 @@ require (
 	github.com/jackc/pgconn v1.10.1 // indirect
 	github.com/jackc/pgio v1.0.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
-	github.com/jackc/pgproto3/v2 v2.2.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20200714003250-2b9c44734f2b // indirect
-	github.com/jackc/pgtype v1.9.0 // indirect
 	github.com/jackc/puddle v1.2.0 // indirect
 	github.com/mattn/go-runewidth v0.0.9 // indirect
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
