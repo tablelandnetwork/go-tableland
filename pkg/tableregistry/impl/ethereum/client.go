@@ -1,4 +1,4 @@
-package contract
+package ethereum
 
 import (
 	"context"

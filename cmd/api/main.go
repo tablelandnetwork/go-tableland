@@ -11,7 +11,7 @@ import (
 	"github.com/textileio/go-tableland/internal/tableland/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
-	"github.com/textileio/go-tableland/pkg/tableregistry/impl/contract"
+	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
 )
 
 func main() {
@@ -33,7 +33,7 @@ func main() {
 	}
 	defer conn.Close()
 
-	registry, err := contract.NewClient(conn, common.HexToAddress(config.Registry.ContractAddress))
+	registry, err := ethereum.NewClient(conn, common.HexToAddress(config.Registry.ContractAddress))
 	if err != nil {
 		panic(err)
 	}
@@ -53,7 +53,7 @@ func main() {
 	}
 }
 
-func getTablelandService(ctx context.Context, conf *config, store sqlstore.SQLStore, registry *contract.Client) (string, tableland.Tableland) {
+func getTablelandService(ctx context.Context, conf *config, store sqlstore.SQLStore, registry *ethereum.Client) (string, tableland.Tableland) {
 	switch conf.Impl {
 	case "mesa":
 		return tableland.ServiceName, impl.NewTablelandMesa(store, registry)
