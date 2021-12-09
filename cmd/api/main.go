@@ -5,11 +5,12 @@ import (
 	"net/http"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/internal/tableland/impl"
 	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
-	"github.com/textileio/go-tableland/pkg/tableregistry/impl/erc1155"
+	"github.com/textileio/go-tableland/pkg/tableregistry/impl/contract"
 )
 
 func main() {
@@ -40,7 +41,11 @@ func getTablelandService(ctx context.Context, conf *config) (string, tableland.T
 		if err != nil {
 			panic(err)
 		}
-		registry, err := erc1155.NewClient(conf.Registry.EthEndpoint, common.HexToAddress(conf.Registry.ContractAddress))
+		conn, err := ethclient.Dial(conf.Registry.EthEndpoint)
+		if err != nil {
+			panic(err)
+		}
+		registry, err := contract.NewClient(conn, common.HexToAddress(conf.Registry.ContractAddress))
 		if err != nil {
 			panic(err)
 		}

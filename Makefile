@@ -12,9 +12,8 @@ GCP_PROJECT=textile-310716
 
 # Code generation
 
-contracts:
-	go run github.com/ethereum/go-ethereum/cmd/abigen@v1.10.13 --abi ./pkg/tableregistry/impl/erc1155/abi.json --pkg erc1155 --type Contract --out pkg/tableregistry/impl/erc1155/contract.go --bin pkg/tableregistry/impl/erc1155/registry.bin
-	go run github.com/ethereum/go-ethereum/cmd/abigen@v1.10.13 --abi ./pkg/tableregistry/impl/erc721/abi.json --pkg erc721 --type Contract --out pkg/tableregistry/impl/erc721/contract.go --bin pkg/tableregistry/impl/erc721/registry.bin
+contract:
+	go run github.com/ethereum/go-ethereum/cmd/abigen@v1.10.13 --abi ./pkg/tableregistry/impl/contract/abi.json --pkg contract --type Contract --out pkg/tableregistry/impl/contract/contract.go --bin pkg/tableregistry/impl/contract/registry.bin
 .PHONY: contract
 
 # Local development with docker-compose

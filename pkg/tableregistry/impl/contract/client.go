@@ -1,4 +1,4 @@
-package erc721
+package contract
 
 import (
 	"context"
@@ -7,19 +7,14 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 type Client struct {
 	contract *Contract
 }
 
-func NewClient(ethEndpoint string, contractAddr common.Address) (*Client, error) {
-	conn, err := ethclient.Dial(ethEndpoint)
-	if err != nil {
-		return nil, fmt.Errorf("dialing eth endpoint: %v", err)
-	}
-	contract, err := NewContract(contractAddr, conn)
+func NewClient(backend bind.ContractBackend, contractAddr common.Address) (*Client, error) {
+	contract, err := NewContract(contractAddr, backend)
 	if err != nil {
 		return nil, fmt.Errorf("creating contract: %v", err)
 	}
@@ -28,9 +23,9 @@ func NewClient(ethEndpoint string, contractAddr common.Address) (*Client, error)
 
 func (c *Client) IsOwner(context context.Context, addr common.Address, id *big.Int) (bool, error) {
 	opts := &bind.CallOpts{Context: context}
-	owner, err := c.contract.OwnerOf(opts, id)
+	bal, err := c.contract.BalanceOf(opts, addr, id)
 	if err != nil {
-		return false, fmt.Errorf("calling OwnerOf: %v", err)
+		return false, fmt.Errorf("calling BalanceOf: %v", err)
 	}
-	return owner == addr, nil
+	return bal.Cmp(big.NewInt(0)) > 0, nil
 }
