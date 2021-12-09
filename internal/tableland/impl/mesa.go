@@ -10,13 +10,20 @@ import (
 
 // TablelandMesa is the main implementation of Tableland spec
 type TablelandMesa struct {
-	Store    sqlstore.SQLStore
-	Registry tableregistry.TableRegistry
+	store    sqlstore.SQLStore
+	registry tableregistry.TableRegistry
+}
+
+func NewTablelandMesa(store sqlstore.SQLStore, registry tableregistry.TableRegistry) *TablelandMesa {
+	return &TablelandMesa{
+		store:    store,
+		registry: registry,
+	}
 }
 
 func (t *TablelandMesa) CreateTable(args tableland.SQLArgs) (tableland.Response, error) {
 	if strings.Contains(strings.ToLower(args.Statement), "create") {
-		err := t.Store.Write(args.Statement)
+		err := t.store.Write(args.Statement)
 		if err != nil {
 			return tableland.Response{Message: err.Error()}, err
 		}
@@ -44,7 +51,7 @@ func (t *TablelandMesa) RunSQL(args tableland.SQLArgs) (tableland.Response, erro
 }
 
 func (t *TablelandMesa) runInsertOrUpdate(args tableland.SQLArgs) (tableland.Response, error) {
-	err := t.Store.Write(args.Statement)
+	err := t.store.Write(args.Statement)
 	if err != nil {
 		return tableland.Response{Message: err.Error()}, err
 	}
@@ -52,7 +59,7 @@ func (t *TablelandMesa) runInsertOrUpdate(args tableland.SQLArgs) (tableland.Res
 }
 
 func (t *TablelandMesa) runSelect(args tableland.SQLArgs) (tableland.Response, error) {
-	data, err := t.Store.Read(args.Statement)
+	data, err := t.store.Read(args.Statement)
 	if err != nil {
 		return tableland.Response{Message: err.Error()}, err
 	}

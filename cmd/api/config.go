@@ -22,6 +22,10 @@ type config struct {
 		Pass string `default:"dev_password"`
 		Name string `default:"dev_database"`
 	}
+	Registry struct {
+		EthEndpoint     string `default:"eth_endpoint"`
+		ContractAddress string `default:"contract_address"`
+	}
 }
 
 func setupConfig() *config {

@@ -4,11 +4,14 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/internal/tableland/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
+	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
 )
 
 func main() {
@@ -24,7 +27,18 @@ func main() {
 	}
 	defer sqlstore.Close()
 
-	name, svc := getTablelandService(ctx, config, sqlstore)
+	conn, err := ethclient.Dial(config.Registry.EthEndpoint)
+	if err != nil {
+		panic(err)
+	}
+	defer conn.Close()
+
+	registry, err := ethereum.NewClient(conn, common.HexToAddress(config.Registry.ContractAddress))
+	if err != nil {
+		panic(err)
+	}
+
+	name, svc := getTablelandService(ctx, config, sqlstore, registry)
 	server.RegisterName(name, svc)
 
 	http.HandleFunc("/rpc", func(rw http.ResponseWriter, r *http.Request) {
@@ -39,11 +53,10 @@ func main() {
 	}
 }
 
-func getTablelandService(ctx context.Context, conf *config, store sqlstore.SQLStore) (string, tableland.Tableland) {
+func getTablelandService(ctx context.Context, conf *config, store sqlstore.SQLStore, registry *ethereum.Client) (string, tableland.Tableland) {
 	switch conf.Impl {
 	case "mesa":
-		return tableland.ServiceName, &impl.TablelandMesa{Store: store}
-
+		return tableland.ServiceName, impl.NewTablelandMesa(store, registry)
 	case "mock":
 		return tableland.ServiceName, new(impl.TablelandMock)
 
