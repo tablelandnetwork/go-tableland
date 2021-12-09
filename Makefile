@@ -26,6 +26,10 @@ down:
 	docker-compose -f docker-compose-dev.yml down
 .PHONY: down
 
+psql:
+	docker-compose -f docker-compose-dev.yml exec api psql postgresql://dev_user:dev_password@database/dev_database
+.PHONY: psql
+
 # Building and publishing image to GCP
 
 build-api: $(GOVVV)
