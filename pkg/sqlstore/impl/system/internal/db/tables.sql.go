@@ -10,18 +10,18 @@ import (
 )
 
 const getTable = `-- name: GetTable :one
-SELECT uuid, controller, created_at FROM tables WHERE uuid = $1
+SELECT uuid, controller, created_at FROM system_tables WHERE uuid = $1
 `
 
-func (q *Queries) GetTable(ctx context.Context, uuid uuid.UUID) (Table, error) {
+func (q *Queries) GetTable(ctx context.Context, uuid uuid.UUID) (SystemTable, error) {
 	row := q.db.QueryRow(ctx, getTable, uuid)
-	var i Table
+	var i SystemTable
 	err := row.Scan(&i.UUID, &i.Controller, &i.CreatedAt)
 	return i, err
 }
 
 const insertTable = `-- name: InsertTable :exec
-INSERT INTO tables (
+INSERT INTO system_tables (
     uuid,
     controller
     ) VALUES (

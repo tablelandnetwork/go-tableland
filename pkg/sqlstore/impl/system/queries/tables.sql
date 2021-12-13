@@ -1,5 +1,5 @@
 -- name: InsertTable :exec
-INSERT INTO tables (
+INSERT INTO system_tables (
     uuid,
     controller
     ) VALUES (
@@ -7,4 +7,4 @@ INSERT INTO tables (
       $2);
 
 -- name: GetTable :one
-SELECT * FROM tables WHERE uuid = $1;
+SELECT * FROM system_tables WHERE uuid = $1;

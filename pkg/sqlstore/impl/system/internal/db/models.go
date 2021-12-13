@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type Table struct {
+type SystemTable struct {
 	UUID       uuid.UUID
 	Controller string
 	CreatedAt  time.Time

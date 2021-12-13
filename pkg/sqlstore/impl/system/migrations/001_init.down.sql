@@ -1,1 +1,1 @@
-DROP TABLE tables;
+DROP TABLE system_tables;
