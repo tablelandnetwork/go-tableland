@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -21,7 +22,8 @@ func main() {
 
 	ctx := context.Background()
 
-	sqlstore, err := sqlstoreimpl.NewPostgres(ctx, config.DB.Host, config.DB.Port, config.DB.User, config.DB.Pass, config.DB.Name)
+	databaseUrl := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable&timezone=UTC", config.DB.User, config.DB.Pass, config.DB.Host, config.DB.Port, config.DB.Name)
+	sqlstore, err := sqlstoreimpl.New(ctx, databaseUrl)
 	if err != nil {
 		panic(err)
 	}
@@ -56,7 +58,7 @@ func main() {
 func getTablelandService(ctx context.Context, conf *config, store sqlstore.SQLStore, registry *ethereum.Client) (string, tableland.Tableland) {
 	switch conf.Impl {
 	case "mesa":
-		return tableland.ServiceName, impl.NewTablelandMesa(store, registry)
+		return tableland.ServiceName, impl.NewTablelandMesa(ctx, store, registry)
 	case "mock":
 		return tableland.ServiceName, new(impl.TablelandMock)
 

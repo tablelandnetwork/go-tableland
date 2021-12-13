@@ -1,0 +1,17 @@
+version: "1"
+packages:
+  - name: "db"
+    path: "./internal/db"
+    queries: "./queries"
+    schema: "./migrations"
+    engine: "postgresql"
+    emit_prepared_queries: true
+    emit_interface: false
+    emit_exact_table_names: false
+    emit_empty_slices: false
+    emit_json_tags: false
+    json_tags_case_style: "camel"
+    sql_package: "pgx/v4"
+rename:
+  uuid: "UUID"
+    

@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS tables (
+    uuid UUID PRIMARY KEY,
+    controller CHAR(42) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);

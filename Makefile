@@ -10,11 +10,18 @@ GOVVV_FLAGS=$(shell $(GOVVV) -flags -version $(BIN_VERSION) -pkg $(shell go list
 HTTP_PORT ?= 8080
 GCP_PROJECT=textile-310716
 
+GO_BINDATA=go run github.com/go-bindata/go-bindata/v3/go-bindata@v3.1.3
+SQLC=go run github.com/kyleconroy/sqlc/cmd/sqlc@v1.11.0
+
 # Code generation
 
 ethereum:
 	go run github.com/ethereum/go-ethereum/cmd/abigen@v1.10.13 --abi ./pkg/tableregistry/impl/ethereum/abi.json --pkg ethereum --type Contract --out pkg/tableregistry/impl/ethereum/contract.go --bin pkg/tableregistry/impl/ethereum/registry.bin
 .PHONY: ethereum
+
+system-sql-assets:
+	cd pkg/sqlstore/impl/system && $(GO_BINDATA) -pkg migrations -prefix migrations/ -o migrations/migrations.go -ignore=migrations.go migrations && $(SQLC) generate; cd -;
+.PHONY: system-sql-assets
 
 # Local development with docker-compose
 
