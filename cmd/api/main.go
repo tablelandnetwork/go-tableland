@@ -40,7 +40,7 @@ func main() {
 		panic(err)
 	}
 
-	name, svc := getTablelandService(ctx, config, sqlstore, registry)
+	name, svc := getTablelandService(config, sqlstore, registry)
 	server.RegisterName(name, svc)
 
 	http.HandleFunc("/rpc", func(rw http.ResponseWriter, r *http.Request) {
@@ -55,10 +55,10 @@ func main() {
 	}
 }
 
-func getTablelandService(ctx context.Context, conf *config, store sqlstore.SQLStore, registry *ethereum.Client) (string, tableland.Tableland) {
+func getTablelandService(conf *config, store sqlstore.SQLStore, registry *ethereum.Client) (string, tableland.Tableland) {
 	switch conf.Impl {
 	case "mesa":
-		return tableland.ServiceName, impl.NewTablelandMesa(ctx, store, registry)
+		return tableland.ServiceName, impl.NewTablelandMesa(store, registry)
 	case "mock":
 		return tableland.ServiceName, new(impl.TablelandMock)
 
