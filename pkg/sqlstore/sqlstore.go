@@ -1,7 +1,8 @@
 package sqlstore
 
+// SQLStore defines the methods for interacting with Tableland storage
 type SQLStore interface {
-	Write(string) error
-	Read(string) (interface{}, error)
+	UserStore
+	SystemStore
 	Close()
 }
