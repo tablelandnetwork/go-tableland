@@ -37,16 +37,25 @@ func New(pool *pgxpool.Pool) (*SystemStore, error) {
 }
 
 // InsertTable inserts a new system-wide table
-func (s *SystemStore) InsertTable(ctx context.Context, uuid uuid.UUID, controller string) (err error) {
-	return s.db.InsertTable(ctx, db.InsertTableParams{
+func (s *SystemStore) InsertTable(ctx context.Context, uuid uuid.UUID, controller string) error {
+	err := s.db.InsertTable(ctx, db.InsertTableParams{
 		UUID:       uuid,
 		Controller: controller,
 	})
+
+	if err != nil {
+		return fmt.Errorf("failed to insert a new table: %s", err)
+	}
+
+	return nil
 }
 
 // GetTable fetchs a table from its UUID
 func (s *SystemStore) GetTable(ctx context.Context, uuid uuid.UUID) (sqlstore.Table, error) {
 	table, err := s.db.GetTable(ctx, uuid)
+	if err != nil {
+		return sqlstore.Table{}, fmt.Errorf("failed to get the table: %s", err)
+	}
 	return sqlstore.Table{UUID: table.UUID, Controller: table.Controller, CreatedAt: table.CreatedAt}, err
 }
 
