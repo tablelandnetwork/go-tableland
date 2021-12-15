@@ -51,3 +51,9 @@ publish:
 	docker tag tableland/api:sha-$(HEAD_SHORT) us-west1-docker.pkg.dev/${GCP_PROJECT}/textile/tableland/api:sha-$(HEAD_SHORT)
 	docker push us-west1-docker.pkg.dev/${GCP_PROJECT}/textile/tableland/api:sha-$(HEAD_SHORT)
 .PHONY: publish
+
+# Tests
+
+tests:
+	go test -v ./...
+.PHONY: tests

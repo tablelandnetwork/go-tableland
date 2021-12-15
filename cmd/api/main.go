@@ -8,6 +8,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/textileio/go-tableland/cmd/api/controllers"
+	systemimpl "github.com/textileio/go-tableland/internal/system/impl"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/internal/tableland/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
@@ -43,13 +45,18 @@ func main() {
 	name, svc := getTablelandService(config, sqlstore, registry)
 	server.RegisterName(name, svc)
 
-	http.HandleFunc("/rpc", func(rw http.ResponseWriter, r *http.Request) {
+	systemService := systemimpl.NewSystemSQLStoreService(sqlstore)
+	systemController := controllers.NewSystemController(systemService)
+
+	router := NewRouter()
+	router.Post("/rpc", func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Set("Access-Control-Allow-Origin", "*")
 		rw.Header().Set("Access-Control-Allow-Headers", "*")
 		server.ServeHTTP(rw, r)
 	})
+	router.Get("/tables/{uuid}", systemController.GetTables)
 
-	err = http.ListenAndServe(":"+config.HTTP.Port, nil)
+	err = router.Serve(":" + config.HTTP.Port)
 	if err != nil {
 		panic(err)
 	}
