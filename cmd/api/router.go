@@ -6,25 +6,28 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type router struct{}
-
-var (
-	dispatcher = mux.NewRouter()
-)
+type router struct {
+	r *mux.Router
+}
 
 // NewRouter is a Mux HTTP router constructor
 func NewRouter() *router {
-	return &router{}
+	r := mux.NewRouter()
+	return &router{r}
 }
 
-func (*router) Get(uri string, f func(http.ResponseWriter, *http.Request)) {
-	dispatcher.HandleFunc(uri, f).Methods("GET")
+func (r *router) Get(uri string, f func(http.ResponseWriter, *http.Request), mid ...mux.MiddlewareFunc) {
+	sub := r.r.Path(uri).Subrouter()
+	sub.HandleFunc("", f).Methods(http.MethodGet)
+	sub.Use(mid...)
 }
 
-func (*router) Post(uri string, f func(http.ResponseWriter, *http.Request)) {
-	dispatcher.HandleFunc(uri, f).Methods("POST")
+func (r *router) Post(uri string, f func(http.ResponseWriter, *http.Request), mid ...mux.MiddlewareFunc) {
+	sub := r.r.Path(uri).Subrouter()
+	sub.HandleFunc("", f).Methods(http.MethodPost)
+	sub.Use(mid...)
 }
 
-func (*router) Serve(port string) error {
-	return http.ListenAndServe(port, dispatcher)
+func (r *router) Serve(port string) error {
+	return http.ListenAndServe(port, r.r)
 }
