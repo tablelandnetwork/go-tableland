@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/textileio/go-tableland/cmd/api/controllers"
+	"github.com/textileio/go-tableland/cmd/api/middlewares"
 	systemimpl "github.com/textileio/go-tableland/internal/system/impl"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/internal/tableland/impl"
@@ -53,7 +54,8 @@ func main() {
 		rw.Header().Set("Access-Control-Allow-Origin", "*")
 		rw.Header().Set("Access-Control-Allow-Headers", "*")
 		server.ServeHTTP(rw, r)
-	})
+	}, middlewares.Authentication)
+
 	router.Get("/tables/{uuid}", systemController.GetTables)
 
 	err = router.Serve(":" + config.HTTP.Port)
