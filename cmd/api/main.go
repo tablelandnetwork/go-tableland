@@ -9,18 +9,12 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/textileio/go-tableland/cmd/api/controllers"
-	"github.com/textileio/go-tableland/internal/system"
 	systemimpl "github.com/textileio/go-tableland/internal/system/impl"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/internal/tableland/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
-)
-
-var (
-	systemService    system.SystemService          = systemimpl.NewSystemMockService()
-	systemController *controllers.SystemController = controllers.NewSystemController(systemService)
 )
 
 func main() {
@@ -50,6 +44,9 @@ func main() {
 
 	name, svc := getTablelandService(config, sqlstore, registry)
 	server.RegisterName(name, svc)
+
+	systemService := systemimpl.NewSystemSQLStoreService(sqlstore)
+	systemController := controllers.NewSystemController(systemService)
 
 	router := NewRouter()
 	router.Post("/rpc", func(rw http.ResponseWriter, r *http.Request) {

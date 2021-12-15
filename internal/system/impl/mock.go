@@ -1,6 +1,7 @@
-package Impl
+package impl
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -19,7 +20,7 @@ func NewSystemMockService() system.SystemService {
 }
 
 // GetTableMetadata returns a fixed value for testing and demo purposes
-func (*SystemMockService) GetTableMetadata(uuid uuid.UUID) (sqlstore.TableMetadata, error) {
+func (*SystemMockService) GetTableMetadata(ctx context.Context, uuid uuid.UUID) (sqlstore.TableMetadata, error) {
 	return sqlstore.TableMetadata{
 		ExternalURL: fmt.Sprintf("https://tableland.com/tables/%s", uuid.String()),
 		Image:       "https://hub.textile.io/thread/bafkqtqxkgt3moqxwa6rpvtuyigaoiavyewo67r3h7gsz4hov2kys7ha/buckets/bafzbeicpzsc423nuninuvrdsmrwurhv3g2xonnduq4gbhviyo5z4izwk5m/todo-list.png",
@@ -43,6 +44,6 @@ func NewSystemMockErrService() system.SystemService {
 }
 
 // GetTableMetadata returns a fixed value for testing and demo purposes
-func (*SystemMockErrService) GetTableMetadata(uuid uuid.UUID) (sqlstore.TableMetadata, error) {
+func (*SystemMockErrService) GetTableMetadata(ctx context.Context, uuid uuid.UUID) (sqlstore.TableMetadata, error) {
 	return sqlstore.TableMetadata{}, errors.New("table not found")
 }

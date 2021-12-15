@@ -25,7 +25,6 @@ func TestSystemControllerMock(t *testing.T) {
 
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
-	fmt.Println(rr.Body.String())
 	require.Equal(t, http.StatusOK, rr.Code)
 
 	expJSON := `{"external_url":"https://tableland.com/tables/af227176-ed79-4670-93dd-c98ffa0f9f9e","image":"https://hub.textile.io/thread/bafkqtqxkgt3moqxwa6rpvtuyigaoiavyewo67r3h7gsz4hov2kys7ha/buckets/bafzbeicpzsc423nuninuvrdsmrwurhv3g2xonnduq4gbhviyo5z4izwk5m/todo-list.png","attributes":[{"display_type":"date","trait_type":"created","value":1546360800}]}`
@@ -68,7 +67,7 @@ func TestTableNotFoundMock(t *testing.T) {
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
-	require.Equal(t, http.StatusNotFound, rr.Code)
+	require.Equal(t, http.StatusInternalServerError, rr.Code)
 
 	expJSON := `{"message": "Failed to fetch metadata"}`
 	require.JSONEq(t, expJSON, rr.Body.String())

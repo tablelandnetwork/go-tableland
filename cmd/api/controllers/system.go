@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -26,7 +25,6 @@ func (c *SystemController) GetTables(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-type", "application/json")
 	vars := mux.Vars(r)
 
-	fmt.Println(vars["uuid"])
 	uuid, err := uuid.Parse(vars["uuid"])
 	if err != nil {
 		rw.WriteHeader(http.StatusUnprocessableEntity)
@@ -35,9 +33,9 @@ func (c *SystemController) GetTables(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	metadata, err := c.systemService.GetTableMetadata(uuid)
+	metadata, err := c.systemService.GetTableMetadata(r.Context(), uuid)
 	if err != nil {
-		rw.WriteHeader(http.StatusNotFound)
+		rw.WriteHeader(http.StatusInternalServerError)
 		// TODO: log err
 		json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Failed to fetch metadata"})
 		return
