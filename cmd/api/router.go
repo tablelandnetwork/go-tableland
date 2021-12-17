@@ -18,13 +18,13 @@ func NewRouter() *router {
 
 func (r *router) Get(uri string, f func(http.ResponseWriter, *http.Request), mid ...mux.MiddlewareFunc) {
 	sub := r.r.Path(uri).Subrouter()
-	sub.HandleFunc("", f).Methods(http.MethodGet)
+	sub.HandleFunc("", f).Methods(http.MethodGet, http.MethodOptions)
 	sub.Use(mid...)
 }
 
 func (r *router) Post(uri string, f func(http.ResponseWriter, *http.Request), mid ...mux.MiddlewareFunc) {
 	sub := r.r.Path(uri).Subrouter()
-	sub.HandleFunc("", f).Methods(http.MethodPost)
+	sub.HandleFunc("", f).Methods(http.MethodPost, http.MethodOptions)
 	sub.Use(mid...)
 }
 
