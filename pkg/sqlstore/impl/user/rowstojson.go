@@ -94,6 +94,16 @@ func getValueFromScanArg(arg interface{}) interface{} {
 			buf, _ = val.EncodeText(pgtype.NewConnInfo(), buf)
 			return string(buf)
 		}
+
+		if val, ok := (arg).(*pgtype.UUID); ok {
+			if val.Status == pgtype.Null {
+				return nil
+			}
+
+			buf := make([]byte, 0)
+			buf, _ = val.EncodeText(pgtype.NewConnInfo(), buf)
+			return string(buf)
+		}
 	}
 
 	return arg
@@ -130,6 +140,8 @@ func getTypeFromOID(oid uint32) (t interface{}, err error) {
 		t = new(pgtype.Timestamp)
 	case pgtype.TimestamptzOID:
 		t = new(pgtype.Timestamptz)
+	case pgtype.UUIDOID:
+		t = new(pgtype.UUID)
 	default:
 		err = fmt.Errorf("column type %d not supported", oid)
 	}
