@@ -9,10 +9,12 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+// Client is the Ethereum implementation of the registry client.
 type Client struct {
 	contract *Contract
 }
 
+// NewClient creates a new Client.
 func NewClient(backend bind.ContractBackend, contractAddr common.Address) (*Client, error) {
 	contract, err := NewContract(contractAddr, backend)
 	if err != nil {
@@ -21,6 +23,7 @@ func NewClient(backend bind.ContractBackend, contractAddr common.Address) (*Clie
 	return &Client{contract: contract}, nil
 }
 
+// IsOwner implements IsOwner.
 func (c *Client) IsOwner(context context.Context, addr common.Address, id *big.Int) (bool, error) {
 	opts := &bind.CallOpts{Context: context}
 	bal, err := c.contract.BalanceOf(opts, addr, id)

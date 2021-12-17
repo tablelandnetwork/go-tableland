@@ -7,7 +7,7 @@ import (
 	"github.com/omeid/uconfig"
 )
 
-// configFilename is the filename of the config file automatically loaded
+// configFilename is the filename of the config file automatically loaded.
 var configFilename = "config.json"
 
 type config struct {

@@ -9,19 +9,19 @@ import (
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
 )
 
-// SQLStorePGX implements the SQLStore interface using pgx
+// SQLStorePGX implements the SQLStore interface using pgx.
 type SQLStorePGX struct {
 	pool *pgxpool.Pool
 	*user.UserStore
 	*system.SystemStore
 }
 
-// Close closes the connection pool
+// Close closes the connection pool.
 func (db *SQLStorePGX) Close() {
 	db.pool.Close()
 }
 
-// New creates a new pgx pool and instantiate both the user and system stores
+// New creates a new pgx pool and instantiate both the user and system stores.
 func New(ctx context.Context, postgresURI string) (sqlstore.SQLStore, error) {
 	pool, err := pgxpool.Connect(ctx, postgresURI)
 	if err != nil {

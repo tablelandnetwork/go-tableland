@@ -13,12 +13,13 @@ import (
 	"github.com/textileio/go-tableland/pkg/tableregistry"
 )
 
-// TablelandMesa is the main implementation of Tableland spec
+// TablelandMesa is the main implementation of Tableland spec.
 type TablelandMesa struct {
 	store    sqlstore.SQLStore
 	registry tableregistry.TableRegistry
 }
 
+// NewTablelandMesa creates a new TablelandMesa.
 func NewTablelandMesa(store sqlstore.SQLStore, registry tableregistry.TableRegistry) tableland.Tableland {
 	return &TablelandMesa{
 		store:    store,
@@ -26,8 +27,9 @@ func NewTablelandMesa(store sqlstore.SQLStore, registry tableregistry.TableRegis
 	}
 }
 
+// CreateTable allows the user to create a table.
 func (t *TablelandMesa) CreateTable(ctx context.Context, req tableland.Request) (tableland.Response, error) {
-	uuid, err := uuid.Parse(req.TableId)
+	uuid, err := uuid.Parse(req.TableID)
 	if err != nil {
 		return tableland.Response{Message: "Failed to parse uuid"}, err
 	}
@@ -49,13 +51,15 @@ func (t *TablelandMesa) CreateTable(ctx context.Context, req tableland.Request) 
 	return tableland.Response{Message: "Invalid command"}, nil
 }
 
+// UpdateTable allows the user to update a table.
 func (t *TablelandMesa) UpdateTable(ctx context.Context, req tableland.Request) (tableland.Response, error) {
 	// this is not going to be implemented
 	return tableland.Response{Message: "Table updated"}, nil
 }
 
+// RunSQL allows the user to run SQL.
 func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.Request) (tableland.Response, error) {
-	uuid, err := uuid.Parse(req.TableId)
+	uuid, err := uuid.Parse(req.TableID)
 	if err != nil {
 		return tableland.Response{Message: "Failed to parse uuid"}, err
 	}
@@ -69,7 +73,8 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.Request) (tabl
 		return tableland.Response{Message: "You are not authorized"}, nil
 	}
 
-	if strings.Contains(strings.ToLower(req.Statement), "insert") || strings.Contains(strings.ToLower(req.Statement), "update") {
+	if strings.Contains(strings.ToLower(req.Statement), "insert") ||
+		strings.Contains(strings.ToLower(req.Statement), "update") {
 		return t.runInsertOrUpdate(ctx, req)
 	}
 

@@ -32,7 +32,13 @@ func TestIsOwner(t *testing.T) {
 	require.False(t, owner)
 }
 
-func requireMint(t *testing.T, backend *backends.SimulatedBackend, contract *Contract, txOpts *bind.TransactOpts, to common.Address) *big.Int {
+func requireMint(
+	t *testing.T,
+	backend *backends.SimulatedBackend,
+	contract *Contract,
+	txOpts *bind.TransactOpts,
+	to common.Address,
+) *big.Int {
 	tokenID := big.NewInt(0)
 
 	txn, err := contract.Mint(txOpts, to, tokenID, big.NewInt(1), nil)
@@ -47,7 +53,14 @@ func requireMint(t *testing.T, backend *backends.SimulatedBackend, contract *Con
 	return tokenID
 }
 
-func requireTxn(t *testing.T, backend *backends.SimulatedBackend, key *ecdsa.PrivateKey, from, to common.Address, amt *big.Int) {
+func requireTxn(
+	t *testing.T,
+	backend *backends.SimulatedBackend,
+	key *ecdsa.PrivateKey,
+	from common.Address,
+	to common.Address,
+	amt *big.Int,
+) {
 	nonce, err := backend.PendingNonceAt(context.Background(), from)
 	require.NoError(t, err)
 
@@ -91,7 +104,8 @@ func requireAuthGas(t *testing.T, backend *backends.SimulatedBackend, auth *bind
 func requireNewAuth(t *testing.T) (*ecdsa.PrivateKey, *bind.TransactOpts) {
 	key, err := crypto.GenerateKey()
 	require.NoError(t, err)
-	auth := bind.NewKeyedTransactor(key)
+	auth, err := bind.NewKeyedTransactorWithChainID(key, nil)
+	require.NoError(t, err)
 	return key, auth
 }
 

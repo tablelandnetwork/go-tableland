@@ -27,7 +27,12 @@ func TestSystemControllerMock(t *testing.T) {
 	router.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
 
-	expJSON := `{"external_url":"https://tableland.com/tables/af227176-ed79-4670-93dd-c98ffa0f9f9e","image":"https://hub.textile.io/thread/bafkqtqxkgt3moqxwa6rpvtuyigaoiavyewo67r3h7gsz4hov2kys7ha/buckets/bafzbeicpzsc423nuninuvrdsmrwurhv3g2xonnduq4gbhviyo5z4izwk5m/todo-list.png","attributes":[{"display_type":"date","trait_type":"created","value":1546360800}]}`
+	//nolint
+	expJSON := `{
+		"external_url":"https://tableland.com/tables/af227176-ed79-4670-93dd-c98ffa0f9f9e",
+		"image":"https://hub.textile.io/thread/bafkqtqxkgt3moqxwa6rpvtuyigaoiavyewo67r3h7gsz4hov2kys7ha/buckets/bafzbeicpzsc423nuninuvrdsmrwurhv3g2xonnduq4gbhviyo5z4izwk5m/todo-list.png",
+		"attributes":[{"display_type":"date","trait_type":"created","value":1546360800}]
+	}`
 	require.JSONEq(t, expJSON, rr.Body.String())
 }
 

@@ -10,17 +10,17 @@ import (
 	"github.com/textileio/go-tableland/pkg/errors"
 )
 
-// SystemController defines the HTTP handlers for interacting with system operations
+// SystemController defines the HTTP handlers for interacting with system operations.
 type SystemController struct {
 	systemService system.SystemService
 }
 
-// NewSystemController creates a new SystemController
+// NewSystemController creates a new SystemController.
 func NewSystemController(svc system.SystemService) *SystemController {
 	return &SystemController{svc}
 }
 
-// GetTable handles the GET /tables/{uuid} call
+// GetTables handles the GET /tables/{uuid} call.
 func (c *SystemController) GetTables(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-type", "application/json")
 	vars := mux.Vars(r)
@@ -29,7 +29,7 @@ func (c *SystemController) GetTables(rw http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		rw.WriteHeader(http.StatusUnprocessableEntity)
 		// TODO: log err
-		json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Invalid uuid"})
+		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Invalid uuid"})
 		return
 	}
 
@@ -37,10 +37,10 @@ func (c *SystemController) GetTables(rw http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 		// TODO: log err
-		json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Failed to fetch metadata"})
+		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Failed to fetch metadata"})
 		return
 	}
 
 	rw.WriteHeader(http.StatusOK)
-	json.NewEncoder(rw).Encode(metadata)
+	_ = json.NewEncoder(rw).Encode(metadata)
 }

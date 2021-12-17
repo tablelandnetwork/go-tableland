@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres" // triggers something?
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -22,7 +22,7 @@ type SystemStore struct {
 	db *db.Queries
 }
 
-// New returns a new SystemStore backed by `pgxpool.Pool`
+// New returns a new SystemStore backed by `pgxpool.Pool`.
 func New(pool *pgxpool.Pool) (*SystemStore, error) {
 	as := bindata.Resource(migrations.AssetNames(),
 		func(name string) ([]byte, error) {
@@ -36,7 +36,7 @@ func New(pool *pgxpool.Pool) (*SystemStore, error) {
 	return &SystemStore{db: db.New(pool)}, nil
 }
 
-// InsertTable inserts a new system-wide table
+// InsertTable inserts a new system-wide table.
 func (s *SystemStore) InsertTable(ctx context.Context, uuid uuid.UUID, controller string) error {
 	err := s.db.InsertTable(ctx, db.InsertTableParams{
 		UUID:       uuid,
@@ -50,7 +50,7 @@ func (s *SystemStore) InsertTable(ctx context.Context, uuid uuid.UUID, controlle
 	return nil
 }
 
-// GetTable fetchs a table from its UUID
+// GetTable fetchs a table from its UUID.
 func (s *SystemStore) GetTable(ctx context.Context, uuid uuid.UUID) (sqlstore.Table, error) {
 	table, err := s.db.GetTable(ctx, uuid)
 	if err != nil {
