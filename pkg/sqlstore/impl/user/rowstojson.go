@@ -59,32 +59,40 @@ func getRowsData(rows pgx.Rows, fields []pgproto3.FieldDescription, nColumns int
 }
 
 // do necessary conversions according to the type
-func getValueFromScanArg(arg interface{}) (value interface{}) {
+func getValueFromScanArg(arg interface{}) interface{} {
 	if val, ok := (arg).([]byte); ok {
-		value = string(val)
-		return
+		return string(val)
 	}
 
 	if _, ok := (arg).(pgtype.Value); ok {
 		if val, ok := (arg).(*pgtype.Numeric); ok {
+			if val.Status == pgtype.Null {
+				return nil
+			}
+
 			buf := make([]byte, 0)
 			buf, _ = val.EncodeText(pgtype.NewConnInfo(), buf)
-			value = string(buf)
-			return
+			return string(buf)
 		}
 
 		if val, ok := (arg).(*pgtype.Timestamp); ok {
+			if val.Status == pgtype.Null {
+				return nil
+			}
+
 			buf := make([]byte, 0)
 			buf, _ = val.EncodeText(pgtype.NewConnInfo(), buf)
-			value = string(buf)
-			return
+			return string(buf)
 		}
 
 		if val, ok := (arg).(*pgtype.Timestamptz); ok {
+			if val.Status == pgtype.Null {
+				return nil
+			}
+
 			buf := make([]byte, 0)
 			buf, _ = val.EncodeText(pgtype.NewConnInfo(), buf)
-			value = string(buf)
-			return
+			return string(buf)
 		}
 	}
 
@@ -109,13 +117,13 @@ func getScanArgs(fields []pgproto3.FieldDescription, nColumns int) ([]interface{
 func getTypeFromOID(oid uint32) (t interface{}, err error) {
 	switch oid {
 	case pgtype.Int2OID, pgtype.Int4OID, pgtype.Int8OID:
-		t = new(int)
+		t = new(*int)
 	case pgtype.TextOID, pgtype.VarcharOID, pgtype.BPCharOID, pgtype.DateOID:
-		t = new(string)
+		t = new(*string)
 	case pgtype.BoolOID:
-		t = new(bool)
+		t = new(*bool)
 	case pgtype.Float4OID, pgtype.Float8OID:
-		t = new(float64)
+		t = new(*float64)
 	case pgtype.NumericOID:
 		t = new(pgtype.Numeric)
 	case pgtype.TimestampOID:
