@@ -1,0 +1,25 @@
+linters-settings:
+  misspell:
+    locale: US
+
+linters:
+  enable:
+    - revive
+    - misspell
+    - bodyclose
+    - unconvert
+    - goconst
+    - goimports
+    - unparam
+    - whitespace
+    - godot
+    - lll
+
+issues:
+  exclude-use-default: false
+
+  exclude:
+    - stutters
+
+run:
+  timeout: 30m

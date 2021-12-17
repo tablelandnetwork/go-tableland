@@ -10,10 +10,12 @@ import (
 	"github.com/textileio/go-tableland/pkg/jwt/internal/eth"
 )
 
+// VerifyableSignature represents any verifiable signature data.
 type VerifyableSignature interface {
 	Verify() error
 }
 
+// JWT is a parsed JWT.
 type JWT struct {
 	Type                string
 	Algorhythm          string
@@ -23,6 +25,7 @@ type JWT struct {
 	verifyableSignature VerifyableSignature
 }
 
+// Parse parses a raw JWT string.
 func Parse(token string) (*JWT, error) {
 	parts := strings.Split(token, ".")
 	if len(parts) != 3 {
@@ -89,6 +92,7 @@ func Parse(token string) (*JWT, error) {
 	}, nil
 }
 
+// Verify verifies the JWT claims and contained signature information.
 func (j *JWT) Verify() error {
 	if err := j.Claims.Valid(); err != nil {
 		return fmt.Errorf("validating claims: %v", err)

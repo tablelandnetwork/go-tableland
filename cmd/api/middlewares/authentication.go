@@ -10,32 +10,33 @@ import (
 	"github.com/textileio/go-tableland/pkg/jwt"
 )
 
+// Authentication is middleware that provides JWT authentication.
 func Authentication(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authorization := r.Header.Get("Authorization")
 		if authorization == "" {
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(errors.ServiceError{Message: "no authorization header provided"})
+			_ = json.NewEncoder(w).Encode(errors.ServiceError{Message: "no authorization header provided"})
 			return
 		}
 
 		parts := strings.Split(authorization, "Bearer ")
 		if len(parts) != 2 {
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(errors.ServiceError{Message: "malformed authorization header provided"})
+			_ = json.NewEncoder(w).Encode(errors.ServiceError{Message: "malformed authorization header provided"})
 			return
 		}
 
 		j, err := jwt.Parse(parts[1])
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(errors.ServiceError{Message: fmt.Sprintf("parsing jwt: %v", err)})
+			_ = json.NewEncoder(w).Encode(errors.ServiceError{Message: fmt.Sprintf("parsing jwt: %v", err)})
 			return
 		}
 
 		if err := j.Verify(); err != nil {
 			w.WriteHeader(http.StatusForbidden)
-			json.NewEncoder(w).Encode(errors.ServiceError{Message: fmt.Sprintf("validating jwt: %v", err)})
+			_ = json.NewEncoder(w).Encode(errors.ServiceError{Message: fmt.Sprintf("validating jwt: %v", err)})
 			return
 		}
 

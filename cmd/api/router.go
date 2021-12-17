@@ -10,8 +10,8 @@ type router struct {
 	r *mux.Router
 }
 
-// NewRouter is a Mux HTTP router constructor
-func NewRouter() *router {
+// newRouter is a Mux HTTP router constructor.
+func newRouter() *router {
 	r := mux.NewRouter()
 	return &router{r}
 }

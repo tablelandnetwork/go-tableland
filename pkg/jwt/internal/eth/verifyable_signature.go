@@ -9,12 +9,14 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
+//VerifyableSignature represents an Ethereum verifiable signature.
 type VerifyableSignature struct {
 	address       string
 	signature     string
 	signingTarget string
 }
 
+// NewVerifyableSignature creates a new VerifyableSignature.
 func NewVerifyableSignature(address, signature, signingTarget string) *VerifyableSignature {
 	return &VerifyableSignature{
 		address:       address,
@@ -23,6 +25,7 @@ func NewVerifyableSignature(address, signature, signingTarget string) *Verifyabl
 	}
 }
 
+// Verify verifies the signature data.
 func (v *VerifyableSignature) Verify() error {
 	addressBytes := common.FromHex(v.address)
 	address := common.BytesToAddress(addressBytes)
@@ -52,7 +55,11 @@ func (v *VerifyableSignature) Verify() error {
 	}
 
 	signatureNoRecoverID := signatureBytes[:len(signatureBytes)-1] // remove recovery id
-	verified := crypto.VerifySignature(crypto.FromECDSAPub(sigPublicKeyECDSA), prefixedHash([]byte(v.signingTarget)), signatureNoRecoverID)
+	verified := crypto.VerifySignature(
+		crypto.FromECDSAPub(sigPublicKeyECDSA),
+		prefixedHash([]byte(v.signingTarget)),
+		signatureNoRecoverID,
+	)
 	if !verified {
 		return fmt.Errorf("invalid signature")
 	}

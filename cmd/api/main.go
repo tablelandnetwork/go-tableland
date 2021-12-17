@@ -25,8 +25,15 @@ func main() {
 
 	ctx := context.Background()
 
-	databaseUrl := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable&timezone=UTC", config.DB.User, config.DB.Pass, config.DB.Host, config.DB.Port, config.DB.Name)
-	sqlstore, err := sqlstoreimpl.New(ctx, databaseUrl)
+	databaseURL := fmt.Sprintf(
+		"postgres://%s:%s@%s:%s/%s?sslmode=disable&timezone=UTC",
+		config.DB.User,
+		config.DB.Pass,
+		config.DB.Host,
+		config.DB.Port,
+		config.DB.Name,
+	)
+	sqlstore, err := sqlstoreimpl.New(ctx, databaseURL)
 	if err != nil {
 		panic(err)
 	}
@@ -43,13 +50,15 @@ func main() {
 		panic(err)
 	}
 
-	name, svc := getTablelandService(config, sqlstore, registry)
-	server.RegisterName(name, svc)
+	svc := getTablelandService(config, sqlstore, registry)
+	if err := server.RegisterName("tableland", svc); err != nil {
+		panic(err)
+	}
 
 	systemService := systemimpl.NewSystemSQLStoreService(sqlstore)
 	systemController := controllers.NewSystemController(systemService)
 
-	router := NewRouter()
+	router := newRouter()
 	router.Post("/rpc", func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Set("Access-Control-Allow-Origin", "*")
 		rw.Header().Set("Access-Control-Allow-Headers", "*")
@@ -64,13 +73,16 @@ func main() {
 	}
 }
 
-func getTablelandService(conf *config, store sqlstore.SQLStore, registry *ethereum.Client) (string, tableland.Tableland) {
+func getTablelandService(
+	conf *config,
+	store sqlstore.SQLStore,
+	registry *ethereum.Client,
+) tableland.Tableland {
 	switch conf.Impl {
 	case "mesa":
-		return tableland.ServiceName, impl.NewTablelandMesa(store, registry)
+		return impl.NewTablelandMesa(store, registry)
 	case "mock":
-		return tableland.ServiceName, new(impl.TablelandMock)
-
+		return new(impl.TablelandMock)
 	}
-	return tableland.ServiceName, new(impl.TablelandMock)
+	return new(impl.TablelandMock)
 }

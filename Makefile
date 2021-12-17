@@ -52,8 +52,14 @@ publish:
 	docker push us-west1-docker.pkg.dev/${GCP_PROJECT}/textile/tableland/api:sha-$(HEAD_SHORT)
 .PHONY: publish
 
-# Tests
+# Test
 
-tests:
+test:
 	go test -v ./...
-.PHONY: tests
+.PHONY: test
+
+# Lint
+
+lint:
+	go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.43.0 run
+.PHONYY: lint

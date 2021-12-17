@@ -46,7 +46,9 @@ func getRowsData(rows pgx.Rows, fields []pgproto3.FieldDescription, nColumns int
 			return nil, err
 		}
 
-		rows.Scan(scanArgs...)
+		if err := rows.Scan(scanArgs...); err != nil {
+			return nil, err
+		}
 		rowData := make([]interface{}, nColumns)
 		for i := 0; i < nColumns; i++ {
 			rowData[i] = getValueFromScanArg(scanArgs[i])
@@ -58,7 +60,7 @@ func getRowsData(rows pgx.Rows, fields []pgproto3.FieldDescription, nColumns int
 	return rowsData, nil
 }
 
-// do necessary conversions according to the type
+// do necessary conversions according to the type.
 func getValueFromScanArg(arg interface{}) interface{} {
 	if val, ok := (arg).([]byte); ok {
 		return string(val)
@@ -122,8 +124,8 @@ func getScanArgs(fields []pgproto3.FieldDescription, nColumns int) ([]interface{
 	return scanArgs, nil
 }
 
-// given the column type OID find the corresponding Golang's type (it can be either a native or a custom type)
-// TODO: add more types
+// given the column type OID find the corresponding Golang's type (it can be either a native or a custom type).
+// TODO: add more types.
 func getTypeFromOID(oid uint32) (t interface{}, err error) {
 	switch oid {
 	case pgtype.Int2OID, pgtype.Int4OID, pgtype.Int8OID:
