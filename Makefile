@@ -52,11 +52,11 @@ publish:
 	docker push us-west1-docker.pkg.dev/${GCP_PROJECT}/textile/tableland/api:sha-$(HEAD_SHORT)
 .PHONY: publish
 
-# Tests
+# Test
 
-tests:
+test:
 	go test -v ./...
-.PHONY: tests
+.PHONY: test
 
 # Lint
 

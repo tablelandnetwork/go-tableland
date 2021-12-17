@@ -104,8 +104,7 @@ func requireAuthGas(t *testing.T, backend *backends.SimulatedBackend, auth *bind
 func requireNewAuth(t *testing.T) (*ecdsa.PrivateKey, *bind.TransactOpts) {
 	key, err := crypto.GenerateKey()
 	require.NoError(t, err)
-	auth, err := bind.NewKeyedTransactorWithChainID(key, nil)
-	require.NoError(t, err)
+	auth := bind.NewKeyedTransactor(key) //nolint
 	return key, auth
 }
 
