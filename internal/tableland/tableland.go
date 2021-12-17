@@ -1,11 +1,15 @@
 package tableland
 
-import "context"
+import (
+	"context"
+)
 
 const ServiceName = "tableland"
 
-type SQLArgs struct {
-	Statement string
+type Request struct {
+	TableId    string
+	Controller string
+	Statement  string
 }
 
 type Response struct {
@@ -14,7 +18,7 @@ type Response struct {
 }
 
 type Tableland interface {
-	CreateTable(context.Context, SQLArgs) (Response, error)
-	UpdateTable(context.Context, SQLArgs) (Response, error)
-	RunSQL(context.Context, SQLArgs) (Response, error)
+	CreateTable(context.Context, Request) (Response, error)
+	UpdateTable(context.Context, Request) (Response, error)
+	RunSQL(context.Context, Request) (Response, error)
 }
