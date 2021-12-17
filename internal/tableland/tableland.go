@@ -7,7 +7,7 @@ import (
 const ServiceName = "tableland"
 
 type Request struct {
-	Table      string
+	TableId    string
 	Controller string
 	Statement  string
 }

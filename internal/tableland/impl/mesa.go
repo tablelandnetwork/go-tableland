@@ -27,8 +27,19 @@ func NewTablelandMesa(store sqlstore.SQLStore, registry tableregistry.TableRegis
 }
 
 func (t *TablelandMesa) CreateTable(ctx context.Context, req tableland.Request) (tableland.Response, error) {
+	uuid, err := uuid.Parse(req.TableId)
+	if err != nil {
+		return tableland.Response{Message: "Failed to parse uuid"}, err
+	}
+
 	if strings.Contains(strings.ToLower(req.Statement), "create") {
-		err := t.store.Write(ctx, req.Statement)
+		// TODO: the two operations should be put inside a transaction
+		err := t.store.InsertTable(ctx, uuid, req.Controller)
+		if err != nil {
+			return tableland.Response{Message: err.Error()}, err
+		}
+
+		err = t.store.Write(ctx, req.Statement)
 		if err != nil {
 			return tableland.Response{Message: err.Error()}, err
 		}
@@ -44,7 +55,7 @@ func (t *TablelandMesa) UpdateTable(ctx context.Context, req tableland.Request) 
 }
 
 func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.Request) (tableland.Response, error) {
-	uuid, err := uuid.Parse(req.Table)
+	uuid, err := uuid.Parse(req.TableId)
 	if err != nil {
 		return tableland.Response{Message: "Failed to parse uuid"}, err
 	}
