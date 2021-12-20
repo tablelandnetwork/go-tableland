@@ -20,6 +20,30 @@ func (q *Queries) GetTable(ctx context.Context, uuid uuid.UUID) (SystemTable, er
 	return i, err
 }
 
+const getTablesByController = `-- name: GetTablesByController :many
+SELECT uuid, controller, created_at FROM system_tables WHERE controller = $1
+`
+
+func (q *Queries) GetTablesByController(ctx context.Context, controller string) ([]SystemTable, error) {
+	rows, err := q.db.Query(ctx, getTablesByController, controller)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SystemTable
+	for rows.Next() {
+		var i SystemTable
+		if err := rows.Scan(&i.UUID, &i.Controller, &i.CreatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const insertTable = `-- name: InsertTable :exec
 INSERT INTO system_tables (
     uuid,

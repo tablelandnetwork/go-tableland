@@ -13,6 +13,7 @@ import (
 // Authentication is middleware that provides JWT authentication.
 func Authentication(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-type", "application/json")
 		authorization := r.Header.Get("Authorization")
 		if authorization == "" {
 			w.WriteHeader(http.StatusBadRequest)

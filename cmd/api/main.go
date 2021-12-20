@@ -59,13 +59,13 @@ func main() {
 	systemController := controllers.NewSystemController(systemService)
 
 	router := newRouter()
+	router.Use(middlewares.CORS)
 	router.Post("/rpc", func(rw http.ResponseWriter, r *http.Request) {
-		rw.Header().Set("Access-Control-Allow-Origin", "*")
-		rw.Header().Set("Access-Control-Allow-Headers", "*")
 		server.ServeHTTP(rw, r)
 	}, middlewares.Authentication)
 
-	router.Get("/tables/{uuid}", systemController.GetTables)
+	router.Get("/tables/{uuid}", systemController.GetTable)
+	router.Get("/tables/controller/{address}", systemController.GetTablesByController)
 
 	err = router.Serve(":" + config.HTTP.Port)
 	if err != nil {

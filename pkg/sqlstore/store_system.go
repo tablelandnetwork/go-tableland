@@ -10,4 +10,5 @@ import (
 type SystemStore interface {
 	InsertTable(ctx context.Context, uuid uuid.UUID, controller string) (err error)
 	GetTable(ctx context.Context, uuid uuid.UUID) (Table, error)
+	GetTablesByController(ctx context.Context, controller string) ([]Table, error)
 }

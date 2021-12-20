@@ -10,4 +10,5 @@ import (
 // SystemService defines what system operations can be done.
 type SystemService interface {
 	GetTableMetadata(context.Context, uuid.UUID) (sqlstore.TableMetadata, error)
+	GetTablesByController(context.Context, string) ([]sqlstore.Table, error)
 }
