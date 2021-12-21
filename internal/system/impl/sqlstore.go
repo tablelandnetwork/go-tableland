@@ -40,7 +40,9 @@ func (s *SystemSQLStoreService) GetTableMetadata(ctx context.Context, uuid uuid.
 }
 
 // GetTablesByController returns table's fetched from SQLStore by controller address.
-func (s *SystemSQLStoreService) GetTablesByController(ctx context.Context, controller string) ([]sqlstore.Table, error) {
+func (s *SystemSQLStoreService) GetTablesByController(
+	ctx context.Context,
+	controller string) ([]sqlstore.Table, error) {
 	tables, err := s.store.GetTablesByController(ctx, controller)
 	if err != nil {
 		return []sqlstore.Table{}, fmt.Errorf("error fetching the tables: %s", err)
