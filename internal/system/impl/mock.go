@@ -34,6 +34,11 @@ func (*SystemMockService) GetTableMetadata(ctx context.Context, uuid uuid.UUID) 
 	}, nil
 }
 
+// GetTablesByController returns table's fetched from SQLStore by controller address.
+func (s *SystemMockService) GetTablesByController(ctx context.Context, controller string) ([]sqlstore.Table, error) {
+	return []sqlstore.Table{}, nil
+}
+
 // SystemMockErrService is a dummy implementation that returns a fixed value.
 type SystemMockErrService struct {
 }
@@ -46,4 +51,9 @@ func NewSystemMockErrService() system.SystemService {
 // GetTableMetadata returns a fixed value for testing and demo purposes.
 func (*SystemMockErrService) GetTableMetadata(ctx context.Context, uuid uuid.UUID) (sqlstore.TableMetadata, error) {
 	return sqlstore.TableMetadata{}, errors.New("table not found")
+}
+
+// GetTablesByController returns table's fetched from SQLStore by controller address.
+func (s *SystemMockErrService) GetTablesByController(ctx context.Context, controller string) ([]sqlstore.Table, error) {
+	return []sqlstore.Table{}, errors.New("no table found")
 }

@@ -13,21 +13,30 @@ type router struct {
 // newRouter is a Mux HTTP router constructor.
 func newRouter() *router {
 	r := mux.NewRouter()
+	r.PathPrefix("/").Methods(http.MethodOptions) // accept OPTIONS on all routes and do nothing
 	return &router{r}
 }
 
+// Get creates a subroute on the specified URI that only accepts GET. You can provide specific middlewares.
 func (r *router) Get(uri string, f func(http.ResponseWriter, *http.Request), mid ...mux.MiddlewareFunc) {
 	sub := r.r.Path(uri).Subrouter()
-	sub.HandleFunc("", f).Methods(http.MethodGet, http.MethodOptions)
+	sub.HandleFunc("", f).Methods(http.MethodGet)
 	sub.Use(mid...)
 }
 
+// Post creates a subroute on the specified URI that only accepts POST. You can provide specific middlewares.
 func (r *router) Post(uri string, f func(http.ResponseWriter, *http.Request), mid ...mux.MiddlewareFunc) {
 	sub := r.r.Path(uri).Subrouter()
-	sub.HandleFunc("", f).Methods(http.MethodPost, http.MethodOptions)
+	sub.HandleFunc("", f).Methods(http.MethodPost)
 	sub.Use(mid...)
 }
 
+// Use adds middlewares to all routes. Should be used when a middleware should be execute all all routes (e.g. CORS).
+func (r *router) Use(mid ...mux.MiddlewareFunc) {
+	r.r.Use(mid...)
+}
+
+// Serve starts listening on the specified port.
 func (r *router) Serve(port string) error {
 	return http.ListenAndServe(port, r.r)
 }

@@ -21,7 +21,7 @@ func TestSystemControllerMock(t *testing.T) {
 	systemController := NewSystemController(systemService)
 
 	router := mux.NewRouter()
-	router.HandleFunc("/tables/{uuid}", systemController.GetTables)
+	router.HandleFunc("/tables/{uuid}", systemController.GetTable)
 
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
@@ -46,7 +46,7 @@ func TestInvalidUUID(t *testing.T) {
 	systemController := NewSystemController(systemService)
 
 	router := mux.NewRouter()
-	router.HandleFunc("/tables/{uuid}", systemController.GetTables)
+	router.HandleFunc("/tables/{uuid}", systemController.GetTable)
 
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
@@ -67,7 +67,7 @@ func TestTableNotFoundMock(t *testing.T) {
 	systemController := NewSystemController(systemService)
 
 	router := mux.NewRouter()
-	router.HandleFunc("/tables/{uuid}", systemController.GetTables)
+	router.HandleFunc("/tables/{uuid}", systemController.GetTable)
 
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)

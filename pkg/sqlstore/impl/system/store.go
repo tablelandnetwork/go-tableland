@@ -59,6 +59,20 @@ func (s *SystemStore) GetTable(ctx context.Context, uuid uuid.UUID) (sqlstore.Ta
 	return sqlstore.Table{UUID: table.UUID, Controller: table.Controller, CreatedAt: table.CreatedAt}, err
 }
 
+// GetTablesByController fetchs a table from controller address.
+func (s *SystemStore) GetTablesByController(ctx context.Context, controller string) ([]sqlstore.Table, error) {
+	sqlcTables, err := s.db.GetTablesByController(ctx, controller)
+	if err != nil {
+		return []sqlstore.Table{}, fmt.Errorf("failed to get the table: %s", err)
+	}
+
+	tables := make([]sqlstore.Table, 0)
+	for _, t := range sqlcTables {
+		tables = append(tables, sqlstore.Table{UUID: t.UUID, Controller: t.Controller, CreatedAt: t.CreatedAt})
+	}
+	return tables, err
+}
+
 // executeMigration run db migrations and return a ready to use connection to the Postgres database.
 func executeMigration(postgresURI string, as *bindata.AssetSource) error {
 	// To avoid dealing with time zone issues, we just enforce UTC timezone

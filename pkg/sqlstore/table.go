@@ -8,9 +8,9 @@ import (
 
 // Table represents a system-wide table stored in Tableland.
 type Table struct {
-	UUID       uuid.UUID // table id
-	Controller string    // controller address
-	CreatedAt  time.Time
+	UUID       uuid.UUID `json:"uuid"`       // table id
+	Controller string    `json:"controller"` // controller address
+	CreatedAt  time.Time `json:"created_at"`
 }
 
 // TableMetadata represents table metadata (OpenSea standard).
