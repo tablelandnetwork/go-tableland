@@ -35,16 +35,21 @@ func (t *TablelandMesa) CreateTable(ctx context.Context, req tableland.Request) 
 	}
 
 	if strings.Contains(strings.ToLower(req.Statement), "create") {
-		// TODO: the two operations should be put inside a transaction
-		err := t.store.InsertTable(ctx, uuid, req.Controller)
-		if err != nil {
+		if err := t.store.Begin(ctx); err != nil {
 			return tableland.Response{Message: err.Error()}, err
 		}
 
-		err = t.store.Write(ctx, req.Statement)
-		if err != nil {
+		if err := t.createTable(ctx, uuid, req.Controller, req.Statement); err != nil {
+			if err := t.store.Rollback(ctx); err != nil {
+				return tableland.Response{Message: err.Error()}, err
+			}
 			return tableland.Response{Message: err.Error()}, err
 		}
+
+		if err := t.store.Commit(ctx); err != nil {
+			return tableland.Response{Message: err.Error()}, err
+		}
+
 		return tableland.Response{Message: "Table created"}, nil
 	}
 
@@ -86,8 +91,7 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.Request) (tabl
 }
 
 func (t *TablelandMesa) runInsertOrUpdate(ctx context.Context, req tableland.Request) (tableland.Response, error) {
-	err := t.store.Write(ctx, req.Statement)
-	if err != nil {
+	if err := t.store.Write(ctx, req.Statement); err != nil {
 		return tableland.Response{Message: err.Error()}, err
 	}
 	return tableland.Response{Message: "Command executed"}, nil
@@ -114,4 +118,16 @@ func (t *TablelandMesa) uuidToBigInt(uuid uuid.UUID) *big.Int {
 	var n big.Int
 	n.SetString(strings.Replace(uuid.String(), "-", "", 4), 16)
 	return &n
+}
+
+func (t *TablelandMesa) createTable(ctx context.Context, uuid uuid.UUID, controller string, stmt string) error {
+	if err := t.store.Write(ctx, stmt); err != nil {
+		return err
+	}
+
+	if err := t.store.InsertTable(ctx, uuid, controller); err != nil {
+		return err
+	}
+
+	return nil
 }

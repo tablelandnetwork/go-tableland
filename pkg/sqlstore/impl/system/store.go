@@ -11,34 +11,34 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/database/postgres" // triggers something?
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system/internal/db"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system/migrations"
+	"github.com/textileio/go-tableland/pkg/sqlstore/impl/transactor"
 )
 
 // SystemStore provides a persistent layer for storage requests.
 type SystemStore struct {
-	db *db.Queries
+	t *transactor.Transactor
 }
 
 // New returns a new SystemStore backed by `pgxpool.Pool`.
-func New(pool *pgxpool.Pool) (*SystemStore, error) {
+func New(t *transactor.Transactor) (*SystemStore, error) {
 	as := bindata.Resource(migrations.AssetNames(),
 		func(name string) ([]byte, error) {
 			return migrations.Asset(name)
 		})
-	err := executeMigration(pool.Config().ConnString(), as)
+	err := executeMigration(t.ConnString(), as)
 	if err != nil {
 		return nil, fmt.Errorf("initializing db connection: %s", err)
 	}
 
-	return &SystemStore{db: db.New(pool)}, nil
+	return &SystemStore{t}, nil
 }
 
 // InsertTable inserts a new system-wide table.
 func (s *SystemStore) InsertTable(ctx context.Context, uuid uuid.UUID, controller string) error {
-	err := s.db.InsertTable(ctx, db.InsertTableParams{
+	err := db.New(s.t.DBTX()).InsertTable(ctx, db.InsertTableParams{
 		UUID:       uuid,
 		Controller: controller,
 	})
@@ -52,7 +52,7 @@ func (s *SystemStore) InsertTable(ctx context.Context, uuid uuid.UUID, controlle
 
 // GetTable fetchs a table from its UUID.
 func (s *SystemStore) GetTable(ctx context.Context, uuid uuid.UUID) (sqlstore.Table, error) {
-	table, err := s.db.GetTable(ctx, uuid)
+	table, err := db.New(s.t.DBTX()).GetTable(ctx, uuid)
 	if err != nil {
 		return sqlstore.Table{}, fmt.Errorf("failed to get the table: %s", err)
 	}
@@ -61,7 +61,7 @@ func (s *SystemStore) GetTable(ctx context.Context, uuid uuid.UUID) (sqlstore.Ta
 
 // GetTablesByController fetchs a table from controller address.
 func (s *SystemStore) GetTablesByController(ctx context.Context, controller string) ([]sqlstore.Table, error) {
-	sqlcTables, err := s.db.GetTablesByController(ctx, controller)
+	sqlcTables, err := db.New(s.t.DBTX()).GetTablesByController(ctx, controller)
 	if err != nil {
 		return []sqlstore.Table{}, fmt.Errorf("failed to get the table: %s", err)
 	}

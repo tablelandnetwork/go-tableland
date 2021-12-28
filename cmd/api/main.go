@@ -33,7 +33,7 @@ func main() {
 		config.DB.Port,
 		config.DB.Name,
 	)
-	sqlstore, err := sqlstoreimpl.New(ctx, databaseURL)
+	sqlstore, err := sqlstoreimpl.New(ctx, databaseURL, true)
 	if err != nil {
 		panic(err)
 	}

@@ -17,7 +17,7 @@ func TestSystemSQLStoreService(t *testing.T) {
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	store, err := impl.New(ctx, url)
+	store, err := impl.New(ctx, url, true)
 	require.NoError(t, err)
 
 	// populate the system_tables with a table

@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/require"
+	"github.com/textileio/go-tableland/pkg/sqlstore/impl/transactor"
 	"github.com/textileio/go-tableland/tests"
 )
 
@@ -19,7 +20,7 @@ func TestSystemStore(t *testing.T) {
 	pool, err := pgxpool.Connect(ctx, url)
 	require.NoError(t, err)
 
-	store, err := New(pool)
+	store, err := New(transactor.New(pool))
 	require.NoError(t, err)
 
 	_, err = store.GetTable(ctx, uuid.New())
