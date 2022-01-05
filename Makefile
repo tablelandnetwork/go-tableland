@@ -5,13 +5,15 @@ PLATFORM ?= $(shell uname -m)
 
 BIN_BUILD_FLAGS?=CGO_ENABLED=0
 BIN_VERSION?="git"
-GOVVV_FLAGS=$(shell $(GOVVV) -flags -version $(BIN_VERSION) -pkg $(shell go list ./buildinfo))
 
 HTTP_PORT ?= 8080
 GCP_PROJECT=textile-310716
 
 GO_BINDATA=go run github.com/go-bindata/go-bindata/v3/go-bindata@v3.1.3
 SQLC=go run github.com/kyleconroy/sqlc/cmd/sqlc@v1.11.0
+GOVVV=go run github.com/ahmetb/govvv@v0.3.0 
+
+GOVVV_FLAGS=$(shell $(GOVVV) -flags -version $(BIN_VERSION) -pkg $(shell go list ./buildinfo))
 
 # Code generation
 
@@ -39,7 +41,7 @@ psql:
 
 # Building and publishing image to GCP
 
-build-api: $(GOVVV)
+build-api:
 	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/api
 .PHONY: build-api
 

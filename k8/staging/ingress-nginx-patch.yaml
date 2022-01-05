@@ -1,0 +1,20 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: tableland-ingress-nginx
+spec:
+  # tls:
+  #   - secretName: tableland-tls-cf-secret
+  #     hosts:
+  #       - staging.tableland.com
+  rules:
+    - host: staging.tableland.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port:
+                  number: 8080

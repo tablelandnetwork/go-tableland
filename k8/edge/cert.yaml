@@ -1,0 +1,7 @@
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: tableland-edge-textile-dev
+spec:
+  domains:
+    - tableland.edge.textile.dev
