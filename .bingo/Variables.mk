@@ -23,9 +23,9 @@ $(BINGO): $(BINGO_DIR)/bingo.mod
 	@echo "(re)installing $(GOBIN)/bingo-v0.5.1"
 	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=bingo.mod -o=$(GOBIN)/bingo-v0.5.1 "github.com/bwplotka/bingo"
 
-GOVVV := $(GOBIN)/govvv-v0.3.0
-$(GOVVV): $(BINGO_DIR)/govvv.mod
+KUSTOMIZE := $(GOBIN)/kustomize-v4.4.1
+$(KUSTOMIZE): $(BINGO_DIR)/kustomize.mod
 	@# Install binary/ries using Go 1.14+ build command. This is using bwplotka/bingo-controlled, separate go module with pinned dependencies.
-	@echo "(re)installing $(GOBIN)/govvv-v0.3.0"
-	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=govvv.mod -o=$(GOBIN)/govvv-v0.3.0 "github.com/ahmetb/govvv"
+	@echo "(re)installing $(GOBIN)/kustomize-v4.4.1"
+	@cd $(BINGO_DIR) && $(GO) build -mod=mod -modfile=kustomize.mod -o=$(GOBIN)/kustomize-v4.4.1 "sigs.k8s.io/kustomize/kustomize/v4"
 

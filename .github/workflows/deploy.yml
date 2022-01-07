@@ -1,0 +1,97 @@
+name: Deploy
+
+concurrency:
+  group: deploy-${{github.ref}}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - "**"
+  release:
+    types:
+      - created
+
+env:
+  GKE_REGION: us-west1
+  GKE_CLUSTER: main
+  CONTAINER_REGISTRY: us-west1-docker.pkg.dev
+
+jobs:
+  deploy:
+    if: github.event_name == 'release' || github.ref == 'refs/heads/main' || contains(github.event.head_commit.message, '[shipit]')
+    name: Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dump GitHub context
+        env:
+          GITHUB_CONTEXT: ${{ toJSON(github) }}
+        run: echo "$GITHUB_CONTEXT"
+
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: v1.17
+
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Prepare
+        id: prep
+        run: |
+          if [[ ${{ github.ref }} == refs/heads/main ]]; then
+            echo "::set-output name=deployment::staging"
+          else
+            echo "::set-output name=deployment::edge"
+          fi
+          echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
+
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Cache Docker layers
+        uses: actions/cache@v2
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Buildx patch
+        run: |
+          Dockfiles="$(find $1  -name 'Dockerfile')"
+          d=$(date +%s)
+          i=0
+          for file in $Dockfiles; do
+            i=$(( i + 1 ))
+            echo "patching timestamp for $file"
+            touch -d @$(( d + i )) "$file"
+          done
+
+      - name: Install Cloud SDK
+        uses: google-github-actions/setup-gcloud@v0
+        with:
+          version: 367.0.0
+          service_account_key: ${{ secrets.GKE_SA_KEY }}
+          project_id: ${{ secrets.GKE_PROJECT }}
+      
+      - name: Configure Docker
+        run: gcloud auth configure-docker $CONTAINER_REGISTRY
+
+      - name: Build and push api
+        uses: docker/build-push-action@v2
+        with:
+          context: ./
+          file: ./cmd/api/Dockerfile
+          builder: ${{ steps.buildx.outputs.name }}
+          push: true
+          tags: ${{ env.CONTAINER_REGISTRY }}/${{ secrets.GKE_PROJECT }}/textile/tableland/api:sha-${{ steps.prep.outputs.sha_short }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache
+
+      - name: Deploy to GKE
+        working-directory: ./k8
+        run: |
+          gcloud container clusters get-credentials $GKE_CLUSTER --region $GKE_REGION --project ${{ secrets.GKE_PROJECT }}
+          DEPLOYMENT=${{ steps.prep.outputs.deployment }} IMAGE=$CONTAINER_REGISTRY/${{ secrets.GKE_PROJECT }}/textile/tableland/api:sha-${{ steps.prep.outputs.sha_short }} make deploy

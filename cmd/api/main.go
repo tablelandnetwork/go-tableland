@@ -66,6 +66,8 @@ func main() {
 
 	router.Get("/tables/{uuid}", systemController.GetTable)
 	router.Get("/tables/controller/{address}", systemController.GetTablesByController)
+	router.Get("/healthz", healthHandler)
+	router.Get("/health", healthHandler)
 
 	err = router.Serve(":" + config.HTTP.Port)
 	if err != nil {
@@ -85,4 +87,8 @@ func getTablelandService(
 		return new(impl.TablelandMock)
 	}
 	return new(impl.TablelandMock)
+}
+
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
 }
