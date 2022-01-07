@@ -16,8 +16,11 @@ services:
       - DB_PASS=dev_password
       - DB_NAME=dev_database
       - DB_USER=dev_user
+      - METRICS_PORT=9090
+      - OTEL_SERVICE_NAME=tableland:api # this is just to the unknown_service from the metrics label
     ports:
       - "127.0.0.1:8080:8080"
+      - "127.0.0.1:9090:9090"
     security_opt:
       - "seccomp:unconfined"
     cap_add:

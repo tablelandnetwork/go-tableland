@@ -13,6 +13,7 @@ import (
 	systemimpl "github.com/textileio/go-tableland/internal/system/impl"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/internal/tableland/impl"
+	"github.com/textileio/go-tableland/pkg/metrics"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
@@ -55,7 +56,7 @@ func main() {
 		panic(err)
 	}
 
-	systemService := systemimpl.NewSystemSQLStoreService(sqlstore)
+	systemService := systemimpl.NewInstrumentedSystemSQLStoreService(systemimpl.NewSystemSQLStoreService(sqlstore))
 	systemController := controllers.NewSystemController(systemService)
 
 	router := newRouter()
@@ -69,8 +70,11 @@ func main() {
 	router.Get("/healthz", healthHandler)
 	router.Get("/health", healthHandler)
 
-	err = router.Serve(":" + config.HTTP.Port)
-	if err != nil {
+	if err := metrics.SetupInstrumentation(":" + config.Metrics.Port); err != nil {
+		panic(err)
+	}
+
+	if err := router.Serve(":" + config.HTTP.Port); err != nil {
 		panic(err)
 	}
 }
@@ -82,7 +86,8 @@ func getTablelandService(
 ) tableland.Tableland {
 	switch conf.Impl {
 	case "mesa":
-		return impl.NewTablelandMesa(store, registry)
+		mesa := impl.NewTablelandMesa(store, registry)
+		return impl.NewInstrumentedTablelandMesa(mesa)
 	case "mock":
 		return new(impl.TablelandMock)
 	}
