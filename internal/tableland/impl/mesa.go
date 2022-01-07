@@ -64,6 +64,10 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.Request) (tabl
 		return tableland.Response{Message: "Failed to parse uuid"}, err
 	}
 
+	if strings.Contains(strings.ToLower(req.Statement), "select") {
+		return t.runSelect(ctx, req)
+	}
+
 	isAuthorized, err := t.isAuthorized(ctx, req.Controller, uuid)
 	if err != nil {
 		return tableland.Response{Message: "Failed to check authorization"}, err
@@ -76,10 +80,6 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.Request) (tabl
 	if strings.Contains(strings.ToLower(req.Statement), "insert") ||
 		strings.Contains(strings.ToLower(req.Statement), "update") {
 		return t.runInsertOrUpdate(ctx, req)
-	}
-
-	if strings.Contains(strings.ToLower(req.Statement), "select") {
-		return t.runSelect(ctx, req)
 	}
 
 	return tableland.Response{Message: "Invalid command"}, nil
