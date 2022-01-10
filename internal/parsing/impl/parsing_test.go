@@ -30,12 +30,16 @@ func TestReadQuery(t *testing.T) {
 
 		// Check top-statement is only SELECT.
 		{name: "create", query: "create table foo (bar int)", expectedErrType: &parsing.ErrNoTopLevelSelect{}},
-		{name: "update", query: "update table foo set bar=1", expectedErrType: &parsing.ErrNoTopLevelSelect{}},
+		{name: "update", query: "update foo set bar=1", expectedErrType: &parsing.ErrNoTopLevelSelect{}},
 		{name: "drop", query: "drop table foo", expectedErrType: &parsing.ErrNoTopLevelSelect{}},
+
+		// Check no FROM SHARE/UPDATE
+		{name: "for share", query: "select * from foo for share", expectedErrType: &parsing.ErrNoForUpdateOrShare{}},
+		{name: "for update", query: "select * from foo for update", expectedErrType: &parsing.ErrNoForUpdateOrShare{}},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(tc testCase) func(t *testing.T) {
+	for _, it := range tests {
+		t.Run(it.name, func(tc testCase) func(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
 				parser := postgresparser.New()
@@ -44,9 +48,8 @@ func TestReadQuery(t *testing.T) {
 					require.NoError(t, err)
 					return
 				}
-				require.Error(t, err)
-				require.ErrorAs(t, err, &tc.expectedErrType)
+				require.IsType(t, tc.expectedErrType, err)
 			}
-		}(tc))
+		}(it))
 	}
 }

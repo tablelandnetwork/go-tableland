@@ -1,6 +1,8 @@
 package impl
 
 import (
+	"fmt"
+
 	pg_query "github.com/pganalyze/pg_query_go/v2"
 	"github.com/textileio/go-tableland/internal/parsing"
 )
@@ -37,6 +39,10 @@ func (pp *PostgresParser) ValidateReadQuery(query string) error {
 		return err
 	}
 
+	if err := pp.checkNoForUpdateOrShare(parsed.Stmts[0].Stmt.GetSelectStmt()); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -50,6 +56,17 @@ func (pp *PostgresParser) checkSingleStatement(parsed *pg_query.ParseResult) err
 func (pp *PostgresParser) checkTopLevelSelect(node *pg_query.Node) error {
 	if node.GetSelectStmt() == nil {
 		return &parsing.ErrNoTopLevelSelect{}
+	}
+	return nil
+}
+
+func (pp *PostgresParser) checkNoForUpdateOrShare(node *pg_query.SelectStmt) error {
+	if node == nil {
+		return fmt.Errorf("invalid select statement node")
+	}
+
+	if len(node.LockingClause) > 0 {
+		return &parsing.ErrNoForUpdateOrShare{}
 	}
 	return nil
 }

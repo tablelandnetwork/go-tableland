@@ -9,30 +9,35 @@ type Parser interface {
 	ValidateReadQuery(query string) error
 }
 
-// ErrInvalidSyntax is an error produced when parsing an SQL query.
+// ErrInvalidSyntax is an error returned when parsing the query.
 // The InternalError attribute has the underlying parser error when parsing the query.
 type ErrInvalidSyntax struct {
 	InternalError error
 }
 
-func (eis *ErrInvalidSyntax) Error() string {
-	return fmt.Sprintf("unable to parse the query: %s", eis.InternalError)
+func (e *ErrInvalidSyntax) Error() string {
+	return fmt.Sprintf("unable to parse the query: %s", e.InternalError)
 }
 
-// ErrNoSingleStatement is an error produced when parsing an SQL query detects
-// zero or more than one statement.
-type ErrNoSingleStatement struct {
-}
+// ErrNoSingleStatement is an error returned when there isn't a single statement.
+type ErrNoSingleStatement struct{}
 
-func (eis *ErrNoSingleStatement) Error() string {
+func (e *ErrNoSingleStatement) Error() string {
 	return "the query contains zero or more than one statement"
 }
 
-// ErrNoTopLevelSelect is an error produced when parsing an SQL query detects
-// that the query doesn't contain a top-level SELECT statement.
-type ErrNoTopLevelSelect struct {
+// ErrNoTopLevelSelect is an error returned when the top-level statement isn't
+// a SELECT.
+type ErrNoTopLevelSelect struct{}
+
+func (e *ErrNoTopLevelSelect) Error() string {
+	return "the query isn't a top-level SELECT statement"
 }
 
-func (eis *ErrNoTopLevelSelect) Error() string {
-	return "the query isn't a top-level SELECT statement"
+// ErrNoForUpdateOrShare is an error returned when a SELECT statements use
+// a FOR UPDATE/SHARE clause.
+type ErrNoForUpdateOrShare struct{}
+
+func (e *ErrNoForUpdateOrShare) Error() string {
+	return "FOR UPDATE/SHARE isn't allowed"
 }
