@@ -38,16 +38,14 @@ func (pp *PostgresParser) ValidateRunSQL(query string) error {
 		return err
 	}
 
-	/*
-		stmt := parsed.Stmts[0].Stmt
-		if err := pp.checkTopLevelUpdateInsertDelete(stmtl); err != nil {
-			return err
-		}
-	*/
+	stmt := parsed.Stmts[0].Stmt
+	if err := pp.checkTopLevelUpdateInsertDelete(stmt); err != nil {
+		return err
+	}
 
-	//if err := pp.checkNoReturningClause(); err != nil {
-	//	return err
-	//}
+	if err := pp.checkNoReturningClause(stmt); err != nil {
+		return err
+	}
 
 	// DELETEs //
 	// TODO: disallow RETURNING in UPDATE.
@@ -64,10 +62,6 @@ func (pp *PostgresParser) ValidateRunSQL(query string) error {
 	// TODO: disallow internal tables referencing.
 	// TODO: disallow non-deterministic.
 
-	insertStmt := parsed.Stmts[0].Stmt.GetInsertStmt()
-	if err := pp.checkNoNonDeterministicFunctions(insertStmt); err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -132,6 +126,29 @@ func (pp *PostgresParser) checkNoForUpdateOrShare(node *pg_query.SelectStmt) err
 	return nil
 }
 
+func (pp *PostgresParser) checkNoReturningClause(node *pg_query.Node) error {
+	if node == nil {
+		return fmt.Errorf("invalid select statement node")
+	}
+
+	if updateStmt := node.GetUpdateStmt(); updateStmt != nil {
+		if len(updateStmt.ReturningList) > 0 {
+			return &parsing.ErrReturningClause{}
+		}
+	} else if insertStmt := node.GetInsertStmt(); insertStmt != nil {
+		if len(insertStmt.ReturningList) > 0 {
+			return &parsing.ErrReturningClause{}
+		}
+	} else if deleteStmt := node.GetDeleteStmt(); deleteStmt != nil {
+		if len(deleteStmt.ReturningList) > 0 {
+			return &parsing.ErrReturningClause{}
+		}
+	} else {
+		return fmt.Errorf("unexpected statement")
+	}
+	return nil
+}
+
 func (pp *PostgresParser) checkNoSystemTablesReferencing(fromClauseNodes []*pg_query.Node) error {
 	for _, fcn := range fromClauseNodes {
 		// 1. If is referencing a direct table, do the prefix check.
@@ -152,19 +169,6 @@ func (pp *PostgresParser) checkNoSystemTablesReferencing(fromClauseNodes []*pg_q
 			}
 		}
 		return pp.checkNoSystemTablesReferencing(selectStmt.FromClause)
-	}
-
-	return nil
-}
-
-func (pp *PostgresParser) checkNoNonDeterministicFunctions(node *pg_query.InsertStmt) error {
-	if node == nil {
-		return fmt.Errorf("invalid insert statement node")
-	}
-	sel := node.SelectStmt.GetSelectStmt()
-
-	for _, i := range sel.ValuesLists[0].GetList().Items {
-		fmt.Printf("item: %v\n", i)
 	}
 
 	return nil
