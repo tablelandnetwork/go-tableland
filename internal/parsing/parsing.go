@@ -54,3 +54,26 @@ func (e *ErrSystemTableReferencing) Error() string {
 	}
 	return "the query is referencing a system table"
 }
+
+// ErrNoTopLevelUpdateInsertDelete is an error returned when the top-level statement isn't
+// an UPDATE, INSERT or DELETE.
+type ErrNoTopLevelUpdateInsertDelete struct{}
+
+func (e *ErrNoTopLevelUpdateInsertDelete) Error() string {
+	return "the query isn't a top-level UPDATE, INSERT, or DELETE"
+}
+
+// ErrReturningClause is an error returned when queries use a RETURNING clause.
+type ErrReturningClause struct{}
+
+func (e *ErrReturningClause) Error() string {
+	return "the query uses a RETURNING clause"
+}
+
+// ErrNonDeterministicFunction is an error returned when queries use non-deterministic
+// function.
+type ErrNonDeterministicFunction struct{}
+
+func (e *ErrNonDeterministicFunction) Error() string {
+	return "the query uses a non-deterministic function"
+}
