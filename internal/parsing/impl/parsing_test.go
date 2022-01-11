@@ -1,7 +1,6 @@
 package impl_test
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -39,8 +38,9 @@ func TestReadQuery(t *testing.T) {
 		{name: "for update", query: "select * from foo for update", expectedErrType: &parsing.ErrNoForUpdateOrShare{}},
 
 		// Check no system-tables reference
-		{name: "reference system table", query: "select * from system_tables", expectedErrType: &parsing.ErrNoForUpdateOrShare{}},
-		{name: "reference system table with inner join", query: "select * from foo inner join system_tables on a=b", expectedErrType: &parsing.ErrNoForUpdateOrShare{}},
+		{name: "reference system table", query: "select * from system_tables", expectedErrType: &parsing.ErrSystemTableReferencing{}},
+		{name: "reference system table with inner join", query: "select * from foo inner join system_tables on a=b", expectedErrType: &parsing.ErrSystemTableReferencing{}},
+		{name: "reference system table in nested FROM SELECT", query: "select * from foo inner join (select * from system_tables) j on a=b", expectedErrType: &parsing.ErrSystemTableReferencing{}},
 	}
 
 	for _, it := range tests {
@@ -53,7 +53,6 @@ func TestReadQuery(t *testing.T) {
 					require.NoError(t, err)
 					return
 				}
-				fmt.Printf("llll: %s\n", err)
 				require.IsType(t, tc.expectedErrType, err)
 			}
 		}(it))

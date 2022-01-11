@@ -41,3 +41,16 @@ type ErrNoForUpdateOrShare struct{}
 func (e *ErrNoForUpdateOrShare) Error() string {
 	return "FOR UPDATE/SHARE isn't allowed"
 }
+
+// ErrSystemTableReferencing is an error returned when queries reference
+// system tables which aren't allowed.
+type ErrSystemTableReferencing struct {
+	ParsingError string
+}
+
+func (e *ErrSystemTableReferencing) Error() string {
+	if e.ParsingError != "" {
+		return fmt.Sprintf("system table reference checking errored: %s", e.ParsingError)
+	}
+	return "the query is referencing a system table"
+}
