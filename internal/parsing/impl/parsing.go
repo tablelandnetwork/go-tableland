@@ -1,11 +1,16 @@
 package impl
 
 import (
-	"fmt"
+	"errors"
 	"strings"
 
 	pg_query "github.com/pganalyze/pg_query_go/v2"
 	"github.com/textileio/go-tableland/internal/parsing"
+)
+
+var (
+	errEmptyNode          = errors.New("empty node")
+	errUnexpectedNodeType = errors.New("unexpected node type")
 )
 
 type PostgresParser struct {
@@ -47,19 +52,10 @@ func (pp *PostgresParser) ValidateRunSQL(query string) error {
 		return err
 	}
 
-	// DELETEs //
-	// TODO: disallow RETURNING in UPDATE.
-	// TODO: disallow internal tables referencing.
-	// TODO: disallow non-deterministic.
+	if err := pp.checkNoSystemTablesReferencing(stmt); err != nil {
+		return err
+	}
 
-	// UPDATEs //
-	// TODO: disallow RETURNING in UPDATE.
-	// TODO: disallow internal tables referencing.
-	// TODO: disallow non-deterministic.
-
-	// INSERTs //
-	// TODO: disallow RETURNING in INSERT
-	// TODO: disallow internal tables referencing.
 	// TODO: disallow non-deterministic.
 
 	return nil
@@ -85,7 +81,7 @@ func (pp *PostgresParser) ValidateReadQuery(query string) error {
 		return err
 	}
 
-	if err := pp.checkNoSystemTablesReferencing(selectStmt.FromClause); err != nil {
+	if err := pp.checkNoSystemTablesReferencing(stmt); err != nil {
 		return err
 	}
 
@@ -117,7 +113,7 @@ func (pp *PostgresParser) checkTopLevelUpdateInsertDelete(node *pg_query.Node) e
 
 func (pp *PostgresParser) checkNoForUpdateOrShare(node *pg_query.SelectStmt) error {
 	if node == nil {
-		return fmt.Errorf("invalid select statement node")
+		return errEmptyNode
 	}
 
 	if len(node.LockingClause) > 0 {
@@ -128,7 +124,7 @@ func (pp *PostgresParser) checkNoForUpdateOrShare(node *pg_query.SelectStmt) err
 
 func (pp *PostgresParser) checkNoReturningClause(node *pg_query.Node) error {
 	if node == nil {
-		return fmt.Errorf("invalid select statement node")
+		return errEmptyNode
 	}
 
 	if updateStmt := node.GetUpdateStmt(); updateStmt != nil {
@@ -144,32 +140,57 @@ func (pp *PostgresParser) checkNoReturningClause(node *pg_query.Node) error {
 			return &parsing.ErrReturningClause{}
 		}
 	} else {
-		return fmt.Errorf("unexpected statement")
+		return errUnexpectedNodeType
 	}
 	return nil
 }
 
-func (pp *PostgresParser) checkNoSystemTablesReferencing(fromClauseNodes []*pg_query.Node) error {
-	for _, fcn := range fromClauseNodes {
-		// 1. If is referencing a direct table, do the prefix check.
-		rv := fcn.GetRangeVar()
-		if rv != nil {
-			if strings.HasPrefix(rv.Relname, pp.systemTablePrefix) {
-				return &parsing.ErrSystemTableReferencing{}
-			}
-			continue
-		}
-
-		// 2. If isn't a referencing a direct table, do a recursive check.
-		//    i.e: look for sytem tables references in nested SELECTs in FROMs.
-		selectStmt := fcn.GetSelectStmt()
-		if selectStmt == nil {
-			return &parsing.ErrSystemTableReferencing{
-				ParsingError: "FROM clause isn't a SELECT",
-			}
-		}
-		return pp.checkNoSystemTablesReferencing(selectStmt.FromClause)
+func (pp *PostgresParser) checkNoSystemTablesReferencing(node *pg_query.Node) error {
+	if node == nil {
+		return nil
 	}
-
+	if rangeVar := node.GetRangeVar(); rangeVar != nil {
+		if strings.HasPrefix(rangeVar.Relname, pp.systemTablePrefix) {
+			return &parsing.ErrSystemTableReferencing{}
+		}
+	} else if insertStmt := node.GetInsertStmt(); insertStmt != nil {
+		if strings.HasPrefix(insertStmt.Relation.Relname, pp.systemTablePrefix) {
+			return &parsing.ErrSystemTableReferencing{}
+		}
+		return pp.checkNoSystemTablesReferencing(insertStmt.SelectStmt)
+	} else if selectStmt := node.GetSelectStmt(); selectStmt != nil {
+		for _, fcn := range selectStmt.FromClause {
+			if err := pp.checkNoSystemTablesReferencing(fcn); err != nil {
+				return err
+			}
+		}
+	} else if updateStmt := node.GetUpdateStmt(); updateStmt != nil {
+		if strings.HasPrefix(updateStmt.Relation.Relname, pp.systemTablePrefix) {
+			return &parsing.ErrSystemTableReferencing{}
+		}
+		for _, fcn := range updateStmt.FromClause {
+			if err := pp.checkNoSystemTablesReferencing(fcn); err != nil {
+				return err
+			}
+		}
+	} else if deleteStmt := node.GetDeleteStmt(); deleteStmt != nil {
+		if strings.HasPrefix(deleteStmt.Relation.Relname, pp.systemTablePrefix) {
+			return &parsing.ErrSystemTableReferencing{}
+		}
+		if err := pp.checkNoSystemTablesReferencing(deleteStmt.WhereClause); err != nil {
+			return err
+		}
+	} else if rangeSubselectStmt := node.GetRangeSubselect(); rangeSubselectStmt != nil {
+		if err := pp.checkNoSystemTablesReferencing(rangeSubselectStmt.Subquery); err != nil {
+			return err
+		}
+	} else if joinExpr := node.GetJoinExpr(); joinExpr != nil {
+		if err := pp.checkNoSystemTablesReferencing(joinExpr.Larg); err != nil {
+			return err
+		}
+		if err := pp.checkNoSystemTablesReferencing(joinExpr.Rarg); err != nil {
+			return err
+		}
+	}
 	return nil
 }
