@@ -10,7 +10,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/jackc/pgconn v1.10.1
 	github.com/jackc/pgproto3/v2 v2.2.0
-	github.com/jackc/pgtype v1.9.0
+	github.com/jackc/pgtype v1.9.1
 	github.com/jackc/pgx/v4 v4.14.0
 	github.com/omeid/uconfig v1.2.0
 	github.com/ory/dockertest/v3 v3.8.1
