@@ -51,6 +51,8 @@ func main() {
 		panic(err)
 	}
 
+	sqlstore = sqlstoreimpl.NewInstrumentedSQLStorePGX(sqlstore)
+
 	svc := getTablelandService(config, sqlstore, registry)
 	if err := server.RegisterName("tableland", svc); err != nil {
 		panic(err)
