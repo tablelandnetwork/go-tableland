@@ -5,23 +5,29 @@ package db
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 )
 
 const getTable = `-- name: GetTable :one
-SELECT uuid, controller, created_at FROM system_tables WHERE uuid = $1
+SELECT uuid, controller, created_at, type FROM system_tables WHERE uuid = $1
 `
 
 func (q *Queries) GetTable(ctx context.Context, uuid uuid.UUID) (SystemTable, error) {
 	row := q.db.QueryRow(ctx, getTable, uuid)
 	var i SystemTable
-	err := row.Scan(&i.UUID, &i.Controller, &i.CreatedAt)
+	err := row.Scan(
+		&i.UUID,
+		&i.Controller,
+		&i.CreatedAt,
+		&i.Type,
+	)
 	return i, err
 }
 
 const getTablesByController = `-- name: GetTablesByController :many
-SELECT uuid, controller, created_at FROM system_tables WHERE controller = $1
+SELECT uuid, controller, created_at, type FROM system_tables WHERE controller = $1
 `
 
 func (q *Queries) GetTablesByController(ctx context.Context, controller string) ([]SystemTable, error) {
@@ -33,7 +39,12 @@ func (q *Queries) GetTablesByController(ctx context.Context, controller string) 
 	var items []SystemTable
 	for rows.Next() {
 		var i SystemTable
-		if err := rows.Scan(&i.UUID, &i.Controller, &i.CreatedAt); err != nil {
+		if err := rows.Scan(
+			&i.UUID,
+			&i.Controller,
+			&i.CreatedAt,
+			&i.Type,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -46,19 +57,22 @@ func (q *Queries) GetTablesByController(ctx context.Context, controller string) 
 
 const insertTable = `-- name: InsertTable :exec
 INSERT INTO system_tables (
-    uuid,
-    controller
+    "uuid",
+    "controller",
+    "type"
     ) VALUES (
       $1,
-      $2)
+      $2,
+      $3)
 `
 
 type InsertTableParams struct {
 	UUID       uuid.UUID
 	Controller string
+	Type       sql.NullString
 }
 
 func (q *Queries) InsertTable(ctx context.Context, arg InsertTableParams) error {
-	_, err := q.db.Exec(ctx, insertTable, arg.UUID, arg.Controller)
+	_, err := q.db.Exec(ctx, insertTable, arg.UUID, arg.Controller, arg.Type)
 	return err
 }

@@ -1,0 +1,1 @@
+ALTER TABLE system_tables ADD COLUMN type VARCHAR(32) DEFAULT '';

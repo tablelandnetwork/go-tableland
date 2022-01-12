@@ -7,6 +7,7 @@ import (
 // Request is a user request to interact with Tableland.
 type Request struct {
 	TableID    string
+	Type       string
 	Controller string
 	Statement  string
 }
