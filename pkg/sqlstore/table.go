@@ -10,6 +10,7 @@ import (
 type Table struct {
 	UUID       uuid.UUID `json:"uuid"`       // table id
 	Controller string    `json:"controller"` // controller address
+	Type       string    `json:"type"`
 	CreatedAt  time.Time `json:"created_at"`
 }
 

@@ -8,7 +8,7 @@ import (
 
 // SystemStore defines the methods for interacting with system-wide data.
 type SystemStore interface {
-	InsertTable(ctx context.Context, uuid uuid.UUID, controller string) (err error)
-	GetTable(ctx context.Context, uuid uuid.UUID) (Table, error)
-	GetTablesByController(ctx context.Context, controller string) ([]Table, error)
+	InsertTable(context.Context, uuid.UUID, string, string) (err error)
+	GetTable(context.Context, uuid.UUID) (Table, error)
+	GetTablesByController(context.Context, string) ([]Table, error)
 }

@@ -22,7 +22,7 @@ func TestSystemSQLStoreService(t *testing.T) {
 
 	// populate the system_tables with a table
 	tableUUID := uuid.New()
-	err = store.InsertTable(ctx, tableUUID, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF")
+	err = store.InsertTable(ctx, tableUUID, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", "type")
 	require.NoError(t, err)
 
 	svc := NewSystemSQLStoreService(store)
@@ -42,5 +42,6 @@ func TestSystemSQLStoreService(t *testing.T) {
 	require.Equal(t, 1, len(tables))
 	require.Equal(t, tableUUID, tables[0].UUID)
 	require.Equal(t, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", tables[0].Controller)
+	require.Equal(t, "type", tables[0].Type)
 	require.Equal(t, metadata.Attributes[0].Value, tables[0].CreatedAt.Unix())
 }

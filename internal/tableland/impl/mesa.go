@@ -36,7 +36,7 @@ func (t *TablelandMesa) CreateTable(ctx context.Context, req tableland.Request) 
 
 	if strings.Contains(strings.ToLower(req.Statement), "create") {
 		// TODO: the two operations should be put inside a transaction
-		err := t.store.InsertTable(ctx, uuid, req.Controller)
+		err := t.store.InsertTable(ctx, uuid, req.Controller, req.Type)
 		if err != nil {
 			return tableland.Response{Message: err.Error()}, err
 		}

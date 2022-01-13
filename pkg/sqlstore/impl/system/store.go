@@ -2,6 +2,7 @@ package system
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log"
@@ -37,10 +38,11 @@ func New(pool *pgxpool.Pool) (*SystemStore, error) {
 }
 
 // InsertTable inserts a new system-wide table.
-func (s *SystemStore) InsertTable(ctx context.Context, uuid uuid.UUID, controller string) error {
+func (s *SystemStore) InsertTable(ctx context.Context, uuid uuid.UUID, controller string, tableType string) error {
 	err := s.db.InsertTable(ctx, db.InsertTableParams{
 		UUID:       uuid,
 		Controller: controller,
+		Type:       sql.NullString{String: tableType, Valid: true},
 	})
 
 	if err != nil {
@@ -56,7 +58,12 @@ func (s *SystemStore) GetTable(ctx context.Context, uuid uuid.UUID) (sqlstore.Ta
 	if err != nil {
 		return sqlstore.Table{}, fmt.Errorf("failed to get the table: %s", err)
 	}
-	return sqlstore.Table{UUID: table.UUID, Controller: table.Controller, CreatedAt: table.CreatedAt}, err
+
+	return sqlstore.Table{
+		UUID:       table.UUID,
+		Controller: table.Controller,
+		CreatedAt:  table.CreatedAt,
+		Type:       table.Type.String}, err
 }
 
 // GetTablesByController fetchs a table from controller address.
@@ -68,7 +75,12 @@ func (s *SystemStore) GetTablesByController(ctx context.Context, controller stri
 
 	tables := make([]sqlstore.Table, 0)
 	for _, t := range sqlcTables {
-		tables = append(tables, sqlstore.Table{UUID: t.UUID, Controller: t.Controller, CreatedAt: t.CreatedAt})
+		tables = append(tables,
+			sqlstore.Table{
+				UUID:       t.UUID,
+				Controller: t.Controller,
+				CreatedAt:  t.CreatedAt,
+				Type:       t.Type.String})
 	}
 	return tables, err
 }

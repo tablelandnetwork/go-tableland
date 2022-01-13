@@ -26,7 +26,7 @@ func TestSystemStore(t *testing.T) {
 	require.Error(t, err) // no table is found
 
 	tableUUID := uuid.New()
-	err = store.InsertTable(ctx, tableUUID, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF")
+	err = store.InsertTable(ctx, tableUUID, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", "type")
 	require.NoError(t, err)
 
 	table, err := store.GetTable(ctx, tableUUID)
@@ -34,5 +34,6 @@ func TestSystemStore(t *testing.T) {
 
 	require.Equal(t, tableUUID, table.UUID)
 	require.Equal(t, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", table.Controller)
+	require.Equal(t, "type", table.Type)
 	require.NotEqual(t, new(time.Time), table.CreatedAt) // CreatedAt is not the zero value
 }
