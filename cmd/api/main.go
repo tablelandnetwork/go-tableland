@@ -65,10 +65,10 @@ func main() {
 	router.Use(middlewares.CORS)
 	router.Post("/rpc", func(rw http.ResponseWriter, r *http.Request) {
 		server.ServeHTTP(rw, r)
-	}, middlewares.Authentication)
+	}, middlewares.Authentication, middlewares.OtelHTTP("rpc"))
 
-	router.Get("/tables/{uuid}", systemController.GetTable)
-	router.Get("/tables/controller/{address}", systemController.GetTablesByController)
+	router.Get("/tables/{uuid}", systemController.GetTable, middlewares.OtelHTTP("GetTable"))
+	router.Get("/tables/controller/{address}", systemController.GetTablesByController, middlewares.OtelHTTP("GetTablesByController")) //nolint
 	router.Get("/healthz", healthHandler)
 	router.Get("/health", healthHandler)
 
