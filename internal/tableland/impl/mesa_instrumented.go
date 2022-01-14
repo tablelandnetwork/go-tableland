@@ -62,19 +62,14 @@ func (t *InstrumentedTablelandMesa) RunSQL(ctx context.Context,
 }
 
 func (t *InstrumentedTablelandMesa) record(ctx context.Context, data recordData) {
-	t.callCount.Add(ctx,
-		1,
-		attribute.KeyValue{Key: "method", Value: attribute.StringValue(data.method)},
-		attribute.KeyValue{Key: "controller", Value: attribute.StringValue(data.controller)},
-		attribute.KeyValue{Key: "table_id", Value: attribute.StringValue(data.tableID)},
-		attribute.KeyValue{Key: "success", Value: attribute.BoolValue(data.success)},
-	)
+	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue(data.method)},
+		{Key: "controller", Value: attribute.StringValue(data.controller)},
+		{Key: "table_id", Value: attribute.StringValue(data.tableID)},
+		{Key: "success", Value: attribute.BoolValue(data.success)},
+	}
 
-	t.latencyHistogram.Record(ctx,
-		data.latency,
-		attribute.KeyValue{Key: "method", Value: attribute.StringValue(data.method)},
-		attribute.KeyValue{Key: "controller", Value: attribute.StringValue(data.controller)},
-		attribute.KeyValue{Key: "table_id", Value: attribute.StringValue(data.tableID)},
-		attribute.KeyValue{Key: "success", Value: attribute.BoolValue(data.success)},
-	)
+	t.callCount.Add(ctx, 1, attributes...)
+	t.latencyHistogram.Record(ctx, data.latency, attributes...)
 }

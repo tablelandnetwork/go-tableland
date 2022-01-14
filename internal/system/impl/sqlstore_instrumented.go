@@ -35,18 +35,15 @@ func (s *InstrumentedSystemSQLStoreService) GetTableMetadata(ctx context.Context
 	metadata, err := s.system.GetTableMetadata(ctx, uuid)
 	latency := time.Since(start).Milliseconds()
 
-	s.callCount.Add(ctx,
-		1,
-		attribute.KeyValue{Key: "method", Value: attribute.StringValue("GetTableMetadata")},
-		attribute.KeyValue{Key: "uuid", Value: attribute.StringValue(uuid.String())},
-		attribute.KeyValue{Key: "success", Value: attribute.BoolValue(err == nil)})
+	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("GetTableMetadata")},
+		{Key: "uuid", Value: attribute.StringValue(uuid.String())},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
 
-	s.latencyHistogram.Record(ctx,
-		latency,
-		attribute.KeyValue{Key: "method", Value: attribute.StringValue("GetTableMetadata")},
-		attribute.KeyValue{Key: "uuid", Value: attribute.StringValue(uuid.String())},
-		attribute.KeyValue{Key: "success", Value: attribute.BoolValue(err == nil)},
-	)
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
 
 	return metadata, err
 }
@@ -58,18 +55,15 @@ func (s *InstrumentedSystemSQLStoreService) GetTablesByController(ctx context.Co
 	tables, err := s.system.GetTablesByController(ctx, controller)
 	latency := time.Since(start).Milliseconds()
 
-	s.callCount.Add(ctx,
-		1,
-		attribute.KeyValue{Key: "method", Value: attribute.StringValue("GetTablesByController")},
-		attribute.KeyValue{Key: "controller", Value: attribute.StringValue(controller)},
-		attribute.KeyValue{Key: "success", Value: attribute.BoolValue(err == nil)})
+	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("GetTablesByController")},
+		{Key: "controller", Value: attribute.StringValue(controller)},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
 
-	s.latencyHistogram.Record(ctx,
-		latency,
-		attribute.KeyValue{Key: "method", Value: attribute.StringValue("GetTablesByController")},
-		attribute.KeyValue{Key: "controller", Value: attribute.StringValue(controller)},
-		attribute.KeyValue{Key: "success", Value: attribute.BoolValue(err == nil)},
-	)
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
 
 	return tables, err
 }

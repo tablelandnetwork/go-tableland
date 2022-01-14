@@ -28,25 +28,22 @@ func NewInstrumentedSQLStorePGX(store sqlstore.SQLStore) sqlstore.SQLStore {
 }
 
 // InsertTable inserts a new system-wide table.
-func (s *InstrumentedSQLStorePGX) InsertTable(ctx context.Context, uuid uuid.UUID, controller string) error {
+func (s *InstrumentedSQLStorePGX) InsertTable(ctx context.Context,
+	uuid uuid.UUID, controller string, tableType string) error {
 	start := time.Now()
-	err := s.store.InsertTable(ctx, uuid, controller)
+	err := s.store.InsertTable(ctx, uuid, controller, tableType)
 	latency := time.Since(start).Milliseconds()
 
-	s.callCount.Add(ctx,
-		1,
-		attribute.KeyValue{Key: "method", Value: attribute.StringValue("InsertTable")},
-		attribute.KeyValue{Key: "uuid", Value: attribute.StringValue(uuid.String())},
-		attribute.KeyValue{Key: "controller", Value: attribute.StringValue(controller)},
-		attribute.KeyValue{Key: "success", Value: attribute.BoolValue(err == nil)})
+	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("InsertTable")},
+		{Key: "uuid", Value: attribute.StringValue(uuid.String())},
+		{Key: "controller", Value: attribute.StringValue(controller)},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
 
-	s.latencyHistogram.Record(ctx,
-		latency,
-		attribute.KeyValue{Key: "method", Value: attribute.StringValue("InsertTable")},
-		attribute.KeyValue{Key: "uuid", Value: attribute.StringValue(uuid.String())},
-		attribute.KeyValue{Key: "controller", Value: attribute.StringValue(controller)},
-		attribute.KeyValue{Key: "success", Value: attribute.BoolValue(err == nil)},
-	)
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
 
 	return err
 }
@@ -57,18 +54,15 @@ func (s *InstrumentedSQLStorePGX) GetTable(ctx context.Context, uuid uuid.UUID) 
 	table, err := s.store.GetTable(ctx, uuid)
 	latency := time.Since(start).Milliseconds()
 
-	s.callCount.Add(ctx,
-		1,
-		attribute.KeyValue{Key: "method", Value: attribute.StringValue("GetTable")},
-		attribute.KeyValue{Key: "uuid", Value: attribute.StringValue(uuid.String())},
-		attribute.KeyValue{Key: "success", Value: attribute.BoolValue(err == nil)})
+	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("GetTable")},
+		{Key: "uuid", Value: attribute.StringValue(uuid.String())},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
 
-	s.latencyHistogram.Record(ctx,
-		latency,
-		attribute.KeyValue{Key: "method", Value: attribute.StringValue("GetTable")},
-		attribute.KeyValue{Key: "uuid", Value: attribute.StringValue(uuid.String())},
-		attribute.KeyValue{Key: "success", Value: attribute.BoolValue(err == nil)},
-	)
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
 
 	return table, err
 }
@@ -80,18 +74,15 @@ func (s *InstrumentedSQLStorePGX) GetTablesByController(ctx context.Context,
 	tables, err := s.store.GetTablesByController(ctx, controller)
 	latency := time.Since(start).Milliseconds()
 
-	s.callCount.Add(ctx,
-		1,
-		attribute.KeyValue{Key: "method", Value: attribute.StringValue("GetTablesByController")},
-		attribute.KeyValue{Key: "controller", Value: attribute.StringValue(controller)},
-		attribute.KeyValue{Key: "success", Value: attribute.BoolValue(err == nil)})
+	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("GetTablesByController")},
+		{Key: "controller", Value: attribute.StringValue(controller)},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
 
-	s.latencyHistogram.Record(ctx,
-		latency,
-		attribute.KeyValue{Key: "method", Value: attribute.StringValue("GetTablesByController")},
-		attribute.KeyValue{Key: "controller", Value: attribute.StringValue(controller)},
-		attribute.KeyValue{Key: "success", Value: attribute.BoolValue(err == nil)},
-	)
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
 
 	return tables, err
 }
@@ -102,16 +93,13 @@ func (s *InstrumentedSQLStorePGX) Write(ctx context.Context, statement string) e
 	err := s.store.Write(ctx, statement)
 	latency := time.Since(start).Milliseconds()
 
-	s.callCount.Add(ctx,
-		1,
-		attribute.KeyValue{Key: "method", Value: attribute.StringValue("Write")},
-		attribute.KeyValue{Key: "success", Value: attribute.BoolValue(err == nil)})
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("Write")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
 
-	s.latencyHistogram.Record(ctx,
-		latency,
-		attribute.KeyValue{Key: "method", Value: attribute.StringValue("Write")},
-		attribute.KeyValue{Key: "success", Value: attribute.BoolValue(err == nil)},
-	)
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
 
 	return err
 }
@@ -122,16 +110,13 @@ func (s *InstrumentedSQLStorePGX) Read(ctx context.Context, statement string) (i
 	data, err := s.store.Read(ctx, statement)
 	latency := time.Since(start).Milliseconds()
 
-	s.callCount.Add(ctx,
-		1,
-		attribute.KeyValue{Key: "method", Value: attribute.StringValue("Read")},
-		attribute.KeyValue{Key: "success", Value: attribute.BoolValue(err == nil)})
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("Read")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
 
-	s.latencyHistogram.Record(ctx,
-		latency,
-		attribute.KeyValue{Key: "method", Value: attribute.StringValue("Read")},
-		attribute.KeyValue{Key: "success", Value: attribute.BoolValue(err == nil)},
-	)
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
 
 	return data, err
 }
