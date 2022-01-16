@@ -79,9 +79,8 @@ func TestRunSQL(t *testing.T) {
 		// Valid insert and updates.
 		{name: "valid insert", query: "insert into foo values ('hello', 1, 2)", expectedErrType: nil},
 		{name: "valid simple update", query: "update foo set a=1 where b='hello'", expectedErrType: nil},
-		{name: "valid joined update", query: "update foo set c=1 from bar where foo.a=bar.b", expectedErrType: nil},
 		{name: "valid delete", query: "delete from foo where a=2", expectedErrType: nil},
-		//{name: "valid custom func call", query: "insert into foo values (myfunc(1))", expectedErrType: nil},
+		{name: "valid custom func call", query: "insert into foo values (myfunc(1))", expectedErrType: nil},
 
 		// Single-statement check.
 		{name: "single statement fail", query: "update foo set a=1; update foo set b=1;", expectedErrType: ptr2ErrNoSingleStatement()},
@@ -92,6 +91,12 @@ func TestRunSQL(t *testing.T) {
 		{name: "select", query: "select * from foo", expectedErrType: ptr2ErrNoTopLevelUpdateInsertDelete()},
 		{name: "drop", query: "drop table foo", expectedErrType: ptr2ErrNoTopLevelUpdateInsertDelete()},
 
+		// Disallow JOINs and sub-queries
+		{name: "insert subquery", query: "insert into foo select * from bar", expectedErrType: ptr2ErrJoinOrSubquery()},
+		{name: "update join", query: "update foo set a=1 from bar", expectedErrType: ptr2ErrJoinOrSubquery()},
+		{name: "update where subquery", query: "update foo set a=1 where a=(select a from bar limit 1) and b=1", expectedErrType: ptr2ErrJoinOrSubquery()},
+		{name: "delete where subquery", query: "delete from foo where a=(select a from bar limit 1)", expectedErrType: ptr2ErrJoinOrSubquery()},
+
 		// Disallow RETURNING clauses
 		{name: "update returning", query: "update foo set a=a+1 returning a", expectedErrType: ptr2ErrReturningClause()},
 		{name: "insert returning", query: "insert into foo values (1, 'bar') returning a", expectedErrType: ptr2ErrReturningClause()},
@@ -101,8 +106,6 @@ func TestRunSQL(t *testing.T) {
 		{name: "update system table", query: "update system_tables set a=1", expectedErrType: ptr2ErrSystemTableReferencing()},
 		{name: "insert system table", query: "insert into system_tables values ('foo')", expectedErrType: ptr2ErrSystemTableReferencing()},
 		{name: "delete system table", query: "delete from system_tables", expectedErrType: ptr2ErrSystemTableReferencing()},
-		{name: "update referencing system table with from", query: "update foo set a=1 from system_tables where a=b", expectedErrType: ptr2ErrSystemTableReferencing()},
-		{name: "reference system table in nested from", query: "update foo set a=1 from (select * from system_tables) st where st.a=foo.b", expectedErrType: ptr2ErrSystemTableReferencing()},
 
 		// Check non-deterministic functions.
 		{name: "insert current_timestamp lower", query: "insert into foo values (current_timestamp, 'lolz')", expectedErrType: ptr2ErrNonDeterministicFunction()},
@@ -159,5 +162,9 @@ func ptr2ErrReturningClause() **parsing.ErrReturningClause {
 }
 func ptr2ErrNonDeterministicFunction() **parsing.ErrNonDeterministicFunction {
 	e := &parsing.ErrNonDeterministicFunction{}
+	return &e
+}
+func ptr2ErrJoinOrSubquery() **parsing.ErrJoinOrSubquery {
+	e := &parsing.ErrJoinOrSubquery{}
 	return &e
 }

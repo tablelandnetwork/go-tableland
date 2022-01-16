@@ -41,24 +41,28 @@ func (pp *PostgresParser) ValidateRunSQL(query string) error {
 	}
 
 	if err := pp.checkSingleStatement(parsed); err != nil {
-		return err
+		return fmt.Errorf("single-statement check: %w", err)
 	}
 
 	stmt := parsed.Stmts[0].Stmt
 	if err := pp.checkTopLevelUpdateInsertDelete(stmt); err != nil {
-		return err
+		return fmt.Errorf("allowed top level stmt: %w", err)
+	}
+
+	if err := pp.checkNoJoinOrSubquery(stmt); err != nil {
+		return fmt.Errorf("join or subquery check: %w", err)
 	}
 
 	if err := pp.checkNoReturningClause(stmt); err != nil {
-		return err
+		return fmt.Errorf("no returning clause check: %w", err)
 	}
 
 	if err := pp.checkNoSystemTablesReferencing(stmt); err != nil {
-		return err
+		return fmt.Errorf("no system-table reference: %w", err)
 	}
 
 	if err := pp.checkNonDeterministicFunctions(stmt); err != nil {
-		return err
+		return fmt.Errorf("no non-deterministic func check: %w", err)
 	}
 
 	return nil
@@ -67,25 +71,25 @@ func (pp *PostgresParser) ValidateRunSQL(query string) error {
 func (pp *PostgresParser) ValidateReadQuery(query string) error {
 	parsed, err := pg_query.Parse(query)
 	if err != nil {
-		return &parsing.ErrInvalidSyntax{InternalError: err}
+		return fmt.Errorf("parsing: %w", &parsing.ErrInvalidSyntax{InternalError: err})
 	}
 
 	if err := pp.checkSingleStatement(parsed); err != nil {
-		return err
+		return fmt.Errorf("single-statement check: %w", err)
 	}
 
 	stmt := parsed.Stmts[0].Stmt
 	if err := pp.checkTopLevelSelect(stmt); err != nil {
-		return err
+		return fmt.Errorf("top-level statement check: %w", err)
 	}
 
 	selectStmt := stmt.GetSelectStmt()
 	if err := pp.checkNoForUpdateOrShare(selectStmt); err != nil {
-		return err
+		return fmt.Errorf("no for check: %w", err)
 	}
 
 	if err := pp.checkNoSystemTablesReferencing(stmt); err != nil {
-		return err
+		return fmt.Errorf("no system-table referencing check: %w", err)
 	}
 
 	return nil
@@ -164,7 +168,7 @@ func (pp *PostgresParser) checkNoSystemTablesReferencing(node *pg_query.Node) er
 	} else if selectStmt := node.GetSelectStmt(); selectStmt != nil {
 		for _, fcn := range selectStmt.FromClause {
 			if err := pp.checkNoSystemTablesReferencing(fcn); err != nil {
-				return err
+				return fmt.Errorf("from clause: %w", err)
 			}
 		}
 	} else if updateStmt := node.GetUpdateStmt(); updateStmt != nil {
@@ -173,7 +177,7 @@ func (pp *PostgresParser) checkNoSystemTablesReferencing(node *pg_query.Node) er
 		}
 		for _, fcn := range updateStmt.FromClause {
 			if err := pp.checkNoSystemTablesReferencing(fcn); err != nil {
-				return err
+				return fmt.Errorf("from clause: %w", err)
 			}
 		}
 	} else if deleteStmt := node.GetDeleteStmt(); deleteStmt != nil {
@@ -181,18 +185,18 @@ func (pp *PostgresParser) checkNoSystemTablesReferencing(node *pg_query.Node) er
 			return &parsing.ErrSystemTableReferencing{}
 		}
 		if err := pp.checkNoSystemTablesReferencing(deleteStmt.WhereClause); err != nil {
-			return err
+			return fmt.Errorf("where clause: %w", err)
 		}
 	} else if rangeSubselectStmt := node.GetRangeSubselect(); rangeSubselectStmt != nil {
 		if err := pp.checkNoSystemTablesReferencing(rangeSubselectStmt.Subquery); err != nil {
-			return err
+			return fmt.Errorf("subquery: %w", err)
 		}
 	} else if joinExpr := node.GetJoinExpr(); joinExpr != nil {
 		if err := pp.checkNoSystemTablesReferencing(joinExpr.Larg); err != nil {
-			return err
+			return fmt.Errorf("join left arg: %w", err)
 		}
 		if err := pp.checkNoSystemTablesReferencing(joinExpr.Rarg); err != nil {
-			return err
+			return fmt.Errorf("join right arg: %w", err)
 		}
 	}
 	return nil
@@ -266,6 +270,53 @@ func (pp *PostgresParser) checkNonDeterministicFunctions(node *pg_query.Node) er
 	} else if resTarget := node.GetResTarget(); resTarget != nil {
 		if err := pp.checkNonDeterministicFunctions(resTarget.Val); err != nil {
 			return fmt.Errorf("target: %w", err)
+		}
+	}
+	return nil
+}
+
+func (pp *PostgresParser) checkNoJoinOrSubquery(node *pg_query.Node) error {
+	if node == nil {
+		return nil
+	}
+	if selectStmt := node.GetSelectStmt(); selectStmt != nil {
+		if len(selectStmt.ValuesLists) == 0 {
+			return &parsing.ErrJoinOrSubquery{}
+		}
+	} else if subSelectStmt := node.GetRangeSubselect(); subSelectStmt != nil {
+		return &parsing.ErrJoinOrSubquery{}
+	} else if joinExpr := node.GetJoinExpr(); joinExpr != nil {
+		return &parsing.ErrJoinOrSubquery{}
+	} else if insertStmt := node.GetInsertStmt(); insertStmt != nil {
+		if err := pp.checkNoJoinOrSubquery(insertStmt.SelectStmt); err != nil {
+			return fmt.Errorf("insert select expr: %w", err)
+		}
+	} else if updateStmt := node.GetUpdateStmt(); updateStmt != nil {
+		fmt.Printf("AHAHA: %v\n", updateStmt)
+		if len(updateStmt.FromClause) != 0 {
+			return &parsing.ErrJoinOrSubquery{}
+		}
+		if err := pp.checkNoJoinOrSubquery(updateStmt.WhereClause); err != nil {
+			return fmt.Errorf("where clause: %w", err)
+		}
+	} else if deleteStmt := node.GetDeleteStmt(); deleteStmt != nil {
+		if err := pp.checkNoJoinOrSubquery(deleteStmt.WhereClause); err != nil {
+			return fmt.Errorf("where clause: %w", err)
+		}
+	} else if aExpr := node.GetAExpr(); aExpr != nil {
+		if err := pp.checkNoJoinOrSubquery(aExpr.Lexpr); err != nil {
+			return fmt.Errorf("aexpr left: %w", err)
+		}
+		if err := pp.checkNoJoinOrSubquery(aExpr.Rexpr); err != nil {
+			return fmt.Errorf("aexpr right: %w", err)
+		}
+	} else if subLinkExpr := node.GetSubLink(); subLinkExpr != nil {
+		return &parsing.ErrJoinOrSubquery{}
+	} else if boolExpr := node.GetBoolExpr(); boolExpr != nil {
+		for _, arg := range boolExpr.Args {
+			if err := pp.checkNoJoinOrSubquery(arg); err != nil {
+				return fmt.Errorf("bool expr: %w", err)
+			}
 		}
 	}
 	return nil

@@ -77,3 +77,11 @@ type ErrNonDeterministicFunction struct{}
 func (e *ErrNonDeterministicFunction) Error() string {
 	return "the query uses a non-deterministic function"
 }
+
+// ErrJoinOrSubquery is an error returned when queries uses JOINs or
+// subqueries.
+type ErrJoinOrSubquery struct{}
+
+func (e *ErrJoinOrSubquery) Error() string {
+	return "the query uses a join or subquery"
+}
