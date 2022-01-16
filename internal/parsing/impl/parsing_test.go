@@ -23,6 +23,7 @@ func TestReadQuery(t *testing.T) {
 		// Valid read-queries.
 		{name: "valid all", query: "select * from foo", expectedErrType: nil},
 		{name: "valid defined rows", query: "select row1, row2 from foo", expectedErrType: nil},
+		{name: "valid join with subquery", query: "select * from foo inner join bar on a=b inner join (select * from zoo) z on a=b", expectedErrType: nil},
 
 		// Single-statement check.
 		{name: "single statement fail", query: "select * from foo; select * from bar", expectedErrType: ptr2ErrNoSingleStatement()},
@@ -80,6 +81,7 @@ func TestRunSQL(t *testing.T) {
 		{name: "valid simple update", query: "update foo set a=1 where b='hello'", expectedErrType: nil},
 		{name: "valid joined update", query: "update foo set c=1 from bar where foo.a=bar.b", expectedErrType: nil},
 		{name: "valid delete", query: "delete from foo where a=2", expectedErrType: nil},
+		//{name: "valid custom func call", query: "insert into foo values (myfunc(1))", expectedErrType: nil},
 
 		// Single-statement check.
 		{name: "single statement fail", query: "update foo set a=1; update foo set b=1;", expectedErrType: ptr2ErrNoSingleStatement()},
@@ -103,8 +105,11 @@ func TestRunSQL(t *testing.T) {
 		{name: "reference system table in nested from", query: "update foo set a=1 from (select * from system_tables) st where st.a=foo.b", expectedErrType: ptr2ErrSystemTableReferencing()},
 
 		// Check non-deterministic functions.
-		//{name: "current_timestamp lower", query: "insert into foo values (current_timestamp, 'lolz')", expectedErrType: ptr2ErrNonDeterministicFunction()},
-		//{name: "current_timestamp case-insensitive", query: "insert into foo values (current_TiMeSTamP, 'lolz')", expectedErrType: ptr2ErrNonDeterministicFunction()},
+		{name: "insert current_timestamp lower", query: "insert into foo values (current_timestamp, 'lolz')", expectedErrType: ptr2ErrNonDeterministicFunction()},
+		{name: "insert current_timestamp case-insensitive", query: "insert into foo values (current_TiMeSTamP, 'lolz')", expectedErrType: ptr2ErrNonDeterministicFunction()},
+		{name: "update set current_timestamp", query: "update foo set a=current_timestamp, b=2", expectedErrType: ptr2ErrNonDeterministicFunction()},
+		{name: "update where current_timestamp", query: "update foo set a=1 where b=current_timestamp", expectedErrType: ptr2ErrNonDeterministicFunction()},
+		{name: "delete where current_timestamp", query: "delete from foo where a=current_timestamp", expectedErrType: ptr2ErrNonDeterministicFunction()},
 	}
 
 	for _, it := range tests {

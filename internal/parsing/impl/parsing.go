@@ -2,6 +2,7 @@ package impl
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	pg_query "github.com/pganalyze/pg_query_go/v2"
@@ -56,7 +57,9 @@ func (pp *PostgresParser) ValidateRunSQL(query string) error {
 		return err
 	}
 
-	// TODO: disallow non-deterministic.
+	if err := pp.checkNonDeterministicFunctions(stmt); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -190,6 +193,79 @@ func (pp *PostgresParser) checkNoSystemTablesReferencing(node *pg_query.Node) er
 		}
 		if err := pp.checkNoSystemTablesReferencing(joinExpr.Rarg); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+// checkNonDeterministicFunctions walks the query tree and disallow references to
+// functions that aren't deterministic.
+func (pp *PostgresParser) checkNonDeterministicFunctions(node *pg_query.Node) error {
+	if node == nil {
+		return nil
+	}
+	if sqlValFunc := node.GetSqlvalueFunction(); sqlValFunc != nil {
+		return &parsing.ErrNonDeterministicFunction{}
+	} else if listStmt := node.GetList(); listStmt != nil {
+		for _, item := range listStmt.Items {
+			if err := pp.checkNonDeterministicFunctions(item); err != nil {
+				return fmt.Errorf("list item: %w", err)
+			}
+
+		}
+	}
+	if insertStmt := node.GetInsertStmt(); insertStmt != nil {
+		return pp.checkNonDeterministicFunctions(insertStmt.SelectStmt)
+	} else if selectStmt := node.GetSelectStmt(); selectStmt != nil {
+		for _, nl := range selectStmt.ValuesLists {
+			if err := pp.checkNonDeterministicFunctions(nl); err != nil {
+				return fmt.Errorf("value list: %w", err)
+			}
+		}
+		for _, fcn := range selectStmt.FromClause {
+			if err := pp.checkNonDeterministicFunctions(fcn); err != nil {
+				return fmt.Errorf("from: %w", err)
+			}
+		}
+	} else if updateStmt := node.GetUpdateStmt(); updateStmt != nil {
+		for _, t := range updateStmt.TargetList {
+			if err := pp.checkNonDeterministicFunctions(t); err != nil {
+				return fmt.Errorf("target: %w", err)
+			}
+		}
+		for _, fcn := range updateStmt.FromClause {
+			if err := pp.checkNonDeterministicFunctions(fcn); err != nil {
+				return fmt.Errorf("from clause: %w", err)
+			}
+		}
+		if err := pp.checkNonDeterministicFunctions(updateStmt.WhereClause); err != nil {
+			return fmt.Errorf("where clause: %w", err)
+		}
+	} else if deleteStmt := node.GetDeleteStmt(); deleteStmt != nil {
+		if err := pp.checkNonDeterministicFunctions(deleteStmt.WhereClause); err != nil {
+			return fmt.Errorf("where clause: %w", err)
+		}
+	} else if rangeSubselectStmt := node.GetRangeSubselect(); rangeSubselectStmt != nil {
+		if err := pp.checkNonDeterministicFunctions(rangeSubselectStmt.Subquery); err != nil {
+			return fmt.Errorf("subquery: %w", err)
+		}
+	} else if joinExpr := node.GetJoinExpr(); joinExpr != nil {
+		if err := pp.checkNonDeterministicFunctions(joinExpr.Larg); err != nil {
+			return fmt.Errorf("join left tree: %w", err)
+		}
+		if err := pp.checkNonDeterministicFunctions(joinExpr.Rarg); err != nil {
+			return fmt.Errorf("join right tree: %w", err)
+		}
+	} else if aExpr := node.GetAExpr(); aExpr != nil {
+		if err := pp.checkNonDeterministicFunctions(aExpr.Lexpr); err != nil {
+			return fmt.Errorf("aexpr left: %w", err)
+		}
+		if err := pp.checkNonDeterministicFunctions(aExpr.Rexpr); err != nil {
+			return fmt.Errorf("aexpr right: %w", err)
+		}
+	} else if resTarget := node.GetResTarget(); resTarget != nil {
+		if err := pp.checkNonDeterministicFunctions(resTarget.Val); err != nil {
+			return fmt.Errorf("target: %w", err)
 		}
 	}
 	return nil
