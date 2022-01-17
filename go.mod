@@ -16,7 +16,7 @@ require (
 	github.com/ory/dockertest/v3 v3.8.1
 	github.com/stretchr/testify v1.7.0
 	github.com/textileio/go-log/v2 v2.1.3-gke-2
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.26.0
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.28.0
 	go.opentelemetry.io/contrib/instrumentation/runtime v0.27.0
 	go.opentelemetry.io/otel v1.3.0
 	go.opentelemetry.io/otel/exporters/prometheus v0.26.0
@@ -106,4 +106,4 @@ require (
 )
 
 // add status code to HTTP request metrics, see https://github.com/open-telemetry/opentelemetry-go-contrib/pull/771
-replace go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp => github.com/textileio/opentelemetry-go-contrib/instrumentation/net/http/otelhttp v0.26.1-0.20211103030059-3552081365d7
+replace go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp => github.com/textileio/opentelemetry-go-contrib/instrumentation/net/http/otelhttp v0.26.1-0.20220117135430-3604b55cd65b
