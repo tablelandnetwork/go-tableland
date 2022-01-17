@@ -77,6 +77,16 @@ func getValueFromScanArg(arg interface{}) interface{} {
 			return string(buf)
 		}
 
+		if val, ok := (arg).(*pgtype.Date); ok {
+			if val.Status == pgtype.Null {
+				return nil
+			}
+
+			buf := make([]byte, 0)
+			buf, _ = val.EncodeText(pgtype.NewConnInfo(), buf)
+			return string(buf)
+		}
+
 		if val, ok := (arg).(*pgtype.Timestamp); ok {
 			if val.Status == pgtype.Null {
 				return nil
@@ -130,7 +140,7 @@ func getTypeFromOID(oid uint32) (t interface{}, err error) {
 	switch oid {
 	case pgtype.Int2OID, pgtype.Int4OID, pgtype.Int8OID:
 		t = new(*int)
-	case pgtype.TextOID, pgtype.VarcharOID, pgtype.BPCharOID, pgtype.DateOID:
+	case pgtype.TextOID, pgtype.VarcharOID, pgtype.BPCharOID:
 		t = new(*string)
 	case pgtype.BoolOID:
 		t = new(*bool)
@@ -140,6 +150,8 @@ func getTypeFromOID(oid uint32) (t interface{}, err error) {
 		t = new(pgtype.Numeric)
 	case pgtype.TimestampOID:
 		t = new(pgtype.Timestamp)
+	case pgtype.DateOID:
+		t = new(pgtype.Date)
 	case pgtype.TimestamptzOID:
 		t = new(pgtype.Timestamptz)
 	case pgtype.UUIDOID:
