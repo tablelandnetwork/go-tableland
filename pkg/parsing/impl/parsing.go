@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	pg_query "github.com/pganalyze/pg_query_go/v2"
-	"github.com/textileio/go-tableland/internal/parsing"
+	"github.com/textileio/go-tableland/pkg/parsing"
 )
 
 var (
@@ -15,23 +15,47 @@ var (
 )
 
 type PostgresParser struct {
-	systemTablePrefix string
+	systemTablePrefix  string
+	acceptedTypesNames []string
 }
 
 var _ parsing.Parser = (*PostgresParser)(nil)
 
 func New(systemTablePrefix string) *PostgresParser {
+	// We create here a flattened slice of all the accepted type names from
+	// the parsing.AcceptedTypes source of truth. We do this since having a
+	// slice is easier and faster to do checks.
+	var acceptedTypesNames []string
+	for _, at := range parsing.AcceptedTypes {
+		acceptedTypesNames = append(acceptedTypesNames, at.Names...)
+	}
+
 	return &PostgresParser{
-		systemTablePrefix: systemTablePrefix,
+		systemTablePrefix:  systemTablePrefix,
+		acceptedTypesNames: acceptedTypesNames,
 	}
 }
 
 func (pp *PostgresParser) ValidateCreateTable(query string) error {
-	// TODO: only allow single statement.
-	// TODO: only allow CREATE
-	// TODO: not allow table names with systemTablePrefix
+	parsed, err := pg_query.Parse(query)
+	if err != nil {
+		return &parsing.ErrInvalidSyntax{InternalError: err}
+	}
 
-	panic("TODO")
+	if err := pp.checkSingleStatement(parsed); err != nil {
+		return fmt.Errorf("single-statement check: %w", err)
+	}
+
+	stmt := parsed.Stmts[0].Stmt
+	if err := pp.checkTopLevelCreate(stmt); err != nil {
+		return fmt.Errorf("allowed top level stmt: %w", err)
+	}
+
+	if err := pp.checkCreateColTypes(stmt.GetCreateStmt()); err != nil {
+		return fmt.Errorf("disallowed column types: %w", err)
+	}
+
+	return nil
 }
 
 func (pp *PostgresParser) ValidateRunSQL(query string) error {
@@ -114,6 +138,13 @@ func (pp *PostgresParser) checkTopLevelUpdateInsertDelete(node *pg_query.Node) e
 		node.GetInsertStmt() == nil &&
 		node.GetDeleteStmt() == nil {
 		return &parsing.ErrNoTopLevelUpdateInsertDelete{}
+	}
+	return nil
+}
+
+func (pp *PostgresParser) checkTopLevelCreate(node *pg_query.Node) error {
+	if node.GetCreateStmt() == nil {
+		return &parsing.ErrNoTopLevelCreate{}
 	}
 	return nil
 }
@@ -292,7 +323,6 @@ func (pp *PostgresParser) checkNoJoinOrSubquery(node *pg_query.Node) error {
 			return fmt.Errorf("insert select expr: %w", err)
 		}
 	} else if updateStmt := node.GetUpdateStmt(); updateStmt != nil {
-		fmt.Printf("AHAHA: %v\n", updateStmt)
 		if len(updateStmt.FromClause) != 0 {
 			return &parsing.ErrJoinOrSubquery{}
 		}
@@ -319,5 +349,43 @@ func (pp *PostgresParser) checkNoJoinOrSubquery(node *pg_query.Node) error {
 			}
 		}
 	}
+	return nil
+}
+
+func (pp *PostgresParser) checkCreateColTypes(createStmt *pg_query.CreateStmt) error {
+	if createStmt == nil {
+		return errEmptyNode
+	}
+
+	for _, col := range createStmt.TableElts {
+		colDef := col.GetColumnDef()
+		if colDef == nil {
+			return errors.New("unexpected node type in column definition")
+		}
+
+	AcceptedTypesFor:
+		for _, nameNode := range colDef.TypeName.Names {
+			name := nameNode.GetString_()
+			if name == nil {
+				return fmt.Errorf("unexpected type name node: %v", name)
+			}
+			// We skip `pg_catalog` since it seems that gets included for some
+			// cases of native types.
+			if name.Str == "pg_catalog" {
+				continue
+			}
+
+			for _, typeName := range pp.acceptedTypesNames {
+				if name.Str == typeName {
+					// The current data type name has a match with accepted
+					// types. Continue matching the rest of columns.
+					continue AcceptedTypesFor
+				}
+			}
+
+			return &parsing.ErrInvalidColumnType{ColumnType: name.Str}
+		}
+	}
+
 	return nil
 }

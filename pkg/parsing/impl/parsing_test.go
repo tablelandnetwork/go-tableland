@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/go-tableland/internal/parsing"
-	postgresparser "github.com/textileio/go-tableland/internal/parsing/impl"
+	"github.com/textileio/go-tableland/pkg/parsing"
+	postgresparser "github.com/textileio/go-tableland/pkg/parsing/impl"
 )
 
 func TestReadQuery(t *testing.T) {
@@ -131,6 +131,81 @@ func TestRunSQL(t *testing.T) {
 	}
 }
 
+func TestCreateTable(t *testing.T) {
+	t.Parallel()
+
+	type testCase struct {
+		name            string
+		query           string
+		expectedErrType interface{}
+	}
+	tests := []testCase{
+		// Malformed query.
+		{name: "malformed query", query: "create tablez foo (foo int)", expectedErrType: ptr2ErrInvalidSyntax()},
+
+		// Single-statement check.
+		{name: "two creates", query: "create table foo (a int); create table bar (a int);", expectedErrType: ptr2ErrNoSingleStatement()},
+		{name: "no statements", query: "", expectedErrType: ptr2ErrNoSingleStatement()},
+
+		// Check top-statement is only CREATE.
+		{name: "select", query: "select * from foo", expectedErrType: ptr2ErrNoTopLevelCreate()},
+		{name: "update", query: "update foo set bar=1", expectedErrType: ptr2ErrNoTopLevelCreate()},
+		{name: "insert", query: "insert into foo values (1)", expectedErrType: ptr2ErrNoTopLevelCreate()},
+		{name: "drop", query: "drop table foo", expectedErrType: ptr2ErrNoTopLevelCreate()},
+		{name: "delete", query: "delete from foo", expectedErrType: ptr2ErrNoTopLevelCreate()},
+
+		// Valid table with all accepted types.
+		{
+			name: "valid all",
+			query: `create table foo (
+				   zint  int,
+				   zint2 int2,
+				   zint4 int4,
+				   zint8 int8,
+				   zbigint bigint,
+				   zsmallint smallint,
+
+				   ztext text,
+				   zvarchar varchar(10),
+				   zbpchar bpchar,
+				   zdate date,
+
+				   zbool bool,
+
+				   zfloat4 float4,
+				   zfloat8 float8,
+
+				   znumeric numeric,
+
+				   ztimestamp timestamp,
+				   ztimestamptz timestamptz,
+				   zuuid uuid
+			       )`,
+			expectedErrType: nil,
+		},
+
+		// Tables with invalid columns.
+		{name: "xml column", query: "create table foo (foo xml)", expectedErrType: ptr2ErrInvalidColumnType()},
+		{name: "money column", query: "create table foo (foo money)", expectedErrType: ptr2ErrInvalidColumnType()},
+		{name: "money column", query: "create table foo (foo bigserial)", expectedErrType: ptr2ErrInvalidColumnType()},
+	}
+
+	for _, it := range tests {
+		t.Run(it.name, func(tc testCase) func(t *testing.T) {
+			return func(t *testing.T) {
+				t.Parallel()
+				parser := postgresparser.New("system_")
+				err := parser.ValidateCreateTable(tc.query)
+				if tc.expectedErrType == nil {
+					require.NoError(t, err)
+					return
+				}
+				require.ErrorAs(t, err, tc.expectedErrType)
+			}
+		}(it))
+	}
+}
+
 // Helpers to have a pointer to pointer for generic test-case running.
 func ptr2ErrInvalidSyntax() **parsing.ErrInvalidSyntax {
 	e := &parsing.ErrInvalidSyntax{}
@@ -166,5 +241,13 @@ func ptr2ErrNonDeterministicFunction() **parsing.ErrNonDeterministicFunction {
 }
 func ptr2ErrJoinOrSubquery() **parsing.ErrJoinOrSubquery {
 	e := &parsing.ErrJoinOrSubquery{}
+	return &e
+}
+func ptr2ErrNoTopLevelCreate() **parsing.ErrNoTopLevelCreate {
+	e := &parsing.ErrNoTopLevelCreate{}
+	return &e
+}
+func ptr2ErrInvalidColumnType() **parsing.ErrInvalidColumnType {
+	e := &parsing.ErrInvalidColumnType{}
 	return &e
 }
