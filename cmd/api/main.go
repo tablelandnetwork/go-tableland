@@ -13,6 +13,7 @@ import (
 	systemimpl "github.com/textileio/go-tableland/internal/system/impl"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/internal/tableland/impl"
+	"github.com/textileio/go-tableland/pkg/metrics"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
@@ -50,27 +51,32 @@ func main() {
 		panic(err)
 	}
 
+	sqlstore = sqlstoreimpl.NewInstrumentedSQLStorePGX(sqlstore)
+
 	svc := getTablelandService(config, sqlstore, registry)
 	if err := server.RegisterName("tableland", svc); err != nil {
 		panic(err)
 	}
 
-	systemService := systemimpl.NewSystemSQLStoreService(sqlstore)
+	systemService := systemimpl.NewInstrumentedSystemSQLStoreService(systemimpl.NewSystemSQLStoreService(sqlstore))
 	systemController := controllers.NewSystemController(systemService)
 
 	router := newRouter()
 	router.Use(middlewares.CORS)
 	router.Post("/rpc", func(rw http.ResponseWriter, r *http.Request) {
 		server.ServeHTTP(rw, r)
-	}, middlewares.Authentication)
+	}, middlewares.Authentication, middlewares.OtelHTTP("rpc"))
 
-	router.Get("/tables/{uuid}", systemController.GetTable)
-	router.Get("/tables/controller/{address}", systemController.GetTablesByController)
+	router.Get("/tables/{uuid}", systemController.GetTable, middlewares.OtelHTTP("GetTable"))
+	router.Get("/tables/controller/{address}", systemController.GetTablesByController, middlewares.OtelHTTP("GetTablesByController")) //nolint
 	router.Get("/healthz", healthHandler)
 	router.Get("/health", healthHandler)
 
-	err = router.Serve(":" + config.HTTP.Port)
-	if err != nil {
+	if err := metrics.SetupInstrumentation(":" + config.Metrics.Port); err != nil {
+		panic(err)
+	}
+
+	if err := router.Serve(":" + config.HTTP.Port); err != nil {
 		panic(err)
 	}
 }
@@ -82,7 +88,8 @@ func getTablelandService(
 ) tableland.Tableland {
 	switch conf.Impl {
 	case "mesa":
-		return impl.NewTablelandMesa(store, registry)
+		mesa := impl.NewTablelandMesa(store, registry)
+		return impl.NewInstrumentedTablelandMesa(mesa)
 	case "mock":
 		return new(impl.TablelandMock)
 	}

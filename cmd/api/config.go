@@ -26,6 +26,9 @@ type config struct {
 		EthEndpoint     string `default:"eth_endpoint"`
 		ContractAddress string `default:"contract_address"`
 	}
+	Metrics struct {
+		Port string `default:"9090"`
+	}
 }
 
 func setupConfig() *config {
