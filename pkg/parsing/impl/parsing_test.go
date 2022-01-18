@@ -208,46 +208,46 @@ func TestCreateTable(t *testing.T) {
 
 // Helpers to have a pointer to pointer for generic test-case running.
 func ptr2ErrInvalidSyntax() **parsing.ErrInvalidSyntax {
-	e := &parsing.ErrInvalidSyntax{}
+	var e *parsing.ErrInvalidSyntax
 	return &e
 }
 func ptr2ErrNoSingleStatement() **parsing.ErrNoSingleStatement {
-	e := &parsing.ErrNoSingleStatement{}
+	var e *parsing.ErrNoSingleStatement
 	return &e
 }
 func ptr2ErrNoTopLevelSelect() **parsing.ErrNoTopLevelSelect {
-	e := &parsing.ErrNoTopLevelSelect{}
+	var e *parsing.ErrNoTopLevelSelect
 	return &e
 }
 func ptr2ErrNoForUpdateOrShare() **parsing.ErrNoForUpdateOrShare {
-	e := &parsing.ErrNoForUpdateOrShare{}
+	var e *parsing.ErrNoForUpdateOrShare
 	return &e
 }
 func ptr2ErrSystemTableReferencing() **parsing.ErrSystemTableReferencing {
-	e := &parsing.ErrSystemTableReferencing{}
+	var e *parsing.ErrSystemTableReferencing
 	return &e
 }
 func ptr2ErrNoTopLevelUpdateInsertDelete() **parsing.ErrNoTopLevelUpdateInsertDelete {
-	e := &parsing.ErrNoTopLevelUpdateInsertDelete{}
+	var e *parsing.ErrNoTopLevelUpdateInsertDelete
 	return &e
 }
 func ptr2ErrReturningClause() **parsing.ErrReturningClause {
-	e := &parsing.ErrReturningClause{}
+	var e *parsing.ErrReturningClause
 	return &e
 }
 func ptr2ErrNonDeterministicFunction() **parsing.ErrNonDeterministicFunction {
-	e := &parsing.ErrNonDeterministicFunction{}
+	var e *parsing.ErrNonDeterministicFunction
 	return &e
 }
 func ptr2ErrJoinOrSubquery() **parsing.ErrJoinOrSubquery {
-	e := &parsing.ErrJoinOrSubquery{}
+	var e *parsing.ErrJoinOrSubquery
 	return &e
 }
 func ptr2ErrNoTopLevelCreate() **parsing.ErrNoTopLevelCreate {
-	e := &parsing.ErrNoTopLevelCreate{}
+	var e *parsing.ErrNoTopLevelCreate
 	return &e
 }
 func ptr2ErrInvalidColumnType() **parsing.ErrInvalidColumnType {
-	e := &parsing.ErrInvalidColumnType{}
+	var e *parsing.ErrInvalidColumnType
 	return &e
 }
