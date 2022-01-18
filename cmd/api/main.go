@@ -63,7 +63,7 @@ func main() {
 
 	sqlstore = sqlstoreimpl.NewInstrumentedSQLStorePGX(sqlstore)
 
-	parser := parserimpl.NewInstrumentedParser(parserimpl.New("_system"))
+	parser := parserimpl.NewInstrumentedSQLValidator(parserimpl.New("_system"))
 
 	svc := getTablelandService(config, sqlstore, registry, parser)
 	if err := server.RegisterName("tableland", svc); err != nil {
@@ -105,7 +105,7 @@ func getTablelandService(
 	conf *config,
 	store sqlstore.SQLStore,
 	registry *ethereum.Client,
-	parser parsing.Parser,
+	parser parsing.SQLValidator,
 ) tableland.Tableland {
 	switch conf.Impl {
 	case "mesa":

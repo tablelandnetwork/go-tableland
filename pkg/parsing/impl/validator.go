@@ -14,14 +14,15 @@ var (
 	errUnexpectedNodeType = errors.New("unexpected node type")
 )
 
-type PostgresParser struct {
+type QueryValidator struct {
 	systemTablePrefix  string
 	acceptedTypesNames []string
 }
 
-var _ parsing.Parser = (*PostgresParser)(nil)
+var _ parsing.SQLValidator = (*QueryValidator)(nil)
 
-func New(systemTablePrefix string) *PostgresParser {
+// New returns a Tableland query validator.
+func New(systemTablePrefix string) *QueryValidator {
 	// We create here a flattened slice of all the accepted type names from
 	// the parsing.AcceptedTypes source of truth. We do this since having a
 	// slice is easier and faster to do checks.
@@ -30,13 +31,15 @@ func New(systemTablePrefix string) *PostgresParser {
 		acceptedTypesNames = append(acceptedTypesNames, at.Names...)
 	}
 
-	return &PostgresParser{
+	return &QueryValidator{
 		systemTablePrefix:  systemTablePrefix,
 		acceptedTypesNames: acceptedTypesNames,
 	}
 }
 
-func (pp *PostgresParser) ValidateCreateTable(query string) error {
+// ValidateCreateTable validates the provided query and returns an error
+// if the CREATE statement isn't allowed. Returns nil otherwise.
+func (pp *QueryValidator) ValidateCreateTable(query string) error {
 	parsed, err := pg_query.Parse(query)
 	if err != nil {
 		return &parsing.ErrInvalidSyntax{InternalError: err}
@@ -58,7 +61,9 @@ func (pp *PostgresParser) ValidateCreateTable(query string) error {
 	return nil
 }
 
-func (pp *PostgresParser) ValidateRunSQL(query string) (parsing.QueryType, error) {
+// ValidateRunSQL validates the query and returns an error if isn't allowed.
+// If the query validates correctly, it returns the query type and nil.
+func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.QueryType, error) {
 	parsed, err := pg_query.Parse(query)
 	if err != nil {
 		return parsing.UndefinedQuery, &parsing.ErrInvalidSyntax{InternalError: err}
@@ -86,7 +91,7 @@ func (pp *PostgresParser) ValidateRunSQL(query string) (parsing.QueryType, error
 	return parsing.WriteQuery, nil
 }
 
-func (pp *PostgresParser) validateWriteQuery(stmt *pg_query.Node) error {
+func (pp *QueryValidator) validateWriteQuery(stmt *pg_query.Node) error {
 	if err := pp.checkTopLevelUpdateInsertDelete(stmt); err != nil {
 		return fmt.Errorf("allowed top level stmt: %w", err)
 	}
@@ -110,7 +115,7 @@ func (pp *PostgresParser) validateWriteQuery(stmt *pg_query.Node) error {
 	return nil
 }
 
-func (pp *PostgresParser) validateReadQuery(selectNode *pg_query.Node) error {
+func (pp *QueryValidator) validateReadQuery(selectNode *pg_query.Node) error {
 	if err := pp.checkNoForUpdateOrShare(selectNode.GetSelectStmt()); err != nil {
 		return fmt.Errorf("no for check: %w", err)
 	}
@@ -122,14 +127,14 @@ func (pp *PostgresParser) validateReadQuery(selectNode *pg_query.Node) error {
 	return nil
 }
 
-func (pp *PostgresParser) checkSingleStatement(parsed *pg_query.ParseResult) error {
+func (pp *QueryValidator) checkSingleStatement(parsed *pg_query.ParseResult) error {
 	if len(parsed.Stmts) != 1 {
 		return &parsing.ErrNoSingleStatement{}
 	}
 	return nil
 }
 
-func (pp *PostgresParser) checkTopLevelUpdateInsertDelete(node *pg_query.Node) error {
+func (pp *QueryValidator) checkTopLevelUpdateInsertDelete(node *pg_query.Node) error {
 	if node.GetUpdateStmt() == nil &&
 		node.GetInsertStmt() == nil &&
 		node.GetDeleteStmt() == nil {
@@ -138,14 +143,14 @@ func (pp *PostgresParser) checkTopLevelUpdateInsertDelete(node *pg_query.Node) e
 	return nil
 }
 
-func (pp *PostgresParser) checkTopLevelCreate(node *pg_query.Node) error {
+func (pp *QueryValidator) checkTopLevelCreate(node *pg_query.Node) error {
 	if node.GetCreateStmt() == nil {
 		return &parsing.ErrNoTopLevelCreate{}
 	}
 	return nil
 }
 
-func (pp *PostgresParser) checkNoForUpdateOrShare(node *pg_query.SelectStmt) error {
+func (pp *QueryValidator) checkNoForUpdateOrShare(node *pg_query.SelectStmt) error {
 	if node == nil {
 		return errEmptyNode
 	}
@@ -156,7 +161,7 @@ func (pp *PostgresParser) checkNoForUpdateOrShare(node *pg_query.SelectStmt) err
 	return nil
 }
 
-func (pp *PostgresParser) checkNoReturningClause(node *pg_query.Node) error {
+func (pp *QueryValidator) checkNoReturningClause(node *pg_query.Node) error {
 	if node == nil {
 		return errEmptyNode
 	}
@@ -179,7 +184,7 @@ func (pp *PostgresParser) checkNoReturningClause(node *pg_query.Node) error {
 	return nil
 }
 
-func (pp *PostgresParser) checkNoSystemTablesReferencing(node *pg_query.Node) error {
+func (pp *QueryValidator) checkNoSystemTablesReferencing(node *pg_query.Node) error {
 	if node == nil {
 		return nil
 	}
@@ -231,7 +236,7 @@ func (pp *PostgresParser) checkNoSystemTablesReferencing(node *pg_query.Node) er
 
 // checkNonDeterministicFunctions walks the query tree and disallow references to
 // functions that aren't deterministic.
-func (pp *PostgresParser) checkNonDeterministicFunctions(node *pg_query.Node) error {
+func (pp *QueryValidator) checkNonDeterministicFunctions(node *pg_query.Node) error {
 	if node == nil {
 		return nil
 	}
@@ -242,7 +247,6 @@ func (pp *PostgresParser) checkNonDeterministicFunctions(node *pg_query.Node) er
 			if err := pp.checkNonDeterministicFunctions(item); err != nil {
 				return fmt.Errorf("list item: %w", err)
 			}
-
 		}
 	}
 	if insertStmt := node.GetInsertStmt(); insertStmt != nil {
@@ -302,7 +306,7 @@ func (pp *PostgresParser) checkNonDeterministicFunctions(node *pg_query.Node) er
 	return nil
 }
 
-func (pp *PostgresParser) checkNoJoinOrSubquery(node *pg_query.Node) error {
+func (pp *QueryValidator) checkNoJoinOrSubquery(node *pg_query.Node) error {
 	if node == nil {
 		return nil
 	}
@@ -348,7 +352,7 @@ func (pp *PostgresParser) checkNoJoinOrSubquery(node *pg_query.Node) error {
 	return nil
 }
 
-func (pp *PostgresParser) checkCreateColTypes(createStmt *pg_query.CreateStmt) error {
+func (pp *QueryValidator) checkCreateColTypes(createStmt *pg_query.CreateStmt) error {
 	if createStmt == nil {
 		return errEmptyNode
 	}

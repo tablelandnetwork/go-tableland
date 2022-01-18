@@ -15,23 +15,25 @@ var (
 	log = logger.Logger("parsing")
 )
 
-// InstrumentedParser implements an instrumented Parsing interface.
-type InstrumentedParser struct {
-	parser           parsing.Parser
+// InstrumentedSQLValidator implements an instrumented Parsing interface.
+type InstrumentedSQLValidator struct {
+	parser           parsing.SQLValidator
 	callCount        metric.Int64Counter
 	latencyHistogram metric.Int64Histogram
 }
 
-func NewInstrumentedParser(p parsing.Parser) *InstrumentedParser {
+// NewInstrumentedSQLValidator returns creates a wrapped QueryValidator for registering metrics.
+func NewInstrumentedSQLValidator(p parsing.SQLValidator) *InstrumentedSQLValidator {
 	meter := metric.Must(global.Meter("tableland"))
-	return &InstrumentedParser{
+	return &InstrumentedSQLValidator{
 		parser:           p,
-		callCount:        meter.NewInt64Counter("tableland.parser.call.count"),
-		latencyHistogram: meter.NewInt64Histogram("tableland.sqlstore.call.latency"),
+		callCount:        meter.NewInt64Counter("tableland.sqlvalidator.call.count"),
+		latencyHistogram: meter.NewInt64Histogram("tableland.sqlvalidator.call.latency"),
 	}
 }
 
-func (ip *InstrumentedParser) ValidateCreateTable(query string) error {
+// ValidateCreateTable register metrics for its corresponding wrapped parser.
+func (ip *InstrumentedSQLValidator) ValidateCreateTable(query string) error {
 	log.Debugf("call ValidateCreateTable with query %q", query)
 	start := time.Now()
 	err := ip.parser.ValidateCreateTable(query)
@@ -47,7 +49,9 @@ func (ip *InstrumentedParser) ValidateCreateTable(query string) error {
 
 	return err
 }
-func (ip *InstrumentedParser) ValidateRunSQL(query string) (parsing.QueryType, error) {
+
+// ValidateRunSQL register metrics for its corresponding wrapped parser.
+func (ip *InstrumentedSQLValidator) ValidateRunSQL(query string) (parsing.QueryType, error) {
 	log.Debugf("call ValidateRunSQL with query %q", query)
 	start := time.Now()
 	queryType, err := ip.parser.ValidateRunSQL(query)

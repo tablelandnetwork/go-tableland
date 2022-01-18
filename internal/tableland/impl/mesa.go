@@ -19,11 +19,14 @@ import (
 type TablelandMesa struct {
 	store    sqlstore.SQLStore
 	registry tableregistry.TableRegistry
-	parser   parsing.Parser
+	parser   parsing.SQLValidator
 }
 
 // NewTablelandMesa creates a new TablelandMesa.
-func NewTablelandMesa(store sqlstore.SQLStore, registry tableregistry.TableRegistry, parser parsing.Parser) tableland.Tableland {
+func NewTablelandMesa(
+	store sqlstore.SQLStore,
+	registry tableregistry.TableRegistry,
+	parser parsing.SQLValidator) tableland.Tableland {
 	return &TablelandMesa{
 		store:    store,
 		registry: registry,

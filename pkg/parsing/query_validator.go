@@ -10,27 +10,39 @@ import (
 type QueryType string
 
 const (
+	// UndefinedQuery is an undefined query type.
 	UndefinedQuery QueryType = "undefined"
-	ReadQuery                = "read"
-	WriteQuery               = "write"
+	// ReadQuery is a read query.
+	ReadQuery = "read"
+	// WriteQuery is a write query.
+	WriteQuery = "write"
 )
 
-// Parser parses and validate a SQL query for different supported scenarios.
-type Parser interface {
+// SQLValidator parses and validate a SQL query for different supported scenarios.
+type SQLValidator interface {
+	// ValidateCreateTable validates the provided query and returns an error
+	// if the CREATE statement isn't allowed. Returns nil otherwise.
 	ValidateCreateTable(query string) error
+	// ValidateRunSQL validates the query and returns an error if isn't allowed.
+	// If the query validates correctly, it returns the query type and nil.
 	ValidateRunSQL(query string) (QueryType, error)
 }
 
 // TablelandColumnType represents an accepted column type for user-tables.
 type TablelandColumnType struct {
-	Oid    uint32
+	// Oid is the corresponding postgres datatype OID.
+	Oid uint32
+	// GoType contains a value of the correct type to be used for
+	// json unmarshaling.
 	GoType interface{}
-	Names  []string
+	// Names contains a list of postgres datatype names to be used by the parser
+	// to recognize the column type.
+	Names []string
 }
 
 var (
 	// AcceptedTypes contains all the accepted column types in user-defined tables.
-	// It's used by the parser and the JSON marshaler to validate queries, and transform to appropiate
+	// It's used by the parser and the JSON marshaler to validate queries, and transform to appropriate
 	// Go types respectively.
 	AcceptedTypes = map[uint32]TablelandColumnType{
 		pgtype.Int2OID: {Oid: pgtype.Int2OID, GoType: &dummyInt, Names: []string{"int2"}},
@@ -56,7 +68,7 @@ var (
 
 		pgtype.UUIDOID: {Oid: pgtype.UUIDOID, GoType: pgtype.UUID{}, Names: []string{"uuid"}},
 	}
-	// TODO: the above list is tentative and thus incomplete; the accepted types are still not well defined at the spec level.
+	// TODO: the above list is tentative and incomplete; the accepted types are still not well defined at the spec level.
 
 	dummyInt     int
 	dummyStr     string
@@ -79,14 +91,6 @@ type ErrNoSingleStatement struct{}
 
 func (e *ErrNoSingleStatement) Error() string {
 	return "the query contains zero or more than one statement"
-}
-
-// ErrNoTopLevelSelect is an error returned when the top-level statement isn't
-// a SELECT.
-type ErrNoTopLevelSelect struct{}
-
-func (e *ErrNoTopLevelSelect) Error() string {
-	return "the query isn't a SELECT"
 }
 
 // ErrNoForUpdateOrShare is an error returned when a SELECT statements use
