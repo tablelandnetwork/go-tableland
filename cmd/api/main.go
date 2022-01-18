@@ -8,6 +8,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/rs/zerolog/log"
+	"github.com/textileio/go-tableland/buildinfo"
 	"github.com/textileio/go-tableland/cmd/api/controllers"
 	"github.com/textileio/go-tableland/cmd/api/middlewares"
 	systemimpl "github.com/textileio/go-tableland/internal/system/impl"
@@ -21,9 +23,9 @@ import (
 
 func main() {
 	config := setupConfig()
+	setupLogging(buildinfo.GitCommit, config.Log.Debug, config.Log.Human)
 
 	server := rpc.NewServer()
-
 	ctx := context.Background()
 
 	databaseURL := fmt.Sprintf(
@@ -36,26 +38,34 @@ func main() {
 	)
 	sqlstore, err := sqlstoreimpl.New(ctx, databaseURL)
 	if err != nil {
-		panic(err)
+		log.Fatal().Err(err).Msg("failed initialize sqlstore")
 	}
 	defer sqlstore.Close()
 
 	conn, err := ethclient.Dial(config.Registry.EthEndpoint)
 	if err != nil {
-		panic(err)
+		log.Fatal().
+			Err(err).
+			Str("ethEndpoint", config.Registry.EthEndpoint).
+			Msg("failed to connect to ethereum endpoint")
 	}
 	defer conn.Close()
 
 	registry, err := ethereum.NewClient(conn, common.HexToAddress(config.Registry.ContractAddress))
 	if err != nil {
-		panic(err)
+		log.Fatal().
+			Err(err).
+			Str("contractAddress", config.Registry.ContractAddress).
+			Msg("failed to create new ethereum client")
 	}
 
 	sqlstore = sqlstoreimpl.NewInstrumentedSQLStorePGX(sqlstore)
 
 	svc := getTablelandService(config, sqlstore, registry)
 	if err := server.RegisterName("tableland", svc); err != nil {
-		panic(err)
+		log.Fatal().
+			Err(err).
+			Msg("failed to register a json-rpc service")
 	}
 
 	systemService := systemimpl.NewInstrumentedSystemSQLStoreService(systemimpl.NewSystemSQLStoreService(sqlstore))
@@ -73,11 +83,17 @@ func main() {
 	router.Get("/health", healthHandler)
 
 	if err := metrics.SetupInstrumentation(":" + config.Metrics.Port); err != nil {
-		panic(err)
+		log.Fatal().
+			Err(err).
+			Str("port", config.Metrics.Port).
+			Msg("could not setup instrumentation")
 	}
 
 	if err := router.Serve(":" + config.HTTP.Port); err != nil {
-		panic(err)
+		log.Fatal().
+			Err(err).
+			Str("port", config.HTTP.Port).
+			Msg("could not start server")
 	}
 }
 

@@ -29,6 +29,10 @@ type config struct {
 	Metrics struct {
 		Port string `default:"9090"`
 	}
+	Log struct {
+		Human bool `default:"false"`
+		Debug bool `default:"false"`
+	}
 }
 
 func setupConfig() *config {

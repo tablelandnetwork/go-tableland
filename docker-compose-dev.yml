@@ -17,6 +17,8 @@ services:
       - DB_NAME=dev_database
       - DB_USER=dev_user
       - METRICS_PORT=9090
+      - LOG_DEBUG=true
+      - LOG_HUMAN=true
       - OTEL_SERVICE_NAME=tableland:api # this is just to the unknown_service from the metrics label
     ports:
       - "127.0.0.1:8080:8080"
