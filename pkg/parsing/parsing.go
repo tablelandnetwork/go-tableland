@@ -6,13 +6,22 @@ import (
 	"github.com/jackc/pgtype"
 )
 
+// QueryType indicates the query type.
+type QueryType string
+
+const (
+	UndefinedQuery QueryType = "undefined"
+	ReadQuery                = "read"
+	WriteQuery               = "write"
+)
+
 // Parser parses and validate a SQL query for different supported scenarios.
 type Parser interface {
 	ValidateCreateTable(query string) error
-	ValidateRunSQL(query string) error
-	ValidateReadQuery(query string) error
+	ValidateRunSQL(query string) (QueryType, error)
 }
 
+// TablelandColumnType represents an accepted column type for user-tables.
 type TablelandColumnType struct {
 	Oid    uint32
 	GoType interface{}
@@ -20,7 +29,9 @@ type TablelandColumnType struct {
 }
 
 var (
-	// TODO: this list is tentative and thus incomplete; the accepted types are still not well defined at the spec level.
+	// AcceptedTypes contains all the accepted column types in user-defined tables.
+	// It's used by the parser and the JSON marshaler to validate queries, and transform to appropiate
+	// Go types respectively.
 	AcceptedTypes = map[uint32]TablelandColumnType{
 		pgtype.Int2OID: {Oid: pgtype.Int2OID, GoType: &dummyInt, Names: []string{"int2"}},
 		pgtype.Int4OID: {Oid: pgtype.Int4OID, GoType: &dummyInt, Names: []string{"int4", "serial"}},
@@ -45,6 +56,7 @@ var (
 
 		pgtype.UUIDOID: {Oid: pgtype.UUIDOID, GoType: pgtype.UUID{}, Names: []string{"uuid"}},
 	}
+	// TODO: the above list is tentative and thus incomplete; the accepted types are still not well defined at the spec level.
 
 	dummyInt     int
 	dummyStr     string

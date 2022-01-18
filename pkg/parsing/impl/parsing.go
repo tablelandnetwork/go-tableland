@@ -58,17 +58,35 @@ func (pp *PostgresParser) ValidateCreateTable(query string) error {
 	return nil
 }
 
-func (pp *PostgresParser) ValidateRunSQL(query string) error {
+func (pp *PostgresParser) ValidateRunSQL(query string) (parsing.QueryType, error) {
 	parsed, err := pg_query.Parse(query)
 	if err != nil {
-		return &parsing.ErrInvalidSyntax{InternalError: err}
+		return parsing.UndefinedQuery, &parsing.ErrInvalidSyntax{InternalError: err}
 	}
 
 	if err := pp.checkSingleStatement(parsed); err != nil {
-		return fmt.Errorf("single-statement check: %w", err)
+		return parsing.UndefinedQuery, fmt.Errorf("single-statement check: %w", err)
 	}
 
 	stmt := parsed.Stmts[0].Stmt
+
+	// If we detect a read-query, do read-query validation.
+	if selectStmt := stmt.GetSelectStmt(); selectStmt != nil {
+		if err := pp.validateReadQuery(stmt); err != nil {
+			return parsing.UndefinedQuery, fmt.Errorf("validating read-query: %w", err)
+		}
+		return parsing.ReadQuery, nil
+	}
+
+	// Otherwise, do a write-query validation.
+	if err := pp.validateWriteQuery(stmt); err != nil {
+		return parsing.UndefinedQuery, fmt.Errorf("validating write-query: %w", err)
+	}
+
+	return parsing.WriteQuery, nil
+}
+
+func (pp *PostgresParser) validateWriteQuery(stmt *pg_query.Node) error {
 	if err := pp.checkTopLevelUpdateInsertDelete(stmt); err != nil {
 		return fmt.Errorf("allowed top level stmt: %w", err)
 	}
@@ -92,27 +110,12 @@ func (pp *PostgresParser) ValidateRunSQL(query string) error {
 	return nil
 }
 
-func (pp *PostgresParser) ValidateReadQuery(query string) error {
-	parsed, err := pg_query.Parse(query)
-	if err != nil {
-		return fmt.Errorf("parsing: %w", &parsing.ErrInvalidSyntax{InternalError: err})
-	}
-
-	if err := pp.checkSingleStatement(parsed); err != nil {
-		return fmt.Errorf("single-statement check: %w", err)
-	}
-
-	stmt := parsed.Stmts[0].Stmt
-	if err := pp.checkTopLevelSelect(stmt); err != nil {
-		return fmt.Errorf("top-level statement check: %w", err)
-	}
-
-	selectStmt := stmt.GetSelectStmt()
-	if err := pp.checkNoForUpdateOrShare(selectStmt); err != nil {
+func (pp *PostgresParser) validateReadQuery(selectNode *pg_query.Node) error {
+	if err := pp.checkNoForUpdateOrShare(selectNode.GetSelectStmt()); err != nil {
 		return fmt.Errorf("no for check: %w", err)
 	}
 
-	if err := pp.checkNoSystemTablesReferencing(stmt); err != nil {
+	if err := pp.checkNoSystemTablesReferencing(selectNode); err != nil {
 		return fmt.Errorf("no system-table referencing check: %w", err)
 	}
 
@@ -122,13 +125,6 @@ func (pp *PostgresParser) ValidateReadQuery(query string) error {
 func (pp *PostgresParser) checkSingleStatement(parsed *pg_query.ParseResult) error {
 	if len(parsed.Stmts) != 1 {
 		return &parsing.ErrNoSingleStatement{}
-	}
-	return nil
-}
-
-func (pp *PostgresParser) checkTopLevelSelect(node *pg_query.Node) error {
-	if node.GetSelectStmt() == nil {
-		return &parsing.ErrNoTopLevelSelect{}
 	}
 	return nil
 }

@@ -65,21 +65,23 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.Request) (tabl
 		return tableland.Response{}, fmt.Errorf("failed to parse uuid: %s", err)
 	}
 
-	if strings.Contains(strings.ToLower(req.Statement), "select") {
-		return t.runSelect(ctx, req)
-	}
-
-	isAuthorized, err := t.isAuthorized(ctx, req.Controller, uuid)
+	queryType, err := t.parser.ValidateRunSQL(req.Statement)
 	if err != nil {
-		return tableland.Response{}, fmt.Errorf("failed to check authorization: %s", err)
+		return tableland.Response{}, fmt.Errorf("validating query: %s", err)
 	}
 
-	if !isAuthorized {
-		return tableland.Response{}, errors.New("you aren't authorized")
-	}
+	switch queryType {
+	case parsing.ReadQuery:
+		return t.runSelect(ctx, req)
+	case parsing.WriteQuery:
+		isAuthorized, err := t.isAuthorized(ctx, req.Controller, uuid)
+		if err != nil {
+			return tableland.Response{}, fmt.Errorf("failed to check authorization: %s", err)
+		}
 
-	if strings.Contains(strings.ToLower(req.Statement), "insert") ||
-		strings.Contains(strings.ToLower(req.Statement), "update") {
+		if !isAuthorized {
+			return tableland.Response{}, errors.New("you aren't authorized")
+		}
 		return t.runInsertOrUpdate(ctx, req)
 	}
 

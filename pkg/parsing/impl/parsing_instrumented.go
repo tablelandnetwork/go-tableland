@@ -47,35 +47,20 @@ func (ip *InstrumentedParser) ValidateCreateTable(query string) error {
 
 	return err
 }
-func (ip *InstrumentedParser) ValidateRunSQL(query string) error {
+func (ip *InstrumentedParser) ValidateRunSQL(query string) (parsing.QueryType, error) {
 	log.Debugf("call ValidateRunSQL with query %q", query)
 	start := time.Now()
-	err := ip.parser.ValidateRunSQL(query)
+	queryType, err := ip.parser.ValidateRunSQL(query)
 	latency := time.Since(start).Milliseconds()
 
 	attributes := []attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("ValidateRunSQL")},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
+		{Key: "type", Value: attribute.StringValue(string(queryType))},
 	}
 
 	ip.callCount.Add(context.Background(), 1, attributes...)
 	ip.latencyHistogram.Record(context.Background(), latency, attributes...)
 
-	return err
-}
-func (ip *InstrumentedParser) ValidateReadQuery(query string) error {
-	log.Debugf("call ValidateReadQuery with query %q", query)
-	start := time.Now()
-	err := ip.parser.ValidateReadQuery(query)
-	latency := time.Since(start).Milliseconds()
-
-	attributes := []attribute.KeyValue{
-		{Key: "method", Value: attribute.StringValue("ValidateReadQuery")},
-		{Key: "success", Value: attribute.BoolValue(err == nil)},
-	}
-
-	ip.callCount.Add(context.Background(), 1, attributes...)
-	ip.latencyHistogram.Record(context.Background(), latency, attributes...)
-
-	return err
+	return queryType, err
 }
