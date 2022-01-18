@@ -187,7 +187,7 @@ func TestCreateTable(t *testing.T) {
 		// Tables with invalid columns.
 		{name: "xml column", query: "create table foo (foo xml)", expectedErrType: ptr2ErrInvalidColumnType()},
 		{name: "money column", query: "create table foo (foo money)", expectedErrType: ptr2ErrInvalidColumnType()},
-		{name: "money column", query: "create table foo (foo bigserial)", expectedErrType: ptr2ErrInvalidColumnType()},
+		{name: "polygon column", query: "create table foo (foo polygon)", expectedErrType: ptr2ErrInvalidColumnType()},
 	}
 
 	for _, it := range tests {
