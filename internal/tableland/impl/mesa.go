@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/google/uuid"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/tableregistry"
 )
@@ -17,13 +18,15 @@ import (
 type TablelandMesa struct {
 	store    sqlstore.SQLStore
 	registry tableregistry.TableRegistry
+	parser   parsing.Parser
 }
 
 // NewTablelandMesa creates a new TablelandMesa.
-func NewTablelandMesa(store sqlstore.SQLStore, registry tableregistry.TableRegistry) tableland.Tableland {
+func NewTablelandMesa(store sqlstore.SQLStore, registry tableregistry.TableRegistry, parser parsing.Parser) tableland.Tableland {
 	return &TablelandMesa{
 		store:    store,
 		registry: registry,
+		parser:   parser,
 	}
 }
 
@@ -34,6 +37,9 @@ func (t *TablelandMesa) CreateTable(ctx context.Context, req tableland.Request) 
 		return tableland.Response{Message: "Failed to parse uuid"}, err
 	}
 
+	if err := t.parser.ValidateCreateTable(req.Statement); err != nil {
+		return tableland.Response{Message: fmt.Sprintf("invalid query: %s", err)}, err
+	}
 	if strings.Contains(strings.ToLower(req.Statement), "create") {
 		// TODO: the two operations should be put inside a transaction
 		err := t.store.InsertTable(ctx, uuid, req.Controller, req.Type)

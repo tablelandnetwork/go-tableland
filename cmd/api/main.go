@@ -16,6 +16,8 @@ import (
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/internal/tableland/impl"
 	"github.com/textileio/go-tableland/pkg/metrics"
+	"github.com/textileio/go-tableland/pkg/parsing"
+	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
@@ -61,7 +63,9 @@ func main() {
 
 	sqlstore = sqlstoreimpl.NewInstrumentedSQLStorePGX(sqlstore)
 
-	svc := getTablelandService(config, sqlstore, registry)
+	parser := parserimpl.NewInstrumentedParser(parserimpl.New("_system"))
+
+	svc := getTablelandService(config, sqlstore, registry, parser)
 	if err := server.RegisterName("tableland", svc); err != nil {
 		log.Fatal().
 			Err(err).
@@ -101,10 +105,11 @@ func getTablelandService(
 	conf *config,
 	store sqlstore.SQLStore,
 	registry *ethereum.Client,
+	parser parsing.Parser,
 ) tableland.Tableland {
 	switch conf.Impl {
 	case "mesa":
-		mesa := impl.NewTablelandMesa(store, registry)
+		mesa := impl.NewTablelandMesa(store, registry, parser)
 		return impl.NewInstrumentedTablelandMesa(mesa)
 	case "mock":
 		return new(impl.TablelandMock)
