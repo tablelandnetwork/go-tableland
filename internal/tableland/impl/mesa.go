@@ -2,6 +2,7 @@ package impl
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -34,27 +35,21 @@ func NewTablelandMesa(store sqlstore.SQLStore, registry tableregistry.TableRegis
 func (t *TablelandMesa) CreateTable(ctx context.Context, req tableland.Request) (tableland.Response, error) {
 	uuid, err := uuid.Parse(req.TableID)
 	if err != nil {
-		return tableland.Response{Message: "Failed to parse uuid"}, err
+		return tableland.Response{}, fmt.Errorf("failed to parse uuid: %s", err)
 	}
 
 	if err := t.parser.ValidateCreateTable(req.Statement); err != nil {
-		return tableland.Response{Message: fmt.Sprintf("invalid query: %s", err)}, err
+		return tableland.Response{}, fmt.Errorf("query validation: %s", err)
 	}
-	if strings.Contains(strings.ToLower(req.Statement), "create") {
-		// TODO: the two operations should be put inside a transaction
-		err := t.store.InsertTable(ctx, uuid, req.Controller, req.Type)
-		if err != nil {
-			return tableland.Response{Message: err.Error()}, err
-		}
-
-		err = t.store.Write(ctx, req.Statement)
-		if err != nil {
-			return tableland.Response{Message: err.Error()}, err
-		}
-		return tableland.Response{Message: "Table created"}, nil
+	// TODO: the two operations should be put inside a transaction
+	if err := t.store.InsertTable(ctx, uuid, req.Controller, req.Type); err != nil {
+		return tableland.Response{}, fmt.Errorf("inserting in table: %s", err)
 	}
-
-	return tableland.Response{Message: "Invalid command"}, nil
+	err = t.store.Write(ctx, req.Statement)
+	if err != nil {
+		return tableland.Response{}, fmt.Errorf("creating user-table: %s", err)
+	}
+	return tableland.Response{Message: "Table created"}, nil
 }
 
 // UpdateTable allows the user to update a table.
@@ -67,7 +62,7 @@ func (t *TablelandMesa) UpdateTable(ctx context.Context, req tableland.Request) 
 func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.Request) (tableland.Response, error) {
 	uuid, err := uuid.Parse(req.TableID)
 	if err != nil {
-		return tableland.Response{Message: "Failed to parse uuid"}, err
+		return tableland.Response{}, fmt.Errorf("failed to parse uuid: %s", err)
 	}
 
 	if strings.Contains(strings.ToLower(req.Statement), "select") {
@@ -76,11 +71,11 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.Request) (tabl
 
 	isAuthorized, err := t.isAuthorized(ctx, req.Controller, uuid)
 	if err != nil {
-		return tableland.Response{Message: "Failed to check authorization"}, err
+		return tableland.Response{}, fmt.Errorf("failed to check authorization: %s", err)
 	}
 
 	if !isAuthorized {
-		return tableland.Response{Message: "You are not authorized"}, nil
+		return tableland.Response{}, errors.New("you aren't authorized")
 	}
 
 	if strings.Contains(strings.ToLower(req.Statement), "insert") ||
@@ -88,13 +83,13 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.Request) (tabl
 		return t.runInsertOrUpdate(ctx, req)
 	}
 
-	return tableland.Response{Message: "Invalid command"}, nil
+	return tableland.Response{}, errors.New("invalid command")
 }
 
 func (t *TablelandMesa) runInsertOrUpdate(ctx context.Context, req tableland.Request) (tableland.Response, error) {
 	err := t.store.Write(ctx, req.Statement)
 	if err != nil {
-		return tableland.Response{Message: err.Error()}, err
+		return tableland.Response{}, fmt.Errorf("executing write-query: %s", err)
 	}
 	return tableland.Response{Message: "Command executed"}, nil
 }
@@ -102,7 +97,7 @@ func (t *TablelandMesa) runInsertOrUpdate(ctx context.Context, req tableland.Req
 func (t *TablelandMesa) runSelect(ctx context.Context, req tableland.Request) (tableland.Response, error) {
 	data, err := t.store.Read(ctx, req.Statement)
 	if err != nil {
-		return tableland.Response{Message: err.Error()}, err
+		return tableland.Response{}, fmt.Errorf("executing read-query: %s", err)
 	}
 
 	return tableland.Response{Message: "Select executed", Data: data}, nil
