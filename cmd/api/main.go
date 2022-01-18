@@ -72,7 +72,7 @@ func main() {
 	systemController := controllers.NewSystemController(systemService)
 
 	router := newRouter()
-	router.Use(middlewares.CORS)
+	router.Use(middlewares.CORS, middlewares.TraceID)
 	router.Post("/rpc", func(rw http.ResponseWriter, r *http.Request) {
 		server.ServeHTTP(rw, r)
 	}, middlewares.Authentication, middlewares.OtelHTTP("rpc"))
