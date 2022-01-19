@@ -15,8 +15,8 @@ require (
 	github.com/jackc/pgx/v4 v4.14.1
 	github.com/omeid/uconfig v1.2.0
 	github.com/ory/dockertest/v3 v3.8.1
-	github.com/rs/zerolog v1.15.0
 	github.com/pganalyze/pg_query_go/v2 v2.1.0
+	github.com/rs/zerolog v1.15.0
 	github.com/stretchr/testify v1.7.0
 	github.com/textileio/go-log/v2 v2.1.3-gke-2
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.28.0

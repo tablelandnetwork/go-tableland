@@ -4,15 +4,11 @@ import (
 	"context"
 	"time"
 
-	logger "github.com/textileio/go-log/v2"
+	"github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/metric/global"
-)
-
-var (
-	log = logger.Logger("parsing")
 )
 
 // InstrumentedSQLValidator implements an instrumented Parsing interface.
@@ -34,7 +30,7 @@ func NewInstrumentedSQLValidator(p parsing.SQLValidator) *InstrumentedSQLValidat
 
 // ValidateCreateTable register metrics for its corresponding wrapped parser.
 func (ip *InstrumentedSQLValidator) ValidateCreateTable(query string) error {
-	log.Debugf("call ValidateCreateTable with query %q", query)
+	log.Debug().Str("query", query).Msg("call ValidateCreateTable")
 	start := time.Now()
 	err := ip.parser.ValidateCreateTable(query)
 	latency := time.Since(start).Milliseconds()
@@ -52,7 +48,7 @@ func (ip *InstrumentedSQLValidator) ValidateCreateTable(query string) error {
 
 // ValidateRunSQL register metrics for its corresponding wrapped parser.
 func (ip *InstrumentedSQLValidator) ValidateRunSQL(query string) (parsing.QueryType, error) {
-	log.Debugf("call ValidateRunSQL with query %q", query)
+	log.Debug().Str("query", query).Msg("call ValidateRunSQL")
 	start := time.Now()
 	queryType, err := ip.parser.ValidateRunSQL(query)
 	latency := time.Since(start).Milliseconds()
