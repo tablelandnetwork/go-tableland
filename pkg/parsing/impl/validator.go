@@ -115,12 +115,28 @@ func (pp *QueryValidator) validateWriteQuery(stmt *pg_query.Node) error {
 	return nil
 }
 
-func (pp *QueryValidator) validateReadQuery(selectNode *pg_query.Node) error {
-	if err := pp.checkNoForUpdateOrShare(selectNode.GetSelectStmt()); err != nil {
+func (pp *QueryValidator) validateReadQuery(node *pg_query.Node) error {
+	selectStmt := node.GetSelectStmt()
+
+	if err := pp.checkNoJoinOrSubquery(selectStmt.WhereClause); err != nil {
+		return fmt.Errorf("join or subquery in where: %w", err)
+	}
+	for _, n := range selectStmt.TargetList {
+		if err := pp.checkNoJoinOrSubquery(n); err != nil {
+			return fmt.Errorf("join or subquery in cols: %w", err)
+		}
+	}
+	for _, n := range selectStmt.FromClause {
+		if err := pp.checkNoJoinOrSubquery(n); err != nil {
+			return fmt.Errorf("join or subquery in from: %w", err)
+		}
+	}
+
+	if err := pp.checkNoForUpdateOrShare(selectStmt); err != nil {
 		return fmt.Errorf("no for check: %w", err)
 	}
 
-	if err := pp.checkNoSystemTablesReferencing(selectNode); err != nil {
+	if err := pp.checkNoSystemTablesReferencing(node); err != nil {
 		return fmt.Errorf("no system-table referencing check: %w", err)
 	}
 
@@ -310,7 +326,12 @@ func (pp *QueryValidator) checkNoJoinOrSubquery(node *pg_query.Node) error {
 	if node == nil {
 		return nil
 	}
-	if selectStmt := node.GetSelectStmt(); selectStmt != nil {
+
+	if resTarget := node.GetResTarget(); resTarget != nil {
+		if err := pp.checkNoJoinOrSubquery(resTarget.Val); err != nil {
+			return fmt.Errorf("column sub-query: %w", err)
+		}
+	} else if selectStmt := node.GetSelectStmt(); selectStmt != nil {
 		if len(selectStmt.ValuesLists) == 0 {
 			return &parsing.ErrJoinOrSubquery{}
 		}

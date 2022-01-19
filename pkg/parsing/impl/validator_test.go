@@ -185,13 +185,25 @@ func TestRunSQL(t *testing.T) {
 		},
 		{
 			name:       "valid defined rows",
-			query:      "select row1, row2 from foo",
+			query:      "select row1, row2 from foo where a=b",
 			expErrType: nil,
 		},
+
+		// No JOINs
 		{
-			name:       "valid join with subquery",
-			query:      "select * from foo inner join bar on a=b inner join (select * from zoo) z on a=b",
-			expErrType: nil,
+			name:       "with join",
+			query:      "select * from foo inner join bar on a=b",
+			expErrType: ptr2ErrJoinOrSubquery(),
+		},
+		{
+			name:       "with subselect",
+			query:      "select * from foo where a in (select b from zoo)",
+			expErrType: ptr2ErrJoinOrSubquery(),
+		},
+		{
+			name:       "column with subquery",
+			query:      "select (select * from bar limit 1) from foo",
+			expErrType: ptr2ErrJoinOrSubquery(),
 		},
 
 		// Single-statement check.
@@ -222,16 +234,6 @@ func TestRunSQL(t *testing.T) {
 		{
 			name:       "reference system table",
 			query:      "select * from system_tables",
-			expErrType: ptr2ErrSystemTableReferencing(),
-		},
-		{
-			name:       "reference system table with inner join",
-			query:      "select * from foo inner join system_tables on a=b",
-			expErrType: ptr2ErrSystemTableReferencing(),
-		},
-		{
-			name:       "reference system table in nested FROM SELECT",
-			query:      "select * from foo inner join (select * from system_tables) j on a=b",
 			expErrType: ptr2ErrSystemTableReferencing(),
 		},
 	}

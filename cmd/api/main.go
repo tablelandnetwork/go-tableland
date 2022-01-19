@@ -63,7 +63,7 @@ func main() {
 
 	sqlstore = sqlstoreimpl.NewInstrumentedSQLStorePGX(sqlstore)
 
-	parser := parserimpl.NewInstrumentedSQLValidator(parserimpl.New("_system"))
+	parser := parserimpl.NewInstrumentedSQLValidator(parserimpl.New(systemimpl.SystemTablesPrefix))
 
 	svc := getTablelandService(config, sqlstore, registry, parser)
 	if err := server.RegisterName("tableland", svc); err != nil {

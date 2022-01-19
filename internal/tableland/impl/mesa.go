@@ -48,8 +48,7 @@ func (t *TablelandMesa) CreateTable(ctx context.Context, req tableland.Request) 
 	if err := t.store.InsertTable(ctx, uuid, req.Controller, req.Type); err != nil {
 		return tableland.Response{}, fmt.Errorf("inserting in table: %s", err)
 	}
-	err = t.store.Write(ctx, req.Statement)
-	if err != nil {
+	if err := t.store.Write(ctx, req.Statement); err != nil {
 		return tableland.Response{}, fmt.Errorf("creating user-table: %s", err)
 	}
 	return tableland.Response{Message: "Table created"}, nil
