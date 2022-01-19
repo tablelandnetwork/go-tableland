@@ -12,14 +12,16 @@ func TraceID(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		uuid, err := uuid.NewRandom()
 		if err != nil {
-			log.Warn().Msg("failed to generate a trace id")
+			log.Warn().Err(err).Msg("failed to generate a trace id")
 			next.ServeHTTP(w, r)
 			return
 		}
 
 		traceID := uuid.String()
 
-		log.Logger = log.With().Str("traceId", traceID).Logger()
+		ctx := r.Context()
+		logger := log.With().Str("traceId", traceID).Logger()
+		r = r.WithContext(logger.WithContext(ctx))
 		w.Header().Set("Trace-ID", traceID)
 
 		next.ServeHTTP(w, r)

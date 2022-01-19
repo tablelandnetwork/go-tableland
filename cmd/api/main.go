@@ -23,7 +23,7 @@ import (
 
 func main() {
 	config := setupConfig()
-	setupLogging(buildinfo.GitCommit, config.Log.Debug, config.Log.Human)
+	setupLogger(buildinfo.GitCommit, config.Log.Debug, config.Log.Human)
 
 	server := rpc.NewServer()
 	ctx := context.Background()
