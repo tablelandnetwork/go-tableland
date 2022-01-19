@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
+
+	"github.com/rs/zerolog/log"
+
 	"strings"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -101,7 +103,12 @@ func executeMigration(postgresURI string, as *bindata.AssetSource) error {
 		return fmt.Errorf("creating migration: %s", err)
 	}
 	version, dirty, err := m.Version()
-	log.Printf("current version %d, dirty %v, err: %v", version, dirty, err)
+	log.Info().
+		Uint("dbVersion", version).
+		Bool("dirty", dirty).
+		Err(err).
+		Msg("database migration executed")
+
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 		return fmt.Errorf("running migration up: %s", err)
 	}
