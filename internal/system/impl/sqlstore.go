@@ -10,6 +10,8 @@ import (
 )
 
 const (
+	// SystemTablesPrefix is the prefix used in table names that
+	// aren't owned by users, but the system.
 	SystemTablesPrefix = "system_"
 )
 
