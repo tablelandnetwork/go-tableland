@@ -64,10 +64,6 @@ func getRowsData(rows pgx.Rows, fields []pgproto3.FieldDescription, nColumns int
 
 // do necessary conversions according to the type.
 func getValueFromScanArg(arg interface{}) interface{} {
-	if val, ok := (arg).([]byte); ok {
-		return string(val)
-	}
-
 	if _, ok := (arg).(pgtype.Value); ok {
 		if val, ok := (arg).(*pgtype.Numeric); ok {
 			if val.Status == pgtype.Null {
