@@ -3,12 +3,12 @@ kind: Ingress
 metadata:
   name: tableland-ingress-nginx
 spec:
-  # tls:
-  #   - secretName: tableland-tls-cf-secret
-  #     hosts:
-  #       - tableland.edge.textile.io
+  tls:
+    - secretName: tableland-tls-cf-secret
+      hosts:
+        - gateway.tableland.xyz
   rules:
-    - host: edge.tableland.com
+    - host: gateway.tableland.xyz
       http:
         paths:
           - path: /
