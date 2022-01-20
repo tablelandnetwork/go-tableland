@@ -46,11 +46,42 @@ func TestTodoAppWorkflow(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	records := readCsvFile("testdata/todoapp_queries.csv")
+	processCSV(t, baseReq, tbld, "testdata/todoapp_queries.csv")
+}
+
+func TestJSONB(t *testing.T) {
+	url, err := tests.PostgresURL()
+	require.NoError(t, err)
+	ctx := context.Background()
+
+	sqlstore, err := sqlstoreimpl.New(ctx, url)
+	require.NoError(t, err)
+	parser := parserimpl.New("system_")
+	tbld := NewTablelandMesa(sqlstore, &dummyRegistry{}, parser)
+
+	baseReq := tableland.Request{
+		TableID:    uuid.New().String(),
+		Type:       "type-1",
+		Controller: "ctrl-1",
+	}
+
+	{
+		req := baseReq
+		req.Statement = `CREATE TABLE foo (myjson JSONB);`
+		_, err := tbld.CreateTable(ctx, req)
+		require.NoError(t, err)
+	}
+
+	processCSV(t, baseReq, tbld, "testdata/json_queries.csv")
+}
+
+func processCSV(t *testing.T, baseReq tableland.Request, tbld tableland.Tableland, csvPath string) {
+	t.Helper()
+	records := readCsvFile(csvPath)
 	for _, record := range records {
 		req := baseReq
 		req.Statement = record[1]
-		r, err := tbld.RunSQL(ctx, req)
+		r, err := tbld.RunSQL(context.Background(), req)
 		require.NoError(t, err)
 
 		if record[0] == "r" {

@@ -340,7 +340,9 @@ func TestCreateTable(t *testing.T) {
 
 				   ztimestamp timestamp,
 				   ztimestamptz timestamptz,
-				   zuuid uuid
+				   zuuid uuid,
+
+				   zjsonb jsonb
 			       )`,
 			expErrType: nil,
 		},

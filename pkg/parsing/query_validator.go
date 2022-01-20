@@ -67,6 +67,8 @@ var (
 		pgtype.TimestamptzOID: {Oid: pgtype.TimestamptzOID, GoType: pgtype.Timestamptz{}, Names: []string{"timestamptz"}},
 
 		pgtype.UUIDOID: {Oid: pgtype.UUIDOID, GoType: pgtype.UUID{}, Names: []string{"uuid"}},
+
+		pgtype.JSONBOID: {Oid: pgtype.JSONBOID, GoType: map[string]interface{}{}, Names: []string{"jsonb"}},
 	}
 	// TODO: the above list is tentative and incomplete; the accepted types are still not well defined at the spec level.
 
