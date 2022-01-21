@@ -49,6 +49,49 @@ func TestTodoAppWorkflow(t *testing.T) {
 	processCSV(t, baseReq, tbld, "testdata/todoapp_queries.csv")
 }
 
+func TestInsertOnConflict(t *testing.T) {
+	url, err := tests.PostgresURL()
+	require.NoError(t, err)
+	ctx := context.Background()
+
+	sqlstore, err := sqlstoreimpl.New(ctx, url)
+	require.NoError(t, err)
+	parser := parserimpl.New("system_")
+	tbld := NewTablelandMesa(sqlstore, &dummyRegistry{}, parser)
+
+	baseReq := tableland.Request{
+		TableID:    uuid.New().String(),
+		Type:       "type-1",
+		Controller: "ctrl-1",
+	}
+
+	{
+		req := baseReq
+		req.Statement = `CREATE TABLE foo (
+			name text unique,
+			count int 
+		);`
+		_, err := tbld.CreateTable(ctx, req)
+		require.NoError(t, err)
+	}
+
+	{
+		req := baseReq
+		for i := 0; i < 10; i++ {
+			req.Statement = `INSERT INTO foo values ('bar', 0) ON CONFLICT (name) DO UPDATE SET count=foo.count+1`
+			_, err := tbld.RunSQL(ctx, req)
+			require.NoError(t, err)
+		}
+
+		req.Statement = "SELECT count from foo"
+		res, err := tbld.RunSQL(ctx, req)
+		require.NoError(t, err)
+		js, err := json.Marshal(res.Data)
+		require.NoError(t, err)
+		require.JSONEq(t, `{"columns":[{"name":"count"}],"rows":[[9]]}`, string(js))
+	}
+}
+
 func TestJSON(t *testing.T) {
 	url, err := tests.PostgresURL()
 	require.NoError(t, err)
