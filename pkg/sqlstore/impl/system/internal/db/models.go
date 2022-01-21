@@ -9,6 +9,11 @@ import (
 	"github.com/google/uuid"
 )
 
+type SystemAuth struct {
+	Address   string
+	CreatedAt time.Time
+}
+
 type SystemTable struct {
 	UUID       uuid.UUID
 	Controller string

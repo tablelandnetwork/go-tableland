@@ -5,6 +5,8 @@
 // migrations/001_init.up.sql
 // migrations/002_add_type_column.down.sql
 // migrations/002_add_type_column.up.sql
+// migrations/003_auth.down.sql
+// migrations/003_auth.up.sql
 package migrations
 
 import (
@@ -96,7 +98,7 @@ func _001_initDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "001_init.down.sql", size: 25, mode: os.FileMode(420), modTime: time.Unix(1639484913, 0)}
+	info := bindataFileInfo{name: "001_init.down.sql", size: 25, mode: os.FileMode(420), modTime: time.Unix(1639499061, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -116,7 +118,7 @@ func _001_initUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "001_init.up.sql", size: 155, mode: os.FileMode(420), modTime: time.Unix(1639484913, 0)}
+	info := bindataFileInfo{name: "001_init.up.sql", size: 155, mode: os.FileMode(420), modTime: time.Unix(1639499061, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -136,7 +138,7 @@ func _002_add_type_columnDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_add_type_column.down.sql", size: 43, mode: os.FileMode(420), modTime: time.Unix(1642007405, 0)}
+	info := bindataFileInfo{name: "002_add_type_column.down.sql", size: 43, mode: os.FileMode(420), modTime: time.Unix(1642713605, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -156,7 +158,47 @@ func _002_add_type_columnUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_add_type_column.up.sql", size: 65, mode: os.FileMode(420), modTime: time.Unix(1642007683, 0)}
+	info := bindataFileInfo{name: "002_add_type_column.up.sql", size: 65, mode: os.FileMode(420), modTime: time.Unix(1642713605, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __003_authDownSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\x09\xf2\x0f\x50\x08\x71\x74\xf2\x71\x55\x28\xae\x2c\x2e\x49\xcd\x8d\x4f\x2c\x2d\xc9\xb0\x06\x04\x00\x00\xff\xff\x05\x69\x1f\x3a\x17\x00\x00\x00")
+
+func _003_authDownSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__003_authDownSql,
+		"003_auth.down.sql",
+	)
+}
+
+func _003_authDownSql() (*asset, error) {
+	bytes, err := _003_authDownSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "003_auth.down.sql", size: 23, mode: os.FileMode(420), modTime: time.Unix(1642787339, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __003_authUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x1c\xcc\xb1\x0a\xc2\x30\x10\x06\xe0\xbd\x4f\xf1\x8f\x09\x38\x89\x9b\xd3\x59\xaf\x18\x4c\xd2\x92\x5c\xd1\x4e\x25\x98\x80\x8b\x4b\x13\x07\xdf\x5e\xe8\xfe\xf1\xf5\x81\x49\x18\x42\x17\xcb\x30\x03\xfc\x28\xe0\xa7\x89\x12\x51\x7f\xb5\x95\xcf\x9a\xbe\xed\x0d\xd5\x01\x40\xca\x79\x2b\xb5\xa2\xbf\x51\x50\xa7\xa3\xc6\x14\x8c\xa3\xb0\xe0\xce\xcb\x61\x17\xaf\xad\xa4\x56\xf2\x9a\x1a\xc4\x38\x8e\x42\x6e\xda\x4f\x3f\x5b\x8b\x2b\x0f\x34\x5b\x81\x1f\x1f\x4a\x77\xfa\xdc\xfd\x03\x00\x00\xff\xff\x7e\x64\x2f\xf0\x7e\x00\x00\x00")
+
+func _003_authUpSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__003_authUpSql,
+		"003_auth.up.sql",
+	)
+}
+
+func _003_authUpSql() (*asset, error) {
+	bytes, err := _003_authUpSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "003_auth.up.sql", size: 126, mode: os.FileMode(420), modTime: time.Unix(1642787419, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -217,6 +259,8 @@ var _bindata = map[string]func() (*asset, error){
 	"001_init.up.sql":              _001_initUpSql,
 	"002_add_type_column.down.sql": _002_add_type_columnDownSql,
 	"002_add_type_column.up.sql":   _002_add_type_columnUpSql,
+	"003_auth.down.sql":            _003_authDownSql,
+	"003_auth.up.sql":              _003_authUpSql,
 }
 
 // AssetDir returns the file names below a certain
@@ -264,6 +308,8 @@ var _bintree = &bintree{nil, map[string]*bintree{
 	"001_init.up.sql":              &bintree{_001_initUpSql, map[string]*bintree{}},
 	"002_add_type_column.down.sql": &bintree{_002_add_type_columnDownSql, map[string]*bintree{}},
 	"002_add_type_column.up.sql":   &bintree{_002_add_type_columnUpSql, map[string]*bintree{}},
+	"003_auth.down.sql":            &bintree{_003_authDownSql, map[string]*bintree{}},
+	"003_auth.up.sql":              &bintree{_003_authUpSql, map[string]*bintree{}},
 }}
 
 // RestoreAsset restores an asset under the given directory

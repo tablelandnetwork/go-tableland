@@ -23,3 +23,8 @@ func (t *TablelandMock) UpdateTable(ctx context.Context, req tableland.Request) 
 func (t *TablelandMock) RunSQL(ctx context.Context, req tableland.Request) (tableland.Response, error) {
 	return tableland.Response{Message: "SQL executed"}, nil
 }
+
+// Authorize implements Authorize.
+func (t *TablelandMock) Authorize(ctx context.Context) error {
+	return nil
+}

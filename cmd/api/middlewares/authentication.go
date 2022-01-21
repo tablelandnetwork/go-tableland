@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/gorilla/context"
 	"github.com/textileio/go-tableland/pkg/errors"
 	"github.com/textileio/go-tableland/pkg/jwt"
 )
@@ -40,6 +41,8 @@ func Authentication(next http.Handler) http.Handler {
 			_ = json.NewEncoder(w).Encode(errors.ServiceError{Message: fmt.Sprintf("validating jwt: %v", err)})
 			return
 		}
+
+		context.Set(r, "address", j.Claims.Issuer)
 
 		next.ServeHTTP(w, r)
 	})

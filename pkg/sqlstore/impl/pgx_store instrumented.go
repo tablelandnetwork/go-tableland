@@ -87,6 +87,60 @@ func (s *InstrumentedSQLStorePGX) GetTablesByController(ctx context.Context,
 	return tables, err
 }
 
+// Authorize grants the provided address permission to use the system.
+func (s *InstrumentedSQLStorePGX) Authorize(ctx context.Context, address string) error {
+	start := time.Now()
+	err := s.store.Authorize(ctx, address)
+	latency := time.Since(start).Milliseconds()
+
+	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("Authorize")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return err
+}
+
+// Revoke removes permission to use the system from the provided address.
+func (s *InstrumentedSQLStorePGX) Revoke(ctx context.Context, address string) error {
+	start := time.Now()
+	err := s.store.Revoke(ctx, address)
+	latency := time.Since(start).Milliseconds()
+
+	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("Revoke")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return err
+}
+
+// IsAuthorized checks if the provided address has permission to use the system.
+func (s *InstrumentedSQLStorePGX) IsAuthorized(ctx context.Context, address string) (bool, error) {
+	start := time.Now()
+	authorized, err := s.store.IsAuthorized(ctx, address)
+	latency := time.Since(start).Milliseconds()
+
+	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("IsAuthorized")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return authorized, err
+}
+
 // Write executes a write statement on the db.
 func (s *InstrumentedSQLStorePGX) Write(ctx context.Context, statement string) error {
 	start := time.Now()

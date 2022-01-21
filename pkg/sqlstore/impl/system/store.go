@@ -87,6 +87,31 @@ func (s *SystemStore) GetTablesByController(ctx context.Context, controller stri
 	return tables, err
 }
 
+// Authorize grants the provided address permission to use the system.
+func (s *SystemStore) Authorize(ctx context.Context, address string) error {
+	if err := s.db.Authorize(ctx, address); err != nil {
+		return fmt.Errorf("authorizating: %s", err)
+	}
+	return nil
+}
+
+// Revoke removes permission to use the system from the provided address.
+func (s *SystemStore) Revoke(ctx context.Context, address string) error {
+	if err := s.db.Revoke(ctx, address); err != nil {
+		return fmt.Errorf("revoking: %s", err)
+	}
+	return nil
+}
+
+// IsAuthorized checks if the provided address has permission to use the system.
+func (s *SystemStore) IsAuthorized(ctx context.Context, address string) (bool, error) {
+	authorized, err := s.db.IsAuthorized(ctx, address)
+	if err != nil {
+		return false, fmt.Errorf("checking authorization: %s", err)
+	}
+	return authorized, nil
+}
+
 // executeMigration run db migrations and return a ready to use connection to the Postgres database.
 func executeMigration(postgresURI string, as *bindata.AssetSource) error {
 	// To avoid dealing with time zone issues, we just enforce UTC timezone

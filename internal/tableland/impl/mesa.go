@@ -76,7 +76,7 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.Request) (tabl
 	case parsing.ReadQuery:
 		return t.runSelect(ctx, req)
 	case parsing.WriteQuery:
-		isAuthorized, err := t.isAuthorized(ctx, req.Controller, uuid)
+		isAuthorized, err := t.isOwner(ctx, req.Controller, uuid)
 		if err != nil {
 			return tableland.Response{}, fmt.Errorf("failed to check authorization: %s", err)
 		}
@@ -88,6 +88,12 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.Request) (tabl
 	}
 
 	return tableland.Response{}, errors.New("invalid command")
+}
+
+// Authorize is a convenience API giving the client something to call to trigger authorization.
+func (t *TablelandMesa) Authorize(ctx context.Context) error {
+	// Nothing to do here, handled by Authorization middleware.
+	return nil
 }
 
 func (t *TablelandMesa) runInsertOrUpdate(ctx context.Context, req tableland.Request) (tableland.Response, error) {
@@ -107,7 +113,7 @@ func (t *TablelandMesa) runSelect(ctx context.Context, req tableland.Request) (t
 	return tableland.Response{Message: "Select executed", Data: data}, nil
 }
 
-func (t *TablelandMesa) isAuthorized(ctx context.Context, controller string, table uuid.UUID) (bool, error) {
+func (t *TablelandMesa) isOwner(ctx context.Context, controller string, table uuid.UUID) (bool, error) {
 	isOwner, err := t.registry.IsOwner(ctx, common.HexToAddress(controller), t.uuidToBigInt(table))
 	if err != nil {
 		return false, fmt.Errorf("failed to execute contract call: %s", err)
