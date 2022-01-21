@@ -9,6 +9,12 @@ import (
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 )
 
+const (
+	// SystemTablesPrefix is the prefix used in table names that
+	// aren't owned by users, but the system.
+	SystemTablesPrefix = "system_"
+)
+
 // SystemSQLStoreService implements the SystemService interface using SQLStore.
 type SystemSQLStoreService struct {
 	store sqlstore.SQLStore

@@ -2,10 +2,7 @@ package user
 
 import (
 	"context"
-	"encoding/csv"
 	"encoding/json"
-	"log"
-	"os"
 	"testing"
 
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -128,57 +125,12 @@ func TestReadGeneralTypeCorrectness(t *testing.T) {
 		require.NoError(t, err)
 		require.JSONEq(t, `{"columns":[{"name":"uuid"}],"rows":[["00000000-0000-0000-0000-000000000000"]]}`, string(b))
 	}
-}
-
-func TestTodoAppWorkflow(t *testing.T) {
-	url, err := tests.PostgresURL()
-	require.NoError(t, err)
-
-	ctx := context.Background()
-	pool, err := pgxpool.Connect(ctx, url)
-	require.NoError(t, err)
-
-	userStore := New(pool)
-
-	// creates todo app table
+	// test json null type parsing
 	{
-		err := userStore.Write(ctx, `CREATE TABLE todoapp (
-			complete BOOLEAN DEFAULT false,
-			name     VARCHAR DEFAULT '',
-			deleted  BOOLEAN DEFAULT false,
-			id       SERIAL
-		  );`)
-
+		data, err := userStore.Read(ctx, "SELECT (null)::json;")
 		require.NoError(t, err)
+		b, err := json.Marshal(data)
+		require.NoError(t, err)
+		require.JSONEq(t, `{"columns":[{"name":"json"}],"rows":[[null]]}`, string(b))
 	}
-
-	records := readCsvFile("testdata/todoapp_queries.csv")
-	for _, record := range records {
-		if record[0] == "w" {
-			err := userStore.Write(ctx, record[1])
-			require.NoError(t, err)
-		} else if record[0] == "r" {
-			data, err := userStore.Read(ctx, record[1])
-			require.NoError(t, err)
-			b, err := json.Marshal(data)
-			require.NoError(t, err)
-			require.JSONEq(t, record[2], string(b))
-		}
-	}
-}
-
-func readCsvFile(filePath string) [][]string {
-	f, err := os.Open(filePath)
-	if err != nil {
-		log.Fatal("Unable to read input file "+filePath, err)
-	}
-	defer f.Close() // nolint
-
-	csvReader := csv.NewReader(f)
-	records, err := csvReader.ReadAll()
-	if err != nil {
-		log.Fatal("Unable to parse file as CSV for "+filePath, err)
-	}
-
-	return records
 }

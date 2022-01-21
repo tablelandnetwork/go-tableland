@@ -2,10 +2,12 @@ package user
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/jackc/pgproto3/v2"
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
+	"github.com/textileio/go-tableland/pkg/parsing"
 )
 
 func rowsToJSON(rows pgx.Rows) (interface{}, error) {
@@ -62,10 +64,6 @@ func getRowsData(rows pgx.Rows, fields []pgproto3.FieldDescription, nColumns int
 
 // do necessary conversions according to the type.
 func getValueFromScanArg(arg interface{}) interface{} {
-	if val, ok := (arg).([]byte); ok {
-		return string(val)
-	}
-
 	if _, ok := (arg).(pgtype.Value); ok {
 		if val, ok := (arg).(*pgtype.Numeric); ok {
 			if val.Status == pgtype.Null {
@@ -135,29 +133,12 @@ func getScanArgs(fields []pgproto3.FieldDescription, nColumns int) ([]interface{
 }
 
 // given the column type OID find the corresponding Golang's type (it can be either a native or a custom type).
-// TODO: add more types.
-func getTypeFromOID(oid uint32) (t interface{}, err error) {
-	switch oid {
-	case pgtype.Int2OID, pgtype.Int4OID, pgtype.Int8OID:
-		t = new(*int)
-	case pgtype.TextOID, pgtype.VarcharOID, pgtype.BPCharOID:
-		t = new(*string)
-	case pgtype.BoolOID:
-		t = new(*bool)
-	case pgtype.Float4OID, pgtype.Float8OID:
-		t = new(*float64)
-	case pgtype.NumericOID:
-		t = new(pgtype.Numeric)
-	case pgtype.TimestampOID:
-		t = new(pgtype.Timestamp)
-	case pgtype.DateOID:
-		t = new(pgtype.Date)
-	case pgtype.TimestamptzOID:
-		t = new(pgtype.Timestamptz)
-	case pgtype.UUIDOID:
-		t = new(pgtype.UUID)
-	default:
-		err = fmt.Errorf("column type %d not supported", oid)
+func getTypeFromOID(oid uint32) (interface{}, error) {
+	at, ok := parsing.AcceptedTypes[oid]
+	if !ok {
+		return nil, fmt.Errorf("column type %d not supported", oid)
 	}
-	return t, err
+
+	nt := reflect.New(reflect.TypeOf(at.GoType))
+	return nt.Interface(), nil
 }
