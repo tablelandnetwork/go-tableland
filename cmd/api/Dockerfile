@@ -1,4 +1,6 @@
-FROM golang:1.17-buster as builder
+FROM golang:1.17.6-alpine as builder
+
+RUN apk --no-cache add make build-base
 
 RUN mkdir /app 
 WORKDIR /app
