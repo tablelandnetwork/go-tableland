@@ -125,12 +125,12 @@ func TestReadGeneralTypeCorrectness(t *testing.T) {
 		require.NoError(t, err)
 		require.JSONEq(t, `{"columns":[{"name":"uuid"}],"rows":[["00000000-0000-0000-0000-000000000000"]]}`, string(b))
 	}
-	// test jsonb null type parsing
+	// test json null type parsing
 	{
-		data, err := userStore.Read(ctx, "SELECT (null)::jsonb;")
+		data, err := userStore.Read(ctx, "SELECT (null)::json;")
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
-		require.JSONEq(t, `{"columns":[{"name":"jsonb"}],"rows":[[null]]}`, string(b))
+		require.JSONEq(t, `{"columns":[{"name":"json"}],"rows":[[null]]}`, string(b))
 	}
 }

@@ -342,7 +342,7 @@ func TestCreateTable(t *testing.T) {
 				   ztimestamptz timestamptz,
 				   zuuid uuid,
 
-				   zjsonb jsonb
+				   zjson json
 			       )`,
 			expErrType: nil,
 		},
@@ -361,6 +361,11 @@ func TestCreateTable(t *testing.T) {
 		{
 			name:       "polygon column",
 			query:      "create table foo (foo polygon)",
+			expErrType: ptr2ErrInvalidColumnType(),
+		},
+		{
+			name:       "jsonb column",
+			query:      "create table foo (foo jsonb)",
 			expErrType: ptr2ErrInvalidColumnType(),
 		},
 	}

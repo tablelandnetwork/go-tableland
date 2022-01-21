@@ -49,7 +49,7 @@ func TestTodoAppWorkflow(t *testing.T) {
 	processCSV(t, baseReq, tbld, "testdata/todoapp_queries.csv")
 }
 
-func TestJSONB(t *testing.T) {
+func TestJSON(t *testing.T) {
 	url, err := tests.PostgresURL()
 	require.NoError(t, err)
 	ctx := context.Background()
@@ -67,7 +67,7 @@ func TestJSONB(t *testing.T) {
 
 	{
 		req := baseReq
-		req.Statement = `CREATE TABLE foo (myjson JSONB);`
+		req.Statement = `CREATE TABLE foo (myjson JSON);`
 		_, err := tbld.CreateTable(ctx, req)
 		require.NoError(t, err)
 	}
