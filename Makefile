@@ -41,7 +41,7 @@ psql:
 # Building and publishing image to GCP
 
 build-api:
-	go build -ldflags="${GOVVV_FLAGS}" ./cmd/api
+	go build -ldflags="${GOVVV_FLAGS} -extldflags=-static" ./cmd/api
 .PHONY: build-api
 
 image:
