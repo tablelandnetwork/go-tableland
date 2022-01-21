@@ -3,7 +3,6 @@ include .bingo/Variables.mk
 HEAD_SHORT ?= $(shell git rev-parse --short HEAD)
 PLATFORM ?= $(shell uname -m)
 
-BIN_BUILD_FLAGS?=CGO_ENABLED=0
 BIN_VERSION?="git"
 
 HTTP_PORT ?= 8080
@@ -42,7 +41,7 @@ psql:
 # Building and publishing image to GCP
 
 build-api:
-	$(BIN_BUILD_FLAGS) go build -ldflags="${GOVVV_FLAGS}" ./cmd/api
+	go build -ldflags="${GOVVV_FLAGS}" ./cmd/api
 .PHONY: build-api
 
 image:
