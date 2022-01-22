@@ -379,10 +379,28 @@ func (pp *QueryValidator) checkCreateColTypes(createStmt *pg_query.CreateStmt) e
 		return errEmptyNode
 	}
 
+	if createStmt.OfTypename != nil {
+		// This will only ever be one, otherwise its a parsing error
+		for _, nameNode := range createStmt.OfTypename.Names {
+			name := nameNode.GetString_()
+			if name == nil {
+				return fmt.Errorf("unexpected type name node: %v", name)
+			}
+			// Should only accept composite types here, but the parser won't
+			// know this ahead of time
+		}
+	}
+
 	for _, col := range createStmt.TableElts {
 		colDef := col.GetColumnDef()
 		if colDef == nil {
-			return errors.New("unexpected node type in column definition")
+			// Possible to have top-level constraints with CREATE OF
+			colConst := col.GetConstraint()
+			if colConst == nil {
+				return errors.New("unexpected node type in column definition")
+			}
+			// Skip column definition checks
+			continue
 		}
 
 	AcceptedTypesFor:
