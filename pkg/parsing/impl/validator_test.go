@@ -306,6 +306,11 @@ func TestCreateTable(t *testing.T) {
 			query:      "create table foo ( id int not null, name text );",
 			expErrType: nil,
 		},
+		{
+			name:       "create with extra constraint",
+			query:      "create table foo ( id int not null, constraint foo_pk primary key (id) );",
+			expErrType: nil,
+		},
 
 		// Check top-statement is only CREATE.
 		{
