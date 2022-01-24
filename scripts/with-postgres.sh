@@ -24,16 +24,32 @@ sleep 5
 # and schema if not exist, and force change password, then starts daemon with
 # the correct postgres URI. The use is restricted to the schema with the same name.
 psql "postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@$DB_HOST" <<EOD
-SELECT 'CREATE DATABASE $DB_NAME WITH OWNER $POSTGRES_USER'
-WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '$DB_NAME')\gexec
+SELECT 'CREATE DATABASE $DB_NAME WITH OWNER $POSTGRES_USER' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '$DB_NAME')\gexec
 \connect $DB_NAME;
-SELECT 'CREATE USER $DB_USER'
-WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '$DB_USER')\gexec
+
+SELECT 'CREATE USER $DB_USER' WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '$DB_USER')\gexec
 GRANT $DB_USER TO $POSTGRES_USER;
 ALTER USER $DB_USER WITH PASSWORD '$DB_PASS';
-SELECT 'CREATE SCHEMA AUTHORIZATION $DB_USER'
-WHERE NOT EXISTS (SELECT FROM information_schema.schemata WHERE schema_name = '$DB_USER')\gexec
-REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+CREATE EXTENSION IF NOT EXISTS uri;
+DROP TYPE IF EXISTS erc721_metadata CASCADE;
+CREATE TYPE erc721_metadata AS (
+  id int,
+  name text,
+  description text,
+  image uri,
+  external_url uri,
+	attributes json
+);
+DROP TYPE IF EXISTS erc1155_metadata CASCADE;
+CREATE TYPE erc1155_metadata AS (
+  id int,
+  name text,
+  description text,
+  image text, -- Note that we use text here because of the {id} replacement semantics
+  external_url uri,
+	attributes json
+);
 EOD
 [ $? -eq 0 ] || quit "fail to initialize postgres database"
 unset POSTGRES_PASSWORD
