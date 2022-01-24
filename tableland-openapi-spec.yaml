@@ -1,0 +1,270 @@
+openapi: 3.0.0
+info:
+  title: Tableland Remote API
+  version: 0.0.1
+servers:
+  - url: https://gateway.tableland.com
+paths:
+  /rpc:
+    post:
+      security:
+      - bearerAuth: []
+      summary: Lets you interact with Tableland's JSON-RPC calls
+      description: >
+        There are two available JSON-RPC methods: `createdTable` and `runSQL`.
+    
+        * The `createdTable` method allows you to create a table that was alreadyminted.
+        
+        * The `runSQL` method allows you to run SQL statements on an existing table."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/runSQL'
+                - $ref: '#/components/schemas/createTable'
+            examples:
+              createTable: 
+                value:
+                  jsonrpc: '2.0'
+                  method: tableland_createTable
+                  id: 1
+                  params:
+                    tableId: 00000000-0000-0000-0000-000000000000
+                    type: mytabletype
+                    controller: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'
+                    statement: CREATE TABLE mytable (column_a int, column_b text);
+              runSQL: 
+                value:
+                  jsonrpc: '2.0'
+                  method: tableland_runSQL
+                  id: 1
+                  params:
+                    tableId: 00000000-0000-0000-0000-000000000000
+                    controller: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'
+                    statement: SELECT * FROM mytable;
+      responses:
+        '200':
+          description: OK
+          headers:
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+                example: 'Accept, Accept-Language, Content-Type, Authorization'
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+                example: '*'
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+                example: 'GET, POST, OPTIONS'
+            Trace-Id:
+              schema:
+                type: string
+                example: '579bf7aa-9bcf-4405-9d9e-7fd6c1672d1b'
+            Content-Type:
+              schema:
+                type: string
+                example: application/json
+          content:
+            application/json:
+              schema:
+                type: object
+              examples:
+                createTable:
+                  value:
+                    jsonrpc: '2.0'
+                    id: 1
+                    result:
+                      message: Table created
+                      data: null
+                runSQL:
+                  value:
+                    jsonrpc: '2.0'
+                    id: 1
+                    result:
+                      message: Select executed
+                      data: 
+                        columns:
+                          - name: c1
+                          - name: c2
+                        rows:
+                          - ["e11", "e12"]
+                          - ["e21", "e22"]
+  /tables/controller/{ethAddress}:
+    get:
+      summary: Get all tables controlled by an ETH address
+      parameters:
+        - in: path
+          name: ethAddress
+          schema:
+            type: string
+          required: true
+          description: An ETH address
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: "object"
+                  required: 
+                    - "uuid"
+                    - "controller"
+                    - "type"
+                    - "created_at"
+                  properties:
+                    uuid:
+                      type: "string"
+                    controller:
+                      type: "string"
+                    type:
+                      type: "string"
+                    created_at:
+                      type: "string"
+                  example:
+                    uuid: "00000000-0000-0000-0000-000000000000"
+                    controller: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+                    type: "mytabletype"
+                    created_at : "2022-01-12T17:44:40.396593Z"
+  /tables/{uuid}:
+    get:
+      summary: Get the metadata associated with a table
+      parameters:
+        - in: path
+          name: uuid
+          schema:
+            type: string
+          required: true
+          description: The uuid of the table
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: "object"
+                required:
+                  - external_url
+                  - image
+                  - attributes
+                properties:
+                  external_url:
+                    type: "string"
+                  image:
+                    type: "string"
+                  attributes:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - display_type
+                        - trait_type
+                        - value
+                      properties:
+                        display_type:
+                          type: "string"
+                        trait_type:
+                          type: "string"
+                        value:
+                          type: "integer"
+                example:
+                  external_url: "https://tableland.com/tables/00000000-0000-0000-0000-000000000000"
+                  image: "https://hub.textile.io/thread/bafkqtqxkgt3moqxwa6rpvtuyigaoiavyewo67r3h7gsz4hov2kys7ha/buckets/bafzbeicpzsc423nuninuvrdsmrwurhv3g2xonnduq4gbhviyo5z4izwk5m/todo-list.png"
+                  attributes:
+                    - display_type: "date"
+                      trait_type: "created"
+                      value: 1642009480
+        '422':       
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                type: "object"
+                required:
+                  - message
+                example:
+                  message : "Invalid uuid"
+            
+components:
+  securitySchemes:
+    bearerAuth:            # arbitrary name for the security scheme
+      type: http
+      scheme: bearer
+      bearerFormat: JWT  
+  schemas:
+    runSQL:
+      type: "object"
+      required: 
+        - "method"
+        - "id"
+        - "jsonrpc"
+        - "params"
+      properties:
+        method:
+          type: "string"
+          description: "Method name"
+        id:
+          type: "integer"
+          default : 1
+          format: int32
+          description: "Request ID"
+        jsonrpc:
+          type: "string"
+          default: "2.0"
+          description: "JSON-RPC Version (2.0)"
+        params:
+          type: "array"
+          items:
+            type: "object"
+            required: 
+              - "tableId"
+              - "controller"
+              - "statement"
+            properties:
+              tableId:
+                type: "string"
+              controller:
+                type: "string"
+              statement:
+                type: "string"
+    createTable:
+      type: "object"
+      required: 
+        - "method"
+        - "id"
+        - "jsonrpc"
+        - "params"
+      properties:
+        method:
+          type: "string"
+          description: "Method name"
+        id:
+          type: "integer"
+          default : 1
+          format: int32
+          description: "Request ID"
+        jsonrpc:
+          type: "string"
+          default: "2.0"
+          description: "JSON-RPC Version (2.0)"
+        params:
+          type: "array"
+          items:
+            type: "object"
+            required: 
+              - "type"
+              - "tableId"
+              - "controller"
+              - "statement"
+            properties:
+              tableId:
+                type: "string"
+              controller:
+                type: "string"
+              statement:
+                type: "string"
