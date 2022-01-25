@@ -16,6 +16,17 @@ func (q *Queries) Authorize(ctx context.Context, address string) error {
 	return err
 }
 
+const getAuthorized = `-- name: GetAuthorized :one
+SELECT address, created_at FROM system_auth WHERE address=$1
+`
+
+func (q *Queries) GetAuthorized(ctx context.Context, address string) (SystemAuth, error) {
+	row := q.db.QueryRow(ctx, getAuthorized, address)
+	var i SystemAuth
+	err := row.Scan(&i.Address, &i.CreatedAt)
+	return i, err
+}
+
 const isAuthorized = `-- name: IsAuthorized :one
 SELECT EXISTS(SELECT 1 from system_auth WHERE address=$1) AS "exists"
 `
@@ -25,6 +36,30 @@ func (q *Queries) IsAuthorized(ctx context.Context, address string) (bool, error
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
+}
+
+const listAuthorized = `-- name: ListAuthorized :many
+SELECT address, created_at FROM system_auth ORDER BY created_at ASC
+`
+
+func (q *Queries) ListAuthorized(ctx context.Context) ([]SystemAuth, error) {
+	rows, err := q.db.Query(ctx, listAuthorized)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SystemAuth
+	for rows.Next() {
+		var i SystemAuth
+		if err := rows.Scan(&i.Address, &i.CreatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const revoke = `-- name: Revoke :exec

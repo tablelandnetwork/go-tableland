@@ -104,12 +104,48 @@ func (s *SystemStore) Revoke(ctx context.Context, address string) error {
 }
 
 // IsAuthorized checks if the provided address has permission to use the system.
-func (s *SystemStore) IsAuthorized(ctx context.Context, address string) (bool, error) {
+func (s *SystemStore) IsAuthorized(ctx context.Context, address string) (sqlstore.IsAuthorizedResult, error) {
 	authorized, err := s.db.IsAuthorized(ctx, address)
 	if err != nil {
-		return false, fmt.Errorf("checking authorization: %s", err)
+		return sqlstore.IsAuthorizedResult{}, fmt.Errorf("checking authorization: %s", err)
 	}
-	return authorized, nil
+	return sqlstore.IsAuthorizedResult{IsAuthorized: authorized}, nil
+}
+
+// GetAuthorizationRecord gets the authorization record for the provided address.
+func (s *SystemStore) GetAuthorizationRecord(
+	ctx context.Context,
+	address string,
+) (sqlstore.AuthorizationRecord, error) {
+	res, err := s.db.GetAuthorized(ctx, address)
+	if err != nil {
+		return sqlstore.AuthorizationRecord{}, fmt.Errorf("getthing authorization record: %s", err)
+	}
+	if res.Address == "" {
+		return sqlstore.AuthorizationRecord{}, fmt.Errorf("address not authorized")
+	}
+	return sqlstore.AuthorizationRecord{
+		Address:   res.Address,
+		CreatedAt: res.CreatedAt,
+	}, nil
+}
+
+// ListAuthorized returns a list of all authorization records.
+func (s *SystemStore) ListAuthorized(ctx context.Context) ([]sqlstore.AuthorizationRecord, error) {
+	res, err := s.db.ListAuthorized(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getthing authorization records: %s", err)
+	}
+	records := make([]sqlstore.AuthorizationRecord, 0)
+	for _, r := range res {
+		records = append(records,
+			sqlstore.AuthorizationRecord{
+				Address:   r.Address,
+				CreatedAt: r.CreatedAt,
+			},
+		)
+	}
+	return records, nil
 }
 
 // executeMigration run db migrations and return a ready to use connection to the Postgres database.

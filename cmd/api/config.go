@@ -33,6 +33,10 @@ type config struct {
 		Human bool `default:"false"`
 		Debug bool `default:"false"`
 	}
+	AdminAPI struct {
+		Username string `default:""`
+		Password string `default:""`
+	}
 }
 
 func setupConfig() *config {

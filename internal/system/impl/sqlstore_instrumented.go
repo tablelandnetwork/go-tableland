@@ -67,3 +67,105 @@ func (s *InstrumentedSystemSQLStoreService) GetTablesByController(ctx context.Co
 
 	return tables, err
 }
+
+// Authorize authorizes an address in the SQLStore.
+func (s *InstrumentedSystemSQLStoreService) Authorize(ctx context.Context, address string) error {
+	start := time.Now()
+	err := s.system.Authorize(ctx, address)
+	latency := time.Since(start).Milliseconds()
+
+	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("Authorize")},
+		{Key: "address", Value: attribute.StringValue(address)},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return err
+}
+
+// Revoke removes an address' access in the SQLStore.
+func (s *InstrumentedSystemSQLStoreService) Revoke(ctx context.Context, address string) error {
+	start := time.Now()
+	err := s.system.Revoke(ctx, address)
+	latency := time.Since(start).Milliseconds()
+
+	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("Revoke")},
+		{Key: "address", Value: attribute.StringValue(address)},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return err
+}
+
+// IsAuthorized checks the authorization status of an address in the SQLStore.
+func (s *InstrumentedSystemSQLStoreService) IsAuthorized(
+	ctx context.Context,
+	address string,
+) (sqlstore.IsAuthorizedResult, error) {
+	start := time.Now()
+	res, err := s.system.IsAuthorized(ctx, address)
+	latency := time.Since(start).Milliseconds()
+
+	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("IsAuthorized")},
+		{Key: "address", Value: attribute.StringValue(address)},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return res, err
+}
+
+// GetAuthorizationRecord gets the authorization record for the provided address from the SQLStore.
+func (s *InstrumentedSystemSQLStoreService) GetAuthorizationRecord(
+	ctx context.Context,
+	address string,
+) (sqlstore.AuthorizationRecord, error) {
+	start := time.Now()
+	record, err := s.system.GetAuthorizationRecord(ctx, address)
+	latency := time.Since(start).Milliseconds()
+
+	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("GetAuthorizationRecord")},
+		{Key: "address", Value: attribute.StringValue(address)},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return record, err
+}
+
+// ListAuthorized lists all authorization records in the SQLStore.
+func (s *InstrumentedSystemSQLStoreService) ListAuthorized(
+	ctx context.Context,
+) ([]sqlstore.AuthorizationRecord, error) {
+	start := time.Now()
+	records, err := s.system.ListAuthorized(ctx)
+	latency := time.Since(start).Milliseconds()
+
+	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("ListAuthorized")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return records, err
+}

@@ -13,5 +13,7 @@ type SystemStore interface {
 	GetTablesByController(context.Context, string) ([]Table, error)
 	Authorize(context.Context, string) error
 	Revoke(context.Context, string) error
-	IsAuthorized(context.Context, string) (bool, error)
+	IsAuthorized(context.Context, string) (IsAuthorizedResult, error)
+	GetAuthorizationRecord(context.Context, string) (AuthorizationRecord, error)
+	ListAuthorized(context.Context) ([]AuthorizationRecord, error)
 }

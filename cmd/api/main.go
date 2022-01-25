@@ -83,8 +83,20 @@ func main() {
 
 	router.Get("/tables/{uuid}", systemController.GetTable, middlewares.OtelHTTP("GetTable"))
 	router.Get("/tables/controller/{address}", systemController.GetTablesByController, middlewares.OtelHTTP("GetTablesByController")) //nolint
+
 	router.Get("/healthz", healthHandler)
 	router.Get("/health", healthHandler)
+
+	if config.AdminAPI.Password == "" {
+		log.Warn().
+			Msg("no admin api password set")
+	}
+	basicAuth := middlewares.BasicAuth(config.AdminAPI.Username, config.AdminAPI.Password)
+	router.Post("/authorized-addresses", systemController.Authorize, basicAuth, middlewares.OtelHTTP("Authorize"))
+	router.Get("/authorized-addresses/{address}", systemController.IsAuthorized, basicAuth, middlewares.OtelHTTP("IsAuthorized")) //nolint
+	router.Delete("/authorized-addresses/{address}", systemController.Revoke, basicAuth, middlewares.OtelHTTP("Revoke"))
+	router.Get("/authorized-addresses/{address}/record", systemController.GetAuthorizationRecord, basicAuth, middlewares.OtelHTTP("GetAuthorizationRecord")) //nolint
+	router.Get("/authorized-addresses", systemController.ListAuthorized, basicAuth, middlewares.OtelHTTP("ListAuthorized"))
 
 	if err := metrics.SetupInstrumentation(":" + config.Metrics.Port); err != nil {
 		log.Fatal().

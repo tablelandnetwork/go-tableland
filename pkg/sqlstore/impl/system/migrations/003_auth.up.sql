@@ -1,4 +1,4 @@
 CREATE TABLE IF NOT EXISTS system_auth (
-    address CHAR(42) PRIMARY KEY,
+    address TEXT PRIMARY KEY,
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );

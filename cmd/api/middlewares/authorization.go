@@ -24,14 +24,14 @@ func Authorization(store sqlstore.SQLStore) func(http.Handler) http.Handler {
 				return
 			}
 
-			authorized, err := store.IsAuthorized(r.Context(), addressString)
+			res, err := store.IsAuthorized(r.Context(), addressString)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				_ = json.NewEncoder(w).Encode(errors.ServiceError{Message: fmt.Sprintf("checking authorization status: %v", err)})
 				return
 			}
 
-			if !authorized {
+			if !res.IsAuthorized {
 				w.WriteHeader(http.StatusForbidden)
 				_ = json.NewEncoder(w).Encode(errors.ServiceError{Message: fmt.Sprintf("address %s not authorized", addressString)})
 				return

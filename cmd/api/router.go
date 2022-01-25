@@ -31,6 +31,13 @@ func (r *router) Post(uri string, f func(http.ResponseWriter, *http.Request), mi
 	sub.Use(mid...)
 }
 
+// Delete creates a subroute on the specified URI that only accepts DELETE. You can provide specific middlewares.
+func (r *router) Delete(uri string, f func(http.ResponseWriter, *http.Request), mid ...mux.MiddlewareFunc) {
+	sub := r.r.Path(uri).Subrouter()
+	sub.HandleFunc("", f).Methods(http.MethodDelete)
+	sub.Use(mid...)
+}
+
 // Use adds middlewares to all routes. Should be used when a middleware should be execute all all routes (e.g. CORS).
 func (r *router) Use(mid ...mux.MiddlewareFunc) {
 	r.r.Use(mid...)
