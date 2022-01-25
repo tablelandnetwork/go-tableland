@@ -32,24 +32,31 @@ GRANT $DB_USER TO $POSTGRES_USER;
 ALTER USER $DB_USER WITH PASSWORD '$DB_PASS';
 CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
 CREATE EXTENSION IF NOT EXISTS uri;
-DROP TYPE IF EXISTS erc721_metadata CASCADE;
-CREATE TYPE erc721_metadata AS (
-  id int,
-  name text,
-  description text,
-  image uri,
-  external_url uri,
-	attributes json
-);
-DROP TYPE IF EXISTS erc1155_metadata CASCADE;
-CREATE TYPE erc1155_metadata AS (
-  id int,
-  name text,
-  description text,
-  image text, -- Note that we use text here because of the {id} replacement semantics
-  external_url uri,
-	attributes json
-);
+DO \$\$ BEGIN
+  CREATE TYPE erc721_metadata AS (
+    id int,
+    name text,
+    description text,
+    image uri,
+    external_url uri,
+    attributes json
+  );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END \$\$;
+DO \$\$ BEGIN
+  CREATE TYPE erc1155_metadata AS (
+    id int,
+    name text,
+    description text,
+    image text, -- Note that we use text here because of the {id} replacement semantics
+    external_url uri,
+    attributes json
+  );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END \$\$;
+
 EOD
 [ $? -eq 0 ] || quit "fail to initialize postgres database"
 unset POSTGRES_PASSWORD
