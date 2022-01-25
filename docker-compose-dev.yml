@@ -7,8 +7,8 @@ services:
     platform: linux/{{platform}}
     entrypoint: ["./with-postgres.sh", "./api"]
     environment:
-      - POSTGRES_USER=admin # used only in with-postgres.sh
-      - POSTGRES_PASSWORD=admin # used only in with-postgres.sh
+      - POSTGRES_USER=postgres # used only in with-postgres.sh
+      - POSTGRES_PASSWORD=postgres # used only in with-postgres.sh
       - HTTP_PORT=8080
       - IMPL=mesa
       - DB_HOST=database
@@ -28,11 +28,25 @@ services:
     cap_add:
       - SYS_PTRACE
     depends_on:
-      - database
+      database:
+        condition: service_healthy
     restart: unless-stopped
   database:
-    image: postgres:11
+    build:
+      context: .
+      dockerfile: postgres.Dockerfile
     platform: linux/{{platform}}
     environment:
-      - POSTGRES_USER=admin
-      - POSTGRES_PASSWORD=admin
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    command:
+      - "postgres"
+      - "-c"
+      - "compute_query_id=auto"
+      - "-c"
+      - "shared_preload_libraries=pg_stat_statements"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5

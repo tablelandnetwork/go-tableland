@@ -75,7 +75,7 @@ func initURL() (err error) {
 		if err != nil {
 			return
 		}
-		container, err = pool.Run("postgres", "latest", []string{"POSTGRES_USER=test", "POSTGRES_PASSWORD=test"})
+		container, err = pool.Run("postgres", "14.1", []string{"POSTGRES_USER=test", "POSTGRES_PASSWORD=test"})
 		if err != nil {
 			log.Errorf("failed to start postgres docker container: %w", err)
 			return
