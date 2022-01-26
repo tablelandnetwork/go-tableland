@@ -2,7 +2,7 @@ version: "3"
 services:
   api:
     build:
-      context: .
+      context: ..
       dockerfile: ./cmd/api/Dockerfile
     platform: linux/{{platform}}
     entrypoint: ["./with-postgres.sh", "./api"]
