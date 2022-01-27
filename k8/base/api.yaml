@@ -73,7 +73,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: tableland-secret
-                  key: adminapi-username
+                  key: adminapi-password
           envFrom:
             - configMapRef:
                 name: configmap-api
