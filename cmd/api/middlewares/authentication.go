@@ -1,6 +1,7 @@
 package middlewares
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -36,10 +37,12 @@ func Authentication(next http.Handler) http.Handler {
 		}
 
 		if err := j.Verify(); err != nil {
-			w.WriteHeader(http.StatusForbidden)
+			w.WriteHeader(http.StatusUnauthorized)
 			_ = json.NewEncoder(w).Encode(errors.ServiceError{Message: fmt.Sprintf("validating jwt: %v", err)})
 			return
 		}
+
+		r = r.WithContext(context.WithValue(r.Context(), ContextKeyAddress, j.Claims.Issuer))
 
 		next.ServeHTTP(w, r)
 	})

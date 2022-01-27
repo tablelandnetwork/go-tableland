@@ -9,6 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/google/uuid"
+	"github.com/textileio/go-tableland/cmd/api/middlewares"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
@@ -36,6 +37,24 @@ func NewTablelandMesa(
 
 // CreateTable allows the user to create a table.
 func (t *TablelandMesa) CreateTable(ctx context.Context, req tableland.Request) (tableland.Response, error) {
+	// We want to allow access to CreateTable only for addresses stored
+	// in the system_auth table. The address was set in the context
+	// by the JWT authentication middleware.
+	address := ctx.Value(middlewares.ContextKeyAddress)
+	addressString, ok := address.(string)
+	if !ok || addressString == "" {
+		return tableland.Response{}, fmt.Errorf("no address found in context")
+	}
+
+	res, err := t.store.IsAuthorized(ctx, addressString)
+	if err != nil {
+		return tableland.Response{}, fmt.Errorf("checking address authorization: %s", err)
+	}
+
+	if !res.IsAuthorized {
+		return tableland.Response{}, fmt.Errorf("address not authorized")
+	}
+
 	uuid, err := uuid.Parse(req.TableID)
 	if err != nil {
 		return tableland.Response{}, fmt.Errorf("failed to parse uuid: %s", err)
@@ -76,18 +95,24 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.Request) (tabl
 	case parsing.ReadQuery:
 		return t.runSelect(ctx, req)
 	case parsing.WriteQuery:
-		isAuthorized, err := t.isAuthorized(ctx, req.Controller, uuid)
+		isOwner, err := t.isOwner(ctx, req.Controller, uuid)
 		if err != nil {
 			return tableland.Response{}, fmt.Errorf("failed to check authorization: %s", err)
 		}
 
-		if !isAuthorized {
+		if !isOwner {
 			return tableland.Response{}, errors.New("you aren't authorized")
 		}
 		return t.runInsertOrUpdate(ctx, req)
 	}
 
 	return tableland.Response{}, errors.New("invalid command")
+}
+
+// Authorize is a convenience API giving the client something to call to trigger authorization.
+func (t *TablelandMesa) Authorize(ctx context.Context) error {
+	// Nothing to do here, handled by Authorization middleware.
+	return nil
 }
 
 func (t *TablelandMesa) runInsertOrUpdate(ctx context.Context, req tableland.Request) (tableland.Response, error) {
@@ -107,7 +132,7 @@ func (t *TablelandMesa) runSelect(ctx context.Context, req tableland.Request) (t
 	return tableland.Response{Message: "Select executed", Data: data}, nil
 }
 
-func (t *TablelandMesa) isAuthorized(ctx context.Context, controller string, table uuid.UUID) (bool, error) {
+func (t *TablelandMesa) isOwner(ctx context.Context, controller string, table uuid.UUID) (bool, error) {
 	isOwner, err := t.registry.IsOwner(ctx, common.HexToAddress(controller), t.uuidToBigInt(table))
 	if err != nil {
 		return false, fmt.Errorf("failed to execute contract call: %s", err)

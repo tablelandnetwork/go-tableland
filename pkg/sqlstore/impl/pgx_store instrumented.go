@@ -87,6 +87,106 @@ func (s *InstrumentedSQLStorePGX) GetTablesByController(ctx context.Context,
 	return tables, err
 }
 
+// Authorize grants the provided address permission to use the system.
+func (s *InstrumentedSQLStorePGX) Authorize(ctx context.Context, address string) error {
+	start := time.Now()
+	err := s.store.Authorize(ctx, address)
+	latency := time.Since(start).Milliseconds()
+
+	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("Authorize")},
+		{Key: "address", Value: attribute.StringValue(address)},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return err
+}
+
+// Revoke removes permission to use the system from the provided address.
+func (s *InstrumentedSQLStorePGX) Revoke(ctx context.Context, address string) error {
+	start := time.Now()
+	err := s.store.Revoke(ctx, address)
+	latency := time.Since(start).Milliseconds()
+
+	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("Revoke")},
+		{Key: "address", Value: attribute.StringValue(address)},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return err
+}
+
+// IsAuthorized checks if the provided address has permission to use the system.
+func (s *InstrumentedSQLStorePGX) IsAuthorized(
+	ctx context.Context,
+	address string,
+) (sqlstore.IsAuthorizedResult, error) {
+	start := time.Now()
+	res, err := s.store.IsAuthorized(ctx, address)
+	latency := time.Since(start).Milliseconds()
+
+	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("IsAuthorized")},
+		{Key: "address", Value: attribute.StringValue(address)},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return res, err
+}
+
+// GetAuthorizationRecord gets the authorization record for the provided address.
+func (s *InstrumentedSQLStorePGX) GetAuthorizationRecord(
+	ctx context.Context,
+	address string,
+) (sqlstore.AuthorizationRecord, error) {
+	start := time.Now()
+	record, err := s.store.GetAuthorizationRecord(ctx, address)
+	latency := time.Since(start).Milliseconds()
+
+	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("GetAuthorizationRecord")},
+		{Key: "address", Value: attribute.StringValue(address)},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return record, err
+}
+
+// ListAuthorized returns a list of all authorization records.
+func (s *InstrumentedSQLStorePGX) ListAuthorized(ctx context.Context) ([]sqlstore.AuthorizationRecord, error) {
+	start := time.Now()
+	records, err := s.store.ListAuthorized(ctx)
+	latency := time.Since(start).Milliseconds()
+
+	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("ListAuthorized")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return records, err
+}
+
 // Write executes a write statement on the db.
 func (s *InstrumentedSQLStorePGX) Write(ctx context.Context, statement string) error {
 	start := time.Now()
