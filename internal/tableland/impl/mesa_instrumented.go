@@ -63,16 +63,7 @@ func (t *InstrumentedTablelandMesa) RunSQL(ctx context.Context,
 
 // Authorize is a convenience API giving the client something to call to trigger authorization.
 func (t *InstrumentedTablelandMesa) Authorize(ctx context.Context) error {
-	start := time.Now()
-	err := t.tableland.Authorize(ctx)
-	latency := time.Since(start).Milliseconds()
-	attributes := []attribute.KeyValue{
-		{Key: "method", Value: attribute.StringValue("Authorize")},
-		{Key: "success", Value: attribute.BoolValue(err == nil)},
-	}
-	t.callCount.Add(ctx, 1, attributes...)
-	t.latencyHistogram.Record(ctx, latency, attributes...)
-	return err
+	return t.tableland.Authorize(ctx)
 }
 
 func (t *InstrumentedTablelandMesa) record(ctx context.Context, data recordData) {

@@ -64,6 +64,16 @@ spec:
                 secretKeyRef:
                   name: tableland-secret
                   key: postgres-user
+            - name: ADMINAPI_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: tableland-secret
+                  key: adminapi-username
+            - name: ADMINAPI_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: tableland-secret
+                  key: adminapi-username
           envFrom:
             - configMapRef:
                 name: configmap-api

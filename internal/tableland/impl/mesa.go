@@ -76,12 +76,12 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.Request) (tabl
 	case parsing.ReadQuery:
 		return t.runSelect(ctx, req)
 	case parsing.WriteQuery:
-		isAuthorized, err := t.isOwner(ctx, req.Controller, uuid)
+		isOwner, err := t.isOwner(ctx, req.Controller, uuid)
 		if err != nil {
 			return tableland.Response{}, fmt.Errorf("failed to check authorization: %s", err)
 		}
 
-		if !isAuthorized {
+		if !isOwner {
 			return tableland.Response{}, errors.New("you aren't authorized")
 		}
 		return t.runInsertOrUpdate(ctx, req)
