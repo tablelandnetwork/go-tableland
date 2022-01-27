@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -26,6 +27,9 @@ import (
 func main() {
 	config := setupConfig()
 	setupLogger(buildinfo.GitCommit, config.Log.Debug, config.Log.Human)
+
+	configBytes, _ := json.MarshalIndent(config, "", "  ")
+	log.Info().Msg(fmt.Sprintf("loaded config: %s\n", string(configBytes)))
 
 	server := rpc.NewServer()
 	ctx := context.Background()
