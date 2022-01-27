@@ -3,12 +3,12 @@ kind: Ingress
 metadata:
   name: tableland-ingress-nginx
 spec:
-  # tls:
-  #   - secretName: tableland-tls-cf-secret
-  #     hosts:
-  #       - staging.tableland.com
+  tls:
+    - secretName: tableland-tls-cf-secret
+      hosts:
+        - testnet.tableland.network
   rules:
-    - host: staging.tableland.com
+    - host: testnet.tableland.network
       http:
         paths:
           - path: /

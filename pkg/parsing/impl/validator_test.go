@@ -288,6 +288,30 @@ func TestCreateTable(t *testing.T) {
 			expErrType: ptr2ErrNoSingleStatement(),
 		},
 
+		// Check CREATE OF semantics.
+		{
+			name:       "create of",
+			query:      "create table foo of other;",
+			expErrType: nil,
+		},
+		{
+			name:       "create of constraint",
+			query:      "create table foo of other ( primary key (id) );",
+			expErrType: nil,
+		},
+
+		// Check CREATE with column CONSTRAINTS
+		{
+			name:       "create with constraint",
+			query:      "create table foo ( id int not null, name text );",
+			expErrType: nil,
+		},
+		{
+			name:       "create with extra constraint",
+			query:      "create table foo ( id int not null, constraint foo_pk primary key (id) );",
+			expErrType: nil,
+		},
+
 		// Check top-statement is only CREATE.
 		{
 			name:       "select",
@@ -322,11 +346,14 @@ func TestCreateTable(t *testing.T) {
 				   zint  int,
 				   zint2 int2,
 				   zint4 int4,
+				   zserial serial,
 				   zint8 int8,
+				   zbigserial bigserial,
 				   zbigint bigint,
 				   zsmallint smallint,
 
 				   ztext text,
+				   zuri uri,
 				   zvarchar varchar(10),
 				   zbpchar bpchar,
 				   zdate date,
