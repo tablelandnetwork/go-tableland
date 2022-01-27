@@ -79,7 +79,7 @@ func main() {
 	router.Use(middlewares.CORS, middlewares.TraceID)
 	router.Post("/rpc", func(rw http.ResponseWriter, r *http.Request) {
 		server.ServeHTTP(rw, r)
-	}, middlewares.Authentication, middlewares.Authorization(sqlstore), middlewares.OtelHTTP("rpc"))
+	}, middlewares.Authentication, middlewares.OtelHTTP("rpc"))
 
 	router.Get("/tables/{uuid}", systemController.GetTable, middlewares.OtelHTTP("GetTable"))
 	router.Get("/tables/controller/{address}", systemController.GetTablesByController, middlewares.OtelHTTP("GetTablesByController")) //nolint

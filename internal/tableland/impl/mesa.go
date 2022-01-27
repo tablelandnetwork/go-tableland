@@ -9,6 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/google/uuid"
+	"github.com/textileio/go-tableland/cmd/api/middlewares"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
@@ -36,6 +37,24 @@ func NewTablelandMesa(
 
 // CreateTable allows the user to create a table.
 func (t *TablelandMesa) CreateTable(ctx context.Context, req tableland.Request) (tableland.Response, error) {
+	// We want to allow access to CreateTable only for addresses stored
+	// in the system_auth table. The address was set in the context
+	// by the JWT authentication middleware.
+	address := ctx.Value(middlewares.ContextKeyAddress)
+	addressString, ok := address.(string)
+	if !ok || addressString == "" {
+		return tableland.Response{}, fmt.Errorf("no address found in context")
+	}
+
+	res, err := t.store.IsAuthorized(ctx, addressString)
+	if err != nil {
+		return tableland.Response{}, fmt.Errorf("checking address authorization: %s", err)
+	}
+
+	if !res.IsAuthorized {
+		return tableland.Response{}, fmt.Errorf("address not authorized")
+	}
+
 	uuid, err := uuid.Parse(req.TableID)
 	if err != nil {
 		return tableland.Response{}, fmt.Errorf("failed to parse uuid: %s", err)

@@ -1,12 +1,12 @@
 package middlewares
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
 
-	"github.com/gorilla/context"
 	"github.com/textileio/go-tableland/pkg/errors"
 	"github.com/textileio/go-tableland/pkg/jwt"
 )
@@ -42,7 +42,7 @@ func Authentication(next http.Handler) http.Handler {
 			return
 		}
 
-		context.Set(r, "address", j.Claims.Issuer)
+		r = r.WithContext(context.WithValue(r.Context(), ContextKeyAddress, j.Claims.Issuer))
 
 		next.ServeHTTP(w, r)
 	})
