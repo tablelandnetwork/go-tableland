@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"github.com/textileio/go-tableland/cmd/api/middlewares"
 	"github.com/textileio/go-tableland/internal/tableland"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
@@ -21,9 +22,11 @@ import (
 func TestTodoAppWorkflow(t *testing.T) {
 	url, err := tests.PostgresURL()
 	require.NoError(t, err)
-	ctx := context.Background()
+	ctx := context.WithValue(context.Background(), middlewares.ContextKeyAddress, "some-address")
 
 	sqlstore, err := sqlstoreimpl.New(ctx, url)
+	require.NoError(t, err)
+	err = sqlstore.Authorize(ctx, "some-address")
 	require.NoError(t, err)
 	parser := parserimpl.New("system_")
 	tbld := NewTablelandMesa(sqlstore, &dummyRegistry{}, parser)
@@ -52,9 +55,11 @@ func TestTodoAppWorkflow(t *testing.T) {
 func TestInsertOnConflict(t *testing.T) {
 	url, err := tests.PostgresURL()
 	require.NoError(t, err)
-	ctx := context.Background()
+	ctx := context.WithValue(context.Background(), middlewares.ContextKeyAddress, "some-address")
 
 	sqlstore, err := sqlstoreimpl.New(ctx, url)
+	require.NoError(t, err)
+	err = sqlstore.Authorize(ctx, "some-address")
 	require.NoError(t, err)
 	parser := parserimpl.New("system_")
 	tbld := NewTablelandMesa(sqlstore, &dummyRegistry{}, parser)
@@ -95,9 +100,11 @@ func TestInsertOnConflict(t *testing.T) {
 func TestJSON(t *testing.T) {
 	url, err := tests.PostgresURL()
 	require.NoError(t, err)
-	ctx := context.Background()
+	ctx := context.WithValue(context.Background(), middlewares.ContextKeyAddress, "some-address")
 
 	sqlstore, err := sqlstoreimpl.New(ctx, url)
+	require.NoError(t, err)
+	err = sqlstore.Authorize(ctx, "some-address")
 	require.NoError(t, err)
 	parser := parserimpl.New("system_")
 	tbld := NewTablelandMesa(sqlstore, &dummyRegistry{}, parser)
