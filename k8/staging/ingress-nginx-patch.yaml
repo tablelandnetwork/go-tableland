@@ -6,20 +6,9 @@ spec:
   tls:
     - secretName: tableland-tls-cf-secret
       hosts:
-        - staging.tableland.xyz
-        - gateway.staging.tableland.xyz
+        - testnet.tableland.network
   rules:
-    - host: staging.tableland.xyz
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: api
-                port:
-                  number: 8080
-    - host: gateway.staging.tableland.xyz
+    - host: testnet.tableland.network
       http:
         paths:
           - path: /
