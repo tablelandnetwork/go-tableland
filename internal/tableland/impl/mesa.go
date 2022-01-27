@@ -37,22 +37,8 @@ func NewTablelandMesa(
 
 // CreateTable allows the user to create a table.
 func (t *TablelandMesa) CreateTable(ctx context.Context, req tableland.Request) (tableland.Response, error) {
-	// We want to allow access to CreateTable only for addresses stored
-	// in the system_auth table. The address was set in the context
-	// by the JWT authentication middleware.
-	address := ctx.Value(middlewares.ContextKeyAddress)
-	addressString, ok := address.(string)
-	if !ok || addressString == "" {
-		return tableland.Response{}, fmt.Errorf("no address found in context")
-	}
-
-	res, err := t.store.IsAuthorized(ctx, addressString)
-	if err != nil {
+	if err := t.authorize(ctx); err != nil {
 		return tableland.Response{}, fmt.Errorf("checking address authorization: %s", err)
-	}
-
-	if !res.IsAuthorized {
-		return tableland.Response{}, fmt.Errorf("address not authorized")
 	}
 
 	uuid, err := uuid.Parse(req.TableID)
@@ -111,7 +97,9 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.Request) (tabl
 
 // Authorize is a convenience API giving the client something to call to trigger authorization.
 func (t *TablelandMesa) Authorize(ctx context.Context) error {
-	// Nothing to do here, handled by Authorization middleware.
+	if err := t.authorize(ctx); err != nil {
+		return fmt.Errorf("checking address authorization: %s", err)
+	}
 	return nil
 }
 
@@ -144,4 +132,26 @@ func (t *TablelandMesa) uuidToBigInt(uuid uuid.UUID) *big.Int {
 	var n big.Int
 	n.SetString(strings.Replace(uuid.String(), "-", "", 4), 16)
 	return &n
+}
+
+func (t *TablelandMesa) authorize(ctx context.Context) error {
+	// We want to allow access to only for addresses stored
+	// in the system_auth table. The address was set in the context
+	// by the JWT authentication middleware.
+	address := ctx.Value(middlewares.ContextKeyAddress)
+	addressString, ok := address.(string)
+	if !ok || addressString == "" {
+		return fmt.Errorf("no address found in context")
+	}
+
+	res, err := t.store.IsAuthorized(ctx, addressString)
+	if err != nil {
+		return err
+	}
+
+	if !res.IsAuthorized {
+		return fmt.Errorf("address not authorized")
+	}
+
+	return nil
 }
