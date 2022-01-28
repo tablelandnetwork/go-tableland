@@ -24,20 +24,6 @@ system-sql-assets:
 	cd pkg/sqlstore/impl/system && $(GO_BINDATA) -pkg migrations -prefix migrations/ -o migrations/migrations.go -ignore=migrations.go migrations && $(SQLC) generate; cd -;
 .PHONY: system-sql-assets
 
-# Local development with docker-compose
-
-up:
-	sed "s/{{platform}}/$(PLATFORM)/g" docker-compose-dev.yml | COMPOSE_DOCKER_CLI_BUILD=1 docker-compose -f - up --build
-.PHONY: up
-
-down:
-	docker-compose -f docker-compose-dev.yml down
-.PHONY: down
-
-psql:
-	docker-compose -f docker-compose-dev.yml exec api psql postgresql://dev_user:dev_password@database/dev_database
-.PHONY: psql
-
 # Building and publishing image to GCP
 
 build-api:
