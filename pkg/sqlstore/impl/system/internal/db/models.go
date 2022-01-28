@@ -12,6 +12,7 @@ import (
 type SystemAuth struct {
 	Address   string
 	CreatedAt time.Time
+	LastSeen  time.Time
 }
 
 type SystemTable struct {

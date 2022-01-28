@@ -25,6 +25,6 @@ func (t *TablelandMock) RunSQL(ctx context.Context, req tableland.Request) (tabl
 }
 
 // Authorize implements Authorize.
-func (t *TablelandMock) Authorize(ctx context.Context) error {
+func (t *TablelandMock) Authorize(ctx context.Context, req tableland.Request) error {
 	return nil
 }

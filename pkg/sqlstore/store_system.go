@@ -16,4 +16,5 @@ type SystemStore interface {
 	IsAuthorized(context.Context, string) (IsAuthorizedResult, error)
 	GetAuthorizationRecord(context.Context, string) (AuthorizationRecord, error)
 	ListAuthorized(context.Context) ([]AuthorizationRecord, error)
+	MarkSeen(context.Context, string) error
 }

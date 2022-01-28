@@ -187,6 +187,25 @@ func (s *InstrumentedSQLStorePGX) ListAuthorized(ctx context.Context) ([]sqlstor
 	return records, err
 }
 
+// MarkSeen updates the last seen time for the provided address.
+func (s *InstrumentedSQLStorePGX) MarkSeen(ctx context.Context, address string) error {
+	start := time.Now()
+	err := s.store.MarkSeen(ctx, address)
+	latency := time.Since(start).Milliseconds()
+
+	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("MarkSeen")},
+		{Key: "address", Value: attribute.StringValue(address)},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return err
+}
+
 // Write executes a write statement on the db.
 func (s *InstrumentedSQLStorePGX) Write(ctx context.Context, statement string) error {
 	start := time.Now()

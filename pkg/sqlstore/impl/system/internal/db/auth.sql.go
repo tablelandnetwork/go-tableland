@@ -17,13 +17,13 @@ func (q *Queries) Authorize(ctx context.Context, address string) error {
 }
 
 const getAuthorized = `-- name: GetAuthorized :one
-SELECT address, created_at FROM system_auth WHERE address=$1
+SELECT address, created_at, last_seen FROM system_auth WHERE address=$1
 `
 
 func (q *Queries) GetAuthorized(ctx context.Context, address string) (SystemAuth, error) {
 	row := q.db.QueryRow(ctx, getAuthorized, address)
 	var i SystemAuth
-	err := row.Scan(&i.Address, &i.CreatedAt)
+	err := row.Scan(&i.Address, &i.CreatedAt, &i.LastSeen)
 	return i, err
 }
 
@@ -39,7 +39,7 @@ func (q *Queries) IsAuthorized(ctx context.Context, address string) (bool, error
 }
 
 const listAuthorized = `-- name: ListAuthorized :many
-SELECT address, created_at FROM system_auth ORDER BY created_at ASC
+SELECT address, created_at, last_seen FROM system_auth ORDER BY created_at ASC
 `
 
 func (q *Queries) ListAuthorized(ctx context.Context) ([]SystemAuth, error) {
@@ -51,7 +51,7 @@ func (q *Queries) ListAuthorized(ctx context.Context) ([]SystemAuth, error) {
 	var items []SystemAuth
 	for rows.Next() {
 		var i SystemAuth
-		if err := rows.Scan(&i.Address, &i.CreatedAt); err != nil {
+		if err := rows.Scan(&i.Address, &i.CreatedAt, &i.LastSeen); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -60,6 +60,15 @@ func (q *Queries) ListAuthorized(ctx context.Context) ([]SystemAuth, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const markSeen = `-- name: MarkSeen :exec
+UPDATE system_auth SET last_seen = NOW() WHERE address=$1
+`
+
+func (q *Queries) MarkSeen(ctx context.Context, address string) error {
+	_, err := q.db.Exec(ctx, markSeen, address)
+	return err
 }
 
 const revoke = `-- name: Revoke :exec

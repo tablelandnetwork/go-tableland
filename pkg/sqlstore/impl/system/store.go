@@ -148,6 +148,14 @@ func (s *SystemStore) ListAuthorized(ctx context.Context) ([]sqlstore.Authorizat
 	return records, nil
 }
 
+// MarkSeen updates the last seen time for the provided address.
+func (s *SystemStore) MarkSeen(ctx context.Context, address string) error {
+	if err := s.db.MarkSeen(ctx, address); err != nil {
+		return fmt.Errorf("marking seen: %s", err)
+	}
+	return nil
+}
+
 // executeMigration run db migrations and return a ready to use connection to the Postgres database.
 func executeMigration(postgresURI string, as *bindata.AssetSource) error {
 	// To avoid dealing with time zone issues, we just enforce UTC timezone

@@ -12,3 +12,6 @@ SELECT * FROM system_auth WHERE address=$1;
 
 -- name: ListAuthorized :many
 SELECT * FROM system_auth ORDER BY created_at ASC;
+
+-- name: MarkSeen :exec
+UPDATE system_auth SET last_seen = NOW() WHERE address=$1;
