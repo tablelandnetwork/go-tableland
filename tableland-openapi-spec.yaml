@@ -3,7 +3,7 @@ info:
   title: Tableland Remote API
   version: 0.0.1
 servers:
-  - url: https://gateway.tableland.com
+  - url: https://testnet.tableland.network
 paths:
   /rpc:
     post:
