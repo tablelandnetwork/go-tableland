@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/rs/zerolog/log"
 
@@ -124,9 +125,16 @@ func (s *SystemStore) GetAuthorizationRecord(
 	if res.Address == "" {
 		return sqlstore.AuthorizationRecord{}, fmt.Errorf("address not authorized")
 	}
+	var lastSeen *time.Time
+	if res.LastSeen.Valid == true {
+		lastSeen = &res.LastSeen.Time
+	}
 	return sqlstore.AuthorizationRecord{
-		Address:   res.Address,
-		CreatedAt: res.CreatedAt,
+		Address:          res.Address,
+		CreatedAt:        res.CreatedAt,
+		LastSeen:         lastSeen,
+		CreateTableCount: res.CreateTableCount,
+		RunSQLCount:      res.RunSqlCount,
 	}, nil
 }
 
@@ -138,20 +146,35 @@ func (s *SystemStore) ListAuthorized(ctx context.Context) ([]sqlstore.Authorizat
 	}
 	records := make([]sqlstore.AuthorizationRecord, 0)
 	for _, r := range res {
+		var lastSeen *time.Time
+		if r.LastSeen.Valid == true {
+			lastSeen = &r.LastSeen.Time
+		}
 		records = append(records,
 			sqlstore.AuthorizationRecord{
-				Address:   r.Address,
-				CreatedAt: r.CreatedAt,
+				Address:          r.Address,
+				CreatedAt:        r.CreatedAt,
+				LastSeen:         lastSeen,
+				CreateTableCount: r.CreateTableCount,
+				RunSQLCount:      r.RunSqlCount,
 			},
 		)
 	}
 	return records, nil
 }
 
-// MarkSeen updates the last seen time for the provided address.
-func (s *SystemStore) MarkSeen(ctx context.Context, address string) error {
-	if err := s.db.MarkSeen(ctx, address); err != nil {
-		return fmt.Errorf("marking seen: %s", err)
+// IncrementCreateTableCount increments the counter.
+func (s *SystemStore) IncrementCreateTableCount(ctx context.Context, address string) error {
+	if err := s.db.IncrementCreateTableCount(ctx, address); err != nil {
+		return fmt.Errorf("incrementing create table count: %s", err)
+	}
+	return nil
+}
+
+// IncrementRunSQLCount increments the counter.
+func (s *SystemStore) IncrementRunSQLCount(ctx context.Context, address string) error {
+	if err := s.db.IncrementRunSQLCount(ctx, address); err != nil {
+		return fmt.Errorf("incrementing run sql count: %s", err)
 	}
 	return nil
 }

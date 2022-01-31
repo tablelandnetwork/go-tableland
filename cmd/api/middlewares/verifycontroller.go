@@ -1,7 +1,10 @@
 package middlewares
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"net/http"
 
 	"github.com/textileio/go-tableland/pkg/errors"
@@ -26,12 +29,21 @@ func VerifyController(next http.Handler) http.Handler {
 			return
 		}
 
+		buf, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(errors.ServiceError{Message: fmt.Sprintf("error reading request body: %s", err)})
+			return
+		}
+		rdr1 := ioutil.NopCloser(bytes.NewBuffer(buf))
+
+		r.Body = rdr1
+
 		var b body
 
-		err := json.NewDecoder(r.Body).Decode(&b)
-		if err != nil {
+		if err := json.Unmarshal(buf, &b); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(errors.ServiceError{Message: "unable to decode body"})
+			_ = json.NewEncoder(w).Encode(errors.ServiceError{Message: fmt.Sprintf("unable to decode body: %s", err)})
 			return
 		}
 

@@ -41,6 +41,10 @@ func (t *TablelandMesa) CreateTable(ctx context.Context, req tableland.Request) 
 		return tableland.Response{}, fmt.Errorf("checking address authorization: %s", err)
 	}
 
+	if err := t.store.IncrementCreateTableCount(ctx, req.Controller); err != nil {
+		log.Error().Err(err).Msg("incrementing create table count")
+	}
+
 	uuid, err := uuid.Parse(req.TableID)
 	if err != nil {
 		return tableland.Response{}, fmt.Errorf("failed to parse uuid: %s", err)
@@ -67,6 +71,10 @@ func (t *TablelandMesa) UpdateTable(ctx context.Context, req tableland.Request) 
 
 // RunSQL allows the user to run SQL.
 func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.Request) (tableland.Response, error) {
+	if err := t.store.IncrementRunSQLCount(ctx, req.Controller); err != nil {
+		log.Error().Err(err).Msg("incrementing run sql count")
+	}
+
 	uuid, err := uuid.Parse(req.TableID)
 	if err != nil {
 		return tableland.Response{}, fmt.Errorf("failed to parse uuid: %s", err)
@@ -142,10 +150,6 @@ func (t *TablelandMesa) authorize(ctx context.Context, address string) error {
 
 	if !res.IsAuthorized {
 		return fmt.Errorf("address not authorized")
-	}
-
-	if err := t.store.MarkSeen(ctx, address); err != nil {
-		log.Error().Err(err).Msg("error marking address as seen")
 	}
 
 	return nil

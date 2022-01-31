@@ -10,9 +10,11 @@ import (
 )
 
 type SystemAuth struct {
-	Address   string
-	CreatedAt time.Time
-	LastSeen  sql.NullTime
+	Address          string
+	CreatedAt        time.Time
+	LastSeen         sql.NullTime
+	CreateTableCount int32
+	RunSqlCount      int32
 }
 
 type SystemTable struct {

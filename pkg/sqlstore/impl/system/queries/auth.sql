@@ -13,5 +13,8 @@ SELECT * FROM system_auth WHERE address=$1;
 -- name: ListAuthorized :many
 SELECT * FROM system_auth ORDER BY created_at ASC;
 
--- name: MarkSeen :exec
-UPDATE system_auth SET last_seen = NOW() WHERE address=$1;
+-- name: IncrementCreateTableCount :exec
+UPDATE system_auth SET create_table_count = create_table_count+1, last_seen = NOW() WHERE address=$1;
+
+-- name: IncrementRunSQLCount :exec
+UPDATE system_auth SET run_sql_count = run_sql_count+1, last_seen = NOW() WHERE address=$1;
