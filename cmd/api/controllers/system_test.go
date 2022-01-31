@@ -201,7 +201,13 @@ func TestGetAuthorizationRecord(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, rr.Code)
 
-	expJSON := `{"address": "some-address", "created_at": "0001-01-01T00:00:00Z"}`
+	expJSON := `{
+		"address": "some-address",
+		"created_at": "0001-01-01T00:00:00Z",
+		"last_seen": null,
+		"create_table_count": 0,
+		"run_sql_count": 0
+	}`
 	require.JSONEq(t, expJSON, rr.Body.String())
 }
 
