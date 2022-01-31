@@ -126,7 +126,7 @@ func (s *SystemStore) GetAuthorizationRecord(
 		return sqlstore.AuthorizationRecord{}, fmt.Errorf("address not authorized")
 	}
 	var lastSeen *time.Time
-	if res.LastSeen.Valid == true {
+	if res.LastSeen.Valid {
 		lastSeen = &res.LastSeen.Time
 	}
 	return sqlstore.AuthorizationRecord{
@@ -147,7 +147,7 @@ func (s *SystemStore) ListAuthorized(ctx context.Context) ([]sqlstore.Authorizat
 	records := make([]sqlstore.AuthorizationRecord, 0)
 	for _, r := range res {
 		var lastSeen *time.Time
-		if r.LastSeen.Valid == true {
+		if r.LastSeen.Valid {
 			lastSeen = &r.LastSeen.Time
 		}
 		records = append(records,
