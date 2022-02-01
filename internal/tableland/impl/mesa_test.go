@@ -83,6 +83,41 @@ func TestInsertOnConflict(t *testing.T) {
 	}
 }
 
+func TestMultiStatement(t *testing.T) {
+	t.Parallel()
+
+	ctx, tbld := newTablelandMesa(t)
+
+	baseReq := tableland.Request{
+		TableID:    uuid.New().String(),
+		Type:       "type-1",
+		Controller: "ctrl-1",
+	}
+
+	{
+		req := baseReq
+		req.Statement = `CREATE TABLE foo (
+			name text unique
+		);`
+		_, err := tbld.CreateTable(ctx, req)
+		require.NoError(t, err)
+	}
+
+	{
+		req := baseReq
+		req.Statement = `INSERT INTO foo values ('bar'); UPDATE foo SET name='zoo'`
+		_, err := tbld.RunSQL(ctx, req)
+		require.NoError(t, err)
+
+		req.Statement = "SELECT name from foo"
+		res, err := tbld.RunSQL(ctx, req)
+		require.NoError(t, err)
+		js, err := json.Marshal(res.Data)
+		require.NoError(t, err)
+		require.JSONEq(t, `{"columns":[{"name":"name"}],"rows":[["zoo"]]}`, string(js))
+	}
+}
+
 func TestJSON(t *testing.T) {
 	t.Parallel()
 

@@ -46,6 +46,10 @@ func (pp *QueryValidator) ValidateCreateTable(query string) error {
 		return &parsing.ErrInvalidSyntax{InternalError: err}
 	}
 
+	if err := pp.checkNonEmptyStatement(parsed); err != nil {
+		return fmt.Errorf("empty-statement check: %w", err)
+	}
+
 	if err := pp.checkSingleStatement(parsed); err != nil {
 		return fmt.Errorf("single-statement check: %w", err)
 	}
@@ -70,14 +74,18 @@ func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.QueryType, error
 		return parsing.UndefinedQuery, &parsing.ErrInvalidSyntax{InternalError: err}
 	}
 
-	if err := pp.checkSingleStatement(parsed); err != nil {
-		return parsing.UndefinedQuery, fmt.Errorf("single-statement check: %w", err)
+	if err := pp.checkNonEmptyStatement(parsed); err != nil {
+		return parsing.UndefinedQuery, fmt.Errorf("empty-statement check: %w", err)
 	}
 
 	stmt := parsed.Stmts[0].Stmt
 
 	// If we detect a read-query, do read-query validation.
 	if selectStmt := stmt.GetSelectStmt(); selectStmt != nil {
+		if err := pp.checkSingleStatement(parsed); err != nil {
+			return parsing.UndefinedQuery, fmt.Errorf("single-statement check: %w", err)
+		}
+
 		if err := pp.validateReadQuery(stmt); err != nil {
 			return parsing.UndefinedQuery, fmt.Errorf("validating read-query: %w", err)
 		}
@@ -141,6 +149,13 @@ func (pp *QueryValidator) validateReadQuery(node *pg_query.Node) error {
 		return fmt.Errorf("no system-table referencing check: %w", err)
 	}
 
+	return nil
+}
+
+func (pp *QueryValidator) checkNonEmptyStatement(parsed *pg_query.ParseResult) error {
+	if len(parsed.Stmts) == 0 {
+		return &parsing.ErrEmptyStatement{}
+	}
 	return nil
 }
 

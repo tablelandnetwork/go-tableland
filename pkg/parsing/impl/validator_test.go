@@ -58,17 +58,17 @@ func TestRunSQL(t *testing.T) {
 			query:      "insert into foo values (myfunc(1))",
 			expErrType: nil,
 		},
-
-		// Single-statement check.
 		{
-			name:       "single statement fail",
+			name:       "multi statement",
 			query:      "update foo set a=1; update foo set b=1;",
-			expErrType: ptr2ErrNoSingleStatement(),
+			expErrType: nil,
 		},
+
+		// Empty statement.
 		{
 			name:       "no statements",
 			query:      "",
-			expErrType: ptr2ErrNoSingleStatement(),
+			expErrType: ptr2ErrEmptyStatement(),
 		},
 
 		// Check not allowed top-statements.
@@ -215,7 +215,7 @@ func TestRunSQL(t *testing.T) {
 		{
 			name:       "no statements",
 			query:      "",
-			expErrType: ptr2ErrNoSingleStatement(),
+			expErrType: ptr2ErrEmptyStatement(),
 		},
 
 		// Check no FROM SHARE/UPDATE
@@ -285,7 +285,7 @@ func TestCreateTable(t *testing.T) {
 		{
 			name:       "no statements",
 			query:      "",
-			expErrType: ptr2ErrNoSingleStatement(),
+			expErrType: ptr2ErrEmptyStatement(),
 		},
 
 		// Check CREATE OF semantics.
@@ -420,6 +420,10 @@ func ptr2ErrInvalidSyntax() **parsing.ErrInvalidSyntax {
 }
 func ptr2ErrNoSingleStatement() **parsing.ErrNoSingleStatement {
 	var e *parsing.ErrNoSingleStatement
+	return &e
+}
+func ptr2ErrEmptyStatement() **parsing.ErrEmptyStatement {
+	var e *parsing.ErrEmptyStatement
 	return &e
 }
 func ptr2ErrNoForUpdateOrShare() **parsing.ErrNoForUpdateOrShare {

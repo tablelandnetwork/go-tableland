@@ -95,6 +95,13 @@ func (e *ErrNoSingleStatement) Error() string {
 	return "the query contains zero or more than one statement"
 }
 
+// ErrEmptyStatement is an error returned when the statement is empty.
+type ErrEmptyStatement struct{}
+
+func (e *ErrEmptyStatement) Error() string {
+	return "the statement is empty"
+}
+
 // ErrNoForUpdateOrShare is an error returned when a SELECT statements use
 // a FOR UPDATE/SHARE clause.
 type ErrNoForUpdateOrShare struct{}
