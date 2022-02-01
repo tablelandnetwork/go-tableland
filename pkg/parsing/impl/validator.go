@@ -185,10 +185,6 @@ func (pp *QueryValidator) validateReadQuery(node *pg_query.Node) error {
 		return fmt.Errorf("no for check: %w", err)
 	}
 
-	if err := pp.checkNoSystemTablesReferencing(node); err != nil {
-		return fmt.Errorf("no system-table referencing check: %w", err)
-	}
-
 	return nil
 }
 

@@ -241,13 +241,6 @@ func TestRunSQL(t *testing.T) {
 			query:      "select * from foo for update",
 			expErrType: ptr2ErrNoForUpdateOrShare(),
 		},
-
-		// Check no system-tables references.
-		{
-			name:       "reference system table",
-			query:      "select * from system_tables",
-			expErrType: ptr2ErrSystemTableReferencing(),
-		},
 	}
 	for i := range readQueryTests {
 		readQueryTests[i].queryType = parsing.ReadQuery
