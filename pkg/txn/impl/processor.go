@@ -14,11 +14,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/txn"
 )
 
-var (
-	errOnlyOneBatchCanExist = errors.New("only one batch can exist at the same time")
-	errNoOpenedBatch        = errors.New("there isn't an open batch to exec the query")
-)
-
+// TblTxnProcessor executes mutating actions in a Tableland database.
 type TblTxnProcessor struct {
 	pool *pgxpool.Pool
 
@@ -27,6 +23,7 @@ type TblTxnProcessor struct {
 
 var _ txn.TxnProcessor = (*TblTxnProcessor)(nil)
 
+// NewTxnProcessor returns a new Tableland transaction processor.
 func NewTxnProcessor(postgresURI string) (*TblTxnProcessor, error) {
 	ctx, cls := context.WithTimeout(context.Background(), time.Second*10)
 	defer cls()
@@ -43,6 +40,9 @@ func NewTxnProcessor(postgresURI string) (*TblTxnProcessor, error) {
 	return tblp, nil
 }
 
+// OpenBatch starts a new batch of mutating actions to be executed.
+// If a batch is already open, it will wait until is finishes. This is on purpose
+// since mutating actions should be processed serially.
 func (ab *TblTxnProcessor) OpenBatch(ctx context.Context) (txn.Batch, error) {
 	<-ab.chBatch
 
@@ -59,6 +59,8 @@ func (ab *TblTxnProcessor) OpenBatch(ctx context.Context) (txn.Batch, error) {
 	return &batch{txn: txn, p: ab}, nil
 }
 
+// Close closes the processor gracefully. It will wait for any pending
+// batch to be closed, or until ctx is canceled.
 func (ab *TblTxnProcessor) Close(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
@@ -74,7 +76,15 @@ type batch struct {
 	p   *TblTxnProcessor
 }
 
-func (b *batch) RegisterTable(ctx context.Context, uuid uuid.UUID, controller string, tableType string, createStmt string) error {
+// InsertTable creates a new table in Tableland:
+// - Registers the table in the system-wide table registry.
+// - Executes the CREATE statement.
+func (b *batch) InsertTable(
+	ctx context.Context,
+	uuid uuid.UUID,
+	controller string,
+	tableType string,
+	createStmt string) error {
 	f := func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx,
 			`INSERT INTO system_tables ("uuid","controller","type") VALUES ($1,$2,$3);`,
@@ -132,5 +142,4 @@ func (b *batch) Commit(ctx context.Context) error {
 		return fmt.Errorf("commit txn: %s", err)
 	}
 	return nil
-
 }

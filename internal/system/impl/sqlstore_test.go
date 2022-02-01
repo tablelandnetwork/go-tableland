@@ -27,7 +27,7 @@ func TestSystemSQLStoreService(t *testing.T) {
 	b, err := txnp.OpenBatch(ctx)
 	require.NoError(t, err)
 	tableUUID := uuid.New()
-	err = b.RegisterTable(ctx, tableUUID, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", "type", `create table foo (bar int)`)
+	err = b.InsertTable(ctx, tableUUID, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", "type", `create table foo (bar int)`)
 	require.NoError(t, err)
 	require.NoError(t, b.Commit(ctx))
 	require.NoError(t, b.Close(ctx))

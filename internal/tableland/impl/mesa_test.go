@@ -135,7 +135,6 @@ func readCsvFile(filePath string) [][]string {
 	}
 
 	return records
-
 }
 
 func newTablelandMesa(t *testing.T) (context.Context, tableland.Tableland) {

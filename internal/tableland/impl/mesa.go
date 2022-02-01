@@ -64,11 +64,11 @@ func (t *TablelandMesa) CreateTable(ctx context.Context, req tableland.Request) 
 		}
 	}()
 
-	if err := b.RegisterTable(ctx, uuid, req.Controller, req.Type, req.Statement); err != nil {
+	if err := b.InsertTable(ctx, uuid, req.Controller, req.Type, req.Statement); err != nil {
 		return tableland.Response{}, fmt.Errorf("processing table registration: %s", err)
 	}
 	if err := b.Commit(ctx); err != nil {
-		return tableland.Response{}, fmt.Errorf("commiting changes: %s", err)
+		return tableland.Response{}, fmt.Errorf("committing changes: %s", err)
 	}
 
 	if err := t.store.IncrementCreateTableCount(ctx, req.Controller); err != nil {
@@ -137,7 +137,7 @@ func (t *TablelandMesa) runInsertOrUpdate(ctx context.Context, req tableland.Req
 	}
 
 	if err := b.Commit(ctx); err != nil {
-		return tableland.Response{}, fmt.Errorf("commiting changes: %s", err)
+		return tableland.Response{}, fmt.Errorf("committing changes: %s", err)
 	}
 
 	t.incrementRunSQLCount(ctx, req.Controller)

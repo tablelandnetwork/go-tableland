@@ -45,18 +45,18 @@ func TestRunSQL(t *testing.T) {
 		require.NoError(t, err)
 
 		{
-			wq1 := `insert into foo values ('one')`
+			wq1 := `insert into foo values ('wq1one')`
 			err = b.ExecWriteQueries(ctx, []string{wq1})
 			require.NoError(t, err)
 		}
 		{
-			wq1 := `insert into foo values ('two')`
-			wq2 := `insert into foo values ('three')`
+			wq1 := `insert into foo values ('wq1two')`
+			wq2 := `insert into foo values ('wq2three')`
 			err = b.ExecWriteQueries(ctx, []string{wq1, wq2})
 			require.NoError(t, err)
 		}
 		{
-			wq1 := `insert into foo values ('four')`
+			wq1 := `insert into foo values ('wq1four')`
 			err = b.ExecWriteQueries(ctx, []string{wq1})
 			require.NoError(t, err)
 		}
@@ -78,18 +78,18 @@ func TestRunSQL(t *testing.T) {
 		require.NoError(t, err)
 
 		{
-			wq1_1 := `insert into foo values ('one')`
+			wq1_1 := `insert into foo values ('onez')`
 			err = b.ExecWriteQueries(ctx, []string{wq1_1})
 			require.NoError(t, err)
 		}
 		{
-			wq2_1 := `insert into foo values ('two')`
-			wq2_2 := `insert into foo_wrong_table_name values ('three')`
+			wq2_1 := `insert into foo values ('twoz')`
+			wq2_2 := `insert into foo_wrong_table_name values ('threez')`
 			err = b.ExecWriteQueries(ctx, []string{wq2_1, wq2_2})
 			require.Error(t, err)
 		}
 		{
-			wq3_1 := `insert into foo values ('four')`
+			wq3_1 := `insert into foo values ('fourz')`
 			err = b.ExecWriteQueries(ctx, []string{wq3_1})
 			require.NoError(t, err)
 		}
@@ -101,7 +101,7 @@ func TestRunSQL(t *testing.T) {
 		// We executed a single batch, with 3 Exec calls.
 		// The second Exec should have failed as a whole.
 		//
-		// Note that its wq2_1 succeded, but wq2_2 failed, this means:
+		// Note that its wq2_1 succeeded, but wq2_2 failed, this means:
 		// 1. wq1_1 and wq3_1 should survive the whole batch commit.
 		// 2. despite wq2_1 apparently should succeed, wq2_2 failure should rollback
 		//    both wq2_* statements.
@@ -137,7 +137,6 @@ func TestRunSQL(t *testing.T) {
 		// closed the whole store. This should rollback any ongoing
 		// opened batch and leave db state correctly.
 		require.Equal(t, 0, tableRowCount(t, pool, "foo"))
-
 	})
 }
 
@@ -153,7 +152,7 @@ func TestRegisterTable(t *testing.T) {
 
 		tableUUID := uuid.New()
 		createStmt := "create table bar (zar text)"
-		err = b.RegisterTable(ctx, tableUUID, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", "type", createStmt)
+		err = b.InsertTable(ctx, tableUUID, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", "type", createStmt)
 		require.NoError(t, err)
 
 		require.NoError(t, b.Commit(ctx))
@@ -185,7 +184,7 @@ func TestRegisterTable(t *testing.T) {
 
 		tableUUID := uuid.New()
 		createStmt := "create tablez bar (zar text)"
-		err = b.RegisterTable(ctx, tableUUID, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", "type", createStmt)
+		err = b.InsertTable(ctx, tableUUID, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", "type", createStmt)
 		require.Error(t, err)
 
 		require.NoError(t, b.Close(ctx))
