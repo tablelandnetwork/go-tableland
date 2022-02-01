@@ -107,7 +107,7 @@ func (b *batch) InsertTable(
 func (b *batch) ExecWriteQueries(ctx context.Context, wqueries []parsing.WriteStmt) error {
 	f := func(nestedTxn pgx.Tx) error {
 		for _, wq := range wqueries {
-			if _, err := nestedTxn.Exec(ctx, string(wq)); err != nil {
+			if _, err := nestedTxn.Exec(ctx, wq.GetRawQuery()); err != nil {
 				return fmt.Errorf("exec query: %s", err)
 			}
 		}

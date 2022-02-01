@@ -25,7 +25,7 @@ func TestRunSQL(t *testing.T) {
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
 
-		wq1 := parsing.WriteStmt(`insert into foo values ('one')`)
+		wq1 := &writeStmt{rawQuery: `insert into foo values ('one')`}
 		err = b.ExecWriteQueries(ctx, []parsing.WriteStmt{wq1})
 		require.NoError(t, err)
 
@@ -46,18 +46,18 @@ func TestRunSQL(t *testing.T) {
 		require.NoError(t, err)
 
 		{
-			wq1 := parsing.WriteStmt(`insert into foo values ('wq1one')`)
+			wq1 := &writeStmt{`insert into foo values ('wq1one')`}
 			err = b.ExecWriteQueries(ctx, []parsing.WriteStmt{wq1})
 			require.NoError(t, err)
 		}
 		{
-			wq1 := parsing.WriteStmt(`insert into foo values ('wq1two')`)
-			wq2 := parsing.WriteStmt(`insert into foo values ('wq2three')`)
+			wq1 := &writeStmt{`insert into foo values ('wq1two')`}
+			wq2 := &writeStmt{`insert into foo values ('wq2three')`}
 			err = b.ExecWriteQueries(ctx, []parsing.WriteStmt{wq1, wq2})
 			require.NoError(t, err)
 		}
 		{
-			wq1 := parsing.WriteStmt(`insert into foo values ('wq1four')`)
+			wq1 := &writeStmt{`insert into foo values ('wq1four')`}
 			err = b.ExecWriteQueries(ctx, []parsing.WriteStmt{wq1})
 			require.NoError(t, err)
 		}
@@ -79,18 +79,18 @@ func TestRunSQL(t *testing.T) {
 		require.NoError(t, err)
 
 		{
-			wq1_1 := parsing.WriteStmt(`insert into foo values ('onez')`)
+			wq1_1 := &writeStmt{`insert into foo values ('onez')`}
 			err = b.ExecWriteQueries(ctx, []parsing.WriteStmt{wq1_1})
 			require.NoError(t, err)
 		}
 		{
-			wq2_1 := parsing.WriteStmt(`insert into foo values ('twoz')`)
-			wq2_2 := parsing.WriteStmt(`insert into foo_wrong_table_name values ('threez')`)
+			wq2_1 := &writeStmt{`insert into foo values ('twoz')`}
+			wq2_2 := &writeStmt{`insert into foo_wrong_table_name values ('threez')`}
 			err = b.ExecWriteQueries(ctx, []parsing.WriteStmt{wq2_1, wq2_2})
 			require.Error(t, err)
 		}
 		{
-			wq3_1 := parsing.WriteStmt(`insert into foo values ('fourz')`)
+			wq3_1 := &writeStmt{`insert into foo values ('fourz')`}
 			err = b.ExecWriteQueries(ctx, []parsing.WriteStmt{wq3_1})
 			require.NoError(t, err)
 		}
@@ -119,13 +119,13 @@ func TestRunSQL(t *testing.T) {
 		require.NoError(t, err)
 
 		{
-			wq1_1 := parsing.WriteStmt(`insert into foo values ('one')`)
+			wq1_1 := &writeStmt{`insert into foo values ('one')`}
 			err = b.ExecWriteQueries(ctx, []parsing.WriteStmt{wq1_1})
 			require.NoError(t, err)
 		}
 		{
-			wq2_1 := parsing.WriteStmt(`insert into foo values ('two')`)
-			wq2_2 := parsing.WriteStmt(`insert into foo values ('three')`)
+			wq2_1 := &writeStmt{`insert into foo values ('two')`}
+			wq2_2 := &writeStmt{`insert into foo values ('three')`}
 			err = b.ExecWriteQueries(ctx, []parsing.WriteStmt{wq2_1, wq2_2})
 			require.NoError(t, err)
 		}
@@ -249,4 +249,16 @@ func newTxnProcessorWithTable(t *testing.T) (*TblTxnProcessor, *pgxpool.Pool) {
 	require.NoError(t, err)
 
 	return txnp, pool
+}
+
+type writeStmt struct {
+	rawQuery string
+}
+
+func (ws *writeStmt) GetRawQuery() string {
+	return ws.rawQuery
+}
+
+func (ws *writeStmt) GetTablename() string {
+	panic("not implemented")
 }

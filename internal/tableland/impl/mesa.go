@@ -91,7 +91,7 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.Request) (tabl
 		return tableland.Response{}, fmt.Errorf("failed to parse uuid: %s", err)
 	}
 
-	queryType, err := t.parser.ValidateRunSQL(req.Statement)
+	queryType, writeStmts, err := t.parser.ValidateRunSQL(req.Statement)
 	if err != nil {
 		return tableland.Response{}, fmt.Errorf("validating query: %s", err)
 	}
@@ -108,7 +108,7 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.Request) (tabl
 		if !isOwner {
 			return tableland.Response{}, errors.New("you aren't authorized")
 		}
-		return t.runInsertOrUpdate(ctx, req)
+		return t.runInsertOrUpdate(ctx, writeStmts)
 	}
 
 	return tableland.Response{}, errors.New("invalid command")
@@ -122,11 +122,7 @@ func (t *TablelandMesa) Authorize(ctx context.Context, req tableland.Request) er
 	return nil
 }
 
-func (t *TablelandMesa) runInsertOrUpdate(ctx context.Context, req tableland.Request) (tableland.Response, error) {
-	stmts, err := t.parser.GetWriteStatements(req.Statement)
-	if err != nil {
-		return tableland.Response{}, fmt.Errorf("getting write statements: %s", err)
-	}
+func (t *TablelandMesa) runInsertOrUpdate(ctx context.Context, ws []parsing.WriteStmt) (tableland.Response, error) {
 	b, err := t.txnp.OpenBatch(ctx)
 	if err != nil {
 		return tableland.Response{}, fmt.Errorf("opening batch: %s", err)
@@ -136,7 +132,7 @@ func (t *TablelandMesa) runInsertOrUpdate(ctx context.Context, req tableland.Req
 			log.Error().Err(err).Msg("closing batch")
 		}
 	}()
-	if err := b.ExecWriteQueries(ctx, stmts); err != nil {
+	if err := b.ExecWriteQueries(ctx, ws); err != nil {
 		return tableland.Response{}, fmt.Errorf("executing write-query: %s", err)
 	}
 

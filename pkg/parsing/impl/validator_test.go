@@ -64,6 +64,13 @@ func TestRunSQL(t *testing.T) {
 			expErrType: nil,
 		},
 
+		// Only reference a single table
+		{
+			name:       "update different tables",
+			query:      "update foo set a=1;update bar set a=2",
+			expErrType: ptr2ErrMultiTableReference(),
+		},
+
 		// Empty statement.
 		{
 			name:       "no statements",
@@ -80,6 +87,11 @@ func TestRunSQL(t *testing.T) {
 		{
 			name:       "drop",
 			query:      "drop table foo",
+			expErrType: ptr2ErrNoTopLevelUpdateInsertDelete(),
+		},
+		{
+			name:       "update select",
+			query:      "update foo set a=1;select * from foo",
 			expErrType: ptr2ErrNoTopLevelUpdateInsertDelete(),
 		},
 
@@ -248,7 +260,7 @@ func TestRunSQL(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
 				parser := postgresparser.New("system_")
-				qt, err := parser.ValidateRunSQL(tc.query)
+				qt, _, err := parser.ValidateRunSQL(tc.query)
 				if tc.expErrType == nil {
 					require.NoError(t, err)
 					require.Equal(t, tc.queryType, qt)
@@ -417,26 +429,29 @@ func TestGetWriteStatements(t *testing.T) {
 	t.Parallel()
 
 	type testCase struct {
-		name          string
-		query         string
-		expectedStmts []parsing.WriteStmt
+		name              string
+		query             string
+		expectedStmts     []string
+		expectedTablename string
 	}
 	tests := []testCase{
 		{
 			name:  "double update",
 			query: "update foo set a=1;update foo set b=2;",
-			expectedStmts: []parsing.WriteStmt{
+			expectedStmts: []string{
 				"UPDATE foo SET a = 1",
 				"UPDATE foo SET b = 2",
 			},
+			expectedTablename: "foo",
 		},
 		{
 			name:  "insert update",
 			query: "insert into foo values (1);update foo set b=2;",
-			expectedStmts: []parsing.WriteStmt{
+			expectedStmts: []string{
 				"INSERT INTO foo VALUES (1)",
 				"UPDATE foo SET b = 2",
 			},
+			expectedTablename: "foo",
 		},
 	}
 
@@ -445,9 +460,13 @@ func TestGetWriteStatements(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
 				parser := postgresparser.New("system_")
-				stmts, err := parser.GetWriteStatements(tc.query)
+				_, stmts, err := parser.ValidateRunSQL(tc.query)
 				require.NoError(t, err)
-				require.Equal(t, tc.expectedStmts, stmts)
+
+				for i := range stmts {
+					require.Equal(t, tc.expectedStmts[i], stmts[i].GetRawQuery())
+					require.Equal(t, tc.expectedTablename, stmts[i].GetTablename())
+				}
 			}
 		}(it))
 	}
@@ -496,5 +515,9 @@ func ptr2ErrNoTopLevelCreate() **parsing.ErrNoTopLevelCreate {
 }
 func ptr2ErrInvalidColumnType() **parsing.ErrInvalidColumnType {
 	var e *parsing.ErrInvalidColumnType
+	return &e
+}
+func ptr2ErrMultiTableReference() **parsing.ErrMultiTableReference {
+	var e *parsing.ErrMultiTableReference
 	return &e
 }

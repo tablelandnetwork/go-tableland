@@ -47,10 +47,10 @@ func (ip *InstrumentedSQLValidator) ValidateCreateTable(query string) error {
 }
 
 // ValidateRunSQL register metrics for its corresponding wrapped parser.
-func (ip *InstrumentedSQLValidator) ValidateRunSQL(query string) (parsing.QueryType, error) {
+func (ip *InstrumentedSQLValidator) ValidateRunSQL(query string) (parsing.QueryType, []parsing.WriteStmt, error) {
 	log.Debug().Str("query", query).Msg("call ValidateRunSQL")
 	start := time.Now()
-	queryType, err := ip.parser.ValidateRunSQL(query)
+	queryType, writeStmts, err := ip.parser.ValidateRunSQL(query)
 	latency := time.Since(start).Milliseconds()
 
 	attributes := []attribute.KeyValue{
@@ -62,23 +62,5 @@ func (ip *InstrumentedSQLValidator) ValidateRunSQL(query string) (parsing.QueryT
 	ip.callCount.Add(context.Background(), 1, attributes...)
 	ip.latencyHistogram.Record(context.Background(), latency, attributes...)
 
-	return queryType, err
-}
-
-// GetWriteStatements returns a list of parsed write statements.
-func (ip *InstrumentedSQLValidator) GetWriteStatements(query string) ([]parsing.WriteStmt, error) {
-	log.Debug().Str("query", query).Msg("call GetWriteStatements")
-	start := time.Now()
-	stmts, err := ip.parser.GetWriteStatements(query)
-	latency := time.Since(start).Milliseconds()
-
-	attributes := []attribute.KeyValue{
-		{Key: "method", Value: attribute.StringValue("GetWriteStatements")},
-		{Key: "success", Value: attribute.BoolValue(err == nil)},
-	}
-
-	ip.callCount.Add(context.Background(), 1, attributes...)
-	ip.latencyHistogram.Record(context.Background(), latency, attributes...)
-
-	return stmts, err
+	return queryType, writeStmts, err
 }

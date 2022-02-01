@@ -68,14 +68,14 @@ func (pp *QueryValidator) ValidateCreateTable(query string) error {
 
 // ValidateRunSQL validates the query and returns an error if isn't allowed.
 // If the query validates correctly, it returns the query type and nil.
-func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.QueryType, error) {
+func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.QueryType, []parsing.WriteStmt, error) {
 	parsed, err := pg_query.Parse(query)
 	if err != nil {
-		return parsing.UndefinedQuery, &parsing.ErrInvalidSyntax{InternalError: err}
+		return parsing.UndefinedQuery, nil, &parsing.ErrInvalidSyntax{InternalError: err}
 	}
 
 	if err := pp.checkNonEmptyStatement(parsed); err != nil {
-		return parsing.UndefinedQuery, fmt.Errorf("empty-statement check: %w", err)
+		return parsing.UndefinedQuery, nil, fmt.Errorf("empty-statement check: %w", err)
 	}
 
 	stmt := parsed.Stmts[0].Stmt
@@ -83,66 +83,85 @@ func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.QueryType, error
 	// If we detect a read-query, do read-query validation.
 	if selectStmt := stmt.GetSelectStmt(); selectStmt != nil {
 		if err := pp.checkSingleStatement(parsed); err != nil {
-			return parsing.UndefinedQuery, fmt.Errorf("single-statement check: %w", err)
+			return parsing.UndefinedQuery, nil, fmt.Errorf("single-statement check: %w", err)
 		}
 
 		if err := pp.validateReadQuery(stmt); err != nil {
-			return parsing.UndefinedQuery, fmt.Errorf("validating read-query: %w", err)
+			return parsing.UndefinedQuery, nil, fmt.Errorf("validating read-query: %w", err)
 		}
-		return parsing.ReadQuery, nil
+		return parsing.ReadQuery, nil, nil
 	}
 
 	// Otherwise, do a write-query validation.
-	if err := pp.validateWriteQuery(stmt); err != nil {
-		return parsing.UndefinedQuery, fmt.Errorf("validating write-query: %w", err)
-	}
-
-	return parsing.WriteQuery, nil
-}
-
-// GetWriteStatements returns the parsed write statements in a query. If the raw statement
-// isn't a WriteQuery, it will return an error.
-func (pp *QueryValidator) GetWriteStatements(query string) ([]parsing.WriteStmt, error) {
-	parsed, err := pg_query.Parse(query)
-	if err != nil {
-		return nil, &parsing.ErrInvalidSyntax{InternalError: err}
-	}
-	ret := make([]parsing.WriteStmt, len(parsed.Stmts))
+	writeStmts := make([]parsing.WriteStmt, len(parsed.Stmts))
+	var targetTable string
 	for i := range parsed.Stmts {
+		refTable, err := pp.validateWriteQuery(parsed.Stmts[i].Stmt)
+		if err != nil {
+			return parsing.UndefinedQuery, nil, fmt.Errorf("validating write-query: %w", err)
+		}
+
+		// 1. Check that all statements reference the same table.
+		if targetTable == "" {
+			targetTable = refTable
+		} else if targetTable != refTable {
+			return parsing.UndefinedQuery, nil, &parsing.ErrMultiTableReference{Ref1: targetTable, Ref2: refTable}
+		}
+
+		// 2. Regenerate raw-queries from parsed tree.
 		parsedTree := &pg_query.ParseResult{}
 		parsedTree.Stmts = []*pg_query.RawStmt{parsed.Stmts[i]}
 		wq, err := pg_query.Deparse(parsedTree)
 		if err != nil {
-			return nil, fmt.Errorf("deparsing statement: %s", err)
+			return parsing.UndefinedQuery, nil, fmt.Errorf("deparsing statement: %s", err)
 		}
-		ret[i] = parsing.WriteStmt(wq)
+		writeStmts[i] = &writeStmt{rawQuery: wq, tableName: targetTable}
 	}
 
-	return ret, nil
+	return parsing.WriteQuery, writeStmts, nil
 }
 
-func (pp *QueryValidator) validateWriteQuery(stmt *pg_query.Node) error {
+type writeStmt struct {
+	rawQuery  string
+	tableName string
+}
+
+var _ parsing.WriteStmt = (*writeStmt)(nil)
+
+func (ws *writeStmt) GetRawQuery() string {
+	return ws.rawQuery
+}
+func (ws *writeStmt) GetTablename() string {
+	return ws.tableName
+}
+
+func (pp *QueryValidator) validateWriteQuery(stmt *pg_query.Node) (string, error) {
 	if err := pp.checkTopLevelUpdateInsertDelete(stmt); err != nil {
-		return fmt.Errorf("allowed top level stmt: %w", err)
+		return "", fmt.Errorf("allowed top level stmt: %w", err)
 	}
 
 	if err := pp.checkNoJoinOrSubquery(stmt); err != nil {
-		return fmt.Errorf("join or subquery check: %w", err)
+		return "", fmt.Errorf("join or subquery check: %w", err)
 	}
 
 	if err := pp.checkNoReturningClause(stmt); err != nil {
-		return fmt.Errorf("no returning clause check: %w", err)
+		return "", fmt.Errorf("no returning clause check: %w", err)
 	}
 
 	if err := pp.checkNoSystemTablesReferencing(stmt); err != nil {
-		return fmt.Errorf("no system-table reference: %w", err)
+		return "", fmt.Errorf("no system-table reference: %w", err)
 	}
 
 	if err := pp.checkNonDeterministicFunctions(stmt); err != nil {
-		return fmt.Errorf("no non-deterministic func check: %w", err)
+		return "", fmt.Errorf("no non-deterministic func check: %w", err)
 	}
 
-	return nil
+	referencedTable, err := pp.getReferencedTable(stmt)
+	if err != nil {
+		return "", fmt.Errorf("get referenced table: %w", err)
+	}
+
+	return referencedTable, nil
 }
 
 func (pp *QueryValidator) validateReadQuery(node *pg_query.Node) error {
@@ -285,6 +304,17 @@ func (pp *QueryValidator) checkNoSystemTablesReferencing(node *pg_query.Node) er
 		}
 	}
 	return nil
+}
+
+func (pp *QueryValidator) getReferencedTable(node *pg_query.Node) (string, error) {
+	if insertStmt := node.GetInsertStmt(); insertStmt != nil {
+		return insertStmt.Relation.Relname, nil
+	} else if updateStmt := node.GetUpdateStmt(); updateStmt != nil {
+		return updateStmt.Relation.Relname, nil
+	} else if deleteStmt := node.GetDeleteStmt(); deleteStmt != nil {
+		return deleteStmt.Relation.Relname, nil
+	}
+	return "", fmt.Errorf("the statement isn't an insert/update/delete")
 }
 
 // checkNonDeterministicFunctions walks the query tree and disallow references to
