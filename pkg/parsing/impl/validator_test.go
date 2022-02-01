@@ -413,6 +413,46 @@ func TestCreateTable(t *testing.T) {
 	}
 }
 
+func TestGetWriteStatements(t *testing.T) {
+	t.Parallel()
+
+	type testCase struct {
+		name          string
+		query         string
+		expectedStmts []parsing.WriteStmt
+	}
+	tests := []testCase{
+		{
+			name:  "double update",
+			query: "update foo set a=1;update foo set b=2;",
+			expectedStmts: []parsing.WriteStmt{
+				"UPDATE foo SET a = 1",
+				"UPDATE foo SET b = 2",
+			},
+		},
+		{
+			name:  "insert update",
+			query: "insert into foo values (1);update foo set b=2;",
+			expectedStmts: []parsing.WriteStmt{
+				"INSERT INTO foo VALUES (1)",
+				"UPDATE foo SET b = 2",
+			},
+		},
+	}
+
+	for _, it := range tests {
+		t.Run(it.name, func(tc testCase) func(t *testing.T) {
+			return func(t *testing.T) {
+				t.Parallel()
+				parser := postgresparser.New("system_")
+				stmts, err := parser.GetWriteStatements(tc.query)
+				require.NoError(t, err)
+				require.Equal(t, tc.expectedStmts, stmts)
+			}
+		}(it))
+	}
+}
+
 // Helpers to have a pointer to pointer for generic test-case running.
 func ptr2ErrInvalidSyntax() **parsing.ErrInvalidSyntax {
 	var e *parsing.ErrInvalidSyntax

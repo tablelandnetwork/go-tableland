@@ -18,6 +18,10 @@ const (
 	WriteQuery = "write"
 )
 
+// WriteStmt is an already parsed write statement that satisfies all
+// the parser validations.
+type WriteStmt string
+
 // SQLValidator parses and validate a SQL query for different supported scenarios.
 type SQLValidator interface {
 	// ValidateCreateTable validates the provided query and returns an error
@@ -26,6 +30,9 @@ type SQLValidator interface {
 	// ValidateRunSQL validates the query and returns an error if isn't allowed.
 	// If the query validates correctly, it returns the query type and nil.
 	ValidateRunSQL(query string) (QueryType, error)
+	// GetWriteStatements returns independent SQL statements to be run.
+	// If the query isn't a WriteQuery it will return an error.
+	GetWriteStatements(query string) ([]WriteStmt, error)
 }
 
 // TablelandColumnType represents an accepted column type for user-tables.

@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/require"
+	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/tests"
 )
@@ -24,8 +25,8 @@ func TestRunSQL(t *testing.T) {
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
 
-		wq1 := `insert into foo values ('one')`
-		err = b.ExecWriteQueries(ctx, []string{wq1})
+		wq1 := parsing.WriteStmt(`insert into foo values ('one')`)
+		err = b.ExecWriteQueries(ctx, []parsing.WriteStmt{wq1})
 		require.NoError(t, err)
 
 		require.NoError(t, b.Commit(ctx))
@@ -45,19 +46,19 @@ func TestRunSQL(t *testing.T) {
 		require.NoError(t, err)
 
 		{
-			wq1 := `insert into foo values ('wq1one')`
-			err = b.ExecWriteQueries(ctx, []string{wq1})
+			wq1 := parsing.WriteStmt(`insert into foo values ('wq1one')`)
+			err = b.ExecWriteQueries(ctx, []parsing.WriteStmt{wq1})
 			require.NoError(t, err)
 		}
 		{
-			wq1 := `insert into foo values ('wq1two')`
-			wq2 := `insert into foo values ('wq2three')`
-			err = b.ExecWriteQueries(ctx, []string{wq1, wq2})
+			wq1 := parsing.WriteStmt(`insert into foo values ('wq1two')`)
+			wq2 := parsing.WriteStmt(`insert into foo values ('wq2three')`)
+			err = b.ExecWriteQueries(ctx, []parsing.WriteStmt{wq1, wq2})
 			require.NoError(t, err)
 		}
 		{
-			wq1 := `insert into foo values ('wq1four')`
-			err = b.ExecWriteQueries(ctx, []string{wq1})
+			wq1 := parsing.WriteStmt(`insert into foo values ('wq1four')`)
+			err = b.ExecWriteQueries(ctx, []parsing.WriteStmt{wq1})
 			require.NoError(t, err)
 		}
 
@@ -78,19 +79,19 @@ func TestRunSQL(t *testing.T) {
 		require.NoError(t, err)
 
 		{
-			wq1_1 := `insert into foo values ('onez')`
-			err = b.ExecWriteQueries(ctx, []string{wq1_1})
+			wq1_1 := parsing.WriteStmt(`insert into foo values ('onez')`)
+			err = b.ExecWriteQueries(ctx, []parsing.WriteStmt{wq1_1})
 			require.NoError(t, err)
 		}
 		{
-			wq2_1 := `insert into foo values ('twoz')`
-			wq2_2 := `insert into foo_wrong_table_name values ('threez')`
-			err = b.ExecWriteQueries(ctx, []string{wq2_1, wq2_2})
+			wq2_1 := parsing.WriteStmt(`insert into foo values ('twoz')`)
+			wq2_2 := parsing.WriteStmt(`insert into foo_wrong_table_name values ('threez')`)
+			err = b.ExecWriteQueries(ctx, []parsing.WriteStmt{wq2_1, wq2_2})
 			require.Error(t, err)
 		}
 		{
-			wq3_1 := `insert into foo values ('fourz')`
-			err = b.ExecWriteQueries(ctx, []string{wq3_1})
+			wq3_1 := parsing.WriteStmt(`insert into foo values ('fourz')`)
+			err = b.ExecWriteQueries(ctx, []parsing.WriteStmt{wq3_1})
 			require.NoError(t, err)
 		}
 
@@ -118,14 +119,14 @@ func TestRunSQL(t *testing.T) {
 		require.NoError(t, err)
 
 		{
-			wq1_1 := `insert into foo values ('one')`
-			err = b.ExecWriteQueries(ctx, []string{wq1_1})
+			wq1_1 := parsing.WriteStmt(`insert into foo values ('one')`)
+			err = b.ExecWriteQueries(ctx, []parsing.WriteStmt{wq1_1})
 			require.NoError(t, err)
 		}
 		{
-			wq2_1 := `insert into foo values ('two')`
-			wq2_2 := `insert into foo values ('three')`
-			err = b.ExecWriteQueries(ctx, []string{wq2_1, wq2_2})
+			wq2_1 := parsing.WriteStmt(`insert into foo values ('two')`)
+			wq2_2 := parsing.WriteStmt(`insert into foo values ('three')`)
+			err = b.ExecWriteQueries(ctx, []parsing.WriteStmt{wq2_1, wq2_2})
 			require.NoError(t, err)
 		}
 

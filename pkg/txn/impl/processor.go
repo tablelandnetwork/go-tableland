@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/rs/zerolog/log"
+	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/txn"
 )
 
@@ -103,10 +104,10 @@ func (b *batch) InsertTable(
 	return nil
 }
 
-func (b *batch) ExecWriteQueries(ctx context.Context, wqueries []string) error {
+func (b *batch) ExecWriteQueries(ctx context.Context, wqueries []parsing.WriteStmt) error {
 	f := func(nestedTxn pgx.Tx) error {
 		for _, wq := range wqueries {
-			if _, err := nestedTxn.Exec(ctx, wq); err != nil {
+			if _, err := nestedTxn.Exec(ctx, string(wq)); err != nil {
 				return fmt.Errorf("exec query: %s", err)
 			}
 		}

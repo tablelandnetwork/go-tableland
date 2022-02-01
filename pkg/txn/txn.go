@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/textileio/go-tableland/pkg/parsing"
 )
 
 // TxnProcessor executes mutating actions in a Tableland database,
@@ -33,7 +34,7 @@ type TxnProcessor interface {
 // to fail gracefully.
 type Batch interface {
 	InsertTable(ctx context.Context, uuid uuid.UUID, controller string, tableType string, createStmt string) error
-	ExecWriteQueries(ctx context.Context, wquery []string) error
+	ExecWriteQueries(ctx context.Context, wquery []parsing.WriteStmt) error
 
 	Commit(context.Context) error
 	Close(context.Context) error

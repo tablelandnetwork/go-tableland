@@ -64,3 +64,21 @@ func (ip *InstrumentedSQLValidator) ValidateRunSQL(query string) (parsing.QueryT
 
 	return queryType, err
 }
+
+// GetWriteStatements returns a list of parsed write statements.
+func (ip *InstrumentedSQLValidator) GetWriteStatements(query string) ([]parsing.WriteStmt, error) {
+	log.Debug().Str("query", query).Msg("call GetWriteStatements")
+	start := time.Now()
+	stmts, err := ip.parser.GetWriteStatements(query)
+	latency := time.Since(start).Milliseconds()
+
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("GetWriteStatements")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
+
+	ip.callCount.Add(context.Background(), 1, attributes...)
+	ip.latencyHistogram.Record(context.Background(), latency, attributes...)
+
+	return stmts, err
+}

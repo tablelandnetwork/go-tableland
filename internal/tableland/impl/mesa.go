@@ -123,6 +123,10 @@ func (t *TablelandMesa) Authorize(ctx context.Context, req tableland.Request) er
 }
 
 func (t *TablelandMesa) runInsertOrUpdate(ctx context.Context, req tableland.Request) (tableland.Response, error) {
+	stmts, err := t.parser.GetWriteStatements(req.Statement)
+	if err != nil {
+		return tableland.Response{}, fmt.Errorf("getting write statements: %s", err)
+	}
 	b, err := t.txnp.OpenBatch(ctx)
 	if err != nil {
 		return tableland.Response{}, fmt.Errorf("opening batch: %s", err)
@@ -132,7 +136,7 @@ func (t *TablelandMesa) runInsertOrUpdate(ctx context.Context, req tableland.Req
 			log.Error().Err(err).Msg("closing batch")
 		}
 	}()
-	if err := b.ExecWriteQueries(ctx, []string{req.Statement}); err != nil {
+	if err := b.ExecWriteQueries(ctx, stmts); err != nil {
 		return tableland.Response{}, fmt.Errorf("executing write-query: %s", err)
 	}
 

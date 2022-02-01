@@ -100,6 +100,27 @@ func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.QueryType, error
 	return parsing.WriteQuery, nil
 }
 
+// GetWriteStatements returns the parsed write statements in a query. If the raw statement
+// isn't a WriteQuery, it will return an error.
+func (pp *QueryValidator) GetWriteStatements(query string) ([]parsing.WriteStmt, error) {
+	parsed, err := pg_query.Parse(query)
+	if err != nil {
+		return nil, &parsing.ErrInvalidSyntax{InternalError: err}
+	}
+	ret := make([]parsing.WriteStmt, len(parsed.Stmts))
+	for i := range parsed.Stmts {
+		parsedTree := &pg_query.ParseResult{}
+		parsedTree.Stmts = []*pg_query.RawStmt{parsed.Stmts[i]}
+		wq, err := pg_query.Deparse(parsedTree)
+		if err != nil {
+			return nil, fmt.Errorf("deparsing statement: %s", err)
+		}
+		ret[i] = parsing.WriteStmt(wq)
+	}
+
+	return ret, nil
+}
+
 func (pp *QueryValidator) validateWriteQuery(stmt *pg_query.Node) error {
 	if err := pp.checkTopLevelUpdateInsertDelete(stmt); err != nil {
 		return fmt.Errorf("allowed top level stmt: %w", err)
