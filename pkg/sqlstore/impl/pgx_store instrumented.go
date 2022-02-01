@@ -27,27 +27,6 @@ func NewInstrumentedSQLStorePGX(store sqlstore.SQLStore) sqlstore.SQLStore {
 	return &InstrumentedSQLStorePGX{store, callCount, latencyHistogram}
 }
 
-// InsertTable inserts a new system-wide table.
-func (s *InstrumentedSQLStorePGX) InsertTable(ctx context.Context,
-	uuid uuid.UUID, controller string, tableType string) error {
-	start := time.Now()
-	err := s.store.InsertTable(ctx, uuid, controller, tableType)
-	latency := time.Since(start).Milliseconds()
-
-	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
-	attributes := []attribute.KeyValue{
-		{Key: "method", Value: attribute.StringValue("InsertTable")},
-		{Key: "uuid", Value: attribute.StringValue(uuid.String())},
-		{Key: "controller", Value: attribute.StringValue(controller)},
-		{Key: "success", Value: attribute.BoolValue(err == nil)},
-	}
-
-	s.callCount.Add(ctx, 1, attributes...)
-	s.latencyHistogram.Record(ctx, latency, attributes...)
-
-	return err
-}
-
 // GetTable fetchs a table from its UUID.
 func (s *InstrumentedSQLStorePGX) GetTable(ctx context.Context, uuid uuid.UUID) (sqlstore.Table, error) {
 	start := time.Now()
@@ -216,23 +195,6 @@ func (s *InstrumentedSQLStorePGX) IncrementRunSQLCount(ctx context.Context, addr
 	attributes := []attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("IncrementRunSQLCount")},
 		{Key: "address", Value: attribute.StringValue(address)},
-		{Key: "success", Value: attribute.BoolValue(err == nil)},
-	}
-
-	s.callCount.Add(ctx, 1, attributes...)
-	s.latencyHistogram.Record(ctx, latency, attributes...)
-
-	return err
-}
-
-// Write executes a write statement on the db.
-func (s *InstrumentedSQLStorePGX) Write(ctx context.Context, statement string) error {
-	start := time.Now()
-	err := s.store.Write(ctx, statement)
-	latency := time.Since(start).Milliseconds()
-
-	attributes := []attribute.KeyValue{
-		{Key: "method", Value: attribute.StringValue("Write")},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
 	}
 

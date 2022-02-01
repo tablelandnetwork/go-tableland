@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl"
+	txnimpl "github.com/textileio/go-tableland/pkg/txn/impl"
 	"github.com/textileio/go-tableland/tests"
 )
 
@@ -21,9 +22,15 @@ func TestSystemSQLStoreService(t *testing.T) {
 	require.NoError(t, err)
 
 	// populate the system_tables with a table
-	tableUUID := uuid.New()
-	err = store.InsertTable(ctx, tableUUID, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", "type")
+	txnp, err := txnimpl.NewTxnProcessor(url)
 	require.NoError(t, err)
+	b, err := txnp.OpenBatch(ctx)
+	require.NoError(t, err)
+	tableUUID := uuid.New()
+	err = b.RegisterTable(ctx, tableUUID, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", "type", `create table foo (bar int)`)
+	require.NoError(t, err)
+	require.NoError(t, b.Commit(ctx))
+	require.NoError(t, b.Close(ctx))
 
 	svc := NewSystemSQLStoreService(store)
 	metadata, err := svc.GetTableMetadata(ctx, tableUUID)
