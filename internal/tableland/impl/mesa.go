@@ -9,7 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/google/uuid"
-	"github.com/textileio/go-tableland/cmd/api/middlewares"
+	"github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
@@ -37,7 +37,7 @@ func NewTablelandMesa(
 
 // CreateTable allows the user to create a table.
 func (t *TablelandMesa) CreateTable(ctx context.Context, req tableland.Request) (tableland.Response, error) {
-	if err := t.authorize(ctx); err != nil {
+	if err := t.authorize(ctx, req.Controller); err != nil {
 		return tableland.Response{}, fmt.Errorf("checking address authorization: %s", err)
 	}
 
@@ -56,6 +56,11 @@ func (t *TablelandMesa) CreateTable(ctx context.Context, req tableland.Request) 
 	if err := t.store.Write(ctx, req.Statement); err != nil {
 		return tableland.Response{}, fmt.Errorf("creating user-table: %s", err)
 	}
+
+	if err := t.store.IncrementCreateTableCount(ctx, req.Controller); err != nil {
+		log.Error().Err(err).Msg("incrementing create table count")
+	}
+
 	return tableland.Response{Message: "Table created"}, nil
 }
 
@@ -96,8 +101,8 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.Request) (tabl
 }
 
 // Authorize is a convenience API giving the client something to call to trigger authorization.
-func (t *TablelandMesa) Authorize(ctx context.Context) error {
-	if err := t.authorize(ctx); err != nil {
+func (t *TablelandMesa) Authorize(ctx context.Context, req tableland.Request) error {
+	if err := t.authorize(ctx, req.Controller); err != nil {
 		return fmt.Errorf("checking address authorization: %s", err)
 	}
 	return nil
@@ -108,6 +113,9 @@ func (t *TablelandMesa) runInsertOrUpdate(ctx context.Context, req tableland.Req
 	if err != nil {
 		return tableland.Response{}, fmt.Errorf("executing write-query: %s", err)
 	}
+
+	t.incrementRunSQLCount(ctx, req.Controller)
+
 	return tableland.Response{Message: "Command executed"}, nil
 }
 
@@ -116,6 +124,8 @@ func (t *TablelandMesa) runSelect(ctx context.Context, req tableland.Request) (t
 	if err != nil {
 		return tableland.Response{}, fmt.Errorf("executing read-query: %s", err)
 	}
+
+	t.incrementRunSQLCount(ctx, req.Controller)
 
 	return tableland.Response{Message: "Select executed", Data: data}, nil
 }
@@ -134,17 +144,8 @@ func (t *TablelandMesa) uuidToBigInt(uuid uuid.UUID) *big.Int {
 	return &n
 }
 
-func (t *TablelandMesa) authorize(ctx context.Context) error {
-	// We want to allow access to only for addresses stored
-	// in the system_auth table. The address was set in the context
-	// by the JWT authentication middleware.
-	address := ctx.Value(middlewares.ContextKeyAddress)
-	addressString, ok := address.(string)
-	if !ok || addressString == "" {
-		return fmt.Errorf("no address found in context")
-	}
-
-	res, err := t.store.IsAuthorized(ctx, addressString)
+func (t *TablelandMesa) authorize(ctx context.Context, address string) error {
+	res, err := t.store.IsAuthorized(ctx, address)
 	if err != nil {
 		return err
 	}
@@ -154,4 +155,10 @@ func (t *TablelandMesa) authorize(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (t *TablelandMesa) incrementRunSQLCount(ctx context.Context, address string) {
+	if err := t.store.IncrementRunSQLCount(ctx, address); err != nil {
+		log.Error().Err(err).Msg("incrementing run sql count")
+	}
 }

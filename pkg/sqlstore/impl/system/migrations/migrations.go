@@ -7,6 +7,8 @@
 // migrations/002_add_type_column.up.sql
 // migrations/003_auth.down.sql
 // migrations/003_auth.up.sql
+// migrations/004_add_last_seen.down.sql
+// migrations/004_add_last_seen.up.sql
 package migrations
 
 import (
@@ -178,7 +180,7 @@ func _003_authDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "003_auth.down.sql", size: 23, mode: os.FileMode(420), modTime: time.Unix(1642787339, 0)}
+	info := bindataFileInfo{name: "003_auth.down.sql", size: 23, mode: os.FileMode(420), modTime: time.Unix(1643324586, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -198,7 +200,47 @@ func _003_authUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "003_auth.up.sql", size: 122, mode: os.FileMode(420), modTime: time.Unix(1643134669, 0)}
+	info := bindataFileInfo{name: "003_auth.up.sql", size: 122, mode: os.FileMode(420), modTime: time.Unix(1643324586, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __004_add_last_seenDownSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\xf4\x09\x71\x0d\x52\x08\x71\x74\xf2\x71\x55\x28\xae\x2c\x2e\x49\xcd\x8d\x4f\x2c\x2d\xc9\xe0\x72\x09\xf2\x0f\x50\x70\xf6\xf7\x09\xf5\xf5\x53\xc8\x49\x2c\x2e\x89\x2f\x4e\x4d\xcd\xd3\x41\x11\x4e\x2e\x4a\x4d\x2c\x49\x8d\x2f\x49\x4c\xca\x49\x8d\x4f\xce\x2f\xcd\x2b\x41\x95\x2f\x2a\xcd\x8b\x2f\x2e\xcc\x81\x48\x59\x73\x01\x02\x00\x00\xff\xff\x22\x83\x83\x02\x6a\x00\x00\x00")
+
+func _004_add_last_seenDownSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__004_add_last_seenDownSql,
+		"004_add_last_seen.down.sql",
+	)
+}
+
+func _004_add_last_seenDownSql() (*asset, error) {
+	bytes, err := _004_add_last_seenDownSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "004_add_last_seen.down.sql", size: 106, mode: os.FileMode(420), modTime: time.Unix(1643665766, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __004_add_last_seenUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x84\xcb\xb1\x0a\x02\x31\x0c\x00\xd0\xdd\xaf\xc8\x07\x38\xb8\x3b\x55\x1b\xe5\x20\xed\xc9\x99\xce\xa5\x1e\x01\x87\x5a\xf1\x92\x0e\xfe\xbd\x83\x20\x3a\xb9\xbf\xe7\x88\x71\x02\x76\x3b\x42\xd0\xa7\x9a\xdc\x72\xe9\x76\x5d\x39\xef\x61\x3f\x52\x0a\x11\x6a\x51\xcb\x2a\xd2\x80\x87\x80\x67\x76\xe1\x04\x1e\x0f\x2e\x11\x43\x4c\x44\xeb\x6f\x3c\x2f\x52\x4c\xb2\x95\x4b\x95\x3c\xdf\x7b\x33\x18\x22\xe3\x11\x27\x88\xe3\xdb\x7f\xf2\xe6\x67\x2e\xbd\x65\x7d\xd4\xbf\x69\xfb\x0a\x00\x00\xff\xff\x6a\x5a\x53\xf4\xb3\x00\x00\x00")
+
+func _004_add_last_seenUpSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__004_add_last_seenUpSql,
+		"004_add_last_seen.up.sql",
+	)
+}
+
+func _004_add_last_seenUpSql() (*asset, error) {
+	bytes, err := _004_add_last_seenUpSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "004_add_last_seen.up.sql", size: 179, mode: os.FileMode(420), modTime: time.Unix(1643667719, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -261,6 +303,8 @@ var _bindata = map[string]func() (*asset, error){
 	"002_add_type_column.up.sql":   _002_add_type_columnUpSql,
 	"003_auth.down.sql":            _003_authDownSql,
 	"003_auth.up.sql":              _003_authUpSql,
+	"004_add_last_seen.down.sql":   _004_add_last_seenDownSql,
+	"004_add_last_seen.up.sql":     _004_add_last_seenUpSql,
 }
 
 // AssetDir returns the file names below a certain
@@ -310,6 +354,8 @@ var _bintree = &bintree{nil, map[string]*bintree{
 	"002_add_type_column.up.sql":   &bintree{_002_add_type_columnUpSql, map[string]*bintree{}},
 	"003_auth.down.sql":            &bintree{_003_authDownSql, map[string]*bintree{}},
 	"003_auth.up.sql":              &bintree{_003_authUpSql, map[string]*bintree{}},
+	"004_add_last_seen.down.sql":   &bintree{_004_add_last_seenDownSql, map[string]*bintree{}},
+	"004_add_last_seen.up.sql":     &bintree{_004_add_last_seenUpSql, map[string]*bintree{}},
 }}
 
 // RestoreAsset restores an asset under the given directory

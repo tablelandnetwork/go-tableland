@@ -16,4 +16,6 @@ type SystemStore interface {
 	IsAuthorized(context.Context, string) (IsAuthorizedResult, error)
 	GetAuthorizationRecord(context.Context, string) (AuthorizationRecord, error)
 	ListAuthorized(context.Context) ([]AuthorizationRecord, error)
+	IncrementCreateTableCount(context.Context, string) error
+	IncrementRunSQLCount(context.Context, string) error
 }

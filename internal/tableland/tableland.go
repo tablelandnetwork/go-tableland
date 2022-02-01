@@ -23,5 +23,5 @@ type Tableland interface {
 	CreateTable(context.Context, Request) (Response, error)
 	UpdateTable(context.Context, Request) (Response, error)
 	RunSQL(context.Context, Request) (Response, error)
-	Authorize(context.Context) error
+	Authorize(context.Context, Request) error
 }

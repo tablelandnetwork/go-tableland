@@ -17,14 +17,38 @@ func (q *Queries) Authorize(ctx context.Context, address string) error {
 }
 
 const getAuthorized = `-- name: GetAuthorized :one
-SELECT address, created_at FROM system_auth WHERE address=$1
+SELECT address, created_at, last_seen, create_table_count, run_sql_count FROM system_auth WHERE address=$1
 `
 
 func (q *Queries) GetAuthorized(ctx context.Context, address string) (SystemAuth, error) {
 	row := q.db.QueryRow(ctx, getAuthorized, address)
 	var i SystemAuth
-	err := row.Scan(&i.Address, &i.CreatedAt)
+	err := row.Scan(
+		&i.Address,
+		&i.CreatedAt,
+		&i.LastSeen,
+		&i.CreateTableCount,
+		&i.RunSqlCount,
+	)
 	return i, err
+}
+
+const incrementCreateTableCount = `-- name: IncrementCreateTableCount :exec
+UPDATE system_auth SET create_table_count = create_table_count+1, last_seen = NOW() WHERE address=$1
+`
+
+func (q *Queries) IncrementCreateTableCount(ctx context.Context, address string) error {
+	_, err := q.db.Exec(ctx, incrementCreateTableCount, address)
+	return err
+}
+
+const incrementRunSQLCount = `-- name: IncrementRunSQLCount :exec
+UPDATE system_auth SET run_sql_count = run_sql_count+1, last_seen = NOW() WHERE address=$1
+`
+
+func (q *Queries) IncrementRunSQLCount(ctx context.Context, address string) error {
+	_, err := q.db.Exec(ctx, incrementRunSQLCount, address)
+	return err
 }
 
 const isAuthorized = `-- name: IsAuthorized :one
@@ -39,7 +63,7 @@ func (q *Queries) IsAuthorized(ctx context.Context, address string) (bool, error
 }
 
 const listAuthorized = `-- name: ListAuthorized :many
-SELECT address, created_at FROM system_auth ORDER BY created_at ASC
+SELECT address, created_at, last_seen, create_table_count, run_sql_count FROM system_auth ORDER BY created_at ASC
 `
 
 func (q *Queries) ListAuthorized(ctx context.Context) ([]SystemAuth, error) {
@@ -51,7 +75,13 @@ func (q *Queries) ListAuthorized(ctx context.Context) ([]SystemAuth, error) {
 	var items []SystemAuth
 	for rows.Next() {
 		var i SystemAuth
-		if err := rows.Scan(&i.Address, &i.CreatedAt); err != nil {
+		if err := rows.Scan(
+			&i.Address,
+			&i.CreatedAt,
+			&i.LastSeen,
+			&i.CreateTableCount,
+			&i.RunSqlCount,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
