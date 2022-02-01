@@ -108,7 +108,7 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.Request) (tabl
 		if !isOwner {
 			return tableland.Response{}, errors.New("you aren't authorized")
 		}
-		return t.runInsertOrUpdate(ctx, writeStmts)
+		return t.runInsertOrUpdate(ctx, req.Controller, writeStmts)
 	}
 
 	return tableland.Response{}, errors.New("invalid command")
@@ -122,7 +122,7 @@ func (t *TablelandMesa) Authorize(ctx context.Context, req tableland.Request) er
 	return nil
 }
 
-func (t *TablelandMesa) runInsertOrUpdate(ctx context.Context, ws []parsing.WriteStmt) (tableland.Response, error) {
+func (t *TablelandMesa) runInsertOrUpdate(ctx context.Context, controller string, ws []parsing.WriteStmt) (tableland.Response, error) {
 	b, err := t.txnp.OpenBatch(ctx)
 	if err != nil {
 		return tableland.Response{}, fmt.Errorf("opening batch: %s", err)
@@ -140,7 +140,7 @@ func (t *TablelandMesa) runInsertOrUpdate(ctx context.Context, ws []parsing.Writ
 		return tableland.Response{}, fmt.Errorf("committing changes: %s", err)
 	}
 
-	t.incrementRunSQLCount(ctx, req.Controller)
+	t.incrementRunSQLCount(ctx, controller)
 
 	return tableland.Response{Message: "Command executed"}, nil
 }
