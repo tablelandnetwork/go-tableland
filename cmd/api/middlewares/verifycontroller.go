@@ -35,9 +35,8 @@ func VerifyController(next http.Handler) http.Handler {
 			_ = json.NewEncoder(w).Encode(errors.ServiceError{Message: fmt.Sprintf("error reading request body: %s", err)})
 			return
 		}
-		rdr1 := ioutil.NopCloser(bytes.NewBuffer(buf))
 
-		r.Body = rdr1
+		r.Body = ioutil.NopCloser(bytes.NewBuffer(buf))
 
 		var b body
 

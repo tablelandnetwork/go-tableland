@@ -41,10 +41,6 @@ func (t *TablelandMesa) CreateTable(ctx context.Context, req tableland.Request) 
 		return tableland.Response{}, fmt.Errorf("checking address authorization: %s", err)
 	}
 
-	if err := t.store.IncrementCreateTableCount(ctx, req.Controller); err != nil {
-		log.Error().Err(err).Msg("incrementing create table count")
-	}
-
 	uuid, err := uuid.Parse(req.TableID)
 	if err != nil {
 		return tableland.Response{}, fmt.Errorf("failed to parse uuid: %s", err)
@@ -60,6 +56,11 @@ func (t *TablelandMesa) CreateTable(ctx context.Context, req tableland.Request) 
 	if err := t.store.Write(ctx, req.Statement); err != nil {
 		return tableland.Response{}, fmt.Errorf("creating user-table: %s", err)
 	}
+
+	if err := t.store.IncrementCreateTableCount(ctx, req.Controller); err != nil {
+		log.Error().Err(err).Msg("incrementing create table count")
+	}
+
 	return tableland.Response{Message: "Table created"}, nil
 }
 
@@ -71,10 +72,6 @@ func (t *TablelandMesa) UpdateTable(ctx context.Context, req tableland.Request) 
 
 // RunSQL allows the user to run SQL.
 func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.Request) (tableland.Response, error) {
-	if err := t.store.IncrementRunSQLCount(ctx, req.Controller); err != nil {
-		log.Error().Err(err).Msg("incrementing run sql count")
-	}
-
 	uuid, err := uuid.Parse(req.TableID)
 	if err != nil {
 		return tableland.Response{}, fmt.Errorf("failed to parse uuid: %s", err)
@@ -116,6 +113,9 @@ func (t *TablelandMesa) runInsertOrUpdate(ctx context.Context, req tableland.Req
 	if err != nil {
 		return tableland.Response{}, fmt.Errorf("executing write-query: %s", err)
 	}
+
+	t.incrementRunSQLCount(ctx, req.Controller)
+
 	return tableland.Response{Message: "Command executed"}, nil
 }
 
@@ -124,6 +124,8 @@ func (t *TablelandMesa) runSelect(ctx context.Context, req tableland.Request) (t
 	if err != nil {
 		return tableland.Response{}, fmt.Errorf("executing read-query: %s", err)
 	}
+
+	t.incrementRunSQLCount(ctx, req.Controller)
 
 	return tableland.Response{Message: "Select executed", Data: data}, nil
 }
@@ -153,4 +155,10 @@ func (t *TablelandMesa) authorize(ctx context.Context, address string) error {
 	}
 
 	return nil
+}
+
+func (t *TablelandMesa) incrementRunSQLCount(ctx context.Context, address string) {
+	if err := t.store.IncrementRunSQLCount(ctx, address); err != nil {
+		log.Error().Err(err).Msg("incrementing run sql count")
+	}
 }
