@@ -5,7 +5,6 @@ package db
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/google/uuid"
 )
@@ -53,26 +52,4 @@ func (q *Queries) GetTablesByController(ctx context.Context, controller string) 
 		return nil, err
 	}
 	return items, nil
-}
-
-const insertTable = `-- name: InsertTable :exec
-INSERT INTO system_tables (
-    "uuid",
-    "controller",
-    "type"
-    ) VALUES (
-      $1,
-      $2,
-      $3)
-`
-
-type InsertTableParams struct {
-	UUID       uuid.UUID
-	Controller string
-	Type       sql.NullString
-}
-
-func (q *Queries) InsertTable(ctx context.Context, arg InsertTableParams) error {
-	_, err := q.db.Exec(ctx, insertTable, arg.UUID, arg.Controller, arg.Type)
-	return err
 }

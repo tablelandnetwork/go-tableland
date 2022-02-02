@@ -21,6 +21,8 @@ import (
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
+	"github.com/textileio/go-tableland/pkg/txn"
+	txnimpl "github.com/textileio/go-tableland/pkg/txn/impl"
 )
 
 func main() {
@@ -62,10 +64,14 @@ func main() {
 	}
 
 	sqlstore = sqlstoreimpl.NewInstrumentedSQLStorePGX(sqlstore)
-
 	parser := parserimpl.NewInstrumentedSQLValidator(parserimpl.New(systemimpl.SystemTablesPrefix))
 
-	svc := getTablelandService(config, sqlstore, registry, parser)
+	txnp, err := txnimpl.NewTxnProcessor(databaseURL)
+	if err != nil {
+		log.Fatal().Err(err).Msg("creating txn processor")
+	}
+
+	svc := getTablelandService(config, sqlstore, registry, parser, txnp)
 	if err := server.RegisterName("tableland", svc); err != nil {
 		log.Fatal().
 			Err(err).
@@ -118,10 +124,11 @@ func getTablelandService(
 	store sqlstore.SQLStore,
 	registry *ethereum.Client,
 	parser parsing.SQLValidator,
+	txnp txn.TxnProcessor,
 ) tableland.Tableland {
 	switch conf.Impl {
 	case "mesa":
-		mesa := impl.NewTablelandMesa(store, registry, parser)
+		mesa := impl.NewTablelandMesa(store, registry, parser, txnp)
 		return impl.NewInstrumentedTablelandMesa(mesa)
 	case "mock":
 		return new(impl.TablelandMock)

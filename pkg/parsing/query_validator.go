@@ -18,6 +18,13 @@ const (
 	WriteQuery = "write"
 )
 
+// WriteStmt is an already parsed write statement that satisfies all
+// the parser validations.
+type WriteStmt interface {
+	GetRawQuery() string
+	GetTablename() string
+}
+
 // SQLValidator parses and validate a SQL query for different supported scenarios.
 type SQLValidator interface {
 	// ValidateCreateTable validates the provided query and returns an error
@@ -25,7 +32,7 @@ type SQLValidator interface {
 	ValidateCreateTable(query string) error
 	// ValidateRunSQL validates the query and returns an error if isn't allowed.
 	// If the query validates correctly, it returns the query type and nil.
-	ValidateRunSQL(query string) (QueryType, error)
+	ValidateRunSQL(query string) (QueryType, []WriteStmt, error)
 }
 
 // TablelandColumnType represents an accepted column type for user-tables.
@@ -93,6 +100,13 @@ type ErrNoSingleStatement struct{}
 
 func (e *ErrNoSingleStatement) Error() string {
 	return "the query contains zero or more than one statement"
+}
+
+// ErrEmptyStatement is an error returned when the statement is empty.
+type ErrEmptyStatement struct{}
+
+func (e *ErrEmptyStatement) Error() string {
+	return "the statement is empty"
 }
 
 // ErrNoForUpdateOrShare is an error returned when a SELECT statements use
@@ -167,4 +181,15 @@ func (e *ErrInvalidColumnType) Error() string {
 		str = fmt.Sprintf("%s: %s", str, e.ColumnType)
 	}
 	return str
+}
+
+// ErrMultiTableReference is an error returned when a multistatement
+// references different tables.
+type ErrMultiTableReference struct {
+	Ref1 string
+	Ref2 string
+}
+
+func (e *ErrMultiTableReference) Error() string {
+	return fmt.Sprintf("queries are referencing two distinct tables: %s %s", e.Ref1, e.Ref2)
 }

@@ -14,11 +14,13 @@ import (
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/tableregistry"
+	"github.com/textileio/go-tableland/pkg/txn"
 )
 
 // TablelandMesa is the main implementation of Tableland spec.
 type TablelandMesa struct {
 	store    sqlstore.SQLStore
+	txnp     txn.TxnProcessor
 	registry tableregistry.TableRegistry
 	parser   parsing.SQLValidator
 }
@@ -27,10 +29,12 @@ type TablelandMesa struct {
 func NewTablelandMesa(
 	store sqlstore.SQLStore,
 	registry tableregistry.TableRegistry,
-	parser parsing.SQLValidator) tableland.Tableland {
+	parser parsing.SQLValidator,
+	txnp txn.TxnProcessor) tableland.Tableland {
 	return &TablelandMesa{
 		store:    store,
 		registry: registry,
+		txnp:     txnp,
 		parser:   parser,
 	}
 }
@@ -49,12 +53,22 @@ func (t *TablelandMesa) CreateTable(ctx context.Context, req tableland.Request) 
 	if err := t.parser.ValidateCreateTable(req.Statement); err != nil {
 		return tableland.Response{}, fmt.Errorf("query validation: %s", err)
 	}
-	// TODO: the two operations should be put inside a transaction
-	if err := t.store.InsertTable(ctx, uuid, req.Controller, req.Type); err != nil {
-		return tableland.Response{}, fmt.Errorf("inserting in table: %s", err)
+
+	b, err := t.txnp.OpenBatch(ctx)
+	if err != nil {
+		return tableland.Response{}, fmt.Errorf("opening batch: %s", err)
 	}
-	if err := t.store.Write(ctx, req.Statement); err != nil {
-		return tableland.Response{}, fmt.Errorf("creating user-table: %s", err)
+	defer func() {
+		if err := b.Close(ctx); err != nil {
+			log.Error().Err(err).Msg("closing batch")
+		}
+	}()
+
+	if err := b.InsertTable(ctx, uuid, req.Controller, req.Type, req.Statement); err != nil {
+		return tableland.Response{}, fmt.Errorf("processing table registration: %s", err)
+	}
+	if err := b.Commit(ctx); err != nil {
+		return tableland.Response{}, fmt.Errorf("committing changes: %s", err)
 	}
 
 	if err := t.store.IncrementCreateTableCount(ctx, req.Controller); err != nil {
@@ -77,7 +91,7 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.Request) (tabl
 		return tableland.Response{}, fmt.Errorf("failed to parse uuid: %s", err)
 	}
 
-	queryType, err := t.parser.ValidateRunSQL(req.Statement)
+	queryType, writeStmts, err := t.parser.ValidateRunSQL(req.Statement)
 	if err != nil {
 		return tableland.Response{}, fmt.Errorf("validating query: %s", err)
 	}
@@ -94,7 +108,7 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.Request) (tabl
 		if !isOwner {
 			return tableland.Response{}, errors.New("you aren't authorized")
 		}
-		return t.runInsertOrUpdate(ctx, req)
+		return t.runInsertOrUpdate(ctx, req.Controller, writeStmts)
 	}
 
 	return tableland.Response{}, errors.New("invalid command")
@@ -108,13 +122,28 @@ func (t *TablelandMesa) Authorize(ctx context.Context, req tableland.Request) er
 	return nil
 }
 
-func (t *TablelandMesa) runInsertOrUpdate(ctx context.Context, req tableland.Request) (tableland.Response, error) {
-	err := t.store.Write(ctx, req.Statement)
+func (t *TablelandMesa) runInsertOrUpdate(
+	ctx context.Context,
+	controller string,
+	ws []parsing.WriteStmt) (tableland.Response, error) {
+	b, err := t.txnp.OpenBatch(ctx)
 	if err != nil {
+		return tableland.Response{}, fmt.Errorf("opening batch: %s", err)
+	}
+	defer func() {
+		if err := b.Close(ctx); err != nil {
+			log.Error().Err(err).Msg("closing batch")
+		}
+	}()
+	if err := b.ExecWriteQueries(ctx, ws); err != nil {
 		return tableland.Response{}, fmt.Errorf("executing write-query: %s", err)
 	}
 
-	t.incrementRunSQLCount(ctx, req.Controller)
+	if err := b.Commit(ctx); err != nil {
+		return tableland.Response{}, fmt.Errorf("committing changes: %s", err)
+	}
+
+	t.incrementRunSQLCount(ctx, controller)
 
 	return tableland.Response{Message: "Command executed"}, nil
 }

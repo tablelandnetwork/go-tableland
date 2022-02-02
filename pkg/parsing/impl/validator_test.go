@@ -58,17 +58,24 @@ func TestRunSQL(t *testing.T) {
 			query:      "insert into foo values (myfunc(1))",
 			expErrType: nil,
 		},
-
-		// Single-statement check.
 		{
-			name:       "single statement fail",
+			name:       "multi statement",
 			query:      "update foo set a=1; update foo set b=1;",
-			expErrType: ptr2ErrNoSingleStatement(),
+			expErrType: nil,
 		},
+
+		// Only reference a single table
+		{
+			name:       "update different tables",
+			query:      "update foo set a=1;update bar set a=2",
+			expErrType: ptr2ErrMultiTableReference(),
+		},
+
+		// Empty statement.
 		{
 			name:       "no statements",
 			query:      "",
-			expErrType: ptr2ErrNoSingleStatement(),
+			expErrType: ptr2ErrEmptyStatement(),
 		},
 
 		// Check not allowed top-statements.
@@ -80,6 +87,11 @@ func TestRunSQL(t *testing.T) {
 		{
 			name:       "drop",
 			query:      "drop table foo",
+			expErrType: ptr2ErrNoTopLevelUpdateInsertDelete(),
+		},
+		{
+			name:       "update select",
+			query:      "update foo set a=1;select * from foo",
 			expErrType: ptr2ErrNoTopLevelUpdateInsertDelete(),
 		},
 
@@ -215,7 +227,7 @@ func TestRunSQL(t *testing.T) {
 		{
 			name:       "no statements",
 			query:      "",
-			expErrType: ptr2ErrNoSingleStatement(),
+			expErrType: ptr2ErrEmptyStatement(),
 		},
 
 		// Check no FROM SHARE/UPDATE
@@ -229,13 +241,6 @@ func TestRunSQL(t *testing.T) {
 			query:      "select * from foo for update",
 			expErrType: ptr2ErrNoForUpdateOrShare(),
 		},
-
-		// Check no system-tables references.
-		{
-			name:       "reference system table",
-			query:      "select * from system_tables",
-			expErrType: ptr2ErrSystemTableReferencing(),
-		},
 	}
 	for i := range readQueryTests {
 		readQueryTests[i].queryType = parsing.ReadQuery
@@ -248,7 +253,7 @@ func TestRunSQL(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
 				parser := postgresparser.New("system_")
-				qt, err := parser.ValidateRunSQL(tc.query)
+				qt, _, err := parser.ValidateRunSQL(tc.query)
 				if tc.expErrType == nil {
 					require.NoError(t, err)
 					require.Equal(t, tc.queryType, qt)
@@ -285,7 +290,7 @@ func TestCreateTable(t *testing.T) {
 		{
 			name:       "no statements",
 			query:      "",
-			expErrType: ptr2ErrNoSingleStatement(),
+			expErrType: ptr2ErrEmptyStatement(),
 		},
 
 		// Check CREATE OF semantics.
@@ -413,6 +418,53 @@ func TestCreateTable(t *testing.T) {
 	}
 }
 
+func TestGetWriteStatements(t *testing.T) {
+	t.Parallel()
+
+	type testCase struct {
+		name              string
+		query             string
+		expectedStmts     []string
+		expectedTablename string
+	}
+	tests := []testCase{
+		{
+			name:  "double update",
+			query: "update foo set a=1;update foo set b=2;",
+			expectedStmts: []string{
+				"UPDATE foo SET a = 1",
+				"UPDATE foo SET b = 2",
+			},
+			expectedTablename: "foo",
+		},
+		{
+			name:  "insert update",
+			query: "insert into foo values (1);update foo set b=2;",
+			expectedStmts: []string{
+				"INSERT INTO foo VALUES (1)",
+				"UPDATE foo SET b = 2",
+			},
+			expectedTablename: "foo",
+		},
+	}
+
+	for _, it := range tests {
+		t.Run(it.name, func(tc testCase) func(t *testing.T) {
+			return func(t *testing.T) {
+				t.Parallel()
+				parser := postgresparser.New("system_")
+				_, stmts, err := parser.ValidateRunSQL(tc.query)
+				require.NoError(t, err)
+
+				for i := range stmts {
+					require.Equal(t, tc.expectedStmts[i], stmts[i].GetRawQuery())
+					require.Equal(t, tc.expectedTablename, stmts[i].GetTablename())
+				}
+			}
+		}(it))
+	}
+}
+
 // Helpers to have a pointer to pointer for generic test-case running.
 func ptr2ErrInvalidSyntax() **parsing.ErrInvalidSyntax {
 	var e *parsing.ErrInvalidSyntax
@@ -420,6 +472,10 @@ func ptr2ErrInvalidSyntax() **parsing.ErrInvalidSyntax {
 }
 func ptr2ErrNoSingleStatement() **parsing.ErrNoSingleStatement {
 	var e *parsing.ErrNoSingleStatement
+	return &e
+}
+func ptr2ErrEmptyStatement() **parsing.ErrEmptyStatement {
+	var e *parsing.ErrEmptyStatement
 	return &e
 }
 func ptr2ErrNoForUpdateOrShare() **parsing.ErrNoForUpdateOrShare {
@@ -452,5 +508,9 @@ func ptr2ErrNoTopLevelCreate() **parsing.ErrNoTopLevelCreate {
 }
 func ptr2ErrInvalidColumnType() **parsing.ErrInvalidColumnType {
 	var e *parsing.ErrInvalidColumnType
+	return &e
+}
+func ptr2ErrMultiTableReference() **parsing.ErrMultiTableReference {
+	var e *parsing.ErrMultiTableReference
 	return &e
 }

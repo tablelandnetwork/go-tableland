@@ -2,7 +2,6 @@ package system
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"time"
@@ -38,21 +37,6 @@ func New(pool *pgxpool.Pool) (*SystemStore, error) {
 	}
 
 	return &SystemStore{db: db.New(pool)}, nil
-}
-
-// InsertTable inserts a new system-wide table.
-func (s *SystemStore) InsertTable(ctx context.Context, uuid uuid.UUID, controller string, tableType string) error {
-	err := s.db.InsertTable(ctx, db.InsertTableParams{
-		UUID:       uuid,
-		Controller: controller,
-		Type:       sql.NullString{String: tableType, Valid: true},
-	})
-
-	if err != nil {
-		return fmt.Errorf("failed to insert a new table: %s", err)
-	}
-
-	return nil
 }
 
 // GetTable fetchs a table from its UUID.

@@ -15,21 +15,15 @@ import (
 	"github.com/textileio/go-tableland/internal/tableland"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
+	txnpimpl "github.com/textileio/go-tableland/pkg/txn/impl"
 	"github.com/textileio/go-tableland/tests"
 )
 
 func TestTodoAppWorkflow(t *testing.T) {
-	url, err := tests.PostgresURL()
-	require.NoError(t, err)
+	t.Parallel()
+
 	ctx := context.Background()
-
-	sqlstore, err := sqlstoreimpl.New(ctx, url)
-	require.NoError(t, err)
-	err = sqlstore.Authorize(ctx, "ctrl-1")
-	require.NoError(t, err)
-	parser := parserimpl.New("system_")
-	tbld := NewTablelandMesa(sqlstore, &dummyRegistry{}, parser)
-
+	tbld := newTablelandMesa(t)
 	baseReq := tableland.Request{
 		TableID:    uuid.New().String(),
 		Type:       "type-1",
@@ -47,21 +41,14 @@ func TestTodoAppWorkflow(t *testing.T) {
 		_, err := tbld.CreateTable(ctx, req)
 		require.NoError(t, err)
 	}
-
 	processCSV(t, baseReq, tbld, "testdata/todoapp_queries.csv")
 }
 
 func TestInsertOnConflict(t *testing.T) {
-	url, err := tests.PostgresURL()
-	require.NoError(t, err)
-	ctx := context.Background()
+	t.Parallel()
 
-	sqlstore, err := sqlstoreimpl.New(ctx, url)
-	require.NoError(t, err)
-	err = sqlstore.Authorize(ctx, "ctrl-1")
-	require.NoError(t, err)
-	parser := parserimpl.New("system_")
-	tbld := NewTablelandMesa(sqlstore, &dummyRegistry{}, parser)
+	ctx := context.Background()
+	tbld := newTablelandMesa(t)
 
 	baseReq := tableland.Request{
 		TableID:    uuid.New().String(),
@@ -96,17 +83,47 @@ func TestInsertOnConflict(t *testing.T) {
 	}
 }
 
-func TestJSON(t *testing.T) {
-	url, err := tests.PostgresURL()
-	require.NoError(t, err)
-	ctx := context.Background()
+func TestMultiStatement(t *testing.T) {
+	t.Parallel()
 
-	sqlstore, err := sqlstoreimpl.New(ctx, url)
-	require.NoError(t, err)
-	err = sqlstore.Authorize(ctx, "ctrl-1")
-	require.NoError(t, err)
-	parser := parserimpl.New("system_")
-	tbld := NewTablelandMesa(sqlstore, &dummyRegistry{}, parser)
+	ctx := context.Background()
+	tbld := newTablelandMesa(t)
+
+	baseReq := tableland.Request{
+		TableID:    uuid.New().String(),
+		Type:       "type-1",
+		Controller: "ctrl-1",
+	}
+
+	{
+		req := baseReq
+		req.Statement = `CREATE TABLE foo (
+			name text unique
+		);`
+		_, err := tbld.CreateTable(ctx, req)
+		require.NoError(t, err)
+	}
+
+	{
+		req := baseReq
+		req.Statement = `INSERT INTO foo values ('bar'); UPDATE foo SET name='zoo'`
+		_, err := tbld.RunSQL(ctx, req)
+		require.NoError(t, err)
+
+		req.Statement = "SELECT name from foo"
+		res, err := tbld.RunSQL(ctx, req)
+		require.NoError(t, err)
+		js, err := json.Marshal(res.Data)
+		require.NoError(t, err)
+		require.JSONEq(t, `{"columns":[{"name":"name"}],"rows":[["zoo"]]}`, string(js))
+	}
+}
+
+func TestJSON(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	tbld := newTablelandMesa(t)
 
 	baseReq := tableland.Request{
 		TableID:    uuid.New().String(),
@@ -155,6 +172,23 @@ func readCsvFile(filePath string) [][]string {
 	}
 
 	return records
+}
+
+func newTablelandMesa(t *testing.T) tableland.Tableland {
+	t.Helper()
+	url, err := tests.PostgresURL()
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	sqlstore, err := sqlstoreimpl.New(ctx, url)
+	require.NoError(t, err)
+	err = sqlstore.Authorize(ctx, "ctrl-1")
+	require.NoError(t, err)
+	parser := parserimpl.New("system_")
+	txnp, err := txnpimpl.NewTxnProcessor(url)
+	require.NoError(t, err)
+
+	return NewTablelandMesa(sqlstore, &dummyRegistry{}, parser, txnp)
 }
 
 type dummyRegistry struct{}

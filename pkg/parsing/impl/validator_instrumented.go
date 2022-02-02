@@ -47,10 +47,10 @@ func (ip *InstrumentedSQLValidator) ValidateCreateTable(query string) error {
 }
 
 // ValidateRunSQL register metrics for its corresponding wrapped parser.
-func (ip *InstrumentedSQLValidator) ValidateRunSQL(query string) (parsing.QueryType, error) {
+func (ip *InstrumentedSQLValidator) ValidateRunSQL(query string) (parsing.QueryType, []parsing.WriteStmt, error) {
 	log.Debug().Str("query", query).Msg("call ValidateRunSQL")
 	start := time.Now()
-	queryType, err := ip.parser.ValidateRunSQL(query)
+	queryType, writeStmts, err := ip.parser.ValidateRunSQL(query)
 	latency := time.Since(start).Milliseconds()
 
 	attributes := []attribute.KeyValue{
@@ -62,5 +62,5 @@ func (ip *InstrumentedSQLValidator) ValidateRunSQL(query string) (parsing.QueryT
 	ip.callCount.Add(context.Background(), 1, attributes...)
 	ip.latencyHistogram.Record(context.Background(), latency, attributes...)
 
-	return queryType, err
+	return queryType, writeStmts, err
 }
