@@ -5,28 +5,28 @@ package db
 
 import (
 	"context"
-
-	"github.com/google/uuid"
 )
 
 const getTable = `-- name: GetTable :one
-SELECT uuid, controller, created_at, type FROM system_tables WHERE uuid = $1
+SELECT controller, created_at, id, structure, description, name FROM system_tables WHERE id = $1
 `
 
-func (q *Queries) GetTable(ctx context.Context, uuid uuid.UUID) (SystemTable, error) {
-	row := q.db.QueryRow(ctx, getTable, uuid)
+func (q *Queries) GetTable(ctx context.Context, id int64) (SystemTable, error) {
+	row := q.db.QueryRow(ctx, getTable, id)
 	var i SystemTable
 	err := row.Scan(
-		&i.UUID,
 		&i.Controller,
 		&i.CreatedAt,
-		&i.Type,
+		&i.ID,
+		&i.Structure,
+		&i.Description,
+		&i.Name,
 	)
 	return i, err
 }
 
 const getTablesByController = `-- name: GetTablesByController :many
-SELECT uuid, controller, created_at, type FROM system_tables WHERE controller = $1
+SELECT controller, created_at, id, structure, description, name FROM system_tables WHERE controller = $1
 `
 
 func (q *Queries) GetTablesByController(ctx context.Context, controller string) ([]SystemTable, error) {
@@ -39,10 +39,12 @@ func (q *Queries) GetTablesByController(ctx context.Context, controller string) 
 	for rows.Next() {
 		var i SystemTable
 		if err := rows.Scan(
-			&i.UUID,
 			&i.Controller,
 			&i.CreatedAt,
-			&i.Type,
+			&i.ID,
+			&i.Structure,
+			&i.Description,
+			&i.Name,
 		); err != nil {
 			return nil, err
 		}

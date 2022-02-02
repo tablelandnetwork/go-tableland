@@ -5,8 +5,6 @@ package db
 import (
 	"database/sql"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 type SystemAuth struct {
@@ -18,8 +16,10 @@ type SystemAuth struct {
 }
 
 type SystemTable struct {
-	UUID       uuid.UUID
-	Controller string
-	CreatedAt  time.Time
-	Type       sql.NullString
+	Controller  string
+	CreatedAt   time.Time
+	ID          int64
+	Structure   sql.NullString
+	Description sql.NullString
+	Name        sql.NullString
 }
