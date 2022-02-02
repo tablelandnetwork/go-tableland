@@ -31,5 +31,5 @@ func (c *Client) IsOwner(context context.Context, addr common.Address, id *big.I
 	if err != nil {
 		return false, fmt.Errorf("calling OwnderOf: %v", err)
 	}
-	return bytes.Compare(addr.Bytes(), owner.Bytes()) == 0, nil
+	return bytes.Equal(addr.Bytes(), owner.Bytes()), nil
 }
