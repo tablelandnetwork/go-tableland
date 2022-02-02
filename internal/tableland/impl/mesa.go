@@ -122,7 +122,10 @@ func (t *TablelandMesa) Authorize(ctx context.Context, req tableland.Request) er
 	return nil
 }
 
-func (t *TablelandMesa) runInsertOrUpdate(ctx context.Context, controller string, ws []parsing.WriteStmt) (tableland.Response, error) {
+func (t *TablelandMesa) runInsertOrUpdate(
+	ctx context.Context,
+	controller string,
+	ws []parsing.WriteStmt) (tableland.Response, error) {
 	b, err := t.txnp.OpenBatch(ctx)
 	if err != nil {
 		return tableland.Response{}, fmt.Errorf("opening batch: %s", err)
