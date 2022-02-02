@@ -19,7 +19,7 @@ type SystemTable struct {
 	Controller  string
 	CreatedAt   time.Time
 	ID          int64
-	Structure   sql.NullString
-	Description sql.NullString
-	Name        sql.NullString
+	Structure   string
+	Description string
+	Name        string
 }

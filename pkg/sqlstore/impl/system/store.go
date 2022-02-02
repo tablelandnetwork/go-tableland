@@ -13,7 +13,6 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres" // triggers something?
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system/internal/db"
@@ -40,17 +39,13 @@ func New(pool *pgxpool.Pool) (*SystemStore, error) {
 }
 
 // GetTable fetchs a table from its UUID.
-func (s *SystemStore) GetTable(ctx context.Context, uuid uuid.UUID) (sqlstore.Table, error) {
-	table, err := s.db.GetTable(ctx, uuid)
+func (s *SystemStore) GetTable(ctx context.Context, id int64) (sqlstore.Table, error) {
+	table, err := s.db.GetTable(ctx, id)
 	if err != nil {
 		return sqlstore.Table{}, fmt.Errorf("failed to get the table: %s", err)
 	}
 
-	return sqlstore.Table{
-		UUID:       table.UUID,
-		Controller: table.Controller,
-		CreatedAt:  table.CreatedAt,
-		Type:       table.Type.String}, err
+	return tableFromSQLToDTO(table), nil
 }
 
 // GetTablesByController fetchs a table from controller address.
@@ -60,16 +55,12 @@ func (s *SystemStore) GetTablesByController(ctx context.Context, controller stri
 		return []sqlstore.Table{}, fmt.Errorf("failed to get the table: %s", err)
 	}
 
-	tables := make([]sqlstore.Table, 0)
-	for _, t := range sqlcTables {
-		tables = append(tables,
-			sqlstore.Table{
-				UUID:       t.UUID,
-				Controller: t.Controller,
-				CreatedAt:  t.CreatedAt,
-				Type:       t.Type.String})
+	tables := make([]sqlstore.Table, len(sqlcTables))
+	for i := range sqlcTables {
+		tables[i] = tableFromSQLToDTO(sqlcTables[i])
 	}
-	return tables, err
+
+	return tables, nil
 }
 
 // Authorize grants the provided address permission to use the system.
@@ -190,4 +181,15 @@ func executeMigration(postgresURI string, as *bindata.AssetSource) error {
 	}
 
 	return nil
+}
+
+func tableFromSQLToDTO(table db.SystemTable) sqlstore.Table {
+	return sqlstore.Table{
+		ID:          table.ID,
+		Controller:  table.Controller,
+		Name:        table.Name,
+		Description: table.Description,
+		Structure:   table.Structure,
+		CreatedAt:   table.CreatedAt,
+	}
 }

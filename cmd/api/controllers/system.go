@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 
-	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/system"
@@ -29,27 +29,26 @@ func (c *SystemController) GetTable(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-type", "application/json")
 	vars := mux.Vars(r)
 
-	requestUUID := vars["uuid"]
-	uuid, err := uuid.Parse(requestUUID)
+	id, err := strconv.ParseInt(vars["id"], 10, 64)
 	if err != nil {
-		rw.WriteHeader(http.StatusUnprocessableEntity)
+		rw.WriteHeader(http.StatusBadRequest)
 		log.Ctx(ctx).
 			Error().
 			Err(err).
-			Str("requestUUID", requestUUID).
-			Msg("invalid uuid")
+			Msg("invalid id format")
 
-		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Invalid uuid"})
+		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Invalid id format"})
 		return
+
 	}
 
-	metadata, err := c.systemService.GetTableMetadata(ctx, uuid)
+	metadata, err := c.systemService.GetTableMetadata(ctx, id)
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 		log.Ctx(ctx).
 			Error().
 			Err(err).
-			Str("requestUUID", requestUUID).
+			Int64("id", id).
 			Msg("failed to fetch metadata")
 
 		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Failed to fetch metadata"})

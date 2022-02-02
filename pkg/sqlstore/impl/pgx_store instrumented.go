@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -28,15 +27,15 @@ func NewInstrumentedSQLStorePGX(store sqlstore.SQLStore) sqlstore.SQLStore {
 }
 
 // GetTable fetchs a table from its UUID.
-func (s *InstrumentedSQLStorePGX) GetTable(ctx context.Context, uuid uuid.UUID) (sqlstore.Table, error) {
+func (s *InstrumentedSQLStorePGX) GetTable(ctx context.Context, id int64) (sqlstore.Table, error) {
 	start := time.Now()
-	table, err := s.store.GetTable(ctx, uuid)
+	table, err := s.store.GetTable(ctx, id)
 	latency := time.Since(start).Milliseconds()
 
 	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
 	attributes := []attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("GetTable")},
-		{Key: "uuid", Value: attribute.StringValue(uuid.String())},
+		{Key: "id", Value: attribute.Int64Value(id)},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
 	}
 
