@@ -1,6 +1,7 @@
 package ethereum
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"math/big"
@@ -26,9 +27,9 @@ func NewClient(backend bind.ContractBackend, contractAddr common.Address) (*Clie
 // IsOwner implements IsOwner.
 func (c *Client) IsOwner(context context.Context, addr common.Address, id *big.Int) (bool, error) {
 	opts := &bind.CallOpts{Context: context}
-	bal, err := c.contract.BalanceOf(opts, addr, id)
+	owner, err := c.contract.OwnerOf(opts, id)
 	if err != nil {
-		return false, fmt.Errorf("calling BalanceOf: %v", err)
+		return false, fmt.Errorf("calling OwnderOf: %v", err)
 	}
-	return bal.Cmp(big.NewInt(0)) > 0, nil
+	return bytes.Compare(addr.Bytes(), owner.Bytes()) == 0, nil
 }
