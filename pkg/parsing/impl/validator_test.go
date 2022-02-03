@@ -14,10 +14,11 @@ func TestRunSQL(t *testing.T) {
 	t.Parallel()
 
 	type testCase struct {
-		name       string
-		query      string
-		expErrType interface{}
-		queryType  parsing.QueryType
+		name        string
+		query       string
+		tableID     *big.Int
+		isWriteStmt bool
+		expErrType  interface{}
 	}
 
 	writeQueryTests := []testCase{
@@ -38,30 +39,47 @@ func TestRunSQL(t *testing.T) {
 			expErrType: ptr2ErrInvalidSyntax(),
 		},
 
+		// Invalid table name format.
+		{
+			name:       "wrong char prefix",
+			query:      "delete from z123 where a=2",
+			expErrType: ptr2ErrInvalidTableName(),
+		},
+		{
+			name:       "no char prefix",
+			query:      "delete from 123 where a=2",
+			expErrType: ptr2ErrInvalidTableName(),
+		},
+
 		// Valid insert and updates.
 		{
 			name:       "valid insert",
-			query:      "insert into foo values ('hello', 1, 2)",
+			query:      "insert into duke_t3333 values ('hello', 1, 2)",
+			tableID:    big.NewInt(3333),
 			expErrType: nil,
 		},
 		{
 			name:       "valid simple update",
-			query:      "update foo set a=1 where b='hello'",
+			query:      "update t0 set a=1 where b='hello'",
+			tableID:    big.NewInt(0),
 			expErrType: nil,
 		},
 		{
 			name:       "valid delete",
-			query:      "delete from foo where a=2",
+			query:      "delete from i_like_border_cases_t10 where a=2",
+			tableID:    big.NewInt(10),
 			expErrType: nil,
 		},
 		{
 			name:       "valid custom func call",
-			query:      "insert into foo values (myfunc(1))",
+			query:      "insert into 911_t3 values (myfunc(1))",
+			tableID:    big.NewInt(3),
 			expErrType: nil,
 		},
 		{
 			name:       "multi statement",
-			query:      "update foo set a=1; update foo set b=1;",
+			query:      "update a_t10 set a=1; update a_t10 set b=1;",
+			tableID:    big.NewInt(10),
 			expErrType: nil,
 		},
 
@@ -179,7 +197,7 @@ func TestRunSQL(t *testing.T) {
 		},
 	}
 	for i := range writeQueryTests {
-		writeQueryTests[i].queryType = parsing.WriteQuery
+		writeQueryTests[i].isWriteStmt = true
 	}
 
 	readQueryTests := []testCase{
@@ -193,12 +211,14 @@ func TestRunSQL(t *testing.T) {
 		// Valid read-queries.
 		{
 			name:       "valid all",
-			query:      "select * from foo",
+			query:      "select * from t1234",
+			tableID:    big.NewInt(1234),
 			expErrType: nil,
 		},
 		{
 			name:       "valid defined rows",
-			query:      "select row1, row2 from foo where a=b",
+			query:      "select row1, row2 from t4321 where a=b",
+			tableID:    big.NewInt(4321),
 			expErrType: nil,
 		},
 
@@ -243,21 +263,26 @@ func TestRunSQL(t *testing.T) {
 			expErrType: ptr2ErrNoForUpdateOrShare(),
 		},
 	}
-	for i := range readQueryTests {
-		readQueryTests[i].queryType = parsing.ReadQuery
-	}
 
 	tests := append(readQueryTests, writeQueryTests...)
 
 	for _, it := range tests {
-		t.Run(fmt.Sprintf("%s/%s", it.queryType, it.name), func(tc testCase) func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s", it.name), func(tc testCase) func(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
 				parser := postgresparser.New("system_")
-				qt, _, err := parser.ValidateRunSQL(tc.query)
+				tblID, rs, wss, err := parser.ValidateRunSQL(tc.query)
 				if tc.expErrType == nil {
 					require.NoError(t, err)
-					require.Equal(t, tc.queryType, qt)
+
+					if tc.isWriteStmt {
+						require.NotEmpty(t, wss)
+					} else {
+						require.NotNil(t, rs)
+					}
+
+					require.Equal(t, tc.tableID.String(), tblID.String())
+
 					return
 				}
 				require.ErrorAs(t, err, tc.expErrType)
@@ -492,10 +517,9 @@ func TestGetWriteStatements(t *testing.T) {
 	t.Parallel()
 
 	type testCase struct {
-		name              string
-		query             string
-		expectedStmts     []string
-		expectedTablename string
+		name          string
+		query         string
+		expectedStmts []string
 	}
 	tests := []testCase{
 		{
@@ -505,7 +529,6 @@ func TestGetWriteStatements(t *testing.T) {
 				"UPDATE foo SET a = 1",
 				"UPDATE foo SET b = 2",
 			},
-			expectedTablename: "foo",
 		},
 		{
 			name:  "insert update",
@@ -514,7 +537,6 @@ func TestGetWriteStatements(t *testing.T) {
 				"INSERT INTO foo VALUES (1)",
 				"UPDATE foo SET b = 2",
 			},
-			expectedTablename: "foo",
 		},
 	}
 
@@ -523,12 +545,12 @@ func TestGetWriteStatements(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
 				parser := postgresparser.New("system_")
-				_, stmts, err := parser.ValidateRunSQL(tc.query)
+				_, rs, stmts, err := parser.ValidateRunSQL(tc.query)
 				require.NoError(t, err)
+				require.Nil(t, rs)
 
 				for i := range stmts {
 					require.Equal(t, tc.expectedStmts[i], stmts[i].GetRawQuery())
-					require.Equal(t, tc.expectedTablename, stmts[i].GetTablename())
 				}
 			}
 		}(it))
@@ -582,5 +604,9 @@ func ptr2ErrInvalidColumnType() **parsing.ErrInvalidColumnType {
 }
 func ptr2ErrMultiTableReference() **parsing.ErrMultiTableReference {
 	var e *parsing.ErrMultiTableReference
+	return &e
+}
+func ptr2ErrInvalidTableName() **parsing.ErrInvalidTableName {
+	var e *parsing.ErrInvalidTableName
 	return &e
 }

@@ -5,6 +5,8 @@ package db
 import (
 	"database/sql"
 	"time"
+
+	"github.com/jackc/pgtype"
 )
 
 type SystemAuth struct {
@@ -18,7 +20,7 @@ type SystemAuth struct {
 type SystemTable struct {
 	Controller  string
 	CreatedAt   time.Time
-	ID          int64
+	ID          pgtype.Numeric
 	Structure   string
 	Description string
 	Name        string

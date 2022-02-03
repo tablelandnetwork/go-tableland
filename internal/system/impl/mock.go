@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math/big"
 
 	"github.com/textileio/go-tableland/internal/system"
+	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 )
 
@@ -20,9 +20,9 @@ func NewSystemMockService() system.SystemService {
 }
 
 // GetTableMetadata returns a fixed value for testing and demo purposes.
-func (*SystemMockService) GetTableMetadata(ctx context.Context, id *big.Int) (sqlstore.TableMetadata, error) {
+func (*SystemMockService) GetTableMetadata(ctx context.Context, id parsing.TableID) (sqlstore.TableMetadata, error) {
 	return sqlstore.TableMetadata{
-		ExternalURL: fmt.Sprintf("https://tableland.com/tables/%d", id),
+		ExternalURL: fmt.Sprintf("https://tableland.com/tables/%s", id),
 		Image:       "https://hub.textile.io/thread/bafkqtqxkgt3moqxwa6rpvtuyigaoiavyewo67r3h7gsz4hov2kys7ha/buckets/bafzbeicpzsc423nuninuvrdsmrwurhv3g2xonnduq4gbhviyo5z4izwk5m/todo-list.png", //nolint
 		Attributes: []sqlstore.TableMetadataAttribute{
 			{
@@ -77,7 +77,7 @@ func NewSystemMockErrService() system.SystemService {
 }
 
 // GetTableMetadata returns a fixed value for testing and demo purposes.
-func (*SystemMockErrService) GetTableMetadata(ctx context.Context, id *big.Int) (sqlstore.TableMetadata, error) {
+func (*SystemMockErrService) GetTableMetadata(ctx context.Context, id parsing.TableID) (sqlstore.TableMetadata, error) {
 	return sqlstore.TableMetadata{}, errors.New("table not found")
 }
 

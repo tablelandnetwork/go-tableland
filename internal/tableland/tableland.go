@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+
+	"github.com/textileio/go-tableland/pkg/parsing"
 )
 
 // CreateTableRequest is a user CreateTable request.
@@ -42,15 +44,13 @@ type Tableland interface {
 	Authorize(context.Context, AuthorizeRequest) error
 }
 
-func ParseReqTableID(hexTableID string) (*big.Int, error) {
-	// "0x"+16-padded
-	if len(hexTableID) != 2+16 {
-		return nil, fmt.Errorf("table id length isn't 18")
-	}
+func ParseReqTableID(strID string) (parsing.TableID, error) {
 	tableID := &big.Int{}
-	tableID.SetString(hexTableID, 16)
-	if tableID.Cmp(&big.Int{}) < 0 {
-		return nil, fmt.Errorf("table id is negative")
+	if _, ok := tableID.SetString(strID, 10); !ok {
+		return parsing.TableID{}, fmt.Errorf("parsing stringified id failed")
 	}
-	return tableID, nil
+	if tableID.Cmp(&big.Int{}) < 0 {
+		return parsing.TableID{}, fmt.Errorf("table id is negative")
+	}
+	return parsing.TableID(*tableID), nil
 }

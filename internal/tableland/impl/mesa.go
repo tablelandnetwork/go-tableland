@@ -98,7 +98,7 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.RunSQLRequest)
 	}
 
 	// Write statements
-	isOwner, err := t.isOwner(ctx, req.Controller, tableID)
+	isOwner, err := t.isOwner(ctx, req.Controller, tableID.ToBigInt())
 	if err != nil {
 		return tableland.RunSQLResponse{}, fmt.Errorf("failed to check authorization: %s", err)
 	}

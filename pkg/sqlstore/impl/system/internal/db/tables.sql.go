@@ -5,13 +5,15 @@ package db
 
 import (
 	"context"
+
+	"github.com/jackc/pgtype"
 )
 
 const getTable = `-- name: GetTable :one
 SELECT controller, created_at, id, structure, description, name FROM system_tables WHERE id = $1
 `
 
-func (q *Queries) GetTable(ctx context.Context, id int64) (SystemTable, error) {
+func (q *Queries) GetTable(ctx context.Context, id pgtype.Numeric) (SystemTable, error) {
 	row := q.db.QueryRow(ctx, getTable, id)
 	var i SystemTable
 	err := row.Scan(

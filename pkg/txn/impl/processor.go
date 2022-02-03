@@ -5,9 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"math/big"
 	"time"
 
+	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/rs/zerolog/log"
@@ -81,14 +81,16 @@ type batch struct {
 // - Executes the CREATE statement.
 func (b *batch) InsertTable(
 	ctx context.Context,
-	id *big.Int,
+	id parsing.TableID,
 	controller string,
 	tableType string,
 	createStmt string) error {
 	f := func(tx pgx.Tx) error {
+		dbID := pgtype.Numeric{}
+		dbID.Set(id.ToBigInt())
 		if _, err := tx.Exec(ctx,
-			`INSERT INTO system_tables ("uuid","controller","type") VALUES ($1,$2,$3);`,
-			uuid, controller, sql.NullString{String: tableType, Valid: true}); err != nil {
+			`INSERT INTO system_tables ("id","controller","type") VALUES ($1,$2,$3);`,
+			dbID, controller, sql.NullString{String: tableType, Valid: true}); err != nil {
 			return fmt.Errorf("inserting new table in system-wide registry: %s", err)
 		}
 		if _, err := tx.Exec(ctx, createStmt); err != nil {

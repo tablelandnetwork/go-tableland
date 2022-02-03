@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math/big"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -14,7 +13,9 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres" // triggers something?
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
+	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system/internal/db"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system/migrations"
@@ -40,8 +41,10 @@ func New(pool *pgxpool.Pool) (*SystemStore, error) {
 }
 
 // GetTable fetchs a table from its UUID.
-func (s *SystemStore) GetTable(ctx context.Context, id *big.Int) (sqlstore.Table, error) {
-	table, err := s.db.GetTable(ctx, id)
+func (s *SystemStore) GetTable(ctx context.Context, id parsing.TableID) (sqlstore.Table, error) {
+	dbID := pgtype.Numeric{}
+	dbID.Set(id.ToBigInt())
+	table, err := s.db.GetTable(ctx, dbID)
 	if err != nil {
 		return sqlstore.Table{}, fmt.Errorf("failed to get the table: %s", err)
 	}
@@ -186,7 +189,7 @@ func executeMigration(postgresURI string, as *bindata.AssetSource) error {
 
 func tableFromSQLToDTO(table db.SystemTable) sqlstore.Table {
 	return sqlstore.Table{
-		ID:          table.ID,
+		ID:          parsing.TableID(*table.ID.Int),
 		Controller:  table.Controller,
 		Name:        table.Name,
 		Description: table.Description,

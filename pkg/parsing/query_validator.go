@@ -23,6 +23,20 @@ type ReadStmt interface {
 	Stmt
 }
 
+// TableID is the ID of a Table.
+type TableID big.Int
+
+func (tid TableID) String() string {
+	bi := (big.Int)(tid)
+	return bi.String()
+}
+func (tid TableID) ToBigInt() *big.Int {
+	bi := (big.Int)(tid)
+	b := &big.Int{}
+	b.Set(&bi)
+	return b
+}
+
 type CreateStmt interface {
 	GetRawQueryForTableID(*big.Int) (string, error)
 	GetStructureHash() string
@@ -37,7 +51,7 @@ type SQLValidator interface {
 	// ValidateRunSQL validates the query and returns an error if isn't allowed.
 	// It returns the table ID extracted from the query, and a read *or* write
 	// statement depending on the query type.
-	ValidateRunSQL(query string) (*big.Int, ReadStmt, []WriteStmt, error)
+	ValidateRunSQL(query string) (TableID, ReadStmt, []WriteStmt, error)
 }
 
 // TablelandColumnType represents an accepted column type for user-tables.
@@ -197,4 +211,12 @@ type ErrMultiTableReference struct {
 
 func (e *ErrMultiTableReference) Error() string {
 	return fmt.Sprintf("queries are referencing two distinct tables: %s %s", e.Ref1, e.Ref2)
+}
+
+// ErrInvalidTableName is an error returned when a query references a table
+// without the right format.
+type ErrInvalidTableName struct{}
+
+func (e *ErrInvalidTableName) Error() string {
+	return "the query references a table name with the wrong format"
 }
