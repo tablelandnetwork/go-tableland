@@ -5,10 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
@@ -21,74 +19,78 @@ import (
 type TablelandMesa struct {
 	store    sqlstore.SQLStore
 	txnp     txn.TxnProcessor
-	registry tableregistry.TableRegistry
 	parser   parsing.SQLValidator
+	registry tableregistry.TableRegistry
 }
 
 // NewTablelandMesa creates a new TablelandMesa.
 func NewTablelandMesa(
 	store sqlstore.SQLStore,
 	registry tableregistry.TableRegistry,
-	parser parsing.SQLValidator,
 	txnp txn.TxnProcessor) tableland.Tableland {
 	return &TablelandMesa{
 		store:    store,
 		registry: registry,
 		txnp:     txnp,
-		parser:   parser,
 	}
 }
 
 // CreateTable allows the user to create a table.
-func (t *TablelandMesa) CreateTable(ctx context.Context, req tableland.Request) (tableland.Response, error) {
+func (t *TablelandMesa) CreateTable(ctx context.Context, req tableland.CreateTableRequest) (tableland.CreateTableResponse, error) {
 	if err := t.authorize(ctx, req.Controller); err != nil {
-		return tableland.Response{}, fmt.Errorf("checking address authorization: %s", err)
+		return tableland.CreateTableResponse{}, fmt.Errorf("checking address authorization: %s", err)
 	}
-
-	uuid, err := uuid.Parse(req.TableID)
+	tableID, err := parseReqTableID(req.ID)
 	if err != nil {
-		return tableland.Response{}, fmt.Errorf("failed to parse uuid: %s", err)
+		return tableland.CreateTableResponse{}, fmt.Errorf("parsing table id: %s", err)
+	}
+	if len(req.Description) > 100 {
+		return tableland.CreateTableResponse{}, fmt.Errorf("description length should be at most 100")
 	}
 
-	if err := t.parser.ValidateCreateTable(req.Statement); err != nil {
-		return tableland.Response{}, fmt.Errorf("query validation: %s", err)
+	createStmt, err := t.parser.ValidateCreateTable(req.Statement)
+	if err != nil {
+		return tableland.CreateTableResponse{}, fmt.Errorf("query validation: %s", err)
 	}
 
 	b, err := t.txnp.OpenBatch(ctx)
 	if err != nil {
-		return tableland.Response{}, fmt.Errorf("opening batch: %s", err)
+		return tableland.CreateTableResponse{}, fmt.Errorf("opening batch: %s", err)
 	}
 	defer func() {
 		if err := b.Close(ctx); err != nil {
 			log.Error().Err(err).Msg("closing batch")
 		}
 	}()
-
-	if err := b.InsertTable(ctx, uuid, req.Controller, req.Type, req.Statement); err != nil {
-		return tableland.Response{}, fmt.Errorf("processing table registration: %s", err)
+	namePrefix, err := b.InsertTable(
+		ctx,
+		tableID,
+		req.Controller,
+		createStmt.GetHash(),
+		createStmt.GetNamePrefix(),
+		req.Description,
+		createStmt.GetRawQuery())
+	if err != nil {
+		return tableland.CreateTableResponse{}, fmt.Errorf("processing table registration: %s", err)
 	}
 	if err := b.Commit(ctx); err != nil {
-		return tableland.Response{}, fmt.Errorf("committing changes: %s", err)
+		return tableland.CreateTableResponse{}, fmt.Errorf("committing changes: %s", err)
 	}
 
 	if err := t.store.IncrementCreateTableCount(ctx, req.Controller); err != nil {
 		log.Error().Err(err).Msg("incrementing create table count")
 	}
 
-	return tableland.Response{Message: "Table created"}, nil
-}
-
-// UpdateTable allows the user to update a table.
-func (t *TablelandMesa) UpdateTable(ctx context.Context, req tableland.Request) (tableland.Response, error) {
-	// this is not going to be implemented
-	return tableland.Response{Message: "Table updated"}, nil
+	return tableland.CreateTableResponse{
+		Tablename: fmt.Sprintf("%s_%s", namePrefix, req.ID),
+	}, nil
 }
 
 // RunSQL allows the user to run SQL.
 func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.Request) (tableland.Response, error) {
-	uuid, err := uuid.Parse(req.TableID)
+	tableID, err := parseReqTableID(req.ID)
 	if err != nil {
-		return tableland.Response{}, fmt.Errorf("failed to parse uuid: %s", err)
+		return tableland.Response{}, fmt.Errorf("parsing table id: %s", err)
 	}
 
 	queryType, writeStmts, err := t.parser.ValidateRunSQL(req.Statement)
@@ -100,7 +102,7 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.Request) (tabl
 	case parsing.ReadQuery:
 		return t.runSelect(ctx, req)
 	case parsing.WriteQuery:
-		isOwner, err := t.isOwner(ctx, req.Controller, uuid)
+		isOwner, err := t.isOwner(ctx, req.Controller, tableID)
 		if err != nil {
 			return tableland.Response{}, fmt.Errorf("failed to check authorization: %s", err)
 		}
@@ -159,18 +161,12 @@ func (t *TablelandMesa) runSelect(ctx context.Context, req tableland.Request) (t
 	return tableland.Response{Message: "Select executed", Data: data}, nil
 }
 
-func (t *TablelandMesa) isOwner(ctx context.Context, controller string, table uuid.UUID) (bool, error) {
-	isOwner, err := t.registry.IsOwner(ctx, common.HexToAddress(controller), t.uuidToBigInt(table))
+func (t *TablelandMesa) isOwner(ctx context.Context, controller string, id *big.Int) (bool, error) {
+	isOwner, err := t.registry.IsOwner(ctx, common.HexToAddress(controller), id)
 	if err != nil {
 		return false, fmt.Errorf("failed to execute contract call: %s", err)
 	}
 	return isOwner, nil
-}
-
-func (t *TablelandMesa) uuidToBigInt(uuid uuid.UUID) *big.Int {
-	var n big.Int
-	n.SetString(strings.Replace(uuid.String(), "-", "", 4), 16)
-	return &n
 }
 
 func (t *TablelandMesa) authorize(ctx context.Context, address string) error {
@@ -190,4 +186,13 @@ func (t *TablelandMesa) incrementRunSQLCount(ctx context.Context, address string
 	if err := t.store.IncrementRunSQLCount(ctx, address); err != nil {
 		log.Error().Err(err).Msg("incrementing run sql count")
 	}
+}
+
+func parseReqTableID(hexTableID string) (*big.Int, error) {
+	tableID := &big.Int{}
+	tableID.SetString(hexTableID, 16)
+	if tableID.Cmp(&big.Int{}) < 0 {
+		return nil, fmt.Errorf("table id is negative")
+	}
+	return tableID, nil
 }

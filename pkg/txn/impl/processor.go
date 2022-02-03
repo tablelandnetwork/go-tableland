@@ -5,9 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math/big"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/rs/zerolog/log"
@@ -17,8 +17,7 @@ import (
 
 // TblTxnProcessor executes mutating actions in a Tableland database.
 type TblTxnProcessor struct {
-	pool *pgxpool.Pool
-
+	pool    *pgxpool.Pool
 	chBatch chan struct{}
 }
 
@@ -44,29 +43,29 @@ func NewTxnProcessor(postgresURI string) (*TblTxnProcessor, error) {
 // OpenBatch starts a new batch of mutating actions to be executed.
 // If a batch is already open, it will wait until is finishes. This is on purpose
 // since mutating actions should be processed serially.
-func (ab *TblTxnProcessor) OpenBatch(ctx context.Context) (txn.Batch, error) {
-	<-ab.chBatch
+func (tp *TblTxnProcessor) OpenBatch(ctx context.Context) (txn.Batch, error) {
+	<-tp.chBatch
 
 	ops := pgx.TxOptions{
 		IsoLevel:   pgx.Serializable,
 		AccessMode: pgx.ReadWrite,
 	}
-	txn, err := ab.pool.BeginTx(ctx, ops)
+	txn, err := tp.pool.BeginTx(ctx, ops)
 	if err != nil {
-		ab.chBatch <- struct{}{}
+		tp.chBatch <- struct{}{}
 		return nil, fmt.Errorf("opening postgres transaction: %s", err)
 	}
 
-	return &batch{txn: txn, p: ab}, nil
+	return &batch{txn: txn, tp: tp}, nil
 }
 
 // Close closes the processor gracefully. It will wait for any pending
 // batch to be closed, or until ctx is canceled.
-func (ab *TblTxnProcessor) Close(ctx context.Context) error {
+func (tp *TblTxnProcessor) Close(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		return errors.New("closing ctx done")
-	case <-ab.chBatch:
+	case <-tp.chBatch:
 		log.Info().Msg("txn processor closed gracefully")
 		return nil
 	}
@@ -74,7 +73,7 @@ func (ab *TblTxnProcessor) Close(ctx context.Context) error {
 
 type batch struct {
 	txn pgx.Tx
-	p   *TblTxnProcessor
+	tp  *TblTxnProcessor
 }
 
 // InsertTable creates a new table in Tableland:
@@ -82,7 +81,7 @@ type batch struct {
 // - Executes the CREATE statement.
 func (b *batch) InsertTable(
 	ctx context.Context,
-	uuid uuid.UUID,
+	id *big.Int,
 	controller string,
 	tableType string,
 	createStmt string) error {
@@ -124,7 +123,7 @@ func (b *batch) ExecWriteQueries(ctx context.Context, wqueries []parsing.WriteSt
 // Close closes gracefully the batch. Clients should *always* `defer Close()` when
 // opening batches.
 func (b *batch) Close(ctx context.Context) error {
-	defer func() { b.p.chBatch <- struct{}{} }()
+	defer func() { b.tp.chBatch <- struct{}{} }()
 
 	// Calling rollback is always safe:
 	// - If Commit() wasn't called, the result is a rollback.

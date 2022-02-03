@@ -4,24 +4,22 @@ import (
 	"context"
 )
 
-// Request is a user request to interact with Tableland.
-type Request struct {
-	TableID    string
-	Type       string
-	Controller string
-	Statement  string
+// CreateTableRequest is a user CreateTable request.
+type CreateTableRequest struct {
+	ID          string `json:"id"`
+	Controller  string `json:"controller"`
+	Statement   string `json:"statement"`
+	Description string `json:"description"`
 }
 
-// Response is a response to a Tableland request.
-type Response struct {
-	Message string      `json:"message"`
-	Data    interface{} `json:"data"`
+// CreateTableResponse is a CreateTable response.
+type CreateTableResponse struct {
+	Tablename string `json:"tablename"`
 }
 
 // Tableland defines the interface of Tableland.
 type Tableland interface {
-	CreateTable(context.Context, Request) (Response, error)
-	UpdateTable(context.Context, Request) (Response, error)
-	RunSQL(context.Context, Request) (Response, error)
-	Authorize(context.Context, Request) error
+	CreateTable(context.Context, CreateTableRequest) (CreateTableResponse, error)
+	RunSQL(context.Context, RunSQLRequest) (RunSQLResponse, error)
+	Authorize(context.Context, AuthorizeRequest) error
 }
