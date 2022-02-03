@@ -37,10 +37,8 @@ type Batch interface {
 		ctx context.Context,
 		id *big.Int,
 		controller string,
-		structure string,
-		name string,
 		description string,
-		createStmt string) (string, error)
+		createStmt parsing.CreateStmt) (string, error)
 	ExecWriteQueries(ctx context.Context, wquery []parsing.WriteStmt) error
 
 	Commit(context.Context) error

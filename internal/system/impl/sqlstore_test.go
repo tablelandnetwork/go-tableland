@@ -3,10 +3,12 @@ package impl
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl"
 	txnimpl "github.com/textileio/go-tableland/pkg/txn/impl"
 	"github.com/textileio/go-tableland/tests"
@@ -26,8 +28,12 @@ func TestSystemSQLStoreService(t *testing.T) {
 	b, err := txnp.OpenBatch(ctx)
 	require.NoError(t, err)
 
-	id := int64(42)
-	err = b.InsertTable(ctx, id, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", "name-1", "descrp-1", `create table foo (bar int)`)
+	parser := parserimpl.New("")
+	id := big.NewInt(42)
+	createStmt, err := parser.ValidateCreateTable("create table foo (bar int)")
+	require.NoError(t, err)
+
+	_, err = b.InsertTable(ctx, id, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", "descrp-1", createStmt)
 	require.NoError(t, err)
 	require.NoError(t, b.Commit(ctx))
 	require.NoError(t, b.Close(ctx))

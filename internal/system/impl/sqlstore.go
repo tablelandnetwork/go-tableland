@@ -3,6 +3,7 @@ package impl
 import (
 	"context"
 	"fmt"
+	"math/big"
 
 	"github.com/textileio/go-tableland/internal/system"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
@@ -25,7 +26,7 @@ func NewSystemSQLStoreService(store sqlstore.SQLStore) system.SystemService {
 }
 
 // GetTableMetadata returns table's metadata fetched from SQLStore.
-func (s *SystemSQLStoreService) GetTableMetadata(ctx context.Context, id int64) (sqlstore.TableMetadata, error) {
+func (s *SystemSQLStoreService) GetTableMetadata(ctx context.Context, id *big.Int) (sqlstore.TableMetadata, error) {
 	table, err := s.store.GetTable(ctx, id)
 	if err != nil {
 		return sqlstore.TableMetadata{}, fmt.Errorf("error fetching the table: %s", err)

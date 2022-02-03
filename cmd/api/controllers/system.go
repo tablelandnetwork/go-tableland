@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/system"
+	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/errors"
 )
 
@@ -29,7 +29,7 @@ func (c *SystemController) GetTable(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-type", "application/json")
 	vars := mux.Vars(r)
 
-	id, err := strconv.ParseInt(vars["id"], 10, 64)
+	id, err := tableland.ParseReqTableID(vars["id"])
 	if err != nil {
 		rw.WriteHeader(http.StatusBadRequest)
 		log.Ctx(ctx).
@@ -48,7 +48,7 @@ func (c *SystemController) GetTable(rw http.ResponseWriter, r *http.Request) {
 		log.Ctx(ctx).
 			Error().
 			Err(err).
-			Int64("id", id).
+			Str("id", id.String()).
 			Msg("failed to fetch metadata")
 
 		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Failed to fetch metadata"})

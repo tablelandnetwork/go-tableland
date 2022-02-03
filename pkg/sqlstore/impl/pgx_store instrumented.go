@@ -2,6 +2,7 @@ package impl
 
 import (
 	"context"
+	"math/big"
 	"time"
 
 	"github.com/textileio/go-tableland/pkg/sqlstore"
@@ -27,7 +28,7 @@ func NewInstrumentedSQLStorePGX(store sqlstore.SQLStore) sqlstore.SQLStore {
 }
 
 // GetTable fetchs a table from its UUID.
-func (s *InstrumentedSQLStorePGX) GetTable(ctx context.Context, id int64) (sqlstore.Table, error) {
+func (s *InstrumentedSQLStorePGX) GetTable(ctx context.Context, id *big.Int) (sqlstore.Table, error) {
 	start := time.Now()
 	table, err := s.store.GetTable(ctx, id)
 	latency := time.Since(start).Milliseconds()
@@ -35,7 +36,7 @@ func (s *InstrumentedSQLStorePGX) GetTable(ctx context.Context, id int64) (sqlst
 	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
 	attributes := []attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("GetTable")},
-		{Key: "id", Value: attribute.Int64Value(id)},
+		{Key: "id", Value: attribute.StringValue(id.String())},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
 	}
 

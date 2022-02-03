@@ -2,6 +2,7 @@ package impl
 
 import (
 	"context"
+	"math/big"
 	"time"
 
 	"github.com/textileio/go-tableland/internal/system"
@@ -28,7 +29,7 @@ func NewInstrumentedSystemSQLStoreService(system system.SystemService) system.Sy
 }
 
 // GetTableMetadata returns table's metadata fetched from SQLStore.
-func (s *InstrumentedSystemSQLStoreService) GetTableMetadata(ctx context.Context, id int64) (sqlstore.TableMetadata, error) {
+func (s *InstrumentedSystemSQLStoreService) GetTableMetadata(ctx context.Context, id *big.Int) (sqlstore.TableMetadata, error) {
 	start := time.Now()
 	metadata, err := s.system.GetTableMetadata(ctx, id)
 	latency := time.Since(start).Milliseconds()
@@ -36,7 +37,7 @@ func (s *InstrumentedSystemSQLStoreService) GetTableMetadata(ctx context.Context
 	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
 	attributes := []attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("GetTableMetadata")},
-		{Key: "id", Value: attribute.Int64Value(id)},
+		{Key: "id", Value: attribute.StringValue(id.String())},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
 	}
 

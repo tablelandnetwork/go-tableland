@@ -2,11 +2,12 @@ package sqlstore
 
 import (
 	"context"
+	"math/big"
 )
 
 // SystemStore defines the methods for interacting with system-wide data.
 type SystemStore interface {
-	GetTable(context.Context, int64) (Table, error)
+	GetTable(context.Context, *big.Int) (Table, error)
 	GetTablesByController(context.Context, string) ([]Table, error)
 	Authorize(context.Context, string) error
 	Revoke(context.Context, string) error

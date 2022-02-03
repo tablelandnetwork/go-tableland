@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -39,7 +40,7 @@ func New(pool *pgxpool.Pool) (*SystemStore, error) {
 }
 
 // GetTable fetchs a table from its UUID.
-func (s *SystemStore) GetTable(ctx context.Context, id int64) (sqlstore.Table, error) {
+func (s *SystemStore) GetTable(ctx context.Context, id *big.Int) (sqlstore.Table, error) {
 	table, err := s.db.GetTable(ctx, id)
 	if err != nil {
 		return sqlstore.Table{}, fmt.Errorf("failed to get the table: %s", err)

@@ -27,10 +27,12 @@ type TablelandMesa struct {
 func NewTablelandMesa(
 	store sqlstore.SQLStore,
 	registry tableregistry.TableRegistry,
+	parser parsing.SQLValidator,
 	txnp txn.TxnProcessor) tableland.Tableland {
 	return &TablelandMesa{
 		store:    store,
 		registry: registry,
+		parser:   parser,
 		txnp:     txnp,
 	}
 }
@@ -40,7 +42,7 @@ func (t *TablelandMesa) CreateTable(ctx context.Context, req tableland.CreateTab
 	if err := t.authorize(ctx, req.Controller); err != nil {
 		return tableland.CreateTableResponse{}, fmt.Errorf("checking address authorization: %s", err)
 	}
-	tableID, err := parseReqTableID(req.ID)
+	tableID, err := tableland.ParseReqTableID(req.ID)
 	if err != nil {
 		return tableland.CreateTableResponse{}, fmt.Errorf("parsing table id: %s", err)
 	}
@@ -180,13 +182,4 @@ func (t *TablelandMesa) incrementRunSQLCount(ctx context.Context, address string
 	if err := t.store.IncrementRunSQLCount(ctx, address); err != nil {
 		log.Error().Err(err).Msg("incrementing run sql count")
 	}
-}
-
-func parseReqTableID(hexTableID string) (*big.Int, error) {
-	tableID := &big.Int{}
-	tableID.SetString(hexTableID, 16)
-	if tableID.Cmp(&big.Int{}) < 0 {
-		return nil, fmt.Errorf("table id is negative")
-	}
-	return tableID, nil
 }

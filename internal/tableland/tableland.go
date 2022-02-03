@@ -2,6 +2,8 @@ package tableland
 
 import (
 	"context"
+	"fmt"
+	"math/big"
 )
 
 // CreateTableRequest is a user CreateTable request.
@@ -38,4 +40,13 @@ type Tableland interface {
 	CreateTable(context.Context, CreateTableRequest) (CreateTableResponse, error)
 	RunSQL(context.Context, RunSQLRequest) (RunSQLResponse, error)
 	Authorize(context.Context, AuthorizeRequest) error
+}
+
+func ParseReqTableID(hexTableID string) (*big.Int, error) {
+	tableID := &big.Int{}
+	tableID.SetString(hexTableID, 16)
+	if tableID.Cmp(&big.Int{}) < 0 {
+		return nil, fmt.Errorf("table id is negative")
+	}
+	return tableID, nil
 }
