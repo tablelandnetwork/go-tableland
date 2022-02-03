@@ -2,8 +2,8 @@ package txn
 
 import (
 	"context"
-	"math/big"
 
+	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
 )
 
@@ -35,7 +35,7 @@ type TxnProcessor interface {
 type Batch interface {
 	InsertTable(
 		ctx context.Context,
-		id *big.Int,
+		id tableland.TableID,
 		controller string,
 		description string,
 		createStmt parsing.CreateStmt) (string, error)

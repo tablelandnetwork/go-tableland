@@ -15,7 +15,7 @@ import (
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/textileio/go-tableland/pkg/parsing"
+	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system/internal/db"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system/migrations"
@@ -41,7 +41,7 @@ func New(pool *pgxpool.Pool) (*SystemStore, error) {
 }
 
 // GetTable fetchs a table from its UUID.
-func (s *SystemStore) GetTable(ctx context.Context, id parsing.TableID) (sqlstore.Table, error) {
+func (s *SystemStore) GetTable(ctx context.Context, id tableland.TableID) (sqlstore.Table, error) {
 	dbID := pgtype.Numeric{}
 	dbID.Set(id.ToBigInt())
 	table, err := s.db.GetTable(ctx, dbID)
@@ -189,7 +189,7 @@ func executeMigration(postgresURI string, as *bindata.AssetSource) error {
 
 func tableFromSQLToDTO(table db.SystemTable) sqlstore.Table {
 	return sqlstore.Table{
-		ID:          parsing.TableID(*table.ID.Int),
+		ID:          tableland.TableID(*table.ID.Int),
 		Controller:  table.Controller,
 		Name:        table.Name,
 		Description: table.Description,

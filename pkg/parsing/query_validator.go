@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/jackc/pgtype"
+	"github.com/textileio/go-tableland/internal/tableland"
 )
 
 type Stmt interface {
@@ -23,20 +24,6 @@ type ReadStmt interface {
 	Stmt
 }
 
-// TableID is the ID of a Table.
-type TableID big.Int
-
-func (tid TableID) String() string {
-	bi := (big.Int)(tid)
-	return bi.String()
-}
-func (tid TableID) ToBigInt() *big.Int {
-	bi := (big.Int)(tid)
-	b := &big.Int{}
-	b.Set(&bi)
-	return b
-}
-
 type CreateStmt interface {
 	GetRawQueryForTableID(*big.Int) (string, error)
 	GetStructureHash() string
@@ -51,7 +38,7 @@ type SQLValidator interface {
 	// ValidateRunSQL validates the query and returns an error if isn't allowed.
 	// It returns the table ID extracted from the query, and a read *or* write
 	// statement depending on the query type.
-	ValidateRunSQL(query string) (TableID, ReadStmt, []WriteStmt, error)
+	ValidateRunSQL(query string) (tableland.TableID, ReadStmt, []WriteStmt, error)
 }
 
 // TablelandColumnType represents an accepted column type for user-tables.

@@ -2,9 +2,9 @@ package impl
 
 import (
 	"context"
-	"math/big"
 	"time"
 
+	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -28,7 +28,7 @@ func NewInstrumentedSQLStorePGX(store sqlstore.SQLStore) sqlstore.SQLStore {
 }
 
 // GetTable fetchs a table from its UUID.
-func (s *InstrumentedSQLStorePGX) GetTable(ctx context.Context, id *big.Int) (sqlstore.Table, error) {
+func (s *InstrumentedSQLStorePGX) GetTable(ctx context.Context, id tableland.TableID) (sqlstore.Table, error) {
 	start := time.Now()
 	table, err := s.store.GetTable(ctx, id)
 	latency := time.Since(start).Milliseconds()

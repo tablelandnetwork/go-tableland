@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	pg_query "github.com/pganalyze/pg_query_go/v2"
+	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
 )
 
@@ -77,7 +78,7 @@ func (pp *QueryValidator) ValidateCreateTable(query string) (parsing.CreateStmt,
 
 // ValidateRunSQL validates the query and returns an error if isn't allowed.
 // If the query validates correctly, it returns the query type and nil.
-func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.TableID, parsing.ReadStmt, []parsing.WriteStmt, error) {
+func (pp *QueryValidator) ValidateRunSQL(query string) (tableland.TableID, parsing.ReadStmt, []parsing.WriteStmt, error) {
 	parsed, err := pg_query.Parse(query)
 	if err != nil {
 		return parsing.UndefinedQuery, nil, &parsing.ErrInvalidSyntax{InternalError: err}
@@ -530,7 +531,7 @@ type createStmt struct {
 
 var _ parsing.CreateStmt = (*createStmt)(nil)
 
-func (cs *createStmt) GetRawQueryForTableID(id parsing.TableID) (string, error) {
+func (cs *createStmt) GetRawQueryForTableID(id tableland.TableID) (string, error) {
 	parsedTree := &pg_query.ParseResult{}
 
 	cs.cNode.GetCreateStmt().Relation.Relname = "t" + fmt.Sprintf("0x%016x", id)

@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math/big"
-
-	"github.com/textileio/go-tableland/pkg/parsing"
 )
 
 // CreateTableRequest is a user CreateTable request.
@@ -44,13 +42,27 @@ type Tableland interface {
 	Authorize(context.Context, AuthorizeRequest) error
 }
 
-func ParseReqTableID(strID string) (parsing.TableID, error) {
+// TableID is the ID of a Table.
+type TableID big.Int
+
+func (tid TableID) String() string {
+	bi := (big.Int)(tid)
+	return bi.String()
+}
+func (tid TableID) ToBigInt() *big.Int {
+	bi := (big.Int)(tid)
+	b := &big.Int{}
+	b.Set(&bi)
+	return b
+}
+
+func NewTableID(strID string) (TableID, error) {
 	tableID := &big.Int{}
 	if _, ok := tableID.SetString(strID, 10); !ok {
-		return parsing.TableID{}, fmt.Errorf("parsing stringified id failed")
+		return TableID{}, fmt.Errorf("parsing stringified id failed")
 	}
 	if tableID.Cmp(&big.Int{}) < 0 {
-		return parsing.TableID{}, fmt.Errorf("table id is negative")
+		return TableID{}, fmt.Errorf("table id is negative")
 	}
-	return parsing.TableID(*tableID), nil
+	return TableID(*tableID), nil
 }

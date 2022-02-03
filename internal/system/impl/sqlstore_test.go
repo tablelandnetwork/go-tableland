@@ -3,11 +3,11 @@ package impl
 import (
 	"context"
 	"fmt"
-	"math/big"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/textileio/go-tableland/internal/tableland"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl"
 	txnimpl "github.com/textileio/go-tableland/pkg/txn/impl"
@@ -29,7 +29,7 @@ func TestSystemSQLStoreService(t *testing.T) {
 	require.NoError(t, err)
 
 	parser := parserimpl.New("")
-	id := big.NewInt(42)
+	id, _ := tableland.NewTableID("42")
 	createStmt, err := parser.ValidateCreateTable("create table foo (bar int)")
 	require.NoError(t, err)
 
@@ -42,7 +42,7 @@ func TestSystemSQLStoreService(t *testing.T) {
 	metadata, err := svc.GetTableMetadata(ctx, id)
 	require.NoError(t, err)
 
-	require.Equal(t, fmt.Sprintf("https://tableland.com/tables/%d", id), metadata.ExternalURL)
+	require.Equal(t, fmt.Sprintf("https://tableland.com/tables/%s", id), metadata.ExternalURL)
 	require.Equal(t, "https://hub.textile.io/thread/bafkqtqxkgt3moqxwa6rpvtuyigaoiavyewo67r3h7gsz4hov2kys7ha/buckets/bafzbeicpzsc423nuninuvrdsmrwurhv3g2xonnduq4gbhviyo5z4izwk5m/todo-list.png", metadata.Image) //nolint
 	require.Equal(t, "date", metadata.Attributes[0].DisplayType)
 	require.Equal(t, "created", metadata.Attributes[0].TraitType)

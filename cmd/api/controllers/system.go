@@ -29,7 +29,7 @@ func (c *SystemController) GetTable(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-type", "application/json")
 	vars := mux.Vars(r)
 
-	id, err := tableland.ParseReqTableID(vars["id"])
+	id, err := tableland.NewTableID(vars["id"])
 	if err != nil {
 		rw.WriteHeader(http.StatusBadRequest)
 		log.Ctx(ctx).

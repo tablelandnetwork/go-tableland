@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/rs/zerolog/log"
+	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/txn"
 )
@@ -81,10 +82,10 @@ type batch struct {
 // - Executes the CREATE statement.
 func (b *batch) InsertTable(
 	ctx context.Context,
-	id parsing.TableID,
+	id tableland.TableID,
 	controller string,
 	tableType string,
-	createStmt string) error {
+	createStmt parsing.CreateStmt) error {
 	f := func(tx pgx.Tx) error {
 		dbID := pgtype.Numeric{}
 		dbID.Set(id.ToBigInt())

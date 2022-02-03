@@ -42,7 +42,7 @@ func (t *TablelandMesa) CreateTable(ctx context.Context, req tableland.CreateTab
 	if err := t.authorize(ctx, req.Controller); err != nil {
 		return tableland.CreateTableResponse{}, fmt.Errorf("checking address authorization: %s", err)
 	}
-	tableID, err := tableland.ParseReqTableID(req.ID)
+	tableID, err := tableland.NewTableID(req.ID)
 	if err != nil {
 		return tableland.CreateTableResponse{}, fmt.Errorf("parsing table id: %s", err)
 	}

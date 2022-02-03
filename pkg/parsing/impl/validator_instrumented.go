@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
+	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -47,7 +48,7 @@ func (ip *InstrumentedSQLValidator) ValidateCreateTable(query string) (parsing.C
 }
 
 // ValidateRunSQL register metrics for its corresponding wrapped parser.
-func (ip *InstrumentedSQLValidator) ValidateRunSQL(query string) (parsing.TableID, parsing.ReadStmt, []parsing.WriteStmt, error) {
+func (ip *InstrumentedSQLValidator) ValidateRunSQL(query string) (tableland.TableID, parsing.ReadStmt, []parsing.WriteStmt, error) {
 	log.Debug().Str("query", query).Msg("call ValidateRunSQL")
 	start := time.Now()
 	readStmt, writeStmts, err := ip.parser.ValidateRunSQL(query)

@@ -3,12 +3,12 @@ package sqlstore
 import (
 	"context"
 
-	"github.com/textileio/go-tableland/pkg/parsing"
+	"github.com/textileio/go-tableland/internal/tableland"
 )
 
 // SystemStore defines the methods for interacting with system-wide data.
 type SystemStore interface {
-	GetTable(context.Context, parsing.TableID) (Table, error)
+	GetTable(context.Context, tableland.TableID) (Table, error)
 	GetTablesByController(context.Context, string) ([]Table, error)
 	Authorize(context.Context, string) error
 	Revoke(context.Context, string) error
