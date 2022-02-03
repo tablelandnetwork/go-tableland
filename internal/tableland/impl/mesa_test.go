@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/tableland"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
@@ -24,24 +23,22 @@ func TestTodoAppWorkflow(t *testing.T) {
 
 	ctx := context.Background()
 	tbld := newTablelandMesa(t)
-	baseReq := tableland.Request{
-		TableID:    uuid.New().String(),
-		Type:       "type-1",
-		Controller: "ctrl-1",
-	}
-	// creates todo app table
-	{
-		req := baseReq
-		req.Statement = `CREATE TABLE todoapp (
+
+	req := tableland.CreateTableRequest{
+		ID:          "0x000abc",
+		Description: "descrip-1",
+		Controller:  "ctrl-1",
+		Statement: `CREATE TABLE todoapp (
 			complete BOOLEAN DEFAULT false,
 			name     VARCHAR DEFAULT '',
 			deleted  BOOLEAN DEFAULT false,
 			id       SERIAL
-		  );`
-		_, err := tbld.CreateTable(ctx, req)
-		require.NoError(t, err)
+		  );`,
 	}
-	processCSV(t, baseReq, tbld, "testdata/todoapp_queries.csv")
+	_, err := tbld.CreateTable(ctx, req)
+	require.NoError(t, err)
+
+	processCSV(t, req.Controller, tbld, "testdata/todoapp_queries.csv")
 }
 
 func TestInsertOnConflict(t *testing.T) {
@@ -50,23 +47,24 @@ func TestInsertOnConflict(t *testing.T) {
 	ctx := context.Background()
 	tbld := newTablelandMesa(t)
 
-	baseReq := tableland.Request{
-		TableID:    uuid.New().String(),
-		Type:       "type-1",
-		Controller: "ctrl-1",
-	}
-
 	{
-		req := baseReq
-		req.Statement = `CREATE TABLE foo (
+		req := tableland.CreateTableRequest{
+			ID:          "0x000abc",
+			Description: "descrip-1",
+			Controller:  "ctrl-1",
+			Statement: `CREATE TABLE foo (
 			name text unique,
 			count int 
-		);`
+		);`,
+		}
 		_, err := tbld.CreateTable(ctx, req)
 		require.NoError(t, err)
 	}
 
 	{
+		baseReq := tableland.RunSQLRequest{
+			Controller: "ctrl-1",
+		}
 		req := baseReq
 		for i := 0; i < 10; i++ {
 			req.Statement = `INSERT INTO foo values ('bar', 0) ON CONFLICT (name) DO UPDATE SET count=foo.count+1`
@@ -77,7 +75,7 @@ func TestInsertOnConflict(t *testing.T) {
 		req.Statement = "SELECT count from foo"
 		res, err := tbld.RunSQL(ctx, req)
 		require.NoError(t, err)
-		js, err := json.Marshal(res.Data)
+		js, err := json.Marshal(res.Result)
 		require.NoError(t, err)
 		require.JSONEq(t, `{"columns":[{"name":"count"}],"rows":[[9]]}`, string(js))
 	}
@@ -89,31 +87,31 @@ func TestMultiStatement(t *testing.T) {
 	ctx := context.Background()
 	tbld := newTablelandMesa(t)
 
-	baseReq := tableland.Request{
-		TableID:    uuid.New().String(),
-		Type:       "type-1",
-		Controller: "ctrl-1",
-	}
-
 	{
-		req := baseReq
-		req.Statement = `CREATE TABLE foo (
+		req := tableland.CreateTableRequest{
+			ID:          "0x000abc",
+			Description: "descrp-1",
+			Controller:  "ctrl-1",
+			Statement: `CREATE TABLE foo (
 			name text unique
-		);`
+		);`,
+		}
 		_, err := tbld.CreateTable(ctx, req)
 		require.NoError(t, err)
 	}
 
 	{
-		req := baseReq
-		req.Statement = `INSERT INTO foo values ('bar'); UPDATE foo SET name='zoo'`
+		req := tableland.RunSQLRequest{
+			Controller: "ctrl-1",
+			Statement:  `INSERT INTO foo values ('bar'); UPDATE foo SET name='zoo'`,
+		}
 		_, err := tbld.RunSQL(ctx, req)
 		require.NoError(t, err)
 
 		req.Statement = "SELECT name from foo"
 		res, err := tbld.RunSQL(ctx, req)
 		require.NoError(t, err)
-		js, err := json.Marshal(res.Data)
+		js, err := json.Marshal(res.Result)
 		require.NoError(t, err)
 		require.JSONEq(t, `{"columns":[{"name":"name"}],"rows":[["zoo"]]}`, string(js))
 	}
@@ -125,24 +123,23 @@ func TestJSON(t *testing.T) {
 	ctx := context.Background()
 	tbld := newTablelandMesa(t)
 
-	baseReq := tableland.Request{
-		TableID:    uuid.New().String(),
-		Type:       "type-1",
-		Controller: "ctrl-1",
+	req := tableland.CreateTableRequest{
+		ID:          "0x000abc",
+		Description: "descrp-1",
+		Controller:  "ctrl-1",
+		Statement:   `CREATE TABLE foo (myjson JSON);`,
 	}
+	_, err := tbld.CreateTable(ctx, req)
+	require.NoError(t, err)
 
-	{
-		req := baseReq
-		req.Statement = `CREATE TABLE foo (myjson JSON);`
-		_, err := tbld.CreateTable(ctx, req)
-		require.NoError(t, err)
-	}
-
-	processCSV(t, baseReq, tbld, "testdata/json_queries.csv")
+	processCSV(t, req.Controller, tbld, "testdata/json_queries.csv")
 }
 
-func processCSV(t *testing.T, baseReq tableland.Request, tbld tableland.Tableland, csvPath string) {
+func processCSV(t *testing.T, controller string, tbld tableland.Tableland, csvPath string) {
 	t.Helper()
+	baseReq := tableland.RunSQLRequest{
+		Controller: controller,
+	}
 	records := readCsvFile(csvPath)
 	for _, record := range records {
 		req := baseReq
@@ -151,7 +148,7 @@ func processCSV(t *testing.T, baseReq tableland.Request, tbld tableland.Tablelan
 		require.NoError(t, err)
 
 		if record[0] == "r" {
-			b, err := json.Marshal(r.Data)
+			b, err := json.Marshal(r.Result)
 			require.NoError(t, err)
 			require.JSONEq(t, record[2], string(b))
 		}

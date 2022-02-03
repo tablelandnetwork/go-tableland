@@ -43,6 +43,10 @@ type Tableland interface {
 }
 
 func ParseReqTableID(hexTableID string) (*big.Int, error) {
+	// "0x"+16-padded
+	if len(hexTableID) != 2+16 {
+		return nil, fmt.Errorf("table id length isn't 18")
+	}
 	tableID := &big.Int{}
 	tableID.SetString(hexTableID, 16)
 	if tableID.Cmp(&big.Int{}) < 0 {

@@ -83,33 +83,32 @@ func (t *TablelandMesa) CreateTable(ctx context.Context, req tableland.CreateTab
 
 // RunSQL allows the user to run SQL.
 func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.RunSQLRequest) (tableland.RunSQLResponse, error) {
-	queryType, tableID, writeStmts, err := t.parser.ValidateRunSQL(req.Statement)
+	tableID, readStmt, writeStmts, err := t.parser.ValidateRunSQL(req.Statement)
 	if err != nil {
 		return tableland.RunSQLResponse{}, fmt.Errorf("validating query: %s", err)
 	}
 
-	switch queryType {
-	case parsing.ReadQuery:
+	// Read statement
+	if readStmt != nil {
 		queryResult, err := t.runSelect(ctx, req)
 		if err != nil {
 			return tableland.RunSQLResponse{}, fmt.Errorf("running read statement: %s", err)
 		}
 		return tableland.RunSQLResponse{Result: queryResult}, nil
-	case parsing.WriteQuery:
-		isOwner, err := t.isOwner(ctx, req.Controller, tableID)
-		if err != nil {
-			return tableland.RunSQLResponse{}, fmt.Errorf("failed to check authorization: %s", err)
-		}
-		if !isOwner {
-			return tableland.RunSQLResponse{}, errors.New("you aren't authorized")
-		}
-		if err := t.runInsertOrUpdate(ctx, req.Controller, writeStmts); err != nil {
-			return tableland.RunSQLResponse{}, fmt.Errorf("running statement: %s", err)
-		}
-		return tableland.RunSQLResponse{}, nil
 	}
 
-	return tableland.RunSQLResponse{}, errors.New("invalid command")
+	// Write statements
+	isOwner, err := t.isOwner(ctx, req.Controller, tableID)
+	if err != nil {
+		return tableland.RunSQLResponse{}, fmt.Errorf("failed to check authorization: %s", err)
+	}
+	if !isOwner {
+		return tableland.RunSQLResponse{}, errors.New("you aren't authorized")
+	}
+	if err := t.runInsertOrUpdate(ctx, req.Controller, writeStmts); err != nil {
+		return tableland.RunSQLResponse{}, fmt.Errorf("running statement: %s", err)
+	}
+	return tableland.RunSQLResponse{}, nil
 }
 
 // Authorize is a convenience API giving the client something to call to trigger authorization.

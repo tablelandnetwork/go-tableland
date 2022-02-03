@@ -78,7 +78,7 @@ func (pp *QueryValidator) ValidateCreateTable(query string) (parsing.CreateStmt,
 
 // ValidateRunSQL validates the query and returns an error if isn't allowed.
 // If the query validates correctly, it returns the query type and nil.
-func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.QueryType, []parsing.WriteStmt, error) {
+func (pp *QueryValidator) ValidateRunSQL(query string) (*big.Int, parsing.ReadStmt, []parsing.WriteStmt, error) {
 	parsed, err := pg_query.Parse(query)
 	if err != nil {
 		return parsing.UndefinedQuery, nil, &parsing.ErrInvalidSyntax{InternalError: err}

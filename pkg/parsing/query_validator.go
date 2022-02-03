@@ -7,23 +7,20 @@ import (
 	"github.com/jackc/pgtype"
 )
 
-// QueryType indicates the query type.
-type QueryType string
-
-const (
-	// UndefinedQuery is an undefined query type.
-	UndefinedQuery QueryType = "undefined"
-	// ReadQuery is a read query.
-	ReadQuery = "read"
-	// WriteQuery is a write query.
-	WriteQuery = "write"
-)
+type Stmt interface {
+	GetRawQuery() string
+}
 
 // WriteStmt is an already parsed write statement that satisfies all
 // the parser validations.
 type WriteStmt interface {
-	GetRawQuery() string
-	GetTablename() string
+	Stmt
+}
+
+// ReadStmt is an already parsed read statement that satisfies all
+// the parser validations.
+type ReadStmt interface {
+	Stmt
 }
 
 type CreateStmt interface {
@@ -38,8 +35,9 @@ type SQLValidator interface {
 	// if the CREATE statement isn't allowed. Returns nil otherwise.
 	ValidateCreateTable(query string) (CreateStmt, error)
 	// ValidateRunSQL validates the query and returns an error if isn't allowed.
-	// If the query validates correctly, it returns the query type and nil.
-	ValidateRunSQL(query string) (QueryType, []WriteStmt, error)
+	// It returns the table ID extracted from the query, and a read *or* write
+	// statement depending on the query type.
+	ValidateRunSQL(query string) (*big.Int, ReadStmt, []WriteStmt, error)
 }
 
 // TablelandColumnType represents an accepted column type for user-tables.
