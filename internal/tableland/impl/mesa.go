@@ -62,14 +62,7 @@ func (t *TablelandMesa) CreateTable(ctx context.Context, req tableland.CreateTab
 			log.Error().Err(err).Msg("closing batch")
 		}
 	}()
-	namePrefix, err := b.InsertTable(
-		ctx,
-		tableID,
-		req.Controller,
-		createStmt.GetHash(),
-		createStmt.GetNamePrefix(),
-		req.Description,
-		createStmt.GetRawQuery())
+	namePrefix, err := b.InsertTable(ctx, tableID, req.Controller, req.Description, createStmt)
 	if err != nil {
 		return tableland.CreateTableResponse{}, fmt.Errorf("processing table registration: %s", err)
 	}
@@ -88,7 +81,7 @@ func (t *TablelandMesa) CreateTable(ctx context.Context, req tableland.CreateTab
 
 // RunSQL allows the user to run SQL.
 func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.RunSQLRequest) (tableland.RunSQLResponse, error) {
-	queryType, writeStmts, err := t.parser.ValidateRunSQL(req.Statement)
+	queryType, tableID, writeStmts, err := t.parser.ValidateRunSQL(req.Statement)
 	if err != nil {
 		return tableland.RunSQLResponse{}, fmt.Errorf("validating query: %s", err)
 	}

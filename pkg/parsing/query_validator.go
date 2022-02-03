@@ -2,6 +2,7 @@ package parsing
 
 import (
 	"fmt"
+	"math/big"
 
 	"github.com/jackc/pgtype"
 )
@@ -25,11 +26,17 @@ type WriteStmt interface {
 	GetTablename() string
 }
 
+type CreateStmt interface {
+	GetRawQueryForTableID(*big.Int) (string, error)
+	GetStructureHash() string
+	GetNamePrefix() string
+}
+
 // SQLValidator parses and validate a SQL query for different supported scenarios.
 type SQLValidator interface {
 	// ValidateCreateTable validates the provided query and returns an error
 	// if the CREATE statement isn't allowed. Returns nil otherwise.
-	ValidateCreateTable(query string) error
+	ValidateCreateTable(query string) (CreateStmt, error)
 	// ValidateRunSQL validates the query and returns an error if isn't allowed.
 	// If the query validates correctly, it returns the query type and nil.
 	ValidateRunSQL(query string) (QueryType, []WriteStmt, error)
