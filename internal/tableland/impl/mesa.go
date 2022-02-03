@@ -87,37 +87,38 @@ func (t *TablelandMesa) CreateTable(ctx context.Context, req tableland.CreateTab
 }
 
 // RunSQL allows the user to run SQL.
-func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.Request) (tableland.Response, error) {
-	tableID, err := parseReqTableID(req.ID)
-	if err != nil {
-		return tableland.Response{}, fmt.Errorf("parsing table id: %s", err)
-	}
-
+func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.RunSQLRequest) (tableland.RunSQLResponse, error) {
 	queryType, writeStmts, err := t.parser.ValidateRunSQL(req.Statement)
 	if err != nil {
-		return tableland.Response{}, fmt.Errorf("validating query: %s", err)
+		return tableland.RunSQLResponse{}, fmt.Errorf("validating query: %s", err)
 	}
 
 	switch queryType {
 	case parsing.ReadQuery:
-		return t.runSelect(ctx, req)
+		queryResult, err := t.runSelect(ctx, req)
+		if err != nil {
+			return tableland.RunSQLResponse{}, fmt.Errorf("running read statement: %s", err)
+		}
+		return tableland.RunSQLResponse{Result: queryResult}, nil
 	case parsing.WriteQuery:
 		isOwner, err := t.isOwner(ctx, req.Controller, tableID)
 		if err != nil {
-			return tableland.Response{}, fmt.Errorf("failed to check authorization: %s", err)
+			return tableland.RunSQLResponse{}, fmt.Errorf("failed to check authorization: %s", err)
 		}
-
 		if !isOwner {
-			return tableland.Response{}, errors.New("you aren't authorized")
+			return tableland.RunSQLResponse{}, errors.New("you aren't authorized")
 		}
-		return t.runInsertOrUpdate(ctx, req.Controller, writeStmts)
+		if err := t.runInsertOrUpdate(ctx, req.Controller, writeStmts); err != nil {
+			return tableland.RunSQLResponse{}, fmt.Errorf("running statement: %s", err)
+		}
+		return tableland.RunSQLResponse{}, nil
 	}
 
-	return tableland.Response{}, errors.New("invalid command")
+	return tableland.RunSQLResponse{}, errors.New("invalid command")
 }
 
 // Authorize is a convenience API giving the client something to call to trigger authorization.
-func (t *TablelandMesa) Authorize(ctx context.Context, req tableland.Request) error {
+func (t *TablelandMesa) Authorize(ctx context.Context, req tableland.AuthorizeRequest) error {
 	if err := t.authorize(ctx, req.Controller); err != nil {
 		return fmt.Errorf("checking address authorization: %s", err)
 	}
@@ -127,10 +128,10 @@ func (t *TablelandMesa) Authorize(ctx context.Context, req tableland.Request) er
 func (t *TablelandMesa) runInsertOrUpdate(
 	ctx context.Context,
 	controller string,
-	ws []parsing.WriteStmt) (tableland.Response, error) {
+	ws []parsing.WriteStmt) error {
 	b, err := t.txnp.OpenBatch(ctx)
 	if err != nil {
-		return tableland.Response{}, fmt.Errorf("opening batch: %s", err)
+		return fmt.Errorf("opening batch: %s", err)
 	}
 	defer func() {
 		if err := b.Close(ctx); err != nil {
@@ -138,27 +139,27 @@ func (t *TablelandMesa) runInsertOrUpdate(
 		}
 	}()
 	if err := b.ExecWriteQueries(ctx, ws); err != nil {
-		return tableland.Response{}, fmt.Errorf("executing write-query: %s", err)
+		return fmt.Errorf("executing write-query: %s", err)
 	}
 
 	if err := b.Commit(ctx); err != nil {
-		return tableland.Response{}, fmt.Errorf("committing changes: %s", err)
+		return fmt.Errorf("committing changes: %s", err)
 	}
 
 	t.incrementRunSQLCount(ctx, controller)
 
-	return tableland.Response{Message: "Command executed"}, nil
+	return nil
 }
 
-func (t *TablelandMesa) runSelect(ctx context.Context, req tableland.Request) (tableland.Response, error) {
-	data, err := t.store.Read(ctx, req.Statement)
+func (t *TablelandMesa) runSelect(ctx context.Context, req tableland.RunSQLRequest) (interface{}, error) {
+	queryResult, err := t.store.Read(ctx, req.Statement)
 	if err != nil {
-		return tableland.Response{}, fmt.Errorf("executing read-query: %s", err)
+		return nil, fmt.Errorf("executing read-query: %s", err)
 	}
 
 	t.incrementRunSQLCount(ctx, req.Controller)
 
-	return tableland.Response{Message: "Select executed", Data: data}, nil
+	return queryResult, nil
 }
 
 func (t *TablelandMesa) isOwner(ctx context.Context, controller string, id *big.Int) (bool, error) {

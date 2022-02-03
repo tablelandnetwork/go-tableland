@@ -17,6 +17,22 @@ type CreateTableResponse struct {
 	Tablename string `json:"tablename"`
 }
 
+// RunSQLRequest is a user RunSQL request.
+type RunSQLRequest struct {
+	Controller string `json:"controller"`
+	Statement  string `json:"statement"`
+}
+
+// RunSQLResponse is a RunSQL response.
+type RunSQLResponse struct {
+	Result interface{} `json:"data"`
+}
+
+// AuthorizeRequest is a user Authorize request.
+type AuthorizeRequest struct {
+	Controller string `json:"controller"`
+}
+
 // Tableland defines the interface of Tableland.
 type Tableland interface {
 	CreateTable(context.Context, CreateTableRequest) (CreateTableResponse, error)
