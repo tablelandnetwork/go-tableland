@@ -2,6 +2,7 @@ package impl_test
 
 import (
 	"fmt"
+	"math/big"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -265,7 +266,7 @@ func TestRunSQL(t *testing.T) {
 	}
 }
 
-func TestCreateTable(t *testing.T) {
+func TestCreateTableChecks(t *testing.T) {
 	t.Parallel()
 
 	type testCase struct {
@@ -407,12 +408,81 @@ func TestCreateTable(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
 				parser := postgresparser.New("system_")
-				err := parser.ValidateCreateTable(tc.query)
+				_, err := parser.ValidateCreateTable(tc.query)
 				if tc.expErrType == nil {
 					require.NoError(t, err)
 					return
 				}
 				require.ErrorAs(t, err, tc.expErrType)
+			}
+		}(it))
+	}
+}
+
+func TestCreateTableResult(t *testing.T) {
+	t.Parallel()
+
+	type rawQueryTableID struct {
+		id       int64
+		rawQuery string
+	}
+
+	type testCase struct {
+		name             string
+		query            string
+		expNamePrefix    string
+		expStructureHash string
+
+		expRawQueries []rawQueryTableID
+	}
+	tests := []testCase{
+		{
+			name: "single col",
+			query: `create table foo (
+				   bar int
+			       )`,
+			expNamePrefix: "foo",
+			// sha256(bar int4)
+			expStructureHash: "60b0e90a94273211e4836dc11d8eebd96e8020ce3408dd112ba9c42e762fe3cc",
+			expRawQueries: []rawQueryTableID{
+				{id: 1, rawQuery: "CREATE TABLE t0x0000000000000001 (bar int)"},
+				{id: 42, rawQuery: "CREATE TABLE t0x000000000000002a (bar int)"},
+				{id: 2929392, rawQuery: "CREATE TABLE t0x00000000002cb2f0 (bar int)"},
+			},
+		},
+		{
+			name: "multiple cols",
+			query: `create table person (
+				   name text,
+				   age int,
+				   fav_color varchar(10)
+			       )`,
+			expNamePrefix: "person",
+			// sha256(name:text,age:int4,fav_color:varchar)
+			expStructureHash: "3e846cb815f96b1a572246e1bf5eb5eec8a93598aa4a9741e7dade425ff2dc69",
+			expRawQueries: []rawQueryTableID{
+				{id: 1, rawQuery: "CREATE TABLE t0x0000000000000001 (name text, age int, fav_color varchar(10))"},
+				{id: 42, rawQuery: "CREATE TABLE t0x000000000000002a (name text, age int, fav_color varchar(10))"},
+				{id: 2929392, rawQuery: "CREATE TABLE t0x00000000002cb2f0 (name text, age int, fav_color varchar(10))"},
+			},
+		},
+	}
+
+	for _, it := range tests {
+		t.Run(it.name, func(tc testCase) func(t *testing.T) {
+			return func(t *testing.T) {
+				t.Parallel()
+				parser := postgresparser.New("system_")
+				cs, err := parser.ValidateCreateTable(tc.query)
+				require.NoError(t, err)
+
+				require.Equal(t, tc.expNamePrefix, cs.GetNamePrefix())
+				require.Equal(t, tc.expStructureHash, cs.GetStructureHash())
+				for _, erq := range tc.expRawQueries {
+					rq, err := cs.GetRawQueryForTableID(big.NewInt(erq.id))
+					require.NoError(t, err)
+					require.Equal(t, erq.rawQuery, rq)
+				}
 			}
 		}(it))
 	}

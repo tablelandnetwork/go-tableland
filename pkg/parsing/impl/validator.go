@@ -63,11 +63,12 @@ func (pp *QueryValidator) ValidateCreateTable(query string) (parsing.CreateStmt,
 		return nil, fmt.Errorf("allowed top level stmt: %w", err)
 	}
 
-	if err := checkCreateColTypes(stmt.GetCreateStmt(), pp.acceptedTypesNames); err != nil {
+	colNameTypes, err := checkCreateColTypes(stmt.GetCreateStmt(), pp.acceptedTypesNames)
+	if err != nil {
 		return nil, fmt.Errorf("disallowed column types: %w", err)
 	}
 
-	createStmt, err := genCreateStmt(parsed)
+	createStmt, err := genCreateStmt(stmt, colNameTypes)
 	if err != nil {
 		return nil, fmt.Errorf("generating structured create statement: %s", err)
 	}
@@ -505,7 +506,7 @@ func checkCreateColTypes(createStmt *pg_query.CreateStmt, acceptedTypesNames []s
 	return colNameTypes, nil
 }
 
-func genCreateStmt(cStmt *pg_query.CreateStmt, cols []colNameType) (*createStmt, error) {
+func genCreateStmt(cNode *pg_query.Node, cols []colNameType) (*createStmt, error) {
 	strCols := make([]string, len(cols))
 	for i := range cols {
 		strCols[i] = fmt.Sprintf("%s:%s", cols[i].colName, cols[i].typeName)
@@ -516,26 +517,28 @@ func genCreateStmt(cStmt *pg_query.CreateStmt, cols []colNameType) (*createStmt,
 	hash := sh.Sum(nil)
 
 	return &createStmt{
-		pt:            pt,
+		cNode:         cNode,
 		structureHash: hex.EncodeToString(hash),
-		namePrefix:    cStmt.Relation.Relname,
+		namePrefix:    cNode.GetCreateStmt().Relation.Relname,
 	}, nil
 }
 
 type createStmt struct {
-	pt            *pg_query.ParseResult
+	cNode         *pg_query.Node
 	structureHash string
 	namePrefix    string
 }
 
 var _ parsing.CreateStmt = (*createStmt)(nil)
 
-func (cs *createStmt) GetRawQueryForTableID(*big.Int) (string, error) {
+func (cs *createStmt) GetRawQueryForTableID(id *big.Int) (string, error) {
 	parsedTree := &pg_query.ParseResult{}
-	parsedTree.Stmts = []*pg_query.RawStmt{cs.createStmt}
+
+	cs.cNode.GetCreateStmt().Relation.Relname = "t" + fmt.Sprintf("0x%016x", id)
+	parsedTree.Stmts = []*pg_query.RawStmt{&pg_query.RawStmt{Stmt: cs.cNode}}
 	wq, err := pg_query.Deparse(parsedTree)
 	if err != nil {
-		return arsing.UndefinedQuery, nil, fmt.Errorf("deparsing statement: %s", err)
+		return "", fmt.Errorf("deparsing statement: %s", err)
 	}
 	return wq, nil
 }
