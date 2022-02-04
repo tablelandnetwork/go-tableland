@@ -12,6 +12,4 @@ packages:
     emit_json_tags: false
     json_tags_case_style: "camel"
     sql_package: "pgx/v4"
-rename:
-  uuid: "UUID"
     

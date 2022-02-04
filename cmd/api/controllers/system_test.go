@@ -13,8 +13,7 @@ import (
 )
 
 func TestSystemControllerMock(t *testing.T) {
-	uuid := "af227176-ed79-4670-93dd-c98ffa0f9f9e"
-	path := fmt.Sprintf("/tables/%s", uuid)
+	path := fmt.Sprintf("/tables/100")
 	req, err := http.NewRequest("GET", path, nil)
 	require.NoError(t, err)
 
@@ -22,7 +21,7 @@ func TestSystemControllerMock(t *testing.T) {
 	systemController := NewSystemController(systemService)
 
 	router := mux.NewRouter()
-	router.HandleFunc("/tables/{uuid}", systemController.GetTable)
+	router.HandleFunc("/tables/{id}", systemController.GetTable)
 
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
@@ -38,8 +37,8 @@ func TestSystemControllerMock(t *testing.T) {
 }
 
 func TestInvalidUUID(t *testing.T) {
-	uuid := "invalid uuid"
-	path := fmt.Sprintf("/tables/%s", uuid)
+	id := "invalid integer"
+	path := fmt.Sprintf("/tables/%s", id)
 	req, err := http.NewRequest("GET", path, nil)
 	require.NoError(t, err)
 
@@ -47,7 +46,7 @@ func TestInvalidUUID(t *testing.T) {
 	systemController := NewSystemController(systemService)
 
 	router := mux.NewRouter()
-	router.HandleFunc("/tables/{uuid}", systemController.GetTable)
+	router.HandleFunc("/tables/{id}", systemController.GetTable)
 
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
@@ -68,7 +67,7 @@ func TestTableNotFoundMock(t *testing.T) {
 	systemController := NewSystemController(systemService)
 
 	router := mux.NewRouter()
-	router.HandleFunc("/tables/{uuid}", systemController.GetTable)
+	router.HandleFunc("/tables/{id}", systemController.GetTable)
 
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
