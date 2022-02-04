@@ -18,6 +18,7 @@ func TestRunSQL(t *testing.T) {
 		name        string
 		query       string
 		tableID     *big.Int
+		namePrefix  string
 		isWriteStmt bool
 		expErrType  interface{}
 	}
@@ -67,30 +68,35 @@ func TestRunSQL(t *testing.T) {
 			name:       "valid insert",
 			query:      "insert into duke_t3333 values ('hello', 1, 2)",
 			tableID:    big.NewInt(3333),
+			namePrefix: "duke",
 			expErrType: nil,
 		},
 		{
 			name:       "valid simple update",
 			query:      "update t0 set a=1 where b='hello'",
 			tableID:    big.NewInt(0),
+			namePrefix: "",
 			expErrType: nil,
 		},
 		{
 			name:       "valid delete",
 			query:      "delete from i_like_border_cases_t10 where a=2",
 			tableID:    big.NewInt(10),
+			namePrefix: "i_like_border_cases",
 			expErrType: nil,
 		},
 		{
 			name:       "valid custom func call",
 			query:      "insert into hoop_t3 values (myfunc(1))",
 			tableID:    big.NewInt(3),
+			namePrefix: "hoop",
 			expErrType: nil,
 		},
 		{
 			name:       "multi statement",
 			query:      "update a_t10 set a=1; update a_t10 set b=1;",
 			tableID:    big.NewInt(10),
+			namePrefix: "a",
 			expErrType: nil,
 		},
 
@@ -224,12 +230,14 @@ func TestRunSQL(t *testing.T) {
 			name:       "valid all",
 			query:      "select * from t1234",
 			tableID:    big.NewInt(1234),
+			namePrefix: "",
 			expErrType: nil,
 		},
 		{
 			name:       "valid defined rows",
-			query:      "select row1, row2 from t4321 where a=b",
+			query:      "select row1, row2 from zoo_t4321 where a=b",
 			tableID:    big.NewInt(4321),
+			namePrefix: "zoo",
 			expErrType: nil,
 		},
 
@@ -290,13 +298,13 @@ func TestRunSQL(t *testing.T) {
 						require.NotEmpty(t, wss)
 						for _, ws := range wss {
 							require.Equal(t, tc.tableID.String(), ws.GetTableID().String())
-							// TODO(jsign): add assert prefix
+							require.Equal(t, tc.namePrefix, ws.GetNamePrefix())
 						}
 
 					} else {
 						require.NotNil(t, rs)
 						require.Equal(t, tc.tableID.String(), rs.GetTableID().String())
-						// TODO(jsign): add assert prefix
+						require.Equal(t, tc.namePrefix, rs.GetNamePrefix())
 					}
 
 					return

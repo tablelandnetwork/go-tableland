@@ -153,7 +153,6 @@ func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.SugaredReadStmt,
 
 func (pp *QueryValidator) deconstructRefTable(refTable string) (string, string, error) {
 	if !pp.rawTablenameRegEx.MatchString(refTable) {
-		panic(refTable)
 		return "", "", &parsing.ErrInvalidTableName{}
 	}
 
@@ -177,9 +176,6 @@ type sugaredStmt struct {
 
 var _ parsing.SugaredWriteStmt = (*sugaredStmt)(nil)
 
-// TODO(jsign): do new() method to assert that postgresTableName has the right length and avoid
-// panic in GetTableID().
-
 func (ws *sugaredStmt) GetDesugaredQuery() (string, error) {
 	parsedTree := &pg_query.ParseResult{}
 
@@ -191,12 +187,11 @@ func (ws *sugaredStmt) GetDesugaredQuery() (string, error) {
 		deleteStmt.Relation.Relname = ws.postgresTableName
 	} else if selectStmt := ws.node.GetSelectStmt(); selectStmt != nil {
 		for i := range selectStmt.FromClause {
-			// TODO(jsign): I need to check this....
-			resTarget := selectStmt.FromClause[i].GetResTarget()
-			if resTarget == nil {
+			rangeVar := selectStmt.FromClause[i].GetRangeVar()
+			if rangeVar == nil {
 				return "", fmt.Errorf("select doesn't reference a table")
 			}
-			resTarget.Name = ws.postgresTableName
+			rangeVar.Relname = ws.postgresTableName
 		}
 	}
 	rs := &pg_query.RawStmt{Stmt: ws.node}

@@ -49,7 +49,7 @@ func TestInsertOnConflict(t *testing.T) {
 
 	{
 		req := tableland.CreateTableRequest{
-			ID:          "0x000abc",
+			ID:          "1337",
 			Description: "descrip-1",
 			Controller:  "ctrl-1",
 			Statement: `CREATE TABLE foo (
@@ -67,12 +67,14 @@ func TestInsertOnConflict(t *testing.T) {
 		}
 		req := baseReq
 		for i := 0; i < 10; i++ {
-			req.Statement = `INSERT INTO foo values ('bar', 0) ON CONFLICT (name) DO UPDATE SET count=foo.count+1`
+			req.Statement = `INSERT INTO t1337 VALUES ('bar', 0) ON CONFLICT (name) DO UPDATE SET count=t1337.count+1`
 			_, err := tbld.RunSQL(ctx, req)
-			require.NoError(t, err)
+			if err != nil {
+				require.NoError(t, err)
+			}
 		}
 
-		req.Statement = "SELECT count from foo"
+		req.Statement = "SELECT count FROM t1337"
 		res, err := tbld.RunSQL(ctx, req)
 		require.NoError(t, err)
 		js, err := json.Marshal(res.Result)
@@ -89,7 +91,7 @@ func TestMultiStatement(t *testing.T) {
 
 	{
 		req := tableland.CreateTableRequest{
-			ID:          "0x000abc",
+			ID:          "1",
 			Description: "descrp-1",
 			Controller:  "ctrl-1",
 			Statement: `CREATE TABLE foo (
@@ -103,12 +105,12 @@ func TestMultiStatement(t *testing.T) {
 	{
 		req := tableland.RunSQLRequest{
 			Controller: "ctrl-1",
-			Statement:  `INSERT INTO foo values ('bar'); UPDATE foo SET name='zoo'`,
+			Statement:  `INSERT INTO foo_t1 values ('bar'); UPDATE foo_t1 SET name='zoo'`,
 		}
 		_, err := tbld.RunSQL(ctx, req)
 		require.NoError(t, err)
 
-		req.Statement = "SELECT name from foo"
+		req.Statement = "SELECT name from t1"
 		res, err := tbld.RunSQL(ctx, req)
 		require.NoError(t, err)
 		js, err := json.Marshal(res.Result)
@@ -124,7 +126,7 @@ func TestJSON(t *testing.T) {
 	tbld := newTablelandMesa(t)
 
 	req := tableland.CreateTableRequest{
-		ID:          "0x000abc",
+		ID:          "1337",
 		Description: "descrp-1",
 		Controller:  "ctrl-1",
 		Statement:   `CREATE TABLE foo (myjson JSON);`,

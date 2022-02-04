@@ -104,7 +104,6 @@ func (b *batch) InsertTable(
 		if err != nil {
 			return fmt.Errorf("get query for table id: %s", err)
 		}
-		fmt.Printf("query: %s\n", query)
 		if _, err := tx.Exec(ctx, query); err != nil {
 			return fmt.Errorf("exec CREATE statement: %s", err)
 		}
