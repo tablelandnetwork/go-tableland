@@ -28,7 +28,7 @@ func TestSystemSQLStoreService(t *testing.T) {
 	b, err := txnp.OpenBatch(ctx)
 	require.NoError(t, err)
 
-	parser := parserimpl.New("")
+	parser := parserimpl.New("system_")
 	id, _ := tableland.NewTableID("42")
 	createStmt, err := parser.ValidateCreateTable("create table foo (bar int)")
 	require.NoError(t, err)
@@ -55,6 +55,9 @@ func TestSystemSQLStoreService(t *testing.T) {
 	require.Equal(t, 1, len(tables))
 	require.Equal(t, id, tables[0].ID)
 	require.Equal(t, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", tables[0].Controller)
-	require.Equal(t, "name", tables[0].Name)
+	require.Equal(t, "foo", tables[0].Name)
+	require.Equal(t, "descrp-1", tables[0].Description)
+	// sha256(bar:int4) = 60b0e90a94273211e4836dc11d8eebd96e8020ce3408dd112ba9c42e762fe3cc
+	require.Equal(t, "60b0e90a94273211e4836dc11d8eebd96e8020ce3408dd112ba9c42e762fe3cc", tables[0].Structure)
 	require.Equal(t, metadata.Attributes[0].Value, tables[0].CreatedAt.Unix())
 }
