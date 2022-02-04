@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	pg_query "github.com/pganalyze/pg_query_go/v2"
@@ -21,6 +22,7 @@ var (
 type QueryValidator struct {
 	systemTablePrefix  string
 	acceptedTypesNames []string
+	rawTablenameRegEx  *regexp.Regexp
 }
 
 var _ parsing.SQLValidator = (*QueryValidator)(nil)
@@ -35,9 +37,13 @@ func New(systemTablePrefix string) *QueryValidator {
 		acceptedTypesNames = append(acceptedTypesNames, at.Names...)
 	}
 
+	rawTablenameRegEx, _ := regexp.Compile(`(\w+_)?t[0-9]+`)
+
 	return &QueryValidator{
 		systemTablePrefix:  systemTablePrefix,
 		acceptedTypesNames: acceptedTypesNames,
+
+		rawTablenameRegEx: rawTablenameRegEx,
 	}
 }
 
@@ -98,9 +104,9 @@ func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.SugaredReadStmt,
 		if err != nil {
 			return nil, nil, fmt.Errorf("validating read-query: %w", err)
 		}
-		namePrefix, posTableName, err := deconstructRefTable(refTable)
+		namePrefix, posTableName, err := pp.deconstructRefTable(refTable)
 		if err != nil {
-			return nil, nil, fmt.Errorf("deconstructing referenced table name: %s", err)
+			return nil, nil, fmt.Errorf("deconstructing referenced table name: %w", err)
 		}
 		return &sugaredStmt{
 			node:              stmt,
@@ -128,9 +134,9 @@ func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.SugaredReadStmt,
 		}
 	}
 
-	namePrefix, posTableName, err := deconstructRefTable(targetTable)
+	namePrefix, posTableName, err := pp.deconstructRefTable(targetTable)
 	if err != nil {
-		return nil, nil, fmt.Errorf("deconstructing referenced table name: %s", err)
+		return nil, nil, fmt.Errorf("deconstructing referenced table name: %w", err)
 	}
 
 	ret := make([]parsing.SugaredWriteStmt, len(parsed.Stmts))
@@ -145,15 +151,15 @@ func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.SugaredReadStmt,
 	return nil, ret, nil
 }
 
-func deconstructRefTable(refTable string) (string, string, error) {
-	// TODO(jsign): regex targetTable and tests.
+func (pp *QueryValidator) deconstructRefTable(refTable string) (string, string, error) {
+	if !pp.rawTablenameRegEx.MatchString(refTable) {
+		return "", "", &parsing.ErrInvalidTableName{}
+	}
+
 	var namePrefix, realTableName string
 	sepIdx := strings.LastIndex(refTable, "_")
 	if sepIdx == -1 {
 		realTableName = refTable
-	} else if sepIdx == len(refTable)-1 {
-		// TODO(jsign): add test
-		return "", "", fmt.Errorf("the table name can't end with an underscore")
 	} else {
 		namePrefix = refTable[:sepIdx] // If sepIdx==0, this is correct too.
 		realTableName = refTable[sepIdx+1:]

@@ -47,8 +47,8 @@ func TestRunSQL(t *testing.T) {
 			expErrType: ptr2ErrInvalidTableName(),
 		},
 		{
-			name:       "no char prefix",
-			query:      "delete from 123 where a=2",
+			name:       "wrong char prefix with name",
+			query:      "delete from oops_z123 where a=2",
 			expErrType: ptr2ErrInvalidTableName(),
 		},
 		{
@@ -83,7 +83,7 @@ func TestRunSQL(t *testing.T) {
 		},
 		{
 			name:       "valid custom func call",
-			query:      "insert into 911_t3 values (myfunc(1))",
+			query:      "insert into hoop_t3 values (myfunc(1))",
 			tableID:    big.NewInt(3),
 			expErrType: nil,
 		},
