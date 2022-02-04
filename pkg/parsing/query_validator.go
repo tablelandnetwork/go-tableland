@@ -7,27 +7,55 @@ import (
 	"github.com/textileio/go-tableland/internal/tableland"
 )
 
+// SugaredStmt is a structured statement. It's "sugared" since the table
+// references are {name}_t{ID} ({name)_ is optional).
+// It provides methods that helps with validations and execution in the real Tableland
+// database, since sugared queries should be desugared for correct execution.
 type SugaredStmt interface {
+	// GetDesugared query desugars the query, which means:
+	// "insert into foo_t100" -> "insert t100"
 	GetDesugaredQuery() (string, error)
+	// GetNamePrefix returns the name prefix of the sugared table name
+	// if exists. e.g: "insert into foo_t100" -> "foo". Since the name
+	// prefix is optional, it can return "" if none exist in the query.
 	GetNamePrefix() string
+	// GetTableID returns the table id. "insert into foo_t100" -> 100.
 	GetTableID() tableland.TableID
 }
 
 // SugaredWriteStmt is an already parsed write statement that satisfies all
-// the parser validations.
+// the parser validations. It provides a safe type to use in the business logic
+// with correct assumptions about parsing validity and being a write statement
+// (update, insert, delete).
 type SugaredWriteStmt interface {
 	SugaredStmt
 }
 
 // SugaredReadStmt is an already parsed read statement that satisfies all
-// the parser validations.
+// the parser validations. It provides a safe type to use in the business logic
+// with correct assumptions about parsing validity and being a read statement
+// (select).
 type SugaredReadStmt interface {
 	SugaredStmt
 }
 
+// CreateStmt is a structured create statement. It provides methods to
+// help registering and executing the statement correctly.
+// Recall that the user sends a create table with the style:
+// "create table Person (...)". The real create table query to be executed
+// is "create table tXXX (...)".
 type CreateStmt interface {
+	// GetRawQueryForTableID transforms a parsed create statement
+	// from the user, and replaces the referenced table name with
+	// the correct name from an id.
+	// e.g: "create table Person (...)"(100) -> "create table t100 (...)".
 	GetRawQueryForTableID(tableland.TableID) (string, error)
+	// GetStructureHash returns a structure fingerprint of the table, considering
+	// the ordered set of columns and types as defined in the spec.
 	GetStructureHash() string
+	// GetNamePrefix returns the sugared name from the user query.
+	// e.g: "create Person (...)" -> "Person". This helps to feed the
+	// system tables "name" corresponding column.
 	GetNamePrefix() string
 }
 

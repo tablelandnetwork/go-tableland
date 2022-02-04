@@ -34,7 +34,7 @@ func TestRunSQL(t *testing.T) {
 		require.NoError(t, b.Close(ctx))
 		require.NoError(t, txnp.Close(ctx))
 
-		require.Equal(t, 1, tableRowCount(t, pool, "t100"))
+		require.Equal(t, 1, tableRowCountT100(t, pool))
 	})
 
 	t.Run("multiple queries", func(t *testing.T) {
@@ -67,7 +67,7 @@ func TestRunSQL(t *testing.T) {
 		require.NoError(t, b.Close(ctx))
 		require.NoError(t, txnp.Close(ctx))
 
-		require.Equal(t, 4, tableRowCount(t, pool, "t100"))
+		require.Equal(t, 4, tableRowCountT100(t, pool))
 	})
 
 	t.Run("multiple with single failure", func(t *testing.T) {
@@ -107,7 +107,7 @@ func TestRunSQL(t *testing.T) {
 		// 1. wq1_1 and wq3_1 should survive the whole batch commit.
 		// 2. despite wq2_1 apparently should succeed, wq2_2 failure should rollback
 		//    both wq2_* statements.
-		require.Equal(t, 2, tableRowCount(t, pool, "t100"))
+		require.Equal(t, 2, tableRowCountT100(t, pool))
 	})
 
 	t.Run("with abrupt close", func(t *testing.T) {
@@ -138,7 +138,7 @@ func TestRunSQL(t *testing.T) {
 		// The opened batch wasn't txnp.CloseBatch(), but we simply
 		// closed the whole store. This should rollback any ongoing
 		// opened batch and leave db state correctly.
-		require.Equal(t, 0, tableRowCount(t, pool, "t100"))
+		require.Equal(t, 0, tableRowCountT100(t, pool))
 	})
 }
 
@@ -183,10 +183,10 @@ func TestRegisterTable(t *testing.T) {
 	})
 }
 
-func tableRowCount(t *testing.T, pool *pgxpool.Pool, tableName string) int {
+func tableRowCountT100(t *testing.T, pool *pgxpool.Pool) int {
 	t.Helper()
 
-	q := "select count(*) from " + tableName
+	q := "select count(*) from t100"
 	row := pool.QueryRow(context.Background(), q)
 	var rowCount int
 	err := row.Scan(&rowCount)

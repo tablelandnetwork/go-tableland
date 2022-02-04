@@ -47,7 +47,10 @@ func (ip *InstrumentedSQLValidator) ValidateCreateTable(query string) (parsing.C
 }
 
 // ValidateRunSQL register metrics for its corresponding wrapped parser.
-func (ip *InstrumentedSQLValidator) ValidateRunSQL(query string) (parsing.SugaredReadStmt, []parsing.SugaredWriteStmt, error) {
+func (ip *InstrumentedSQLValidator) ValidateRunSQL(query string) (
+	parsing.SugaredReadStmt,
+	[]parsing.SugaredWriteStmt,
+	error) {
 	log.Debug().Str("query", query).Msg("call ValidateRunSQL")
 	start := time.Now()
 	readStmt, writeStmts, err := ip.parser.ValidateRunSQL(query)
@@ -60,7 +63,7 @@ func (ip *InstrumentedSQLValidator) ValidateRunSQL(query string) (parsing.Sugare
 	attributes := []attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("ValidateRunSQL")},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
-		{Key: "type", Value: attribute.StringValue(string(queryType))},
+		{Key: "type", Value: attribute.StringValue(queryType)},
 	}
 
 	ip.callCount.Add(context.Background(), 1, attributes...)

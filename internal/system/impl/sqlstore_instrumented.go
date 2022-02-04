@@ -29,7 +29,9 @@ func NewInstrumentedSystemSQLStoreService(system system.SystemService) system.Sy
 }
 
 // GetTableMetadata returns table's metadata fetched from SQLStore.
-func (s *InstrumentedSystemSQLStoreService) GetTableMetadata(ctx context.Context, id tableland.TableID) (sqlstore.TableMetadata, error) {
+func (s *InstrumentedSystemSQLStoreService) GetTableMetadata(
+	ctx context.Context,
+	id tableland.TableID) (sqlstore.TableMetadata, error) {
 	start := time.Now()
 	metadata, err := s.system.GetTableMetadata(ctx, id)
 	latency := time.Since(start).Milliseconds()

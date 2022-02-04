@@ -1,7 +1,6 @@
 package impl_test
 
 import (
-	"fmt"
 	"math/big"
 	"testing"
 
@@ -286,7 +285,7 @@ func TestRunSQL(t *testing.T) {
 	tests := append(readQueryTests, writeQueryTests...)
 
 	for _, it := range tests {
-		t.Run(fmt.Sprintf("%s", it.name), func(tc testCase) func(t *testing.T) {
+		t.Run(it.name, func(tc testCase) func(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
 				parser := postgresparser.New("system_")
@@ -300,13 +299,11 @@ func TestRunSQL(t *testing.T) {
 							require.Equal(t, tc.tableID.String(), ws.GetTableID().String())
 							require.Equal(t, tc.namePrefix, ws.GetNamePrefix())
 						}
-
 					} else {
 						require.NotNil(t, rs)
 						require.Equal(t, tc.tableID.String(), rs.GetTableID().String())
 						require.Equal(t, tc.namePrefix, rs.GetNamePrefix())
 					}
-
 					return
 				}
 				require.ErrorAs(t, err, tc.expErrType)

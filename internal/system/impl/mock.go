@@ -77,7 +77,9 @@ func NewSystemMockErrService() system.SystemService {
 }
 
 // GetTableMetadata returns a fixed value for testing and demo purposes.
-func (*SystemMockErrService) GetTableMetadata(ctx context.Context, id tableland.TableID) (sqlstore.TableMetadata, error) {
+func (*SystemMockErrService) GetTableMetadata(
+	ctx context.Context,
+	id tableland.TableID) (sqlstore.TableMetadata, error) {
 	return sqlstore.TableMetadata{}, errors.New("table not found")
 }
 

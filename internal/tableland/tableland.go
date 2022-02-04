@@ -45,10 +45,13 @@ type Tableland interface {
 // TableID is the ID of a Table.
 type TableID big.Int
 
+// String returns a string representation of the TableID.
 func (tid TableID) String() string {
 	bi := (big.Int)(tid)
 	return bi.String()
 }
+
+// ToBigInt returns a *big.Int representation of the TableID.
 func (tid TableID) ToBigInt() *big.Int {
 	bi := (big.Int)(tid)
 	b := &big.Int{}
@@ -56,6 +59,7 @@ func (tid TableID) ToBigInt() *big.Int {
 	return b
 }
 
+// NewTableID creates a TableID from a string representation of the uint256.
 func NewTableID(strID string) (TableID, error) {
 	tableID := &big.Int{}
 	if _, ok := tableID.SetString(strID, 10); !ok {

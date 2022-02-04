@@ -211,7 +211,7 @@ func tableFromSQLToDTO(table db.SystemTable) (sqlstore.Table, error) {
 // Unfortunately, looks like there's no clean way to decode a pgtype.Numeric
 // into a *big.Int or string. The code below is some internal method that
 // pgtype.Numeric uses actually, but unfortunately they don't export toBigInt().
-var big10 *big.Int = big.NewInt(10)
+var big10 = big.NewInt(10)
 
 func numericToString(n pgtype.Numeric) string {
 	num := &big.Int{}

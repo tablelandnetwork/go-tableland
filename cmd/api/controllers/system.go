@@ -40,7 +40,6 @@ func (c *SystemController) GetTable(rw http.ResponseWriter, r *http.Request) {
 
 		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Invalid id format"})
 		return
-
 	}
 
 	metadata, err := c.systemService.GetTableMetadata(ctx, id)

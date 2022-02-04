@@ -20,7 +20,7 @@ func TestReadGeneralTypeCorrectness(t *testing.T) {
 	defer pool.Close()
 	tx, err := pool.Begin(ctx)
 	require.NoError(t, err)
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	{
 		data, err := execReadQuery(ctx, tx, "SELECT 1")

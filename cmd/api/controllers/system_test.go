@@ -13,8 +13,7 @@ import (
 )
 
 func TestSystemControllerMock(t *testing.T) {
-	path := fmt.Sprintf("/tables/100")
-	req, err := http.NewRequest("GET", path, nil)
+	req, err := http.NewRequest("GET", "/tables/100", nil)
 	require.NoError(t, err)
 
 	systemService := systemimpl.NewSystemMockService()

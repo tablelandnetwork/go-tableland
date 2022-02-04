@@ -26,7 +26,9 @@ func NewSystemSQLStoreService(store sqlstore.SQLStore) system.SystemService {
 }
 
 // GetTableMetadata returns table's metadata fetched from SQLStore.
-func (s *SystemSQLStoreService) GetTableMetadata(ctx context.Context, id tableland.TableID) (sqlstore.TableMetadata, error) {
+func (s *SystemSQLStoreService) GetTableMetadata(
+	ctx context.Context,
+	id tableland.TableID) (sqlstore.TableMetadata, error) {
 	table, err := s.store.GetTable(ctx, id)
 	if err != nil {
 		return sqlstore.TableMetadata{}, fmt.Errorf("error fetching the table: %s", err)

@@ -10,12 +10,16 @@ import (
 type TablelandMock struct{}
 
 // CreateTable implements CreateTable.
-func (t *TablelandMock) CreateTable(ctx context.Context, req tableland.CreateTableRequest) (tableland.CreateTableResponse, error) {
+func (t *TablelandMock) CreateTable(
+	ctx context.Context,
+	req tableland.CreateTableRequest) (tableland.CreateTableResponse, error) {
 	return tableland.CreateTableResponse{}, nil
 }
 
 // RunSQL implements RunSQL.
-func (t *TablelandMock) RunSQL(ctx context.Context, req tableland.RunSQLRequest) (tableland.RunSQLResponse, error) {
+func (t *TablelandMock) RunSQL(
+	ctx context.Context,
+	req tableland.RunSQLRequest) (tableland.RunSQLResponse, error) {
 	return tableland.RunSQLResponse{}, nil
 }
 

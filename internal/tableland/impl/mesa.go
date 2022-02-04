@@ -38,7 +38,9 @@ func NewTablelandMesa(
 }
 
 // CreateTable allows the user to create a table.
-func (t *TablelandMesa) CreateTable(ctx context.Context, req tableland.CreateTableRequest) (tableland.CreateTableResponse, error) {
+func (t *TablelandMesa) CreateTable(
+	ctx context.Context,
+	req tableland.CreateTableRequest) (tableland.CreateTableResponse, error) {
 	if err := t.authorize(ctx, req.Controller); err != nil {
 		return tableland.CreateTableResponse{}, fmt.Errorf("checking address authorization: %s", err)
 	}

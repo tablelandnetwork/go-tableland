@@ -47,7 +47,6 @@ func New(systemTablePrefix string) *QueryValidator {
 	}
 }
 
-// TODO(jsign): rename to "Parse..."
 // ValidateCreateTable validates the provided query and returns an error
 // if the CREATE statement isn't allowed. Returns nil otherwise.
 func (pp *QueryValidator) ValidateCreateTable(query string) (parsing.CreateStmt, error) {
@@ -74,12 +73,7 @@ func (pp *QueryValidator) ValidateCreateTable(query string) (parsing.CreateStmt,
 		return nil, fmt.Errorf("disallowed column types: %w", err)
 	}
 
-	createStmt, err := genCreateStmt(stmt, colNameTypes)
-	if err != nil {
-		return nil, fmt.Errorf("generating structured create statement: %s", err)
-	}
-
-	return createStmt, nil
+	return genCreateStmt(stmt, colNameTypes), nil
 }
 
 // ValidateRunSQL validates the query and returns an error if isn't allowed.
@@ -257,7 +251,7 @@ func validateReadQuery(node *pg_query.Node) (string, error) {
 	for _, n := range selectStmt.FromClause {
 		rangeVar := n.GetRangeVar()
 		if rangeVar == nil {
-			return "", fmt.Errorf("from clause doesn't refernce a table: %w", &parsing.ErrJoinOrSubquery{})
+			return "", fmt.Errorf("from clause doesn't reference a table: %w", &parsing.ErrJoinOrSubquery{})
 		}
 
 		if targetTable == "" {
@@ -586,7 +580,7 @@ func checkCreateColTypes(createStmt *pg_query.CreateStmt, acceptedTypesNames []s
 	return colNameTypes, nil
 }
 
-func genCreateStmt(cNode *pg_query.Node, cols []colNameType) (*createStmt, error) {
+func genCreateStmt(cNode *pg_query.Node, cols []colNameType) *createStmt {
 	strCols := make([]string, len(cols))
 	for i := range cols {
 		strCols[i] = fmt.Sprintf("%s:%s", cols[i].colName, cols[i].typeName)
@@ -600,7 +594,7 @@ func genCreateStmt(cNode *pg_query.Node, cols []colNameType) (*createStmt, error
 		cNode:         cNode,
 		structureHash: hex.EncodeToString(hash),
 		namePrefix:    cNode.GetCreateStmt().Relation.Relname,
-	}, nil
+	}
 }
 
 type createStmt struct {

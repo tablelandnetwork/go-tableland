@@ -173,6 +173,7 @@ func (b *batch) Commit(ctx context.Context) error {
 	return nil
 }
 
+// GetTableNameByTableID returns the table name for a TableID within the provided transaction.
 func GetTableNameByTableID(ctx context.Context, tx pgx.Tx, id tableland.TableID) (string, error) {
 	dbID := pgtype.Numeric{}
 	if err := dbID.Set(id.String()); err != nil {
