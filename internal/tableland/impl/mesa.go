@@ -89,7 +89,7 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.RunSQLRequest)
 
 	// Read statement
 	if readStmt != nil {
-		queryResult, err := t.runSelect(ctx, req)
+		queryResult, err := t.runSelect(ctx, req.Controller, readStmt)
 		if err != nil {
 			return tableland.RunSQLResponse{}, fmt.Errorf("running read statement: %s", err)
 		}
@@ -145,13 +145,13 @@ func (t *TablelandMesa) runInsertOrUpdate(
 	return nil
 }
 
-func (t *TablelandMesa) runSelect(ctx context.Context, req tableland.RunSQLRequest) (interface{}, error) {
-	queryResult, err := t.store.Read(ctx, req.Statement)
+func (t *TablelandMesa) runSelect(ctx context.Context, ctrl string, stmt parsing.SugaredReadStmt) (interface{}, error) {
+	queryResult, err := t.store.Read(ctx, stmt)
 	if err != nil {
 		return nil, fmt.Errorf("executing read-query: %s", err)
 	}
 
-	t.incrementRunSQLCount(ctx, req.Controller)
+	t.incrementRunSQLCount(ctx, ctrl)
 
 	return queryResult, nil
 }

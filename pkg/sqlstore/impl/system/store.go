@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -43,13 +44,14 @@ func New(pool *pgxpool.Pool) (*SystemStore, error) {
 // GetTable fetchs a table from its UUID.
 func (s *SystemStore) GetTable(ctx context.Context, id tableland.TableID) (sqlstore.Table, error) {
 	dbID := pgtype.Numeric{}
-	dbID.Set(id.ToBigInt())
+	if err := dbID.Set(id.String()); err != nil {
+		return sqlstore.Table{}, fmt.Errorf("parsing id to numeric: %s", err)
+	}
 	table, err := s.db.GetTable(ctx, dbID)
 	if err != nil {
 		return sqlstore.Table{}, fmt.Errorf("failed to get the table: %s", err)
 	}
-
-	return tableFromSQLToDTO(table), nil
+	return tableFromSQLToDTO(table)
 }
 
 // GetTablesByController fetchs a table from controller address.
@@ -61,7 +63,10 @@ func (s *SystemStore) GetTablesByController(ctx context.Context, controller stri
 
 	tables := make([]sqlstore.Table, len(sqlcTables))
 	for i := range sqlcTables {
-		tables[i] = tableFromSQLToDTO(sqlcTables[i])
+		tables[i], err = tableFromSQLToDTO(sqlcTables[i])
+		if err != nil {
+			return nil, fmt.Errorf("parsing database table to dto: %s", err)
+		}
 	}
 
 	return tables, nil
@@ -187,13 +192,34 @@ func executeMigration(postgresURI string, as *bindata.AssetSource) error {
 	return nil
 }
 
-func tableFromSQLToDTO(table db.SystemTable) sqlstore.Table {
+func tableFromSQLToDTO(table db.SystemTable) (sqlstore.Table, error) {
+	strID := numericToString(table.ID)
+	id, err := tableland.NewTableID(strID)
+	if err != nil {
+		return sqlstore.Table{}, fmt.Errorf("parsing id to string: %s", err)
+	}
 	return sqlstore.Table{
-		ID:          tableland.TableID(*table.ID.Int),
+		ID:          id,
 		Controller:  table.Controller,
 		Name:        table.Name,
 		Description: table.Description,
 		Structure:   table.Structure,
 		CreatedAt:   table.CreatedAt,
+	}, nil
+}
+
+// Unfortunately, looks like there's no clean way to decode a pgtype.Numeric
+// into a *big.Int or string. The code below is some internal method that
+// pgtype.Numeric uses actually, but unfortunately they don't export toBigInt().
+var big10 *big.Int = big.NewInt(10)
+
+func numericToString(n pgtype.Numeric) string {
+	num := &big.Int{}
+	num.Set(n.Int)
+	if n.Exp > 0 {
+		mul := &big.Int{}
+		mul.Exp(big10, big.NewInt(int64(n.Exp)), nil)
+		num.Mul(num, mul)
 	}
+	return num.String()
 }

@@ -2,7 +2,6 @@ package impl
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"time"
@@ -84,22 +83,28 @@ func (b *batch) InsertTable(
 	ctx context.Context,
 	id tableland.TableID,
 	controller string,
-	tableType string,
+	description string,
 	createStmt parsing.CreateStmt) error {
 	f := func(tx pgx.Tx) error {
 		dbID := pgtype.Numeric{}
-		if err := dbID.Set(id.ToBigInt()); err != nil {
+		if err := dbID.Set(id.String()); err != nil {
 			return fmt.Errorf("parsing table id to numeric: %s", err)
 		}
 		if _, err := tx.Exec(ctx,
-			`INSERT INTO system_tables ("id","controller","type") VALUES ($1,$2,$3);`,
-			dbID, controller, sql.NullString{String: tableType, Valid: true}); err != nil {
+			`INSERT INTO system_tables ("id","controller","name", "structure","description") 
+			 VALUES ($1,$2,$3,$4,$5);`,
+			dbID,
+			controller,
+			createStmt.GetNamePrefix(),
+			createStmt.GetStructureHash(),
+			description); err != nil {
 			return fmt.Errorf("inserting new table in system-wide registry: %s", err)
 		}
 		query, err := createStmt.GetRawQueryForTableID(id)
 		if err != nil {
 			return fmt.Errorf("get query for table id: %s", err)
 		}
+		fmt.Printf("query: %s\n", query)
 		if _, err := tx.Exec(ctx, query); err != nil {
 			return fmt.Errorf("exec CREATE statement: %s", err)
 		}
@@ -123,11 +128,15 @@ func (b *batch) ExecWriteQueries(ctx context.Context, wqueries []parsing.Sugared
 			return fmt.Errorf("table name lookup for table id: %s", err)
 		}
 		for _, wq := range wqueries {
-			wqName := wq.GetTableName()
+			wqName := wq.GetNamePrefix()
 			if wqName != "" && dbName != wqName {
 				return fmt.Errorf("table name prefix doesn't match (exp %s, got %s)", dbName, wqName)
 			}
-			if _, err := tx.Exec(ctx, wq.GetDesugaredQuery()); err != nil {
+			desugared, err := wq.GetDesugaredQuery()
+			if err != nil {
+				return fmt.Errorf("get desugared query: %s", err)
+			}
+			if _, err := tx.Exec(ctx, desugared); err != nil {
 				return fmt.Errorf("exec query: %s", err)
 			}
 		}
@@ -167,7 +176,7 @@ func (b *batch) Commit(ctx context.Context) error {
 
 func GetTableNameByTableID(ctx context.Context, tx pgx.Tx, id tableland.TableID) (string, error) {
 	dbID := pgtype.Numeric{}
-	if err := dbID.Set(id); err != nil {
+	if err := dbID.Set(id.String()); err != nil {
 		return "", fmt.Errorf("parsing table id to numeric: %s", err)
 	}
 	r := tx.QueryRow(ctx, `SELECT name FROM system_tables where id=$1`, dbID)

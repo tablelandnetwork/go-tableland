@@ -7,6 +7,8 @@ import (
 
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/require"
+	"github.com/textileio/go-tableland/pkg/parsing"
+	parsingimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 	"github.com/textileio/go-tableland/tests"
 )
 
@@ -21,7 +23,7 @@ func TestReadGeneralTypeCorrectness(t *testing.T) {
 	userStore := New(pool)
 
 	{
-		data, err := userStore.Read(ctx, "SELECT 1")
+		data, err := userStore.Read(ctx, mustReadStmt(t, "SELECT 1"))
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
@@ -29,7 +31,7 @@ func TestReadGeneralTypeCorrectness(t *testing.T) {
 	}
 
 	{
-		data, err := userStore.Read(ctx, "SELECT 1 a, 2 b")
+		data, err := userStore.Read(ctx, mustReadStmt(t, "SELECT 1 a, 2 b"))
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
@@ -38,7 +40,7 @@ func TestReadGeneralTypeCorrectness(t *testing.T) {
 
 	// test float type parsing
 	{
-		data, err := userStore.Read(ctx, "SELECT 1.2::float")
+		data, err := userStore.Read(ctx, mustReadStmt(t, "SELECT 1.2::float"))
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
@@ -47,7 +49,7 @@ func TestReadGeneralTypeCorrectness(t *testing.T) {
 
 	// test decimal type parsing
 	{
-		data, err := userStore.Read(ctx, "SELECT 1.2::decimal")
+		data, err := userStore.Read(ctx, mustReadStmt(t, "SELECT 1.2::decimal"))
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
@@ -56,7 +58,7 @@ func TestReadGeneralTypeCorrectness(t *testing.T) {
 
 	// test numeric type parsing
 	{
-		data, err := userStore.Read(ctx, "SELECT 1.2::numeric")
+		data, err := userStore.Read(ctx, mustReadStmt(t, "SELECT 1.2::numeric"))
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
@@ -65,7 +67,7 @@ func TestReadGeneralTypeCorrectness(t *testing.T) {
 
 	// test bool type parsing
 	{
-		data, err := userStore.Read(ctx, "SELECT true::bool, false::bool")
+		data, err := userStore.Read(ctx, mustReadStmt(t, "SELECT true::bool, false::bool"))
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
@@ -74,7 +76,7 @@ func TestReadGeneralTypeCorrectness(t *testing.T) {
 
 	// test text type parsing
 	{
-		data, err := userStore.Read(ctx, "SELECT 'hello'::text")
+		data, err := userStore.Read(ctx, mustReadStmt(t, "SELECT 'hello'::text"))
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
@@ -83,7 +85,7 @@ func TestReadGeneralTypeCorrectness(t *testing.T) {
 
 	// test varchar type parsing
 	{
-		data, err := userStore.Read(ctx, "SELECT '2014-01-01'::varchar")
+		data, err := userStore.Read(ctx, mustReadStmt(t, "SELECT '2014-01-01'::varchar"))
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
@@ -92,7 +94,7 @@ func TestReadGeneralTypeCorrectness(t *testing.T) {
 
 	// test date type parsing
 	{
-		data, err := userStore.Read(ctx, "SELECT '2014-01-01'::date")
+		data, err := userStore.Read(ctx, mustReadStmt(t, "SELECT '2014-01-01'::date"))
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
@@ -101,7 +103,7 @@ func TestReadGeneralTypeCorrectness(t *testing.T) {
 
 	// test timestamp type parsing
 	{
-		data, err := userStore.Read(ctx, "SELECT '2014-01-01'::timestamp")
+		data, err := userStore.Read(ctx, mustReadStmt(t, "SELECT '2014-01-01'::timestamp"))
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
@@ -110,7 +112,7 @@ func TestReadGeneralTypeCorrectness(t *testing.T) {
 
 	// test timestamptz type parsing
 	{
-		data, err := userStore.Read(ctx, "SELECT '2014-01-01'::timestamptz")
+		data, err := userStore.Read(ctx, mustReadStmt(t, "SELECT '2014-01-01'::timestamptz"))
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
@@ -119,7 +121,7 @@ func TestReadGeneralTypeCorrectness(t *testing.T) {
 
 	// test uuid type parsing
 	{
-		data, err := userStore.Read(ctx, "SELECT '00000000-0000-0000-0000-000000000000'::uuid;")
+		data, err := userStore.Read(ctx, mustReadStmt(t, "SELECT '00000000-0000-0000-0000-000000000000'::uuid;"))
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
@@ -127,10 +129,19 @@ func TestReadGeneralTypeCorrectness(t *testing.T) {
 	}
 	// test json null type parsing
 	{
-		data, err := userStore.Read(ctx, "SELECT (null)::json;")
+		data, err := userStore.Read(ctx, mustReadStmt(t, "SELECT (null)::json;"))
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
 		require.JSONEq(t, `{"columns":[{"name":"json"}],"rows":[[null]]}`, string(b))
 	}
+}
+
+func mustReadStmt(t *testing.T, q string) parsing.SugaredReadStmt {
+	t.Helper()
+	p := parsingimpl.New("")
+	r, _, err := p.ValidateRunSQL(q)
+	require.NoError(t, err)
+	require.NotNil(t, r)
+	return r
 }

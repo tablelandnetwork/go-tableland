@@ -28,11 +28,16 @@ func (db *UserStore) Read(ctx context.Context, rq parsing.SugaredReadStmt) (inte
 		if err != nil {
 			return fmt.Errorf("table name lookup for table id: %s", err)
 		}
-		wqName := rq.GetTableName()
+		wqName := rq.GetNamePrefix()
 		if wqName != "" && dbName != wqName {
 			return fmt.Errorf("table name prefix doesn't match (exp %s, got %s)", dbName, wqName)
 		}
-		rows, err := tx.Query(ctx, rq.GetDesugaredQuery(), pgx.QuerySimpleProtocol(true))
+
+		desugared, err := rq.GetDesugaredQuery()
+		if err != nil {
+			return fmt.Errorf("get desugared query: %s", err)
+		}
+		rows, err := tx.Query(ctx, desugared, pgx.QuerySimpleProtocol(true))
 		if err != nil {
 			return fmt.Errorf("executing query: %s", err)
 		}

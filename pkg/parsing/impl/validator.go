@@ -198,7 +198,8 @@ func (ws *sugaredStmt) GetDesugaredQuery() (string, error) {
 			resTarget.Name = ws.postgresTableName
 		}
 	}
-	parsedTree.Stmts = []*pg_query.RawStmt{&pg_query.RawStmt{Stmt: ws.node}}
+	rs := &pg_query.RawStmt{Stmt: ws.node}
+	parsedTree.Stmts = []*pg_query.RawStmt{rs}
 	wq, err := pg_query.Deparse(parsedTree)
 	if err != nil {
 		return "", fmt.Errorf("deparsing statement: %s", err)
@@ -618,7 +619,8 @@ func (cs *createStmt) GetRawQueryForTableID(id tableland.TableID) (string, error
 	parsedTree := &pg_query.ParseResult{}
 
 	cs.cNode.GetCreateStmt().Relation.Relname = fmt.Sprintf("t%s", id)
-	parsedTree.Stmts = []*pg_query.RawStmt{&pg_query.RawStmt{Stmt: cs.cNode}}
+	rs := &pg_query.RawStmt{Stmt: cs.cNode}
+	parsedTree.Stmts = []*pg_query.RawStmt{rs}
 	wq, err := pg_query.Deparse(parsedTree)
 	if err != nil {
 		return "", fmt.Errorf("deparsing statement: %s", err)

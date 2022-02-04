@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -205,9 +206,9 @@ func (s *InstrumentedSQLStorePGX) IncrementRunSQLCount(ctx context.Context, addr
 }
 
 // Read executes a read statement on the db.
-func (s *InstrumentedSQLStorePGX) Read(ctx context.Context, statement string) (interface{}, error) {
+func (s *InstrumentedSQLStorePGX) Read(ctx context.Context, stmt parsing.SugaredReadStmt) (interface{}, error) {
 	start := time.Now()
-	data, err := s.store.Read(ctx, statement)
+	data, err := s.store.Read(ctx, stmt)
 	latency := time.Since(start).Milliseconds()
 
 	attributes := []attribute.KeyValue{
