@@ -38,6 +38,7 @@ func TestTodoAppWorkflow(t *testing.T) {
 	_, err := tbld.CreateTable(ctx, req)
 	require.NoError(t, err)
 
+	// TODO(jsign): this test should fail... the table ID should be considered.
 	processCSV(t, req.Controller, tbld, "testdata/todoapp_queries.csv")
 }
 

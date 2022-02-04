@@ -33,7 +33,7 @@ func TestSystemSQLStoreService(t *testing.T) {
 	createStmt, err := parser.ValidateCreateTable("create table foo (bar int)")
 	require.NoError(t, err)
 
-	_, err = b.InsertTable(ctx, id, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", "descrp-1", createStmt)
+	err = b.InsertTable(ctx, id, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", "descrp-1", createStmt)
 	require.NoError(t, err)
 	require.NoError(t, b.Commit(ctx))
 	require.NoError(t, b.Close(ctx))

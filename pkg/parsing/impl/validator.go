@@ -78,71 +78,135 @@ func (pp *QueryValidator) ValidateCreateTable(query string) (parsing.CreateStmt,
 
 // ValidateRunSQL validates the query and returns an error if isn't allowed.
 // If the query validates correctly, it returns the query type and nil.
-func (pp *QueryValidator) ValidateRunSQL(query string) (tableland.TableID, parsing.ReadStmt, []parsing.WriteStmt, error) {
+func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.SugaredReadStmt, []parsing.SugaredWriteStmt, error) {
 	parsed, err := pg_query.Parse(query)
 	if err != nil {
-		return parsing.UndefinedQuery, nil, &parsing.ErrInvalidSyntax{InternalError: err}
+		return nil, nil, &parsing.ErrInvalidSyntax{InternalError: err}
 	}
 
 	if err := checkNonEmptyStatement(parsed); err != nil {
-		return parsing.UndefinedQuery, nil, fmt.Errorf("empty-statement check: %w", err)
+		return nil, nil, fmt.Errorf("empty-statement check: %w", err)
 	}
 
 	stmt := parsed.Stmts[0].Stmt
 
-	// If we detect a read-query, do read-query validation.
 	if selectStmt := stmt.GetSelectStmt(); selectStmt != nil {
 		if err := checkSingleStatement(parsed); err != nil {
-			return parsing.UndefinedQuery, nil, fmt.Errorf("single-statement check: %w", err)
+			return nil, nil, fmt.Errorf("single-statement check: %w", err)
 		}
-
-		if err := validateReadQuery(stmt); err != nil {
-			return parsing.UndefinedQuery, nil, fmt.Errorf("validating read-query: %w", err)
+		refTable, err := validateReadQuery(stmt)
+		if err != nil {
+			return nil, nil, fmt.Errorf("validating read-query: %w", err)
 		}
-		return parsing.ReadQuery, nil, nil
+		namePrefix, posTableName, err := deconstructRefTable(refTable)
+		if err != nil {
+			return nil, nil, fmt.Errorf("deconstructing referenced table name: %s", err)
+		}
+		return &sugaredStmt{
+			node:              stmt,
+			namePrefix:        namePrefix,
+			postgresTableName: posTableName,
+		}, nil, nil
 	}
 
-	// Otherwise, do a write-query validation.
-	writeStmts := make([]parsing.WriteStmt, len(parsed.Stmts))
+	// It's a write-query.
+
+	// Since we support write queries with more than one statement,
+	// do the write-query validation in each of them. Also, check
+	// that each statement reference always the same table.
 	var targetTable string
 	for i := range parsed.Stmts {
 		refTable, err := pp.validateWriteQuery(parsed.Stmts[i].Stmt)
 		if err != nil {
-			return parsing.UndefinedQuery, nil, fmt.Errorf("validating write-query: %w", err)
+			return nil, nil, fmt.Errorf("validating write-query: %w", err)
 		}
 
-		// 1. Check that all statements reference the same table.
 		if targetTable == "" {
 			targetTable = refTable
 		} else if targetTable != refTable {
-			return parsing.UndefinedQuery, nil, &parsing.ErrMultiTableReference{Ref1: targetTable, Ref2: refTable}
+			return nil, nil, &parsing.ErrMultiTableReference{Ref1: targetTable, Ref2: refTable}
 		}
-
-		// 2. Regenerate raw-queries from parsed tree.
-		parsedTree := &pg_query.ParseResult{}
-		parsedTree.Stmts = []*pg_query.RawStmt{parsed.Stmts[i]}
-		wq, err := pg_query.Deparse(parsedTree)
-		if err != nil {
-			return parsing.UndefinedQuery, nil, fmt.Errorf("deparsing statement: %s", err)
-		}
-		writeStmts[i] = &writeStmt{rawQuery: wq, tableName: targetTable}
 	}
 
-	return parsing.WriteQuery, writeStmts, nil
+	namePrefix, posTableName, err := deconstructRefTable(targetTable)
+	if err != nil {
+		return nil, nil, fmt.Errorf("deconstructing referenced table name: %s", err)
+	}
+
+	ret := make([]parsing.SugaredWriteStmt, len(parsed.Stmts))
+	for i := range parsed.Stmts {
+		ret[i] = &sugaredStmt{
+			node:              parsed.Stmts[i].Stmt,
+			namePrefix:        namePrefix,
+			postgresTableName: posTableName,
+		}
+	}
+
+	return nil, ret, nil
 }
 
-type writeStmt struct {
-	rawQuery  string
-	tableName string
+func deconstructRefTable(refTable string) (string, string, error) {
+	// TODO(jsign): regex targetTable and tests.
+	var namePrefix, realTableName string
+	sepIdx := strings.LastIndex(refTable, "_")
+	if sepIdx == -1 {
+		realTableName = refTable
+	} else if sepIdx == len(refTable)-1 {
+		// TODO(jsign): add test
+		return "", "", fmt.Errorf("the table name can't end with an underscore")
+	} else {
+		namePrefix = refTable[:sepIdx] // If sepIdx==0, this is correct too.
+		realTableName = refTable[sepIdx+1:]
+	}
+
+	return namePrefix, realTableName, nil
 }
 
-var _ parsing.WriteStmt = (*writeStmt)(nil)
-
-func (ws *writeStmt) GetRawQuery() string {
-	return ws.rawQuery
+type sugaredStmt struct {
+	node              *pg_query.Node
+	namePrefix        string
+	postgresTableName string
 }
-func (ws *writeStmt) GetTablename() string {
-	return ws.tableName
+
+var _ parsing.SugaredWriteStmt = (*sugaredStmt)(nil)
+
+// TODO(jsign): do new() method to assert that postgresTableName has the right length and avoid
+// panic in GetTableID().
+
+func (ws *sugaredStmt) GetDesugaredQuery() (string, error) {
+	parsedTree := &pg_query.ParseResult{}
+
+	if insertStmt := ws.node.GetInsertStmt(); insertStmt != nil {
+		insertStmt.Relation.Relname = ws.postgresTableName
+	} else if updateStmt := ws.node.GetUpdateStmt(); updateStmt != nil {
+		updateStmt.Relation.Relname = ws.postgresTableName
+	} else if deleteStmt := ws.node.GetDeleteStmt(); deleteStmt != nil {
+		deleteStmt.Relation.Relname = ws.postgresTableName
+	} else if selectStmt := ws.node.GetSelectStmt(); selectStmt != nil {
+		for i := range selectStmt.FromClause {
+			// TODO(jsign): I need to check this....
+			resTarget := selectStmt.FromClause[i].GetResTarget()
+			if resTarget == nil {
+				return "", fmt.Errorf("select doesn't reference a table")
+			}
+			resTarget.Name = ws.postgresTableName
+		}
+	}
+	parsedTree.Stmts = []*pg_query.RawStmt{&pg_query.RawStmt{Stmt: ws.node}}
+	wq, err := pg_query.Deparse(parsedTree)
+	if err != nil {
+		return "", fmt.Errorf("deparsing statement: %s", err)
+	}
+	return wq, nil
+}
+
+func (ws *sugaredStmt) GetNamePrefix() string {
+	return ws.namePrefix
+}
+
+func (ws *sugaredStmt) GetTableID() tableland.TableID {
+	tid, _ := tableland.NewTableID(ws.postgresTableName[1:])
+	return tid
 }
 
 func (pp *QueryValidator) validateWriteQuery(stmt *pg_query.Node) (string, error) {
@@ -174,28 +238,41 @@ func (pp *QueryValidator) validateWriteQuery(stmt *pg_query.Node) (string, error
 	return referencedTable, nil
 }
 
-func validateReadQuery(node *pg_query.Node) error {
+func validateReadQuery(node *pg_query.Node) (string, error) {
 	selectStmt := node.GetSelectStmt()
 
 	if err := checkNoJoinOrSubquery(selectStmt.WhereClause); err != nil {
-		return fmt.Errorf("join or subquery in where: %w", err)
+		return "", fmt.Errorf("join or subquery in where: %w", err)
 	}
 	for _, n := range selectStmt.TargetList {
 		if err := checkNoJoinOrSubquery(n); err != nil {
-			return fmt.Errorf("join or subquery in cols: %w", err)
+			return "", fmt.Errorf("join or subquery in cols: %w", err)
 		}
 	}
+
+	var targetTable string
 	for _, n := range selectStmt.FromClause {
-		if err := checkNoJoinOrSubquery(n); err != nil {
-			return fmt.Errorf("join or subquery in from: %w", err)
+		rangeVar := n.GetRangeVar()
+		if rangeVar == nil {
+			return "", fmt.Errorf("from clause doesn't refernce a table: %w", &parsing.ErrJoinOrSubquery{})
+		}
+
+		if targetTable == "" {
+			targetTable = rangeVar.Relname
+			continue
+		}
+		// Second, and further FROMs should always
+		// reference the same detected table name.
+		if targetTable != rangeVar.Relname {
+			return "", &parsing.ErrMultiTableReference{}
 		}
 	}
 
 	if err := checkNoForUpdateOrShare(selectStmt); err != nil {
-		return fmt.Errorf("no for check: %w", err)
+		return "", fmt.Errorf("no for check: %w", err)
 	}
 
-	return nil
+	return targetTable, nil
 }
 
 func checkNonEmptyStatement(parsed *pg_query.ParseResult) error {
@@ -534,7 +611,7 @@ var _ parsing.CreateStmt = (*createStmt)(nil)
 func (cs *createStmt) GetRawQueryForTableID(id tableland.TableID) (string, error) {
 	parsedTree := &pg_query.ParseResult{}
 
-	cs.cNode.GetCreateStmt().Relation.Relname = "t" + fmt.Sprintf("0x%016x", id)
+	cs.cNode.GetCreateStmt().Relation.Relname = fmt.Sprintf("t%s", id)
 	parsedTree.Stmts = []*pg_query.RawStmt{&pg_query.RawStmt{Stmt: cs.cNode}}
 	wq, err := pg_query.Deparse(parsedTree)
 	if err != nil {

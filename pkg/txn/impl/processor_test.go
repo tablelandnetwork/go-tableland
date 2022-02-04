@@ -5,11 +5,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/require"
+	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
+	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/tests"
 )
@@ -26,7 +27,7 @@ func TestRunSQL(t *testing.T) {
 		require.NoError(t, err)
 
 		wq1 := &writeStmt{rawQuery: `insert into foo values ('one')`}
-		err = b.ExecWriteQueries(ctx, []parsing.WriteStmt{wq1})
+		err = b.ExecWriteQueries(ctx, []parsing.SugaredWriteStmt{wq1})
 		require.NoError(t, err)
 
 		require.NoError(t, b.Commit(ctx))
@@ -47,18 +48,18 @@ func TestRunSQL(t *testing.T) {
 
 		{
 			wq1 := &writeStmt{`insert into foo values ('wq1one')`}
-			err = b.ExecWriteQueries(ctx, []parsing.WriteStmt{wq1})
+			err = b.ExecWriteQueries(ctx, []parsing.SugaredWriteStmt{wq1})
 			require.NoError(t, err)
 		}
 		{
 			wq1 := &writeStmt{`insert into foo values ('wq1two')`}
 			wq2 := &writeStmt{`insert into foo values ('wq2three')`}
-			err = b.ExecWriteQueries(ctx, []parsing.WriteStmt{wq1, wq2})
+			err = b.ExecWriteQueries(ctx, []parsing.SugaredWriteStmt{wq1, wq2})
 			require.NoError(t, err)
 		}
 		{
 			wq1 := &writeStmt{`insert into foo values ('wq1four')`}
-			err = b.ExecWriteQueries(ctx, []parsing.WriteStmt{wq1})
+			err = b.ExecWriteQueries(ctx, []parsing.SugaredWriteStmt{wq1})
 			require.NoError(t, err)
 		}
 
@@ -80,18 +81,18 @@ func TestRunSQL(t *testing.T) {
 
 		{
 			wq1_1 := &writeStmt{`insert into foo values ('onez')`}
-			err = b.ExecWriteQueries(ctx, []parsing.WriteStmt{wq1_1})
+			err = b.ExecWriteQueries(ctx, []parsing.SugaredWriteStmt{wq1_1})
 			require.NoError(t, err)
 		}
 		{
 			wq2_1 := &writeStmt{`insert into foo values ('twoz')`}
 			wq2_2 := &writeStmt{`insert into foo_wrong_table_name values ('threez')`}
-			err = b.ExecWriteQueries(ctx, []parsing.WriteStmt{wq2_1, wq2_2})
+			err = b.ExecWriteQueries(ctx, []parsing.SugaredWriteStmt{wq2_1, wq2_2})
 			require.Error(t, err)
 		}
 		{
 			wq3_1 := &writeStmt{`insert into foo values ('fourz')`}
-			err = b.ExecWriteQueries(ctx, []parsing.WriteStmt{wq3_1})
+			err = b.ExecWriteQueries(ctx, []parsing.SugaredWriteStmt{wq3_1})
 			require.NoError(t, err)
 		}
 
@@ -120,13 +121,13 @@ func TestRunSQL(t *testing.T) {
 
 		{
 			wq1_1 := &writeStmt{`insert into foo values ('one')`}
-			err = b.ExecWriteQueries(ctx, []parsing.WriteStmt{wq1_1})
+			err = b.ExecWriteQueries(ctx, []parsing.SugaredWriteStmt{wq1_1})
 			require.NoError(t, err)
 		}
 		{
 			wq2_1 := &writeStmt{`insert into foo values ('two')`}
 			wq2_2 := &writeStmt{`insert into foo values ('three')`}
-			err = b.ExecWriteQueries(ctx, []parsing.WriteStmt{wq2_1, wq2_2})
+			err = b.ExecWriteQueries(ctx, []parsing.SugaredWriteStmt{wq2_1, wq2_2})
 			require.NoError(t, err)
 		}
 
@@ -142,6 +143,7 @@ func TestRunSQL(t *testing.T) {
 }
 
 func TestRegisterTable(t *testing.T) {
+	parser := parserimpl.New("")
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
@@ -151,9 +153,11 @@ func TestRegisterTable(t *testing.T) {
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
 
-		tableUUID := uuid.New()
-		createStmt := "create table bar (zar text)"
-		err = b.InsertTable(ctx, tableUUID, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", "type", createStmt)
+		id, err := tableland.NewTableID("100")
+		require.NoError(t, err)
+		createStmt, err := parser.ValidateCreateTable("create table bar (zar text)")
+		require.NoError(t, err)
+		err = b.InsertTable(ctx, id, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", "descrip", createStmt)
 		require.NoError(t, err)
 
 		require.NoError(t, b.Commit(ctx))
@@ -163,39 +167,16 @@ func TestRegisterTable(t *testing.T) {
 		// Check that the table was registered in the system-table.
 		systemStore, err := system.New(pool)
 		require.NoError(t, err)
-		table, err := systemStore.GetTable(ctx, tableUUID)
+		table, err := systemStore.GetTable(ctx, id)
 		require.NoError(t, err)
-		require.Equal(t, tableUUID, table.UUID)
+		require.Equal(t, id, table.ID)
 		require.Equal(t, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", table.Controller)
-		require.Equal(t, "type", table.Type)
+		require.Equal(t, "descrip", table.Description)
 		require.NotEqual(t, new(time.Time), table.CreatedAt) // CreatedAt is not the zero value
 
 		// Check that the user table was created.
 		ok := existsTableWithName(t, pool, "bar")
 		require.True(t, ok)
-	})
-	t.Run("wrong create stmt", func(t *testing.T) {
-		t.Parallel()
-		ctx := context.Background()
-
-		txnp, pool := newTxnProcessorWithTable(t)
-
-		b, err := txnp.OpenBatch(ctx)
-		require.NoError(t, err)
-
-		tableUUID := uuid.New()
-		createStmt := "create tablez bar (zar text)"
-		err = b.InsertTable(ctx, tableUUID, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", "type", createStmt)
-		require.Error(t, err)
-
-		require.NoError(t, b.Close(ctx))
-		require.NoError(t, txnp.Close(ctx))
-
-		systemTableRowCount := tableRowCount(t, pool, "system_tables")
-		require.Equal(t, 0, systemTableRowCount)
-
-		ok := existsTableWithName(t, pool, "bar")
-		require.False(t, ok)
 	})
 }
 
@@ -249,16 +230,4 @@ func newTxnProcessorWithTable(t *testing.T) (*TblTxnProcessor, *pgxpool.Pool) {
 	require.NoError(t, err)
 
 	return txnp, pool
-}
-
-type writeStmt struct {
-	rawQuery string
-}
-
-func (ws *writeStmt) GetRawQuery() string {
-	return ws.rawQuery
-}
-
-func (ws *writeStmt) GetTablename() string {
-	panic("not implemented")
 }

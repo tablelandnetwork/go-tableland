@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	postgresparser "github.com/textileio/go-tableland/pkg/parsing/impl"
 )
@@ -48,6 +49,16 @@ func TestRunSQL(t *testing.T) {
 		{
 			name:       "no char prefix",
 			query:      "delete from 123 where a=2",
+			expErrType: ptr2ErrInvalidTableName(),
+		},
+		{
+			name:       "with separator but 't' missing",
+			query:      "delete from person_123 where a=2",
+			expErrType: ptr2ErrInvalidTableName(),
+		},
+		{
+			name:       "non-numeric id",
+			query:      "delete from person_tWrong where a=2",
 			expErrType: ptr2ErrInvalidTableName(),
 		},
 
@@ -271,17 +282,22 @@ func TestRunSQL(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
 				parser := postgresparser.New("system_")
-				tblID, rs, wss, err := parser.ValidateRunSQL(tc.query)
+				rs, wss, err := parser.ValidateRunSQL(tc.query)
 				if tc.expErrType == nil {
 					require.NoError(t, err)
 
 					if tc.isWriteStmt {
 						require.NotEmpty(t, wss)
+						for _, ws := range wss {
+							require.Equal(t, tc.tableID.String(), ws.GetTableID().String())
+							// TODO(jsign): add assert prefix
+						}
+
 					} else {
 						require.NotNil(t, rs)
+						require.Equal(t, tc.tableID.String(), rs.GetTableID().String())
+						// TODO(jsign): add assert prefix
 					}
-
-					require.Equal(t, tc.tableID.String(), tblID.String())
 
 					return
 				}
@@ -470,9 +486,9 @@ func TestCreateTableResult(t *testing.T) {
 			// sha256(bar int4)
 			expStructureHash: "60b0e90a94273211e4836dc11d8eebd96e8020ce3408dd112ba9c42e762fe3cc",
 			expRawQueries: []rawQueryTableID{
-				{id: 1, rawQuery: "CREATE TABLE t0x0000000000000001 (bar int)"},
-				{id: 42, rawQuery: "CREATE TABLE t0x000000000000002a (bar int)"},
-				{id: 2929392, rawQuery: "CREATE TABLE t0x00000000002cb2f0 (bar int)"},
+				{id: 1, rawQuery: "CREATE TABLE t1 (bar int)"},
+				{id: 42, rawQuery: "CREATE TABLE t42 (bar int)"},
+				{id: 2929392, rawQuery: "CREATE TABLE t2929392 (bar int)"},
 			},
 		},
 		{
@@ -486,9 +502,9 @@ func TestCreateTableResult(t *testing.T) {
 			// sha256(name:text,age:int4,fav_color:varchar)
 			expStructureHash: "3e846cb815f96b1a572246e1bf5eb5eec8a93598aa4a9741e7dade425ff2dc69",
 			expRawQueries: []rawQueryTableID{
-				{id: 1, rawQuery: "CREATE TABLE t0x0000000000000001 (name text, age int, fav_color varchar(10))"},
-				{id: 42, rawQuery: "CREATE TABLE t0x000000000000002a (name text, age int, fav_color varchar(10))"},
-				{id: 2929392, rawQuery: "CREATE TABLE t0x00000000002cb2f0 (name text, age int, fav_color varchar(10))"},
+				{id: 1, rawQuery: "CREATE TABLE t1 (name text, age int, fav_color varchar(10))"},
+				{id: 42, rawQuery: "CREATE TABLE t42 (name text, age int, fav_color varchar(10))"},
+				{id: 2929392, rawQuery: "CREATE TABLE t2929392 (name text, age int, fav_color varchar(10))"},
 			},
 		},
 	}
@@ -504,7 +520,7 @@ func TestCreateTableResult(t *testing.T) {
 				require.Equal(t, tc.expNamePrefix, cs.GetNamePrefix())
 				require.Equal(t, tc.expStructureHash, cs.GetStructureHash())
 				for _, erq := range tc.expRawQueries {
-					rq, err := cs.GetRawQueryForTableID(big.NewInt(erq.id))
+					rq, err := cs.GetRawQueryForTableID(tableland.TableID(*big.NewInt(erq.id)))
 					require.NoError(t, err)
 					require.Equal(t, erq.rawQuery, rq)
 				}
@@ -524,18 +540,18 @@ func TestGetWriteStatements(t *testing.T) {
 	tests := []testCase{
 		{
 			name:  "double update",
-			query: "update foo set a=1;update foo set b=2;",
+			query: "update foo_t100 set a=1;update foo_t100 set b=2;",
 			expectedStmts: []string{
-				"UPDATE foo SET a = 1",
-				"UPDATE foo SET b = 2",
+				"UPDATE t100 SET a = 1",
+				"UPDATE t100 SET b = 2",
 			},
 		},
 		{
 			name:  "insert update",
-			query: "insert into foo values (1);update foo set b=2;",
+			query: "insert into foo_t0 values (1);update foo_t0 set b=2;",
 			expectedStmts: []string{
-				"INSERT INTO foo VALUES (1)",
-				"UPDATE foo SET b = 2",
+				"INSERT INTO t0 VALUES (1)",
+				"UPDATE t0 SET b = 2",
 			},
 		},
 	}
@@ -545,12 +561,14 @@ func TestGetWriteStatements(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
 				parser := postgresparser.New("system_")
-				_, rs, stmts, err := parser.ValidateRunSQL(tc.query)
+				rs, stmts, err := parser.ValidateRunSQL(tc.query)
 				require.NoError(t, err)
 				require.Nil(t, rs)
 
 				for i := range stmts {
-					require.Equal(t, tc.expectedStmts[i], stmts[i].GetRawQuery())
+					desugared, err := stmts[i].GetDesugaredQuery()
+					require.NoError(t, err)
+					require.Equal(t, tc.expectedStmts[i], desugared)
 				}
 			}
 		}(it))

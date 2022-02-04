@@ -64,8 +64,7 @@ func (t *TablelandMesa) CreateTable(ctx context.Context, req tableland.CreateTab
 			log.Error().Err(err).Msg("closing batch")
 		}
 	}()
-	namePrefix, err := b.InsertTable(ctx, tableID, req.Controller, req.Description, createStmt)
-	if err != nil {
+	if err := b.InsertTable(ctx, tableID, req.Controller, req.Description, createStmt); err != nil {
 		return tableland.CreateTableResponse{}, fmt.Errorf("processing table registration: %s", err)
 	}
 	if err := b.Commit(ctx); err != nil {
@@ -77,13 +76,13 @@ func (t *TablelandMesa) CreateTable(ctx context.Context, req tableland.CreateTab
 	}
 
 	return tableland.CreateTableResponse{
-		Tablename: fmt.Sprintf("%s_%s", namePrefix, req.ID),
+		Tablename: fmt.Sprintf("%s_%s", createStmt.GetNamePrefix(), req.ID),
 	}, nil
 }
 
 // RunSQL allows the user to run SQL.
 func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.RunSQLRequest) (tableland.RunSQLResponse, error) {
-	tableID, readStmt, writeStmts, err := t.parser.ValidateRunSQL(req.Statement)
+	readStmt, writeStmts, err := t.parser.ValidateRunSQL(req.Statement)
 	if err != nil {
 		return tableland.RunSQLResponse{}, fmt.Errorf("validating query: %s", err)
 	}
@@ -98,6 +97,7 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.RunSQLRequest)
 	}
 
 	// Write statements
+	tableID := writeStmts[0].GetTableID()
 	isOwner, err := t.isOwner(ctx, req.Controller, tableID.ToBigInt())
 	if err != nil {
 		return tableland.RunSQLResponse{}, fmt.Errorf("failed to check authorization: %s", err)
@@ -122,7 +122,7 @@ func (t *TablelandMesa) Authorize(ctx context.Context, req tableland.AuthorizeRe
 func (t *TablelandMesa) runInsertOrUpdate(
 	ctx context.Context,
 	controller string,
-	ws []parsing.WriteStmt) error {
+	ws []parsing.SugaredWriteStmt) error {
 	b, err := t.txnp.OpenBatch(ctx)
 	if err != nil {
 		return fmt.Errorf("opening batch: %s", err)

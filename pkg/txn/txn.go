@@ -38,8 +38,8 @@ type Batch interface {
 		id tableland.TableID,
 		controller string,
 		description string,
-		createStmt parsing.CreateStmt) (string, error)
-	ExecWriteQueries(ctx context.Context, wquery []parsing.WriteStmt) error
+		createStmt parsing.CreateStmt) error
+	ExecWriteQueries(ctx context.Context, wquery []parsing.SugaredWriteStmt) error
 
 	Commit(context.Context) error
 	Close(context.Context) error

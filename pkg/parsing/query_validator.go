@@ -2,30 +2,31 @@ package parsing
 
 import (
 	"fmt"
-	"math/big"
 
 	"github.com/jackc/pgtype"
 	"github.com/textileio/go-tableland/internal/tableland"
 )
 
-type Stmt interface {
-	GetRawQuery() string
+type SugaredStmt interface {
+	GetDesugaredQuery() (string, error)
+	GetNamePrefix() string
+	GetTableID() tableland.TableID
 }
 
-// WriteStmt is an already parsed write statement that satisfies all
+// SugaredWriteStmt is an already parsed write statement that satisfies all
 // the parser validations.
-type WriteStmt interface {
-	Stmt
+type SugaredWriteStmt interface {
+	SugaredStmt
 }
 
-// ReadStmt is an already parsed read statement that satisfies all
+// SugaredReadStmt is an already parsed read statement that satisfies all
 // the parser validations.
-type ReadStmt interface {
-	Stmt
+type SugaredReadStmt interface {
+	SugaredStmt
 }
 
 type CreateStmt interface {
-	GetRawQueryForTableID(*big.Int) (string, error)
+	GetRawQueryForTableID(tableland.TableID) (string, error)
 	GetStructureHash() string
 	GetNamePrefix() string
 }
@@ -38,7 +39,7 @@ type SQLValidator interface {
 	// ValidateRunSQL validates the query and returns an error if isn't allowed.
 	// It returns the table ID extracted from the query, and a read *or* write
 	// statement depending on the query type.
-	ValidateRunSQL(query string) (tableland.TableID, ReadStmt, []WriteStmt, error)
+	ValidateRunSQL(query string) (SugaredReadStmt, []SugaredWriteStmt, error)
 }
 
 // TablelandColumnType represents an accepted column type for user-tables.
