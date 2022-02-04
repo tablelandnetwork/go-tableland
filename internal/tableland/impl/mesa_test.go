@@ -25,7 +25,7 @@ func TestTodoAppWorkflow(t *testing.T) {
 	tbld := newTablelandMesa(t)
 
 	req := tableland.CreateTableRequest{
-		ID:          "0x000abc",
+		ID:          "1337",
 		Description: "descrip-1",
 		Controller:  "ctrl-1",
 		Statement: `CREATE TABLE todoapp (
@@ -38,7 +38,6 @@ func TestTodoAppWorkflow(t *testing.T) {
 	_, err := tbld.CreateTable(ctx, req)
 	require.NoError(t, err)
 
-	// TODO(jsign): this test should fail... the table ID should be considered.
 	processCSV(t, req.Controller, tbld, "testdata/todoapp_queries.csv")
 }
 

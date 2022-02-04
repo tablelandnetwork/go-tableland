@@ -153,6 +153,7 @@ func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.SugaredReadStmt,
 
 func (pp *QueryValidator) deconstructRefTable(refTable string) (string, string, error) {
 	if !pp.rawTablenameRegEx.MatchString(refTable) {
+		panic(refTable)
 		return "", "", &parsing.ErrInvalidTableName{}
 	}
 
