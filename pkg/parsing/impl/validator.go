@@ -146,6 +146,9 @@ func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.SugaredReadStmt,
 }
 
 func (pp *QueryValidator) deconstructRefTable(refTable string) (string, string, error) {
+	if strings.HasPrefix(refTable, pp.systemTablePrefix) {
+		return "", refTable, nil
+	}
 	if !pp.rawTablenameRegEx.MatchString(refTable) {
 		return "", "", &parsing.ErrInvalidTableName{}
 	}

@@ -24,13 +24,15 @@ func New(pool *pgxpool.Pool) *UserStore {
 func (db *UserStore) Read(ctx context.Context, rq parsing.SugaredReadStmt) (interface{}, error) {
 	var ret interface{}
 	f := func(tx pgx.Tx) error {
-		dbName, err := txnimpl.GetTableNameByTableID(ctx, tx, rq.GetTableID())
-		if err != nil {
-			return fmt.Errorf("table name lookup for table id: %s", err)
-		}
 		wqName := rq.GetNamePrefix()
-		if wqName != "" && dbName != wqName {
-			return fmt.Errorf("table name prefix doesn't match (exp %s, got %s)", dbName, wqName)
+		if wqName != "" {
+			dbName, err := txnimpl.GetTableNameByTableID(ctx, tx, rq.GetTableID())
+			if err != nil {
+				return fmt.Errorf("table name lookup for table id: %s", err)
+			}
+			if dbName != wqName {
+				return fmt.Errorf("table name prefix doesn't match (exp %s, got %s)", dbName, wqName)
+			}
 		}
 
 		desugared, err := rq.GetDesugaredQuery()

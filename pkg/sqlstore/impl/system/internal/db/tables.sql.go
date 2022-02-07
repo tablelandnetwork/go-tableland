@@ -10,17 +10,17 @@ import (
 )
 
 const getTable = `-- name: GetTable :one
-SELECT controller, created_at, id, structure, description, name FROM system_tables WHERE id = $1
+SELECT created_at, id, structure, controller, description, name FROM system_tables WHERE id = $1
 `
 
 func (q *Queries) GetTable(ctx context.Context, id pgtype.Numeric) (SystemTable, error) {
 	row := q.db.QueryRow(ctx, getTable, id)
 	var i SystemTable
 	err := row.Scan(
-		&i.Controller,
 		&i.CreatedAt,
 		&i.ID,
 		&i.Structure,
+		&i.Controller,
 		&i.Description,
 		&i.Name,
 	)
@@ -28,7 +28,7 @@ func (q *Queries) GetTable(ctx context.Context, id pgtype.Numeric) (SystemTable,
 }
 
 const getTablesByController = `-- name: GetTablesByController :many
-SELECT controller, created_at, id, structure, description, name FROM system_tables WHERE controller = $1
+SELECT created_at, id, structure, controller, description, name FROM system_tables WHERE controller = $1
 `
 
 func (q *Queries) GetTablesByController(ctx context.Context, controller string) ([]SystemTable, error) {
@@ -41,10 +41,10 @@ func (q *Queries) GetTablesByController(ctx context.Context, controller string) 
 	for rows.Next() {
 		var i SystemTable
 		if err := rows.Scan(
-			&i.Controller,
 			&i.CreatedAt,
 			&i.ID,
 			&i.Structure,
+			&i.Controller,
 			&i.Description,
 			&i.Name,
 		); err != nil {

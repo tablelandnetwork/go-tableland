@@ -18,10 +18,10 @@ type SystemAuth struct {
 }
 
 type SystemTable struct {
-	Controller  string
 	CreatedAt   time.Time
 	ID          pgtype.Numeric
 	Structure   string
+	Controller  string
 	Description string
 	Name        string
 }

@@ -119,6 +119,31 @@ func TestMultiStatement(t *testing.T) {
 	}
 }
 
+func TestReadSystemTable(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	tbld := newTablelandMesa(t)
+
+	req := tableland.CreateTableRequest{
+		ID:          "1337",
+		Description: "descrp-1",
+		Controller:  "ctrl-1",
+		Statement:   `CREATE TABLE foo (myjson JSON);`,
+	}
+	_, err := tbld.CreateTable(ctx, req)
+	require.NoError(t, err)
+
+	req2 := tableland.RunSQLRequest{
+		Controller: "ctrl-1",
+		Statement:  `select * from system_tables`,
+	}
+	res, err := tbld.RunSQL(ctx, req2)
+	require.NoError(t, err)
+	_, err = json.Marshal(res.Result)
+	require.NoError(t, err)
+}
+
 func TestJSON(t *testing.T) {
 	t.Parallel()
 
