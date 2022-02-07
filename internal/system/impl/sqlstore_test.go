@@ -38,7 +38,8 @@ func TestSystemSQLStoreService(t *testing.T) {
 	require.NoError(t, b.Commit(ctx))
 	require.NoError(t, b.Close(ctx))
 
-	svc := NewSystemSQLStoreService(store)
+	svc, err := NewSystemSQLStoreService(store, "https://tableland.network/tables")
+	require.NoError(t, err)
 	metadata, err := svc.GetTableMetadata(ctx, id)
 	require.NoError(t, err)
 

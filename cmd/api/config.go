@@ -15,6 +15,9 @@ type config struct {
 	HTTP struct {
 		Port string `default:"8080"` // HTTP port (e.g. 8080)
 	}
+	Gateway struct {
+		ExternalURIPrefix string `default:"http://testnet.tableland.network"`
+	}
 	DB struct {
 		Host string `default:"database"`
 		Port string `default:"5432"`

@@ -78,7 +78,11 @@ func main() {
 			Msg("failed to register a json-rpc service")
 	}
 
-	systemService := systemimpl.NewInstrumentedSystemSQLStoreService(systemimpl.NewSystemSQLStoreService(sqlstore))
+	sysStore, err := systemimpl.NewSystemSQLStoreService(sqlstore, config.Gateway.ExternalURIPrefix)
+	if err != nil {
+		log.Fatal().Err(err).Msg("creating system store")
+	}
+	systemService := systemimpl.NewInstrumentedSystemSQLStoreService(sysStore)
 	systemController := controllers.NewSystemController(systemService)
 
 	router := newRouter()
