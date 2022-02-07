@@ -28,7 +28,7 @@ func TestSystemControllerMock(t *testing.T) {
 
 	//nolint
 	expJSON := `{
-		"external_url":"https://tableland.com/tables/100",
+		"external_url":"https://tableland.network/tables/100",
 		"image":"https://hub.textile.io/thread/bafkqtqxkgt3moqxwa6rpvtuyigaoiavyewo67r3h7gsz4hov2kys7ha/buckets/bafzbeicpzsc423nuninuvrdsmrwurhv3g2xonnduq4gbhviyo5z4izwk5m/todo-list.png",
 		"attributes":[{"display_type":"date","trait_type":"created","value":1546360800}]
 	}`

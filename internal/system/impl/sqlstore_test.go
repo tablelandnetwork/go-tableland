@@ -42,7 +42,7 @@ func TestSystemSQLStoreService(t *testing.T) {
 	metadata, err := svc.GetTableMetadata(ctx, id)
 	require.NoError(t, err)
 
-	require.Equal(t, fmt.Sprintf("https://tableland.com/tables/%s", id), metadata.ExternalURL)
+	require.Equal(t, fmt.Sprintf("https://tableland.network/tables/%s", id), metadata.ExternalURL)
 	require.Equal(t, "https://hub.textile.io/thread/bafkqtqxkgt3moqxwa6rpvtuyigaoiavyewo67r3h7gsz4hov2kys7ha/buckets/bafzbeicpzsc423nuninuvrdsmrwurhv3g2xonnduq4gbhviyo5z4izwk5m/todo-list.png", metadata.Image) //nolint
 	require.Equal(t, "date", metadata.Attributes[0].DisplayType)
 	require.Equal(t, "created", metadata.Attributes[0].TraitType)
