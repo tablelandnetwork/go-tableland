@@ -2,6 +2,7 @@ package impl
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
@@ -25,13 +26,13 @@ func (db *SQLStorePGX) Close() {
 func New(ctx context.Context, postgresURI string) (sqlstore.SQLStore, error) {
 	pool, err := pgxpool.Connect(ctx, postgresURI)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("connecting to postgres: %s", err)
 	}
 
 	userStore := user.New(pool)
 	systemStore, err := system.New(pool)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("creating system store: %s", err)
 	}
 
 	return &SQLStorePGX{pool, userStore, systemStore}, nil

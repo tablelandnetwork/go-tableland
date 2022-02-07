@@ -2,23 +2,22 @@ package impl
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/rs/zerolog/log"
+	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/txn"
 )
 
 // TblTxnProcessor executes mutating actions in a Tableland database.
 type TblTxnProcessor struct {
-	pool *pgxpool.Pool
-
+	pool    *pgxpool.Pool
 	chBatch chan struct{}
 }
 
@@ -44,29 +43,29 @@ func NewTxnProcessor(postgresURI string) (*TblTxnProcessor, error) {
 // OpenBatch starts a new batch of mutating actions to be executed.
 // If a batch is already open, it will wait until is finishes. This is on purpose
 // since mutating actions should be processed serially.
-func (ab *TblTxnProcessor) OpenBatch(ctx context.Context) (txn.Batch, error) {
-	<-ab.chBatch
+func (tp *TblTxnProcessor) OpenBatch(ctx context.Context) (txn.Batch, error) {
+	<-tp.chBatch
 
 	ops := pgx.TxOptions{
 		IsoLevel:   pgx.Serializable,
 		AccessMode: pgx.ReadWrite,
 	}
-	txn, err := ab.pool.BeginTx(ctx, ops)
+	txn, err := tp.pool.BeginTx(ctx, ops)
 	if err != nil {
-		ab.chBatch <- struct{}{}
+		tp.chBatch <- struct{}{}
 		return nil, fmt.Errorf("opening postgres transaction: %s", err)
 	}
 
-	return &batch{txn: txn, p: ab}, nil
+	return &batch{txn: txn, tp: tp}, nil
 }
 
 // Close closes the processor gracefully. It will wait for any pending
 // batch to be closed, or until ctx is canceled.
-func (ab *TblTxnProcessor) Close(ctx context.Context) error {
+func (tp *TblTxnProcessor) Close(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		return errors.New("closing ctx done")
-	case <-ab.chBatch:
+	case <-tp.chBatch:
 		log.Info().Msg("txn processor closed gracefully")
 		return nil
 	}
@@ -74,7 +73,7 @@ func (ab *TblTxnProcessor) Close(ctx context.Context) error {
 
 type batch struct {
 	txn pgx.Tx
-	p   *TblTxnProcessor
+	tp  *TblTxnProcessor
 }
 
 // InsertTable creates a new table in Tableland:
@@ -82,17 +81,30 @@ type batch struct {
 // - Executes the CREATE statement.
 func (b *batch) InsertTable(
 	ctx context.Context,
-	uuid uuid.UUID,
+	id tableland.TableID,
 	controller string,
-	tableType string,
-	createStmt string) error {
+	description string,
+	createStmt parsing.CreateStmt) error {
 	f := func(tx pgx.Tx) error {
+		dbID := pgtype.Numeric{}
+		if err := dbID.Set(id.String()); err != nil {
+			return fmt.Errorf("parsing table id to numeric: %s", err)
+		}
 		if _, err := tx.Exec(ctx,
-			`INSERT INTO system_tables ("uuid","controller","type") VALUES ($1,$2,$3);`,
-			uuid, controller, sql.NullString{String: tableType, Valid: true}); err != nil {
+			`INSERT INTO system_tables ("id","controller","name", "structure","description") 
+			 VALUES ($1,$2,$3,$4,$5);`,
+			dbID,
+			controller,
+			createStmt.GetNamePrefix(),
+			createStmt.GetStructureHash(),
+			description); err != nil {
 			return fmt.Errorf("inserting new table in system-wide registry: %s", err)
 		}
-		if _, err := tx.Exec(ctx, createStmt); err != nil {
+		query, err := createStmt.GetRawQueryForTableID(id)
+		if err != nil {
+			return fmt.Errorf("get query for table id: %s", err)
+		}
+		if _, err := tx.Exec(ctx, query); err != nil {
 			return fmt.Errorf("exec CREATE statement: %s", err)
 		}
 
@@ -104,10 +116,26 @@ func (b *batch) InsertTable(
 	return nil
 }
 
-func (b *batch) ExecWriteQueries(ctx context.Context, wqueries []parsing.WriteStmt) error {
-	f := func(nestedTxn pgx.Tx) error {
+func (b *batch) ExecWriteQueries(ctx context.Context, wqueries []parsing.SugaredWriteStmt) error {
+	f := func(tx pgx.Tx) error {
+		if len(wqueries) == 0 {
+			log.Warn().Msg("no write-queries to execute in a batch")
+			return nil
+		}
+		dbName, err := GetTableNameByTableID(ctx, tx, wqueries[0].GetTableID())
+		if err != nil {
+			return fmt.Errorf("table name lookup for table id: %s", err)
+		}
 		for _, wq := range wqueries {
-			if _, err := nestedTxn.Exec(ctx, wq.GetRawQuery()); err != nil {
+			wqName := wq.GetNamePrefix()
+			if wqName != "" && dbName != wqName {
+				return fmt.Errorf("table name prefix doesn't match (exp %s, got %s)", dbName, wqName)
+			}
+			desugared, err := wq.GetDesugaredQuery()
+			if err != nil {
+				return fmt.Errorf("get desugared query: %s", err)
+			}
+			if _, err := tx.Exec(ctx, desugared); err != nil {
 				return fmt.Errorf("exec query: %s", err)
 			}
 		}
@@ -124,7 +152,7 @@ func (b *batch) ExecWriteQueries(ctx context.Context, wqueries []parsing.WriteSt
 // Close closes gracefully the batch. Clients should *always* `defer Close()` when
 // opening batches.
 func (b *batch) Close(ctx context.Context) error {
-	defer func() { b.p.chBatch <- struct{}{} }()
+	defer func() { b.tp.chBatch <- struct{}{} }()
 
 	// Calling rollback is always safe:
 	// - If Commit() wasn't called, the result is a rollback.
@@ -143,4 +171,22 @@ func (b *batch) Commit(ctx context.Context) error {
 		return fmt.Errorf("commit txn: %s", err)
 	}
 	return nil
+}
+
+// GetTableNameByTableID returns the table name for a TableID within the provided transaction.
+func GetTableNameByTableID(ctx context.Context, tx pgx.Tx, id tableland.TableID) (string, error) {
+	dbID := pgtype.Numeric{}
+	if err := dbID.Set(id.String()); err != nil {
+		return "", fmt.Errorf("parsing table id to numeric: %s", err)
+	}
+	r := tx.QueryRow(ctx, `SELECT name FROM system_tables where id=$1`, dbID)
+	var dbName string
+	err := r.Scan(&dbName)
+	if err == pgx.ErrNoRows {
+		return "", fmt.Errorf("the table id doesn't exist")
+	}
+	if err != nil {
+		return "", fmt.Errorf("table name lookup: %s", err)
+	}
+	return dbName, nil
 }

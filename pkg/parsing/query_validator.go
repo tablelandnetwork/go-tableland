@@ -4,35 +4,70 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgtype"
+	"github.com/textileio/go-tableland/internal/tableland"
 )
 
-// QueryType indicates the query type.
-type QueryType string
+// SugaredStmt is a structured statement. It's "sugared" since the table
+// references are {name}_t{ID} ({name)_ is optional).
+// It provides methods that helps with validations and execution in the real Tableland
+// database, since sugared queries should be desugared for correct execution.
+type SugaredStmt interface {
+	// GetDesugared query desugars the query, which means:
+	// "insert into foo_t100" -> "insert t100"
+	GetDesugaredQuery() (string, error)
+	// GetNamePrefix returns the name prefix of the sugared table name
+	// if exists. e.g: "insert into foo_t100" -> "foo". Since the name
+	// prefix is optional, it can return "" if none exist in the query.
+	GetNamePrefix() string
+	// GetTableID returns the table id. "insert into foo_t100" -> 100.
+	GetTableID() tableland.TableID
+}
 
-const (
-	// UndefinedQuery is an undefined query type.
-	UndefinedQuery QueryType = "undefined"
-	// ReadQuery is a read query.
-	ReadQuery = "read"
-	// WriteQuery is a write query.
-	WriteQuery = "write"
-)
+// SugaredWriteStmt is an already parsed write statement that satisfies all
+// the parser validations. It provides a safe type to use in the business logic
+// with correct assumptions about parsing validity and being a write statement
+// (update, insert, delete).
+type SugaredWriteStmt interface {
+	SugaredStmt
+}
 
-// WriteStmt is an already parsed write statement that satisfies all
-// the parser validations.
-type WriteStmt interface {
-	GetRawQuery() string
-	GetTablename() string
+// SugaredReadStmt is an already parsed read statement that satisfies all
+// the parser validations. It provides a safe type to use in the business logic
+// with correct assumptions about parsing validity and being a read statement
+// (select).
+type SugaredReadStmt interface {
+	SugaredStmt
+}
+
+// CreateStmt is a structured create statement. It provides methods to
+// help registering and executing the statement correctly.
+// Recall that the user sends a create table with the style:
+// "create table Person (...)". The real create table query to be executed
+// is "create table tXXX (...)".
+type CreateStmt interface {
+	// GetRawQueryForTableID transforms a parsed create statement
+	// from the user, and replaces the referenced table name with
+	// the correct name from an id.
+	// e.g: "create table Person (...)"(100) -> "create table t100 (...)".
+	GetRawQueryForTableID(tableland.TableID) (string, error)
+	// GetStructureHash returns a structure fingerprint of the table, considering
+	// the ordered set of columns and types as defined in the spec.
+	GetStructureHash() string
+	// GetNamePrefix returns the sugared name from the user query.
+	// e.g: "create Person (...)" -> "Person". This helps to feed the
+	// system tables "name" corresponding column.
+	GetNamePrefix() string
 }
 
 // SQLValidator parses and validate a SQL query for different supported scenarios.
 type SQLValidator interface {
 	// ValidateCreateTable validates the provided query and returns an error
 	// if the CREATE statement isn't allowed. Returns nil otherwise.
-	ValidateCreateTable(query string) error
+	ValidateCreateTable(query string) (CreateStmt, error)
 	// ValidateRunSQL validates the query and returns an error if isn't allowed.
-	// If the query validates correctly, it returns the query type and nil.
-	ValidateRunSQL(query string) (QueryType, []WriteStmt, error)
+	// It returns the table ID extracted from the query, and a read *or* write
+	// statement depending on the query type.
+	ValidateRunSQL(query string) (SugaredReadStmt, []SugaredWriteStmt, error)
 }
 
 // TablelandColumnType represents an accepted column type for user-tables.
@@ -192,4 +227,12 @@ type ErrMultiTableReference struct {
 
 func (e *ErrMultiTableReference) Error() string {
 	return fmt.Sprintf("queries are referencing two distinct tables: %s %s", e.Ref1, e.Ref2)
+}
+
+// ErrInvalidTableName is an error returned when a query references a table
+// without the right format.
+type ErrInvalidTableName struct{}
+
+func (e *ErrInvalidTableName) Error() string {
+	return "the query references a table name with the wrong format"
 }

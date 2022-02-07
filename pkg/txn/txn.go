@@ -3,7 +3,7 @@ package txn
 import (
 	"context"
 
-	"github.com/google/uuid"
+	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
 )
 
@@ -33,8 +33,13 @@ type TxnProcessor interface {
 // all-or-nothing style, with the extra option of allowing single actions in the batch
 // to fail gracefully.
 type Batch interface {
-	InsertTable(ctx context.Context, uuid uuid.UUID, controller string, tableType string, createStmt string) error
-	ExecWriteQueries(ctx context.Context, wquery []parsing.WriteStmt) error
+	InsertTable(
+		ctx context.Context,
+		id tableland.TableID,
+		controller string,
+		description string,
+		createStmt parsing.CreateStmt) error
+	ExecWriteQueries(ctx context.Context, wquery []parsing.SugaredWriteStmt) error
 
 	Commit(context.Context) error
 	Close(context.Context) error

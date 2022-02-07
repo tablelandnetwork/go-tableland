@@ -6,7 +6,7 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgtype"
 )
 
 type SystemAuth struct {
@@ -18,8 +18,10 @@ type SystemAuth struct {
 }
 
 type SystemTable struct {
-	UUID       uuid.UUID
-	Controller string
-	CreatedAt  time.Time
-	Type       sql.NullString
+	CreatedAt   time.Time
+	ID          pgtype.Numeric
+	Structure   string
+	Controller  string
+	Description string
+	Name        string
 }

@@ -2,26 +2,71 @@ package tableland
 
 import (
 	"context"
+	"fmt"
+	"math/big"
 )
 
-// Request is a user request to interact with Tableland.
-type Request struct {
-	TableID    string
-	Type       string
-	Controller string
-	Statement  string
+// CreateTableRequest is a user CreateTable request.
+type CreateTableRequest struct {
+	ID          string `json:"id"`
+	Controller  string `json:"controller"`
+	Statement   string `json:"statement"`
+	Description string `json:"description"`
 }
 
-// Response is a response to a Tableland request.
-type Response struct {
-	Message string      `json:"message"`
-	Data    interface{} `json:"data"`
+// CreateTableResponse is a CreateTable response.
+type CreateTableResponse struct {
+	Tablename string `json:"tablename"`
+}
+
+// RunSQLRequest is a user RunSQL request.
+type RunSQLRequest struct {
+	Controller string `json:"controller"`
+	Statement  string `json:"statement"`
+}
+
+// RunSQLResponse is a RunSQL response.
+type RunSQLResponse struct {
+	Result interface{} `json:"data"`
+}
+
+// AuthorizeRequest is a user Authorize request.
+type AuthorizeRequest struct {
+	Controller string `json:"controller"`
 }
 
 // Tableland defines the interface of Tableland.
 type Tableland interface {
-	CreateTable(context.Context, Request) (Response, error)
-	UpdateTable(context.Context, Request) (Response, error)
-	RunSQL(context.Context, Request) (Response, error)
-	Authorize(context.Context, Request) error
+	CreateTable(context.Context, CreateTableRequest) (CreateTableResponse, error)
+	RunSQL(context.Context, RunSQLRequest) (RunSQLResponse, error)
+	Authorize(context.Context, AuthorizeRequest) error
+}
+
+// TableID is the ID of a Table.
+type TableID big.Int
+
+// String returns a string representation of the TableID.
+func (tid TableID) String() string {
+	bi := (big.Int)(tid)
+	return bi.String()
+}
+
+// ToBigInt returns a *big.Int representation of the TableID.
+func (tid TableID) ToBigInt() *big.Int {
+	bi := (big.Int)(tid)
+	b := &big.Int{}
+	b.Set(&bi)
+	return b
+}
+
+// NewTableID creates a TableID from a string representation of the uint256.
+func NewTableID(strID string) (TableID, error) {
+	tableID := &big.Int{}
+	if _, ok := tableID.SetString(strID, 10); !ok {
+		return TableID{}, fmt.Errorf("parsing stringified id failed")
+	}
+	if tableID.Cmp(&big.Int{}) < 0 {
+		return TableID{}, fmt.Errorf("table id is negative")
+	}
+	return TableID(*tableID), nil
 }

@@ -36,33 +36,27 @@ func NewInstrumentedTablelandMesa(t tableland.Tableland) tableland.Tableland {
 
 // CreateTable allows the user to create a table.
 func (t *InstrumentedTablelandMesa) CreateTable(ctx context.Context,
-	req tableland.Request) (tableland.Response, error) {
+	req tableland.CreateTableRequest) (tableland.CreateTableResponse, error) {
 	start := time.Now()
 	resp, err := t.tableland.CreateTable(ctx, req)
 	latency := time.Since(start).Milliseconds()
-	t.record(ctx, recordData{"CreateTable", req.Controller, req.TableID, err == nil, latency})
+	t.record(ctx, recordData{"CreateTable", req.Controller, req.ID, err == nil, latency})
 	return resp, err
-}
-
-// UpdateTable allows the user to update a table.
-func (t *InstrumentedTablelandMesa) UpdateTable(ctx context.Context,
-	req tableland.Request) (tableland.Response, error) {
-	return t.tableland.UpdateTable(ctx, req)
 }
 
 // RunSQL allows the user to run SQL.
 func (t *InstrumentedTablelandMesa) RunSQL(ctx context.Context,
-	req tableland.Request) (tableland.Response, error) {
+	req tableland.RunSQLRequest) (tableland.RunSQLResponse, error) {
 	start := time.Now()
 	resp, err := t.tableland.RunSQL(ctx, req)
 	latency := time.Since(start).Milliseconds()
 
-	t.record(ctx, recordData{"RunSQL", req.Controller, req.TableID, err == nil, latency})
+	t.record(ctx, recordData{"RunSQL", req.Controller, "", err == nil, latency})
 	return resp, err
 }
 
 // Authorize is a convenience API giving the client something to call to trigger authorization.
-func (t *InstrumentedTablelandMesa) Authorize(ctx context.Context, req tableland.Request) error {
+func (t *InstrumentedTablelandMesa) Authorize(ctx context.Context, req tableland.AuthorizeRequest) error {
 	start := time.Now()
 	err := t.tableland.Authorize(ctx, req)
 	latency := time.Since(start).Milliseconds()

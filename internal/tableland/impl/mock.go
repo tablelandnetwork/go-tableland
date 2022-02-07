@@ -10,21 +10,20 @@ import (
 type TablelandMock struct{}
 
 // CreateTable implements CreateTable.
-func (t *TablelandMock) CreateTable(ctx context.Context, req tableland.Request) (tableland.Response, error) {
-	return tableland.Response{Message: "Table created"}, nil
-}
-
-// UpdateTable implements UpdateTable.
-func (t *TablelandMock) UpdateTable(ctx context.Context, req tableland.Request) (tableland.Response, error) {
-	return tableland.Response{Message: "Table updated"}, nil
+func (t *TablelandMock) CreateTable(
+	ctx context.Context,
+	req tableland.CreateTableRequest) (tableland.CreateTableResponse, error) {
+	return tableland.CreateTableResponse{}, nil
 }
 
 // RunSQL implements RunSQL.
-func (t *TablelandMock) RunSQL(ctx context.Context, req tableland.Request) (tableland.Response, error) {
-	return tableland.Response{Message: "SQL executed"}, nil
+func (t *TablelandMock) RunSQL(
+	ctx context.Context,
+	req tableland.RunSQLRequest) (tableland.RunSQLResponse, error) {
+	return tableland.RunSQLResponse{}, nil
 }
 
 // Authorize implements Authorize.
-func (t *TablelandMock) Authorize(ctx context.Context, req tableland.Request) error {
+func (t *TablelandMock) Authorize(ctx context.Context, req tableland.AuthorizeRequest) error {
 	return nil
 }

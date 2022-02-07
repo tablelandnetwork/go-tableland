@@ -18,10 +18,12 @@ func TestReadGeneralTypeCorrectness(t *testing.T) {
 	pool, err := pgxpool.Connect(ctx, url)
 	require.NoError(t, err)
 	defer pool.Close()
-	userStore := New(pool)
+	tx, err := pool.Begin(ctx)
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	{
-		data, err := userStore.Read(ctx, "SELECT 1")
+		data, err := execReadQuery(ctx, tx, "SELECT 1")
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
@@ -29,7 +31,7 @@ func TestReadGeneralTypeCorrectness(t *testing.T) {
 	}
 
 	{
-		data, err := userStore.Read(ctx, "SELECT 1 a, 2 b")
+		data, err := execReadQuery(ctx, tx, "SELECT 1 a, 2 b")
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
@@ -38,7 +40,7 @@ func TestReadGeneralTypeCorrectness(t *testing.T) {
 
 	// test float type parsing
 	{
-		data, err := userStore.Read(ctx, "SELECT 1.2::float")
+		data, err := execReadQuery(ctx, tx, "SELECT 1.2::float")
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
@@ -47,7 +49,7 @@ func TestReadGeneralTypeCorrectness(t *testing.T) {
 
 	// test decimal type parsing
 	{
-		data, err := userStore.Read(ctx, "SELECT 1.2::decimal")
+		data, err := execReadQuery(ctx, tx, "SELECT 1.2::decimal")
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
@@ -56,7 +58,7 @@ func TestReadGeneralTypeCorrectness(t *testing.T) {
 
 	// test numeric type parsing
 	{
-		data, err := userStore.Read(ctx, "SELECT 1.2::numeric")
+		data, err := execReadQuery(ctx, tx, "SELECT 1.2::numeric")
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
@@ -65,7 +67,7 @@ func TestReadGeneralTypeCorrectness(t *testing.T) {
 
 	// test bool type parsing
 	{
-		data, err := userStore.Read(ctx, "SELECT true::bool, false::bool")
+		data, err := execReadQuery(ctx, tx, "SELECT true::bool, false::bool")
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
@@ -74,16 +76,15 @@ func TestReadGeneralTypeCorrectness(t *testing.T) {
 
 	// test text type parsing
 	{
-		data, err := userStore.Read(ctx, "SELECT 'hello'::text")
+		data, err := execReadQuery(ctx, tx, "SELECT 'hello'::text")
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
 		require.JSONEq(t, `{"columns":[{"name":"text"}],"rows":[["hello"]]}`, string(b))
 	}
-
 	// test varchar type parsing
 	{
-		data, err := userStore.Read(ctx, "SELECT '2014-01-01'::varchar")
+		data, err := execReadQuery(ctx, tx, "SELECT '2014-01-01'::varchar")
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
@@ -92,7 +93,7 @@ func TestReadGeneralTypeCorrectness(t *testing.T) {
 
 	// test date type parsing
 	{
-		data, err := userStore.Read(ctx, "SELECT '2014-01-01'::date")
+		data, err := execReadQuery(ctx, tx, "SELECT '2014-01-01'::date")
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
@@ -101,7 +102,7 @@ func TestReadGeneralTypeCorrectness(t *testing.T) {
 
 	// test timestamp type parsing
 	{
-		data, err := userStore.Read(ctx, "SELECT '2014-01-01'::timestamp")
+		data, err := execReadQuery(ctx, tx, "SELECT '2014-01-01'::timestamp")
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
@@ -110,7 +111,7 @@ func TestReadGeneralTypeCorrectness(t *testing.T) {
 
 	// test timestamptz type parsing
 	{
-		data, err := userStore.Read(ctx, "SELECT '2014-01-01'::timestamptz")
+		data, err := execReadQuery(ctx, tx, "SELECT '2014-01-01'::timestamptz")
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
@@ -119,7 +120,7 @@ func TestReadGeneralTypeCorrectness(t *testing.T) {
 
 	// test uuid type parsing
 	{
-		data, err := userStore.Read(ctx, "SELECT '00000000-0000-0000-0000-000000000000'::uuid;")
+		data, err := execReadQuery(ctx, tx, "SELECT '00000000-0000-0000-0000-000000000000'::uuid;")
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
@@ -127,7 +128,7 @@ func TestReadGeneralTypeCorrectness(t *testing.T) {
 	}
 	// test json null type parsing
 	{
-		data, err := userStore.Read(ctx, "SELECT (null)::json;")
+		data, err := execReadQuery(ctx, tx, "SELECT (null)::json;")
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)

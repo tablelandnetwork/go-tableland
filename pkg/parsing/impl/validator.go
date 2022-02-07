@@ -1,11 +1,15 @@
 package impl
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	pg_query "github.com/pganalyze/pg_query_go/v2"
+	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
 )
 
@@ -18,6 +22,7 @@ var (
 type QueryValidator struct {
 	systemTablePrefix  string
 	acceptedTypesNames []string
+	rawTablenameRegEx  *regexp.Regexp
 }
 
 var _ parsing.SQLValidator = (*QueryValidator)(nil)
@@ -32,131 +37,200 @@ func New(systemTablePrefix string) *QueryValidator {
 		acceptedTypesNames = append(acceptedTypesNames, at.Names...)
 	}
 
+	rawTablenameRegEx, _ := regexp.Compile(`(\w+_)?t[0-9]+`)
+
 	return &QueryValidator{
 		systemTablePrefix:  systemTablePrefix,
 		acceptedTypesNames: acceptedTypesNames,
+
+		rawTablenameRegEx: rawTablenameRegEx,
 	}
 }
 
 // ValidateCreateTable validates the provided query and returns an error
 // if the CREATE statement isn't allowed. Returns nil otherwise.
-func (pp *QueryValidator) ValidateCreateTable(query string) error {
+func (pp *QueryValidator) ValidateCreateTable(query string) (parsing.CreateStmt, error) {
 	parsed, err := pg_query.Parse(query)
 	if err != nil {
-		return &parsing.ErrInvalidSyntax{InternalError: err}
+		return nil, &parsing.ErrInvalidSyntax{InternalError: err}
 	}
 
-	if err := pp.checkNonEmptyStatement(parsed); err != nil {
-		return fmt.Errorf("empty-statement check: %w", err)
+	if err := checkNonEmptyStatement(parsed); err != nil {
+		return nil, fmt.Errorf("empty-statement check: %w", err)
 	}
 
-	if err := pp.checkSingleStatement(parsed); err != nil {
-		return fmt.Errorf("single-statement check: %w", err)
+	if err := checkSingleStatement(parsed); err != nil {
+		return nil, fmt.Errorf("single-statement check: %w", err)
 	}
 
 	stmt := parsed.Stmts[0].Stmt
-	if err := pp.checkTopLevelCreate(stmt); err != nil {
-		return fmt.Errorf("allowed top level stmt: %w", err)
+	if err := checkTopLevelCreate(stmt); err != nil {
+		return nil, fmt.Errorf("allowed top level stmt: %w", err)
 	}
 
-	if err := pp.checkCreateColTypes(stmt.GetCreateStmt()); err != nil {
-		return fmt.Errorf("disallowed column types: %w", err)
+	colNameTypes, err := checkCreateColTypes(stmt.GetCreateStmt(), pp.acceptedTypesNames)
+	if err != nil {
+		return nil, fmt.Errorf("disallowed column types: %w", err)
 	}
 
-	return nil
+	return genCreateStmt(stmt, colNameTypes), nil
 }
 
 // ValidateRunSQL validates the query and returns an error if isn't allowed.
 // If the query validates correctly, it returns the query type and nil.
-func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.QueryType, []parsing.WriteStmt, error) {
+func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.SugaredReadStmt, []parsing.SugaredWriteStmt, error) {
 	parsed, err := pg_query.Parse(query)
 	if err != nil {
-		return parsing.UndefinedQuery, nil, &parsing.ErrInvalidSyntax{InternalError: err}
+		return nil, nil, &parsing.ErrInvalidSyntax{InternalError: err}
 	}
 
-	if err := pp.checkNonEmptyStatement(parsed); err != nil {
-		return parsing.UndefinedQuery, nil, fmt.Errorf("empty-statement check: %w", err)
+	if err := checkNonEmptyStatement(parsed); err != nil {
+		return nil, nil, fmt.Errorf("empty-statement check: %w", err)
 	}
 
 	stmt := parsed.Stmts[0].Stmt
 
-	// If we detect a read-query, do read-query validation.
 	if selectStmt := stmt.GetSelectStmt(); selectStmt != nil {
-		if err := pp.checkSingleStatement(parsed); err != nil {
-			return parsing.UndefinedQuery, nil, fmt.Errorf("single-statement check: %w", err)
+		if err := checkSingleStatement(parsed); err != nil {
+			return nil, nil, fmt.Errorf("single-statement check: %w", err)
 		}
-
-		if err := pp.validateReadQuery(stmt); err != nil {
-			return parsing.UndefinedQuery, nil, fmt.Errorf("validating read-query: %w", err)
+		refTable, err := validateReadQuery(stmt)
+		if err != nil {
+			return nil, nil, fmt.Errorf("validating read-query: %w", err)
 		}
-		return parsing.ReadQuery, nil, nil
+		namePrefix, posTableName, err := pp.deconstructRefTable(refTable)
+		if err != nil {
+			return nil, nil, fmt.Errorf("deconstructing referenced table name: %w", err)
+		}
+		return &sugaredStmt{
+			node:              stmt,
+			namePrefix:        namePrefix,
+			postgresTableName: posTableName,
+		}, nil, nil
 	}
 
-	// Otherwise, do a write-query validation.
-	writeStmts := make([]parsing.WriteStmt, len(parsed.Stmts))
+	// It's a write-query.
+
+	// Since we support write queries with more than one statement,
+	// do the write-query validation in each of them. Also, check
+	// that each statement reference always the same table.
 	var targetTable string
 	for i := range parsed.Stmts {
 		refTable, err := pp.validateWriteQuery(parsed.Stmts[i].Stmt)
 		if err != nil {
-			return parsing.UndefinedQuery, nil, fmt.Errorf("validating write-query: %w", err)
+			return nil, nil, fmt.Errorf("validating write-query: %w", err)
 		}
 
-		// 1. Check that all statements reference the same table.
 		if targetTable == "" {
 			targetTable = refTable
 		} else if targetTable != refTable {
-			return parsing.UndefinedQuery, nil, &parsing.ErrMultiTableReference{Ref1: targetTable, Ref2: refTable}
+			return nil, nil, &parsing.ErrMultiTableReference{Ref1: targetTable, Ref2: refTable}
 		}
-
-		// 2. Regenerate raw-queries from parsed tree.
-		parsedTree := &pg_query.ParseResult{}
-		parsedTree.Stmts = []*pg_query.RawStmt{parsed.Stmts[i]}
-		wq, err := pg_query.Deparse(parsedTree)
-		if err != nil {
-			return parsing.UndefinedQuery, nil, fmt.Errorf("deparsing statement: %s", err)
-		}
-		writeStmts[i] = &writeStmt{rawQuery: wq, tableName: targetTable}
 	}
 
-	return parsing.WriteQuery, writeStmts, nil
+	namePrefix, posTableName, err := pp.deconstructRefTable(targetTable)
+	if err != nil {
+		return nil, nil, fmt.Errorf("deconstructing referenced table name: %w", err)
+	}
+
+	ret := make([]parsing.SugaredWriteStmt, len(parsed.Stmts))
+	for i := range parsed.Stmts {
+		ret[i] = &sugaredStmt{
+			node:              parsed.Stmts[i].Stmt,
+			namePrefix:        namePrefix,
+			postgresTableName: posTableName,
+		}
+	}
+
+	return nil, ret, nil
 }
 
-type writeStmt struct {
-	rawQuery  string
-	tableName string
+func (pp *QueryValidator) deconstructRefTable(refTable string) (string, string, error) {
+	if strings.HasPrefix(refTable, pp.systemTablePrefix) {
+		return "", refTable, nil
+	}
+	if !pp.rawTablenameRegEx.MatchString(refTable) {
+		return "", "", &parsing.ErrInvalidTableName{}
+	}
+
+	var namePrefix, realTableName string
+	sepIdx := strings.LastIndex(refTable, "_")
+	if sepIdx == -1 {
+		realTableName = refTable
+	} else {
+		namePrefix = refTable[:sepIdx] // If sepIdx==0, this is correct too.
+		realTableName = refTable[sepIdx+1:]
+	}
+
+	return namePrefix, realTableName, nil
 }
 
-var _ parsing.WriteStmt = (*writeStmt)(nil)
-
-func (ws *writeStmt) GetRawQuery() string {
-	return ws.rawQuery
+type sugaredStmt struct {
+	node              *pg_query.Node
+	namePrefix        string
+	postgresTableName string
 }
-func (ws *writeStmt) GetTablename() string {
-	return ws.tableName
+
+var _ parsing.SugaredWriteStmt = (*sugaredStmt)(nil)
+
+func (ws *sugaredStmt) GetDesugaredQuery() (string, error) {
+	parsedTree := &pg_query.ParseResult{}
+
+	if insertStmt := ws.node.GetInsertStmt(); insertStmt != nil {
+		insertStmt.Relation.Relname = ws.postgresTableName
+	} else if updateStmt := ws.node.GetUpdateStmt(); updateStmt != nil {
+		updateStmt.Relation.Relname = ws.postgresTableName
+	} else if deleteStmt := ws.node.GetDeleteStmt(); deleteStmt != nil {
+		deleteStmt.Relation.Relname = ws.postgresTableName
+	} else if selectStmt := ws.node.GetSelectStmt(); selectStmt != nil {
+		for i := range selectStmt.FromClause {
+			rangeVar := selectStmt.FromClause[i].GetRangeVar()
+			if rangeVar == nil {
+				return "", fmt.Errorf("select doesn't reference a table")
+			}
+			rangeVar.Relname = ws.postgresTableName
+		}
+	}
+	rs := &pg_query.RawStmt{Stmt: ws.node}
+	parsedTree.Stmts = []*pg_query.RawStmt{rs}
+	wq, err := pg_query.Deparse(parsedTree)
+	if err != nil {
+		return "", fmt.Errorf("deparsing statement: %s", err)
+	}
+	return wq, nil
+}
+
+func (ws *sugaredStmt) GetNamePrefix() string {
+	return ws.namePrefix
+}
+
+func (ws *sugaredStmt) GetTableID() tableland.TableID {
+	tid, _ := tableland.NewTableID(ws.postgresTableName[1:])
+	return tid
 }
 
 func (pp *QueryValidator) validateWriteQuery(stmt *pg_query.Node) (string, error) {
-	if err := pp.checkTopLevelUpdateInsertDelete(stmt); err != nil {
+	if err := checkTopLevelUpdateInsertDelete(stmt); err != nil {
 		return "", fmt.Errorf("allowed top level stmt: %w", err)
 	}
 
-	if err := pp.checkNoJoinOrSubquery(stmt); err != nil {
+	if err := checkNoJoinOrSubquery(stmt); err != nil {
 		return "", fmt.Errorf("join or subquery check: %w", err)
 	}
 
-	if err := pp.checkNoReturningClause(stmt); err != nil {
+	if err := checkNoReturningClause(stmt); err != nil {
 		return "", fmt.Errorf("no returning clause check: %w", err)
 	}
 
-	if err := pp.checkNoSystemTablesReferencing(stmt); err != nil {
+	if err := checkNoSystemTablesReferencing(stmt, pp.systemTablePrefix); err != nil {
 		return "", fmt.Errorf("no system-table reference: %w", err)
 	}
 
-	if err := pp.checkNonDeterministicFunctions(stmt); err != nil {
+	if err := checkNonDeterministicFunctions(stmt); err != nil {
 		return "", fmt.Errorf("no non-deterministic func check: %w", err)
 	}
 
-	referencedTable, err := pp.getReferencedTable(stmt)
+	referencedTable, err := getReferencedTable(stmt)
 	if err != nil {
 		return "", fmt.Errorf("get referenced table: %w", err)
 	}
@@ -164,45 +238,58 @@ func (pp *QueryValidator) validateWriteQuery(stmt *pg_query.Node) (string, error
 	return referencedTable, nil
 }
 
-func (pp *QueryValidator) validateReadQuery(node *pg_query.Node) error {
+func validateReadQuery(node *pg_query.Node) (string, error) {
 	selectStmt := node.GetSelectStmt()
 
-	if err := pp.checkNoJoinOrSubquery(selectStmt.WhereClause); err != nil {
-		return fmt.Errorf("join or subquery in where: %w", err)
+	if err := checkNoJoinOrSubquery(selectStmt.WhereClause); err != nil {
+		return "", fmt.Errorf("join or subquery in where: %w", err)
 	}
 	for _, n := range selectStmt.TargetList {
-		if err := pp.checkNoJoinOrSubquery(n); err != nil {
-			return fmt.Errorf("join or subquery in cols: %w", err)
+		if err := checkNoJoinOrSubquery(n); err != nil {
+			return "", fmt.Errorf("join or subquery in cols: %w", err)
 		}
 	}
+
+	var targetTable string
 	for _, n := range selectStmt.FromClause {
-		if err := pp.checkNoJoinOrSubquery(n); err != nil {
-			return fmt.Errorf("join or subquery in from: %w", err)
+		rangeVar := n.GetRangeVar()
+		if rangeVar == nil {
+			return "", fmt.Errorf("from clause doesn't reference a table: %w", &parsing.ErrJoinOrSubquery{})
+		}
+
+		if targetTable == "" {
+			targetTable = rangeVar.Relname
+			continue
+		}
+		// Second, and further FROMs should always
+		// reference the same detected table name.
+		if targetTable != rangeVar.Relname {
+			return "", &parsing.ErrMultiTableReference{}
 		}
 	}
 
-	if err := pp.checkNoForUpdateOrShare(selectStmt); err != nil {
-		return fmt.Errorf("no for check: %w", err)
+	if err := checkNoForUpdateOrShare(selectStmt); err != nil {
+		return "", fmt.Errorf("no for check: %w", err)
 	}
 
-	return nil
+	return targetTable, nil
 }
 
-func (pp *QueryValidator) checkNonEmptyStatement(parsed *pg_query.ParseResult) error {
+func checkNonEmptyStatement(parsed *pg_query.ParseResult) error {
 	if len(parsed.Stmts) == 0 {
 		return &parsing.ErrEmptyStatement{}
 	}
 	return nil
 }
 
-func (pp *QueryValidator) checkSingleStatement(parsed *pg_query.ParseResult) error {
+func checkSingleStatement(parsed *pg_query.ParseResult) error {
 	if len(parsed.Stmts) != 1 {
 		return &parsing.ErrNoSingleStatement{}
 	}
 	return nil
 }
 
-func (pp *QueryValidator) checkTopLevelUpdateInsertDelete(node *pg_query.Node) error {
+func checkTopLevelUpdateInsertDelete(node *pg_query.Node) error {
 	if node.GetUpdateStmt() == nil &&
 		node.GetInsertStmt() == nil &&
 		node.GetDeleteStmt() == nil {
@@ -211,14 +298,14 @@ func (pp *QueryValidator) checkTopLevelUpdateInsertDelete(node *pg_query.Node) e
 	return nil
 }
 
-func (pp *QueryValidator) checkTopLevelCreate(node *pg_query.Node) error {
+func checkTopLevelCreate(node *pg_query.Node) error {
 	if node.GetCreateStmt() == nil {
 		return &parsing.ErrNoTopLevelCreate{}
 	}
 	return nil
 }
 
-func (pp *QueryValidator) checkNoForUpdateOrShare(node *pg_query.SelectStmt) error {
+func checkNoForUpdateOrShare(node *pg_query.SelectStmt) error {
 	if node == nil {
 		return errEmptyNode
 	}
@@ -229,7 +316,7 @@ func (pp *QueryValidator) checkNoForUpdateOrShare(node *pg_query.SelectStmt) err
 	return nil
 }
 
-func (pp *QueryValidator) checkNoReturningClause(node *pg_query.Node) error {
+func checkNoReturningClause(node *pg_query.Node) error {
 	if node == nil {
 		return errEmptyNode
 	}
@@ -252,57 +339,57 @@ func (pp *QueryValidator) checkNoReturningClause(node *pg_query.Node) error {
 	return nil
 }
 
-func (pp *QueryValidator) checkNoSystemTablesReferencing(node *pg_query.Node) error {
+func checkNoSystemTablesReferencing(node *pg_query.Node, systemTablePrefix string) error {
 	if node == nil {
 		return nil
 	}
 	if rangeVar := node.GetRangeVar(); rangeVar != nil {
-		if strings.HasPrefix(rangeVar.Relname, pp.systemTablePrefix) {
+		if strings.HasPrefix(rangeVar.Relname, systemTablePrefix) {
 			return &parsing.ErrSystemTableReferencing{}
 		}
 	} else if insertStmt := node.GetInsertStmt(); insertStmt != nil {
-		if strings.HasPrefix(insertStmt.Relation.Relname, pp.systemTablePrefix) {
+		if strings.HasPrefix(insertStmt.Relation.Relname, systemTablePrefix) {
 			return &parsing.ErrSystemTableReferencing{}
 		}
-		return pp.checkNoSystemTablesReferencing(insertStmt.SelectStmt)
+		return checkNoSystemTablesReferencing(insertStmt.SelectStmt, systemTablePrefix)
 	} else if selectStmt := node.GetSelectStmt(); selectStmt != nil {
 		for _, fcn := range selectStmt.FromClause {
-			if err := pp.checkNoSystemTablesReferencing(fcn); err != nil {
+			if err := checkNoSystemTablesReferencing(fcn, systemTablePrefix); err != nil {
 				return fmt.Errorf("from clause: %w", err)
 			}
 		}
 	} else if updateStmt := node.GetUpdateStmt(); updateStmt != nil {
-		if strings.HasPrefix(updateStmt.Relation.Relname, pp.systemTablePrefix) {
+		if strings.HasPrefix(updateStmt.Relation.Relname, systemTablePrefix) {
 			return &parsing.ErrSystemTableReferencing{}
 		}
 		for _, fcn := range updateStmt.FromClause {
-			if err := pp.checkNoSystemTablesReferencing(fcn); err != nil {
+			if err := checkNoSystemTablesReferencing(fcn, systemTablePrefix); err != nil {
 				return fmt.Errorf("from clause: %w", err)
 			}
 		}
 	} else if deleteStmt := node.GetDeleteStmt(); deleteStmt != nil {
-		if strings.HasPrefix(deleteStmt.Relation.Relname, pp.systemTablePrefix) {
+		if strings.HasPrefix(deleteStmt.Relation.Relname, systemTablePrefix) {
 			return &parsing.ErrSystemTableReferencing{}
 		}
-		if err := pp.checkNoSystemTablesReferencing(deleteStmt.WhereClause); err != nil {
+		if err := checkNoSystemTablesReferencing(deleteStmt.WhereClause, systemTablePrefix); err != nil {
 			return fmt.Errorf("where clause: %w", err)
 		}
 	} else if rangeSubselectStmt := node.GetRangeSubselect(); rangeSubselectStmt != nil {
-		if err := pp.checkNoSystemTablesReferencing(rangeSubselectStmt.Subquery); err != nil {
+		if err := checkNoSystemTablesReferencing(rangeSubselectStmt.Subquery, systemTablePrefix); err != nil {
 			return fmt.Errorf("subquery: %w", err)
 		}
 	} else if joinExpr := node.GetJoinExpr(); joinExpr != nil {
-		if err := pp.checkNoSystemTablesReferencing(joinExpr.Larg); err != nil {
+		if err := checkNoSystemTablesReferencing(joinExpr.Larg, systemTablePrefix); err != nil {
 			return fmt.Errorf("join left arg: %w", err)
 		}
-		if err := pp.checkNoSystemTablesReferencing(joinExpr.Rarg); err != nil {
+		if err := checkNoSystemTablesReferencing(joinExpr.Rarg, systemTablePrefix); err != nil {
 			return fmt.Errorf("join right arg: %w", err)
 		}
 	}
 	return nil
 }
 
-func (pp *QueryValidator) getReferencedTable(node *pg_query.Node) (string, error) {
+func getReferencedTable(node *pg_query.Node) (string, error) {
 	if insertStmt := node.GetInsertStmt(); insertStmt != nil {
 		return insertStmt.Relation.Relname, nil
 	} else if updateStmt := node.GetUpdateStmt(); updateStmt != nil {
@@ -315,7 +402,7 @@ func (pp *QueryValidator) getReferencedTable(node *pg_query.Node) (string, error
 
 // checkNonDeterministicFunctions walks the query tree and disallow references to
 // functions that aren't deterministic.
-func (pp *QueryValidator) checkNonDeterministicFunctions(node *pg_query.Node) error {
+func checkNonDeterministicFunctions(node *pg_query.Node) error {
 	if node == nil {
 		return nil
 	}
@@ -323,75 +410,75 @@ func (pp *QueryValidator) checkNonDeterministicFunctions(node *pg_query.Node) er
 		return &parsing.ErrNonDeterministicFunction{}
 	} else if listStmt := node.GetList(); listStmt != nil {
 		for _, item := range listStmt.Items {
-			if err := pp.checkNonDeterministicFunctions(item); err != nil {
+			if err := checkNonDeterministicFunctions(item); err != nil {
 				return fmt.Errorf("list item: %w", err)
 			}
 		}
 	}
 	if insertStmt := node.GetInsertStmt(); insertStmt != nil {
-		return pp.checkNonDeterministicFunctions(insertStmt.SelectStmt)
+		return checkNonDeterministicFunctions(insertStmt.SelectStmt)
 	} else if selectStmt := node.GetSelectStmt(); selectStmt != nil {
 		for _, nl := range selectStmt.ValuesLists {
-			if err := pp.checkNonDeterministicFunctions(nl); err != nil {
+			if err := checkNonDeterministicFunctions(nl); err != nil {
 				return fmt.Errorf("value list: %w", err)
 			}
 		}
 		for _, fcn := range selectStmt.FromClause {
-			if err := pp.checkNonDeterministicFunctions(fcn); err != nil {
+			if err := checkNonDeterministicFunctions(fcn); err != nil {
 				return fmt.Errorf("from: %w", err)
 			}
 		}
 	} else if updateStmt := node.GetUpdateStmt(); updateStmt != nil {
 		for _, t := range updateStmt.TargetList {
-			if err := pp.checkNonDeterministicFunctions(t); err != nil {
+			if err := checkNonDeterministicFunctions(t); err != nil {
 				return fmt.Errorf("target: %w", err)
 			}
 		}
 		for _, fcn := range updateStmt.FromClause {
-			if err := pp.checkNonDeterministicFunctions(fcn); err != nil {
+			if err := checkNonDeterministicFunctions(fcn); err != nil {
 				return fmt.Errorf("from clause: %w", err)
 			}
 		}
-		if err := pp.checkNonDeterministicFunctions(updateStmt.WhereClause); err != nil {
+		if err := checkNonDeterministicFunctions(updateStmt.WhereClause); err != nil {
 			return fmt.Errorf("where clause: %w", err)
 		}
 	} else if deleteStmt := node.GetDeleteStmt(); deleteStmt != nil {
-		if err := pp.checkNonDeterministicFunctions(deleteStmt.WhereClause); err != nil {
+		if err := checkNonDeterministicFunctions(deleteStmt.WhereClause); err != nil {
 			return fmt.Errorf("where clause: %w", err)
 		}
 	} else if rangeSubselectStmt := node.GetRangeSubselect(); rangeSubselectStmt != nil {
-		if err := pp.checkNonDeterministicFunctions(rangeSubselectStmt.Subquery); err != nil {
+		if err := checkNonDeterministicFunctions(rangeSubselectStmt.Subquery); err != nil {
 			return fmt.Errorf("subquery: %w", err)
 		}
 	} else if joinExpr := node.GetJoinExpr(); joinExpr != nil {
-		if err := pp.checkNonDeterministicFunctions(joinExpr.Larg); err != nil {
+		if err := checkNonDeterministicFunctions(joinExpr.Larg); err != nil {
 			return fmt.Errorf("join left tree: %w", err)
 		}
-		if err := pp.checkNonDeterministicFunctions(joinExpr.Rarg); err != nil {
+		if err := checkNonDeterministicFunctions(joinExpr.Rarg); err != nil {
 			return fmt.Errorf("join right tree: %w", err)
 		}
 	} else if aExpr := node.GetAExpr(); aExpr != nil {
-		if err := pp.checkNonDeterministicFunctions(aExpr.Lexpr); err != nil {
+		if err := checkNonDeterministicFunctions(aExpr.Lexpr); err != nil {
 			return fmt.Errorf("aexpr left: %w", err)
 		}
-		if err := pp.checkNonDeterministicFunctions(aExpr.Rexpr); err != nil {
+		if err := checkNonDeterministicFunctions(aExpr.Rexpr); err != nil {
 			return fmt.Errorf("aexpr right: %w", err)
 		}
 	} else if resTarget := node.GetResTarget(); resTarget != nil {
-		if err := pp.checkNonDeterministicFunctions(resTarget.Val); err != nil {
+		if err := checkNonDeterministicFunctions(resTarget.Val); err != nil {
 			return fmt.Errorf("target: %w", err)
 		}
 	}
 	return nil
 }
 
-func (pp *QueryValidator) checkNoJoinOrSubquery(node *pg_query.Node) error {
+func checkNoJoinOrSubquery(node *pg_query.Node) error {
 	if node == nil {
 		return nil
 	}
 
 	if resTarget := node.GetResTarget(); resTarget != nil {
-		if err := pp.checkNoJoinOrSubquery(resTarget.Val); err != nil {
+		if err := checkNoJoinOrSubquery(resTarget.Val); err != nil {
 			return fmt.Errorf("column sub-query: %w", err)
 		}
 	} else if selectStmt := node.GetSelectStmt(); selectStmt != nil {
@@ -403,32 +490,32 @@ func (pp *QueryValidator) checkNoJoinOrSubquery(node *pg_query.Node) error {
 	} else if joinExpr := node.GetJoinExpr(); joinExpr != nil {
 		return &parsing.ErrJoinOrSubquery{}
 	} else if insertStmt := node.GetInsertStmt(); insertStmt != nil {
-		if err := pp.checkNoJoinOrSubquery(insertStmt.SelectStmt); err != nil {
+		if err := checkNoJoinOrSubquery(insertStmt.SelectStmt); err != nil {
 			return fmt.Errorf("insert select expr: %w", err)
 		}
 	} else if updateStmt := node.GetUpdateStmt(); updateStmt != nil {
 		if len(updateStmt.FromClause) != 0 {
 			return &parsing.ErrJoinOrSubquery{}
 		}
-		if err := pp.checkNoJoinOrSubquery(updateStmt.WhereClause); err != nil {
+		if err := checkNoJoinOrSubquery(updateStmt.WhereClause); err != nil {
 			return fmt.Errorf("where clause: %w", err)
 		}
 	} else if deleteStmt := node.GetDeleteStmt(); deleteStmt != nil {
-		if err := pp.checkNoJoinOrSubquery(deleteStmt.WhereClause); err != nil {
+		if err := checkNoJoinOrSubquery(deleteStmt.WhereClause); err != nil {
 			return fmt.Errorf("where clause: %w", err)
 		}
 	} else if aExpr := node.GetAExpr(); aExpr != nil {
-		if err := pp.checkNoJoinOrSubquery(aExpr.Lexpr); err != nil {
+		if err := checkNoJoinOrSubquery(aExpr.Lexpr); err != nil {
 			return fmt.Errorf("aexpr left: %w", err)
 		}
-		if err := pp.checkNoJoinOrSubquery(aExpr.Rexpr); err != nil {
+		if err := checkNoJoinOrSubquery(aExpr.Rexpr); err != nil {
 			return fmt.Errorf("aexpr right: %w", err)
 		}
 	} else if subLinkExpr := node.GetSubLink(); subLinkExpr != nil {
 		return &parsing.ErrJoinOrSubquery{}
 	} else if boolExpr := node.GetBoolExpr(); boolExpr != nil {
 		for _, arg := range boolExpr.Args {
-			if err := pp.checkNoJoinOrSubquery(arg); err != nil {
+			if err := checkNoJoinOrSubquery(arg); err != nil {
 				return fmt.Errorf("bool expr: %w", err)
 			}
 		}
@@ -436,34 +523,41 @@ func (pp *QueryValidator) checkNoJoinOrSubquery(node *pg_query.Node) error {
 	return nil
 }
 
-func (pp *QueryValidator) checkCreateColTypes(createStmt *pg_query.CreateStmt) error {
+type colNameType struct {
+	colName  string
+	typeName string
+}
+
+func checkCreateColTypes(createStmt *pg_query.CreateStmt, acceptedTypesNames []string) ([]colNameType, error) {
 	if createStmt == nil {
-		return errEmptyNode
+		return nil, errEmptyNode
 	}
 
 	if createStmt.OfTypename != nil {
 		// This will only ever be one, otherwise its a parsing error
 		for _, nameNode := range createStmt.OfTypename.Names {
 			if name := nameNode.GetString_(); name == nil {
-				return fmt.Errorf("unexpected type name node: %v", name)
+				return nil, fmt.Errorf("unexpected type name node: %v", name)
 			}
 		}
 	}
 
+	var colNameTypes []colNameType
 	for _, col := range createStmt.TableElts {
 		if colConst := col.GetConstraint(); colConst != nil {
 			continue
 		}
 		colDef := col.GetColumnDef()
 		if colDef == nil {
-			return errors.New("unexpected node type in column definition")
+			return nil, errors.New("unexpected node type in column definition")
 		}
 
+		var typeName string
 	AcceptedTypesFor:
 		for _, nameNode := range colDef.TypeName.Names {
 			name := nameNode.GetString_()
 			if name == nil {
-				return fmt.Errorf("unexpected type name node: %v", name)
+				return nil, fmt.Errorf("unexpected type name node: %v", name)
 			}
 			// We skip `pg_catalog` since it seems that gets included for some
 			// cases of native types.
@@ -471,17 +565,64 @@ func (pp *QueryValidator) checkCreateColTypes(createStmt *pg_query.CreateStmt) e
 				continue
 			}
 
-			for _, typeName := range pp.acceptedTypesNames {
-				if name.Str == typeName {
+			for _, atn := range acceptedTypesNames {
+				if name.Str == atn {
+					typeName = atn
 					// The current data type name has a match with accepted
 					// types. Continue matching the rest of columns.
-					continue AcceptedTypesFor
+					break AcceptedTypesFor
 				}
 			}
 
-			return &parsing.ErrInvalidColumnType{ColumnType: name.Str}
+			return nil, &parsing.ErrInvalidColumnType{ColumnType: name.Str}
 		}
+
+		colNameTypes = append(colNameTypes, colNameType{colName: colDef.Colname, typeName: typeName})
 	}
 
-	return nil
+	return colNameTypes, nil
+}
+
+func genCreateStmt(cNode *pg_query.Node, cols []colNameType) *createStmt {
+	strCols := make([]string, len(cols))
+	for i := range cols {
+		strCols[i] = fmt.Sprintf("%s:%s", cols[i].colName, cols[i].typeName)
+	}
+	stringifiedColDef := strings.Join(strCols, ",")
+	sh := sha256.New()
+	sh.Write([]byte(stringifiedColDef))
+	hash := sh.Sum(nil)
+
+	return &createStmt{
+		cNode:         cNode,
+		structureHash: hex.EncodeToString(hash),
+		namePrefix:    cNode.GetCreateStmt().Relation.Relname,
+	}
+}
+
+type createStmt struct {
+	cNode         *pg_query.Node
+	structureHash string
+	namePrefix    string
+}
+
+var _ parsing.CreateStmt = (*createStmt)(nil)
+
+func (cs *createStmt) GetRawQueryForTableID(id tableland.TableID) (string, error) {
+	parsedTree := &pg_query.ParseResult{}
+
+	cs.cNode.GetCreateStmt().Relation.Relname = fmt.Sprintf("t%s", id)
+	rs := &pg_query.RawStmt{Stmt: cs.cNode}
+	parsedTree.Stmts = []*pg_query.RawStmt{rs}
+	wq, err := pg_query.Deparse(parsedTree)
+	if err != nil {
+		return "", fmt.Errorf("deparsing statement: %s", err)
+	}
+	return wq, nil
+}
+func (cs *createStmt) GetStructureHash() string {
+	return cs.structureHash
+}
+func (cs *createStmt) GetNamePrefix() string {
+	return cs.namePrefix
 }
