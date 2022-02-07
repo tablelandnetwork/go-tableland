@@ -18,6 +18,8 @@ type Table struct {
 
 // TableMetadata represents table metadata (OpenSea standard).
 type TableMetadata struct {
+	Name        string                   `json:"name"`
+	Description string                   `json:"description"`
 	ExternalURL string                   `json:"external_url"`
 	Image       string                   `json:"image"`
 	Attributes  []TableMetadataAttribute `json:"attributes"`
