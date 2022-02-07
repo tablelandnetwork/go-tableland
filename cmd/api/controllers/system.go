@@ -94,7 +94,7 @@ func (c *SystemController) GetTablesByController(rw http.ResponseWriter, r *http
 	for i, t := range tables {
 		retTables[i] = tableNameIDUnified{
 			Controller:  t.Controller,
-			Name:        fmt.Sprintf("%s_t%s\n", t.Name, t.ID),
+			Name:        fmt.Sprintf("%s_t%s", t.Name, t.ID),
 			Description: t.Description,
 			Structure:   t.Structure,
 			CreatedAt:   t.CreatedAt,
