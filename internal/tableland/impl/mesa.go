@@ -57,6 +57,14 @@ func (t *TablelandMesa) CreateTable(
 		return tableland.CreateTableResponse{}, fmt.Errorf("query validation: %s", err)
 	}
 
+	isOwner, err := t.isOwner(ctx, req.Controller, tableID.ToBigInt())
+	if err != nil {
+		return tableland.CreateTableResponse{}, fmt.Errorf("failed to check authorization: %s", err)
+	}
+	if !isOwner {
+		return tableland.CreateTableResponse{}, errors.New("you aren't authorized")
+	}
+
 	b, err := t.txnp.OpenBatch(ctx)
 	if err != nil {
 		return tableland.CreateTableResponse{}, fmt.Errorf("opening batch: %s", err)
