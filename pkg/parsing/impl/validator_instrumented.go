@@ -29,10 +29,10 @@ func NewInstrumentedSQLValidator(p parsing.SQLValidator) *InstrumentedSQLValidat
 }
 
 // ValidateCreateTable register metrics for its corresponding wrapped parser.
-func (ip *InstrumentedSQLValidator) ValidateCreateTable(query string) error {
+func (ip *InstrumentedSQLValidator) ValidateCreateTable(query string) (parsing.CreateStmt, error) {
 	log.Debug().Str("query", query).Msg("call ValidateCreateTable")
 	start := time.Now()
-	err := ip.parser.ValidateCreateTable(query)
+	cs, err := ip.parser.ValidateCreateTable(query)
 	latency := time.Since(start).Milliseconds()
 
 	attributes := []attribute.KeyValue{
@@ -43,24 +43,31 @@ func (ip *InstrumentedSQLValidator) ValidateCreateTable(query string) error {
 	ip.callCount.Add(context.Background(), 1, attributes...)
 	ip.latencyHistogram.Record(context.Background(), latency, attributes...)
 
-	return err
+	return cs, err
 }
 
 // ValidateRunSQL register metrics for its corresponding wrapped parser.
-func (ip *InstrumentedSQLValidator) ValidateRunSQL(query string) (parsing.QueryType, []parsing.WriteStmt, error) {
+func (ip *InstrumentedSQLValidator) ValidateRunSQL(query string) (
+	parsing.SugaredReadStmt,
+	[]parsing.SugaredWriteStmt,
+	error) {
 	log.Debug().Str("query", query).Msg("call ValidateRunSQL")
 	start := time.Now()
-	queryType, writeStmts, err := ip.parser.ValidateRunSQL(query)
+	readStmt, writeStmts, err := ip.parser.ValidateRunSQL(query)
 	latency := time.Since(start).Milliseconds()
 
+	queryType := "write"
+	if readStmt != nil {
+		queryType = "read"
+	}
 	attributes := []attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("ValidateRunSQL")},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
-		{Key: "type", Value: attribute.StringValue(string(queryType))},
+		{Key: "type", Value: attribute.StringValue(queryType)},
 	}
 
 	ip.callCount.Add(context.Background(), 1, attributes...)
 	ip.latencyHistogram.Record(context.Background(), latency, attributes...)
 
-	return queryType, writeStmts, err
+	return readStmt, writeStmts, err
 }

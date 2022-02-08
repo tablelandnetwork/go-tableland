@@ -3,9 +3,10 @@ package impl
 import (
 	"context"
 	"fmt"
+	"net/url"
 
-	"github.com/google/uuid"
 	"github.com/textileio/go-tableland/internal/system"
+	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 )
 
@@ -17,23 +18,34 @@ const (
 
 // SystemSQLStoreService implements the SystemService interface using SQLStore.
 type SystemSQLStoreService struct {
-	store sqlstore.SQLStore
+	extURLPrefix string
+	store        sqlstore.SQLStore
 }
 
 // NewSystemSQLStoreService creates a new SystemSQLStoreService.
-func NewSystemSQLStoreService(store sqlstore.SQLStore) system.SystemService {
-	return &SystemSQLStoreService{store}
+func NewSystemSQLStoreService(store sqlstore.SQLStore, extURLPrefix string) (system.SystemService, error) {
+	if _, err := url.ParseRequestURI(extURLPrefix); err != nil {
+		return nil, fmt.Errorf("invalid external url prefix: %s", err)
+	}
+	return &SystemSQLStoreService{
+		extURLPrefix: extURLPrefix,
+		store:        store,
+	}, nil
 }
 
 // GetTableMetadata returns table's metadata fetched from SQLStore.
-func (s *SystemSQLStoreService) GetTableMetadata(ctx context.Context, uuid uuid.UUID) (sqlstore.TableMetadata, error) {
-	table, err := s.store.GetTable(ctx, uuid)
+func (s *SystemSQLStoreService) GetTableMetadata(
+	ctx context.Context,
+	id tableland.TableID) (sqlstore.TableMetadata, error) {
+	table, err := s.store.GetTable(ctx, id)
 	if err != nil {
 		return sqlstore.TableMetadata{}, fmt.Errorf("error fetching the table: %s", err)
 	}
 
 	return sqlstore.TableMetadata{
-		ExternalURL: fmt.Sprintf("https://tableland.com/tables/%s", uuid.String()),
+		Name:        table.Name,
+		Description: table.Description,
+		ExternalURL: fmt.Sprintf("%s/%s", s.extURLPrefix, id),
 		Image:       "https://hub.textile.io/thread/bafkqtqxkgt3moqxwa6rpvtuyigaoiavyewo67r3h7gsz4hov2kys7ha/buckets/bafzbeicpzsc423nuninuvrdsmrwurhv3g2xonnduq4gbhviyo5z4izwk5m/todo-list.png", //nolint
 		Attributes: []sqlstore.TableMetadataAttribute{
 			{

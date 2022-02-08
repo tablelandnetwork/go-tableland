@@ -4,7 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -28,15 +29,15 @@ func NewInstrumentedSQLStorePGX(store sqlstore.SQLStore) sqlstore.SQLStore {
 }
 
 // GetTable fetchs a table from its UUID.
-func (s *InstrumentedSQLStorePGX) GetTable(ctx context.Context, uuid uuid.UUID) (sqlstore.Table, error) {
+func (s *InstrumentedSQLStorePGX) GetTable(ctx context.Context, id tableland.TableID) (sqlstore.Table, error) {
 	start := time.Now()
-	table, err := s.store.GetTable(ctx, uuid)
+	table, err := s.store.GetTable(ctx, id)
 	latency := time.Since(start).Milliseconds()
 
 	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
 	attributes := []attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("GetTable")},
-		{Key: "uuid", Value: attribute.StringValue(uuid.String())},
+		{Key: "id", Value: attribute.StringValue(id.String())},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
 	}
 
@@ -205,9 +206,9 @@ func (s *InstrumentedSQLStorePGX) IncrementRunSQLCount(ctx context.Context, addr
 }
 
 // Read executes a read statement on the db.
-func (s *InstrumentedSQLStorePGX) Read(ctx context.Context, statement string) (interface{}, error) {
+func (s *InstrumentedSQLStorePGX) Read(ctx context.Context, stmt parsing.SugaredReadStmt) (interface{}, error) {
 	start := time.Now()
-	data, err := s.store.Read(ctx, statement)
+	data, err := s.store.Read(ctx, stmt)
 	latency := time.Since(start).Milliseconds()
 
 	attributes := []attribute.KeyValue{

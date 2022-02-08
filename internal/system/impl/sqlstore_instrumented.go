@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/textileio/go-tableland/internal/system"
+	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -29,16 +29,17 @@ func NewInstrumentedSystemSQLStoreService(system system.SystemService) system.Sy
 }
 
 // GetTableMetadata returns table's metadata fetched from SQLStore.
-func (s *InstrumentedSystemSQLStoreService) GetTableMetadata(ctx context.Context,
-	uuid uuid.UUID) (sqlstore.TableMetadata, error) {
+func (s *InstrumentedSystemSQLStoreService) GetTableMetadata(
+	ctx context.Context,
+	id tableland.TableID) (sqlstore.TableMetadata, error) {
 	start := time.Now()
-	metadata, err := s.system.GetTableMetadata(ctx, uuid)
+	metadata, err := s.system.GetTableMetadata(ctx, id)
 	latency := time.Since(start).Milliseconds()
 
 	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
 	attributes := []attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("GetTableMetadata")},
-		{Key: "uuid", Value: attribute.StringValue(uuid.String())},
+		{Key: "id", Value: attribute.StringValue(id.String())},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
 	}
 

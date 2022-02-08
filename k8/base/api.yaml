@@ -74,6 +74,11 @@ spec:
                 secretKeyRef:
                   name: tableland-secret
                   key: adminapi-password
+            - name: REGISTRY_ETHENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: tableland-secret
+                  key: eth-endpoint
           envFrom:
             - configMapRef:
                 name: configmap-api

@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
-	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/system"
+	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/errors"
 )
 
@@ -23,33 +24,31 @@ func NewSystemController(svc system.SystemService) *SystemController {
 	return &SystemController{svc}
 }
 
-// GetTable handles the GET /tables/{uuid} call.
+// GetTable handles the GET /tables/{id} call.
 func (c *SystemController) GetTable(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	rw.Header().Set("Content-type", "application/json")
 	vars := mux.Vars(r)
 
-	requestUUID := vars["uuid"]
-	uuid, err := uuid.Parse(requestUUID)
+	id, err := tableland.NewTableID(vars["id"])
 	if err != nil {
-		rw.WriteHeader(http.StatusUnprocessableEntity)
+		rw.WriteHeader(http.StatusBadRequest)
 		log.Ctx(ctx).
 			Error().
 			Err(err).
-			Str("requestUUID", requestUUID).
-			Msg("invalid uuid")
+			Msg("invalid id format")
 
-		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Invalid uuid"})
+		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Invalid id format"})
 		return
 	}
 
-	metadata, err := c.systemService.GetTableMetadata(ctx, uuid)
+	metadata, err := c.systemService.GetTableMetadata(ctx, id)
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 		log.Ctx(ctx).
 			Error().
 			Err(err).
-			Str("requestUUID", requestUUID).
+			Str("id", id.String()).
 			Msg("failed to fetch metadata")
 
 		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Failed to fetch metadata"})
@@ -80,8 +79,30 @@ func (c *SystemController) GetTablesByController(rw http.ResponseWriter, r *http
 		return
 	}
 
+	// This struct is used since we don't want to return an ID field.
+	// The Name will be {name}_t{ID}.
+	// This is a requirement. Not doing `omitempty` in tableland.Table since
+	// that feels hacky. Looks safer to define a separate type here at the handler level.
+	type tableNameIDUnified struct {
+		Controller  string    `json:"controller"`
+		Name        string    `json:"name"`
+		Description string    `json:"description"`
+		Structure   string    `json:"structure"`
+		CreatedAt   time.Time `json:"created_at"`
+	}
+	retTables := make([]tableNameIDUnified, len(tables))
+	for i, t := range tables {
+		retTables[i] = tableNameIDUnified{
+			Controller:  t.Controller,
+			Name:        fmt.Sprintf("%s_t%s", t.Name, t.ID),
+			Description: t.Description,
+			Structure:   t.Structure,
+			CreatedAt:   t.CreatedAt,
+		}
+	}
+
 	rw.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(rw).Encode(tables)
+	_ = json.NewEncoder(rw).Encode(retTables)
 }
 
 // Authorize handles POST /authorized-addresses [address string body].

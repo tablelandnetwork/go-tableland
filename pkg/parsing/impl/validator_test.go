@@ -1,10 +1,11 @@
 package impl_test
 
 import (
-	"fmt"
+	"math/big"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	postgresparser "github.com/textileio/go-tableland/pkg/parsing/impl"
 )
@@ -13,10 +14,12 @@ func TestRunSQL(t *testing.T) {
 	t.Parallel()
 
 	type testCase struct {
-		name       string
-		query      string
-		expErrType interface{}
-		queryType  parsing.QueryType
+		name        string
+		query       string
+		tableID     *big.Int
+		namePrefix  string
+		isWriteStmt bool
+		expErrType  interface{}
 	}
 
 	writeQueryTests := []testCase{
@@ -37,30 +40,62 @@ func TestRunSQL(t *testing.T) {
 			expErrType: ptr2ErrInvalidSyntax(),
 		},
 
+		// Invalid table name format.
+		{
+			name:       "wrong char prefix",
+			query:      "delete from z123 where a=2",
+			expErrType: ptr2ErrInvalidTableName(),
+		},
+		{
+			name:       "wrong char prefix with name",
+			query:      "delete from oops_z123 where a=2",
+			expErrType: ptr2ErrInvalidTableName(),
+		},
+		{
+			name:       "with separator but 't' missing",
+			query:      "delete from person_123 where a=2",
+			expErrType: ptr2ErrInvalidTableName(),
+		},
+		{
+			name:       "non-numeric id",
+			query:      "delete from person_tWrong where a=2",
+			expErrType: ptr2ErrInvalidTableName(),
+		},
+
 		// Valid insert and updates.
 		{
 			name:       "valid insert",
-			query:      "insert into foo values ('hello', 1, 2)",
+			query:      "insert into duke_t3333 values ('hello', 1, 2)",
+			tableID:    big.NewInt(3333),
+			namePrefix: "duke",
 			expErrType: nil,
 		},
 		{
 			name:       "valid simple update",
-			query:      "update foo set a=1 where b='hello'",
+			query:      "update t0 set a=1 where b='hello'",
+			tableID:    big.NewInt(0),
+			namePrefix: "",
 			expErrType: nil,
 		},
 		{
 			name:       "valid delete",
-			query:      "delete from foo where a=2",
+			query:      "delete from i_like_border_cases_t10 where a=2",
+			tableID:    big.NewInt(10),
+			namePrefix: "i_like_border_cases",
 			expErrType: nil,
 		},
 		{
 			name:       "valid custom func call",
-			query:      "insert into foo values (myfunc(1))",
+			query:      "insert into hoop_t3 values (myfunc(1))",
+			tableID:    big.NewInt(3),
+			namePrefix: "hoop",
 			expErrType: nil,
 		},
 		{
 			name:       "multi statement",
-			query:      "update foo set a=1; update foo set b=1;",
+			query:      "update a_t10 set a=1; update a_t10 set b=1;",
+			tableID:    big.NewInt(10),
+			namePrefix: "a",
 			expErrType: nil,
 		},
 
@@ -178,7 +213,7 @@ func TestRunSQL(t *testing.T) {
 		},
 	}
 	for i := range writeQueryTests {
-		writeQueryTests[i].queryType = parsing.WriteQuery
+		writeQueryTests[i].isWriteStmt = true
 	}
 
 	readQueryTests := []testCase{
@@ -192,12 +227,16 @@ func TestRunSQL(t *testing.T) {
 		// Valid read-queries.
 		{
 			name:       "valid all",
-			query:      "select * from foo",
+			query:      "select * from t1234",
+			tableID:    big.NewInt(1234),
+			namePrefix: "",
 			expErrType: nil,
 		},
 		{
 			name:       "valid defined rows",
-			query:      "select row1, row2 from foo where a=b",
+			query:      "select row1, row2 from zoo_t4321 where a=b",
+			tableID:    big.NewInt(4321),
+			namePrefix: "zoo",
 			expErrType: nil,
 		},
 
@@ -242,21 +281,29 @@ func TestRunSQL(t *testing.T) {
 			expErrType: ptr2ErrNoForUpdateOrShare(),
 		},
 	}
-	for i := range readQueryTests {
-		readQueryTests[i].queryType = parsing.ReadQuery
-	}
 
 	tests := append(readQueryTests, writeQueryTests...)
 
 	for _, it := range tests {
-		t.Run(fmt.Sprintf("%s/%s", it.queryType, it.name), func(tc testCase) func(t *testing.T) {
+		t.Run(it.name, func(tc testCase) func(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
 				parser := postgresparser.New("system_")
-				qt, _, err := parser.ValidateRunSQL(tc.query)
+				rs, wss, err := parser.ValidateRunSQL(tc.query)
 				if tc.expErrType == nil {
 					require.NoError(t, err)
-					require.Equal(t, tc.queryType, qt)
+
+					if tc.isWriteStmt {
+						require.NotEmpty(t, wss)
+						for _, ws := range wss {
+							require.Equal(t, tc.tableID.String(), ws.GetTableID().String())
+							require.Equal(t, tc.namePrefix, ws.GetNamePrefix())
+						}
+					} else {
+						require.NotNil(t, rs)
+						require.Equal(t, tc.tableID.String(), rs.GetTableID().String())
+						require.Equal(t, tc.namePrefix, rs.GetNamePrefix())
+					}
 					return
 				}
 				require.ErrorAs(t, err, tc.expErrType)
@@ -265,7 +312,7 @@ func TestRunSQL(t *testing.T) {
 	}
 }
 
-func TestCreateTable(t *testing.T) {
+func TestCreateTableChecks(t *testing.T) {
 	t.Parallel()
 
 	type testCase struct {
@@ -407,7 +454,7 @@ func TestCreateTable(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
 				parser := postgresparser.New("system_")
-				err := parser.ValidateCreateTable(tc.query)
+				_, err := parser.ValidateCreateTable(tc.query)
 				if tc.expErrType == nil {
 					require.NoError(t, err)
 					return
@@ -418,33 +465,52 @@ func TestCreateTable(t *testing.T) {
 	}
 }
 
-func TestGetWriteStatements(t *testing.T) {
+func TestCreateTableResult(t *testing.T) {
 	t.Parallel()
 
+	type rawQueryTableID struct {
+		id       int64
+		rawQuery string
+	}
+
 	type testCase struct {
-		name              string
-		query             string
-		expectedStmts     []string
-		expectedTablename string
+		name             string
+		query            string
+		expNamePrefix    string
+		expStructureHash string
+
+		expRawQueries []rawQueryTableID
 	}
 	tests := []testCase{
 		{
-			name:  "double update",
-			query: "update foo set a=1;update foo set b=2;",
-			expectedStmts: []string{
-				"UPDATE foo SET a = 1",
-				"UPDATE foo SET b = 2",
+			name: "single col",
+			query: `create table foo (
+				   bar int
+			       )`,
+			expNamePrefix: "foo",
+			// sha256(bar int4)
+			expStructureHash: "60b0e90a94273211e4836dc11d8eebd96e8020ce3408dd112ba9c42e762fe3cc",
+			expRawQueries: []rawQueryTableID{
+				{id: 1, rawQuery: "CREATE TABLE t1 (bar int)"},
+				{id: 42, rawQuery: "CREATE TABLE t42 (bar int)"},
+				{id: 2929392, rawQuery: "CREATE TABLE t2929392 (bar int)"},
 			},
-			expectedTablename: "foo",
 		},
 		{
-			name:  "insert update",
-			query: "insert into foo values (1);update foo set b=2;",
-			expectedStmts: []string{
-				"INSERT INTO foo VALUES (1)",
-				"UPDATE foo SET b = 2",
+			name: "multiple cols",
+			query: `create table person (
+				   name text,
+				   age int,
+				   fav_color varchar(10)
+			       )`,
+			expNamePrefix: "person",
+			// sha256(name:text,age:int4,fav_color:varchar)
+			expStructureHash: "3e846cb815f96b1a572246e1bf5eb5eec8a93598aa4a9741e7dade425ff2dc69",
+			expRawQueries: []rawQueryTableID{
+				{id: 1, rawQuery: "CREATE TABLE t1 (name text, age int, fav_color varchar(10))"},
+				{id: 42, rawQuery: "CREATE TABLE t42 (name text, age int, fav_color varchar(10))"},
+				{id: 2929392, rawQuery: "CREATE TABLE t2929392 (name text, age int, fav_color varchar(10))"},
 			},
-			expectedTablename: "foo",
 		},
 	}
 
@@ -453,12 +519,61 @@ func TestGetWriteStatements(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
 				parser := postgresparser.New("system_")
-				_, stmts, err := parser.ValidateRunSQL(tc.query)
+				cs, err := parser.ValidateCreateTable(tc.query)
 				require.NoError(t, err)
 
+				require.Equal(t, tc.expNamePrefix, cs.GetNamePrefix())
+				require.Equal(t, tc.expStructureHash, cs.GetStructureHash())
+				for _, erq := range tc.expRawQueries {
+					rq, err := cs.GetRawQueryForTableID(tableland.TableID(*big.NewInt(erq.id)))
+					require.NoError(t, err)
+					require.Equal(t, erq.rawQuery, rq)
+				}
+			}
+		}(it))
+	}
+}
+
+func TestGetWriteStatements(t *testing.T) {
+	t.Parallel()
+
+	type testCase struct {
+		name          string
+		query         string
+		expectedStmts []string
+	}
+	tests := []testCase{
+		{
+			name:  "double update",
+			query: "update foo_t100 set a=1;update foo_t100 set b=2;",
+			expectedStmts: []string{
+				"UPDATE t100 SET a = 1",
+				"UPDATE t100 SET b = 2",
+			},
+		},
+		{
+			name:  "insert update",
+			query: "insert into foo_t0 values (1);update foo_t0 set b=2;",
+			expectedStmts: []string{
+				"INSERT INTO t0 VALUES (1)",
+				"UPDATE t0 SET b = 2",
+			},
+		},
+	}
+
+	for _, it := range tests {
+		t.Run(it.name, func(tc testCase) func(t *testing.T) {
+			return func(t *testing.T) {
+				t.Parallel()
+				parser := postgresparser.New("system_")
+				rs, stmts, err := parser.ValidateRunSQL(tc.query)
+				require.NoError(t, err)
+				require.Nil(t, rs)
+
 				for i := range stmts {
-					require.Equal(t, tc.expectedStmts[i], stmts[i].GetRawQuery())
-					require.Equal(t, tc.expectedTablename, stmts[i].GetTablename())
+					desugared, err := stmts[i].GetDesugaredQuery()
+					require.NoError(t, err)
+					require.Equal(t, tc.expectedStmts[i], desugared)
 				}
 			}
 		}(it))
@@ -512,5 +627,9 @@ func ptr2ErrInvalidColumnType() **parsing.ErrInvalidColumnType {
 }
 func ptr2ErrMultiTableReference() **parsing.ErrMultiTableReference {
 	var e *parsing.ErrMultiTableReference
+	return &e
+}
+func ptr2ErrInvalidTableName() **parsing.ErrInvalidTableName {
+	var e *parsing.ErrInvalidTableName
 	return &e
 }

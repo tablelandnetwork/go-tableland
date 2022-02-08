@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/google/uuid"
 	"github.com/textileio/go-tableland/internal/system"
+	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 )
 
@@ -20,9 +20,11 @@ func NewSystemMockService() system.SystemService {
 }
 
 // GetTableMetadata returns a fixed value for testing and demo purposes.
-func (*SystemMockService) GetTableMetadata(ctx context.Context, uuid uuid.UUID) (sqlstore.TableMetadata, error) {
+func (*SystemMockService) GetTableMetadata(ctx context.Context, id tableland.TableID) (sqlstore.TableMetadata, error) {
 	return sqlstore.TableMetadata{
-		ExternalURL: fmt.Sprintf("https://tableland.com/tables/%s", uuid.String()),
+		Name:        "name-1",
+		Description: "description-1",
+		ExternalURL: fmt.Sprintf("https://tableland.network/tables/%s", id),
 		Image:       "https://hub.textile.io/thread/bafkqtqxkgt3moqxwa6rpvtuyigaoiavyewo67r3h7gsz4hov2kys7ha/buckets/bafzbeicpzsc423nuninuvrdsmrwurhv3g2xonnduq4gbhviyo5z4izwk5m/todo-list.png", //nolint
 		Attributes: []sqlstore.TableMetadataAttribute{
 			{
@@ -77,7 +79,9 @@ func NewSystemMockErrService() system.SystemService {
 }
 
 // GetTableMetadata returns a fixed value for testing and demo purposes.
-func (*SystemMockErrService) GetTableMetadata(ctx context.Context, uuid uuid.UUID) (sqlstore.TableMetadata, error) {
+func (*SystemMockErrService) GetTableMetadata(
+	ctx context.Context,
+	id tableland.TableID) (sqlstore.TableMetadata, error) {
 	return sqlstore.TableMetadata{}, errors.New("table not found")
 }
 

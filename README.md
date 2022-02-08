@@ -14,7 +14,7 @@ It implements the validator as a JSON-RPC server responsible for updating a Post
 
 - It has a JSON-RPC server responsible for handling user calls such as `createTable` and `runSQL`
 - It has additional HTTP endpoints for getting data from the sytems
-  - `GET /tables/{uuid}` for table's metadata
+  - `GET /tables/{id}` for table's metadata
   - `GET /tables/controller/{address}` to get all tables a controller address owns
 - It uses JWT authentication on the JSON-RPC calls. The JWT is token is created in the client using [textileio/storage-js](https://github.com/textileio/storage-js/blob/main/packages/eth/src/index.ts#L66)
 - The JSON-RPC is implemented using Ethereum's [implementation](https://pkg.go.dev/github.com/ethereum/go-ethereum/rpc) of the [2.0 spec](https://www.jsonrpc.org/specification)

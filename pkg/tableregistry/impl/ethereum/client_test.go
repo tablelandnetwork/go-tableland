@@ -39,9 +39,7 @@ func requireMint(
 	txOpts *bind.TransactOpts,
 	to common.Address,
 ) *big.Int {
-	tokenID := big.NewInt(0)
-
-	txn, err := contract.Mint(txOpts, to, tokenID, big.NewInt(1), nil)
+	txn, err := contract.SafeMint(txOpts, to)
 	require.NoError(t, err)
 
 	backend.Commit()
@@ -50,7 +48,13 @@ func requireMint(
 	require.NoError(t, err)
 	require.NotNil(t, receipt)
 
-	return tokenID
+	require.Len(t, receipt.Logs, 1)
+	require.Len(t, receipt.Logs[0].Topics, 4)
+
+	idBytes := receipt.Logs[0].Topics[3].Bytes()
+	id := (&big.Int{}).SetBytes(idBytes)
+
+	return id
 }
 
 func requireTxn(

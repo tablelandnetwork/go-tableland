@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -13,8 +14,9 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres" // triggers something?
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
-	"github.com/google/uuid"
+	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system/internal/db"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system/migrations"
@@ -40,17 +42,16 @@ func New(pool *pgxpool.Pool) (*SystemStore, error) {
 }
 
 // GetTable fetchs a table from its UUID.
-func (s *SystemStore) GetTable(ctx context.Context, uuid uuid.UUID) (sqlstore.Table, error) {
-	table, err := s.db.GetTable(ctx, uuid)
+func (s *SystemStore) GetTable(ctx context.Context, id tableland.TableID) (sqlstore.Table, error) {
+	dbID := pgtype.Numeric{}
+	if err := dbID.Set(id.String()); err != nil {
+		return sqlstore.Table{}, fmt.Errorf("parsing id to numeric: %s", err)
+	}
+	table, err := s.db.GetTable(ctx, dbID)
 	if err != nil {
 		return sqlstore.Table{}, fmt.Errorf("failed to get the table: %s", err)
 	}
-
-	return sqlstore.Table{
-		UUID:       table.UUID,
-		Controller: table.Controller,
-		CreatedAt:  table.CreatedAt,
-		Type:       table.Type.String}, err
+	return tableFromSQLToDTO(table)
 }
 
 // GetTablesByController fetchs a table from controller address.
@@ -60,16 +61,15 @@ func (s *SystemStore) GetTablesByController(ctx context.Context, controller stri
 		return []sqlstore.Table{}, fmt.Errorf("failed to get the table: %s", err)
 	}
 
-	tables := make([]sqlstore.Table, 0)
-	for _, t := range sqlcTables {
-		tables = append(tables,
-			sqlstore.Table{
-				UUID:       t.UUID,
-				Controller: t.Controller,
-				CreatedAt:  t.CreatedAt,
-				Type:       t.Type.String})
+	tables := make([]sqlstore.Table, len(sqlcTables))
+	for i := range sqlcTables {
+		tables[i], err = tableFromSQLToDTO(sqlcTables[i])
+		if err != nil {
+			return nil, fmt.Errorf("parsing database table to dto: %s", err)
+		}
 	}
-	return tables, err
+
+	return tables, nil
 }
 
 // Authorize grants the provided address permission to use the system.
@@ -190,4 +190,36 @@ func executeMigration(postgresURI string, as *bindata.AssetSource) error {
 	}
 
 	return nil
+}
+
+func tableFromSQLToDTO(table db.SystemTable) (sqlstore.Table, error) {
+	strID := numericToString(table.ID)
+	id, err := tableland.NewTableID(strID)
+	if err != nil {
+		return sqlstore.Table{}, fmt.Errorf("parsing id to string: %s", err)
+	}
+	return sqlstore.Table{
+		ID:          id,
+		Controller:  table.Controller,
+		Name:        table.Name,
+		Description: table.Description,
+		Structure:   table.Structure,
+		CreatedAt:   table.CreatedAt,
+	}, nil
+}
+
+// Unfortunately, looks like there's no clean way to decode a pgtype.Numeric
+// into a *big.Int or string. The code below is some internal method that
+// pgtype.Numeric uses actually, but unfortunately they don't export toBigInt().
+var big10 = big.NewInt(10)
+
+func numericToString(n pgtype.Numeric) string {
+	num := &big.Int{}
+	num.Set(n.Int)
+	if n.Exp > 0 {
+		mul := &big.Int{}
+		mul.Exp(big10, big.NewInt(int64(n.Exp)), nil)
+		num.Mul(num, mul)
+	}
+	return num.String()
 }
