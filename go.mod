@@ -9,7 +9,7 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.15.1
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
-	github.com/jackc/pgconn v1.10.1
+	github.com/jackc/pgconn v1.11.0
 	github.com/jackc/pgproto3/v2 v2.2.0
 	github.com/jackc/pgtype v1.9.1
 	github.com/jackc/pgx/v4 v4.14.1
