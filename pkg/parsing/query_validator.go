@@ -13,13 +13,13 @@ import (
 // database, since sugared queries should be desugared for correct execution.
 type SugaredStmt interface {
 	// GetDesugared query desugars the query, which means:
-	// "insert into foo_t100" -> "insert t100"
+	// "insert into foo_100" -> "insert _100"
 	GetDesugaredQuery() (string, error)
 	// GetNamePrefix returns the name prefix of the sugared table name
-	// if exists. e.g: "insert into foo_t100" -> "foo". Since the name
+	// if exists. e.g: "insert into foo_100" -> "foo". Since the name
 	// prefix is optional, it can return "" if none exist in the query.
 	GetNamePrefix() string
-	// GetTableID returns the table id. "insert into foo_t100" -> 100.
+	// GetTableID returns the table id. "insert into foo_100" -> 100.
 	GetTableID() tableland.TableID
 }
 

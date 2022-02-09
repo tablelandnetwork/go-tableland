@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"github.com/textileio/go-tableland/pkg/errors"
 )
@@ -52,7 +53,7 @@ func VerifyController(next http.Handler) http.Handler {
 			return
 		}
 
-		if address != b.Params[0].Controller {
+		if !strings.EqualFold(addressString, b.Params[0].Controller) {
 			w.WriteHeader(http.StatusBadRequest)
 			_ = json.NewEncoder(w).Encode(errors.ServiceError{Message: "jwt address does not match controller address"})
 			return

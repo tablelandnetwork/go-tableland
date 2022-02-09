@@ -77,7 +77,7 @@ paths:
                     jsonrpc: "2.0"
                     id: 1
                     result:
-                      tablename: "myname_t0"
+                      name: "myname_0"
                 runSQL:
                   value:
                     jsonrpc: "2.0"
@@ -127,7 +127,7 @@ paths:
                       type: "string"
                   example:
                     controller: "0xbAb12215Ed94713A290e0c618fa8177fAb5eFd2D"
-                    name: "myname_t0"
+                    name: "myname_0"
                     description: "tableland rocks!"
                     structure: "be1eb905f03347a439ecf9b612632fd53839b7f082dc2f9be6ef7da5dfddd660"
                     created_at: "2022-02-07T22:57:41.606803Z"

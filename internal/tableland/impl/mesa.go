@@ -59,10 +59,10 @@ func (t *TablelandMesa) CreateTable(
 
 	isOwner, err := t.isOwner(ctx, req.Controller, tableID.ToBigInt())
 	if err != nil {
-		return tableland.CreateTableResponse{}, fmt.Errorf("failed to check authorization: %s", err)
+		return tableland.CreateTableResponse{}, fmt.Errorf("failed to check owner: %s", err)
 	}
 	if !isOwner {
-		return tableland.CreateTableResponse{}, errors.New("you aren't authorized")
+		return tableland.CreateTableResponse{}, errors.New("you aren't the owner of the provided token")
 	}
 
 	b, err := t.txnp.OpenBatch(ctx)
@@ -86,7 +86,7 @@ func (t *TablelandMesa) CreateTable(
 	}
 
 	return tableland.CreateTableResponse{
-		Tablename: fmt.Sprintf("%s_t%s", createStmt.GetNamePrefix(), req.ID),
+		Name: fmt.Sprintf("%s_%s", createStmt.GetNamePrefix(), req.ID),
 	}, nil
 }
 

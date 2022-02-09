@@ -26,7 +26,7 @@ func TestRunSQL(t *testing.T) {
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
 
-		wq1 := mustWriteStmt(t, `insert into foo_t100 values ('one')`)
+		wq1 := mustWriteStmt(t, `insert into foo_100 values ('one')`)
 		err = b.ExecWriteQueries(ctx, []parsing.SugaredWriteStmt{wq1})
 		require.NoError(t, err)
 
@@ -47,18 +47,18 @@ func TestRunSQL(t *testing.T) {
 		require.NoError(t, err)
 
 		{
-			wq1 := mustWriteStmt(t, `insert into foo_t100 values ('wq1one')`)
+			wq1 := mustWriteStmt(t, `insert into foo_100 values ('wq1one')`)
 			err = b.ExecWriteQueries(ctx, []parsing.SugaredWriteStmt{wq1})
 			require.NoError(t, err)
 		}
 		{
-			wq1 := mustWriteStmt(t, `insert into foo_t100 values ('wq1two')`)
-			wq2 := mustWriteStmt(t, `insert into foo_t100 values ('wq2three')`)
+			wq1 := mustWriteStmt(t, `insert into foo_100 values ('wq1two')`)
+			wq2 := mustWriteStmt(t, `insert into foo_100 values ('wq2three')`)
 			err = b.ExecWriteQueries(ctx, []parsing.SugaredWriteStmt{wq1, wq2})
 			require.NoError(t, err)
 		}
 		{
-			wq1 := mustWriteStmt(t, `insert into foo_t100 values ('wq1four')`)
+			wq1 := mustWriteStmt(t, `insert into foo_100 values ('wq1four')`)
 			err = b.ExecWriteQueries(ctx, []parsing.SugaredWriteStmt{wq1})
 			require.NoError(t, err)
 		}
@@ -80,18 +80,18 @@ func TestRunSQL(t *testing.T) {
 		require.NoError(t, err)
 
 		{
-			wq1_1 := mustWriteStmt(t, `insert into foo_t100 values ('onez')`)
+			wq1_1 := mustWriteStmt(t, `insert into foo_100 values ('onez')`)
 			err = b.ExecWriteQueries(ctx, []parsing.SugaredWriteStmt{wq1_1})
 			require.NoError(t, err)
 		}
 		{
-			wq2_1 := mustWriteStmt(t, `insert into foo_t100 values ('twoz')`)
-			wq2_2 := mustWriteStmt(t, `insert into foo_t101 values ('threez')`)
+			wq2_1 := mustWriteStmt(t, `insert into foo_100 values ('twoz')`)
+			wq2_2 := mustWriteStmt(t, `insert into foo_101 values ('threez')`)
 			err = b.ExecWriteQueries(ctx, []parsing.SugaredWriteStmt{wq2_1, wq2_2})
 			require.Error(t, err)
 		}
 		{
-			wq3_1 := mustWriteStmt(t, `insert into foo_t100 values ('fourz')`)
+			wq3_1 := mustWriteStmt(t, `insert into foo_100 values ('fourz')`)
 			err = b.ExecWriteQueries(ctx, []parsing.SugaredWriteStmt{wq3_1})
 			require.NoError(t, err)
 		}
@@ -120,13 +120,13 @@ func TestRunSQL(t *testing.T) {
 		require.NoError(t, err)
 
 		{
-			wq1_1 := mustWriteStmt(t, `insert into foo_t100 values ('one')`)
+			wq1_1 := mustWriteStmt(t, `insert into foo_100 values ('one')`)
 			err = b.ExecWriteQueries(ctx, []parsing.SugaredWriteStmt{wq1_1})
 			require.NoError(t, err)
 		}
 		{
-			wq2_1 := mustWriteStmt(t, `insert into foo_t100 values ('two')`)
-			wq2_2 := mustWriteStmt(t, `insert into foo_t100 values ('three')`)
+			wq2_1 := mustWriteStmt(t, `insert into foo_100 values ('two')`)
+			wq2_2 := mustWriteStmt(t, `insert into foo_100 values ('three')`)
 			err = b.ExecWriteQueries(ctx, []parsing.SugaredWriteStmt{wq2_1, wq2_2})
 			require.NoError(t, err)
 		}
@@ -178,7 +178,7 @@ func TestRegisterTable(t *testing.T) {
 		require.NotEqual(t, new(time.Time), table.CreatedAt) // CreatedAt is not the zero value
 
 		// Check that the user table was created.
-		ok := existsTableWithName(t, pool, "t100")
+		ok := existsTableWithName(t, pool, "_100")
 		require.True(t, ok)
 	})
 }
@@ -186,7 +186,7 @@ func TestRegisterTable(t *testing.T) {
 func tableRowCountT100(t *testing.T, pool *pgxpool.Pool) int {
 	t.Helper()
 
-	q := "select count(*) from t100"
+	q := "select count(*) from _100"
 	row := pool.QueryRow(context.Background(), q)
 	var rowCount int
 	err := row.Scan(&rowCount)
