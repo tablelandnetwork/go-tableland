@@ -22,11 +22,10 @@ func NewSystemMockService() system.SystemService {
 // GetTableMetadata returns a fixed value for testing and demo purposes.
 func (*SystemMockService) GetTableMetadata(ctx context.Context, id tableland.TableID) (sqlstore.TableMetadata, error) {
 	return sqlstore.TableMetadata{
-		Name:          "name-1",
-		QueryableName: "name-1",
-		Description:   "description-1",
-		ExternalURL:   fmt.Sprintf("https://tableland.network/tables/%s", id),
-		Image:         "https://hub.textile.io/thread/bafkqtqxkgt3moqxwa6rpvtuyigaoiavyewo67r3h7gsz4hov2kys7ha/buckets/bafzbeicpzsc423nuninuvrdsmrwurhv3g2xonnduq4gbhviyo5z4izwk5m/todo-list.png", //nolint
+		Name:        "name-1",
+		Description: "description-1",
+		ExternalURL: fmt.Sprintf("https://tableland.network/tables/%s", id),
+		Image:       "https://hub.textile.io/thread/bafkqtqxkgt3moqxwa6rpvtuyigaoiavyewo67r3h7gsz4hov2kys7ha/buckets/bafzbeicpzsc423nuninuvrdsmrwurhv3g2xonnduq4gbhviyo5z4izwk5m/todo-list.png", //nolint
 		Attributes: []sqlstore.TableMetadataAttribute{
 			{
 				DisplayType: "date",

@@ -42,14 +42,11 @@ func (s *SystemSQLStoreService) GetTableMetadata(
 		return sqlstore.TableMetadata{}, fmt.Errorf("error fetching the table: %s", err)
 	}
 
-	name := fmt.Sprintf("%s_t%s", table.Name, table.ID)
-
 	return sqlstore.TableMetadata{
-		Name:          name,
-		QueryableName: name,
-		Description:   table.Description,
-		ExternalURL:   fmt.Sprintf("%s/%s", s.extURLPrefix, id),
-		Image:         "https://hub.textile.io/thread/bafkqtqxkgt3moqxwa6rpvtuyigaoiavyewo67r3h7gsz4hov2kys7ha/buckets/bafzbeicpzsc423nuninuvrdsmrwurhv3g2xonnduq4gbhviyo5z4izwk5m/todo-list.png", //nolint
+		Name:        fmt.Sprintf("%s_t%s", table.Name, table.ID),
+		Description: table.Description,
+		ExternalURL: fmt.Sprintf("%s/%s", s.extURLPrefix, id),
+		Image:       "https://hub.textile.io/thread/bafkqtqxkgt3moqxwa6rpvtuyigaoiavyewo67r3h7gsz4hov2kys7ha/buckets/bafzbeicpzsc423nuninuvrdsmrwurhv3g2xonnduq4gbhviyo5z4izwk5m/todo-list.png", //nolint
 		Attributes: []sqlstore.TableMetadataAttribute{
 			{
 				DisplayType: "date",

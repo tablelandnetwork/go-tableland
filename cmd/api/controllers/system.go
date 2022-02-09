@@ -84,20 +84,20 @@ func (c *SystemController) GetTablesByController(rw http.ResponseWriter, r *http
 	// This is a requirement. Not doing `omitempty` in tableland.Table since
 	// that feels hacky. Looks safer to define a separate type here at the handler level.
 	type tableNameIDUnified struct {
-		Controller    string    `json:"controller"`
-		QueryableName string    `json:"queryable_name"`
-		Description   string    `json:"description"`
-		Structure     string    `json:"structure"`
-		CreatedAt     time.Time `json:"created_at"`
+		Controller  string    `json:"controller"`
+		Name        string    `json:"name"`
+		Description string    `json:"description"`
+		Structure   string    `json:"structure"`
+		CreatedAt   time.Time `json:"created_at"`
 	}
 	retTables := make([]tableNameIDUnified, len(tables))
 	for i, t := range tables {
 		retTables[i] = tableNameIDUnified{
-			Controller:    t.Controller,
-			QueryableName: fmt.Sprintf("%s_t%s", t.Name, t.ID),
-			Description:   t.Description,
-			Structure:     t.Structure,
-			CreatedAt:     t.CreatedAt,
+			Controller:  t.Controller,
+			Name:        fmt.Sprintf("%s_t%s", t.Name, t.ID),
+			Description: t.Description,
+			Structure:   t.Structure,
+			CreatedAt:   t.CreatedAt,
 		}
 	}
 
