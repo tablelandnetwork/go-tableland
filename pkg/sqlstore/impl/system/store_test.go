@@ -2,7 +2,6 @@ package system
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -40,12 +39,10 @@ func TestLastSeen(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, rec.LastSeen)
 	require.True(t, rec.LastSeen.After(time.Now().AddDate(0, 0, -1)))
-	fmt.Printf("single record result: %v\n", *rec.LastSeen)
 
 	recs, err := store.ListAuthorized(ctx)
 	require.NoError(t, err)
 	require.Len(t, recs, 1)
 	require.NotNil(t, recs[0].LastSeen)
 	require.True(t, recs[0].LastSeen.After(time.Now().AddDate(0, 0, -1)))
-	fmt.Printf("records list result: %v\n", *recs[0].LastSeen)
 }
