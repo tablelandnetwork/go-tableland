@@ -94,6 +94,7 @@ func main() {
 			Err(err).
 			Msg("failed to register a json-rpc service")
 	}
+	userController := controllers.NewUserController(svc)
 
 	sysStore, err := systemimpl.NewSystemSQLStoreService(sqlstore, config.Gateway.ExternalURIPrefix)
 	if err != nil {
@@ -109,6 +110,7 @@ func main() {
 	}, middlewares.Authentication, middlewares.VerifyController, middlewares.OtelHTTP("rpc"))
 
 	router.Get("/tables/{id}", systemController.GetTable, middlewares.OtelHTTP("GetTable"))
+	router.Get("/tables/{id}/{key}/{value}", userController.GetTableRow, middlewares.OtelHTTP("GetTableRow"))
 	router.Get("/tables/controller/{address}", systemController.GetTablesByController, middlewares.OtelHTTP("GetTablesByController")) //nolint
 
 	router.Get("/healthz", healthHandler)

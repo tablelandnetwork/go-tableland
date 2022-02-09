@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 	"github.com/textileio/go-tableland/pkg/parsing"
+	"github.com/textileio/go-tableland/pkg/sqlstore"
 )
 
 func rowsToJSON(rows pgx.Rows) (interface{}, error) {
@@ -21,18 +22,14 @@ func rowsToJSON(rows pgx.Rows) (interface{}, error) {
 		return nil, err
 	}
 
-	return map[string]interface{}{
-		"columns": columnsData,
-		"rows":    rowsData,
+	return sqlstore.UserRows{
+		Columns: columnsData,
+		Rows:    rowsData,
 	}, nil
 }
 
-func getColumnsData(fields []pgproto3.FieldDescription) []struct {
-	Name string `json:"name"`
-} {
-	columns := make([]struct {
-		Name string `json:"name"`
-	}, 0)
+func getColumnsData(fields []pgproto3.FieldDescription) []sqlstore.UserColumn {
+	columns := make([]sqlstore.UserColumn, 0)
 	for _, col := range fields {
 		columns = append(columns, struct {
 			Name string `json:"name"`

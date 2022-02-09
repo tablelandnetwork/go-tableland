@@ -46,7 +46,7 @@ func (s *SystemSQLStoreService) GetTableMetadata(
 		Name:        fmt.Sprintf("%s_%s", table.Name, table.ID),
 		Description: table.Description,
 		ExternalURL: fmt.Sprintf("%s/%s", s.extURLPrefix, id),
-		Image:       "https://hub.textile.io/thread/bafkqtqxkgt3moqxwa6rpvtuyigaoiavyewo67r3h7gsz4hov2kys7ha/buckets/bafzbeicpzsc423nuninuvrdsmrwurhv3g2xonnduq4gbhviyo5z4izwk5m/todo-list.png", //nolint
+		Image:       "https://bafkreifhuhrjhzbj4onqgbrmhpysk2mop2jimvdvfut6taiyzt2yqzt43a.ipfs.dweb.link", //nolint
 		Attributes: []sqlstore.TableMetadataAttribute{
 			{
 				DisplayType: "date",

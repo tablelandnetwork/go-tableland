@@ -30,6 +30,10 @@ build-api:
 	go build -ldflags="${GOVVV_FLAGS}" ./cmd/api
 .PHONY: build-api
 
+build-api-dev:
+	go build -ldflags="${GOVVV_FLAGS}" -gcflags="all=-N -l" ./cmd/api
+.PHONY: build-api-dev
+
 image:
 	docker build --platform linux/amd64 -t tableland/api:sha-$(HEAD_SHORT) -t tableland/api:latest -f ./cmd/api/Dockerfile .
 .PHONY: image
