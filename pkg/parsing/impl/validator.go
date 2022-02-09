@@ -37,7 +37,7 @@ func New(systemTablePrefix string) *QueryValidator {
 		acceptedTypesNames = append(acceptedTypesNames, at.Names...)
 	}
 
-	rawTablenameRegEx, _ := regexp.Compile(`(\w+_)?t[0-9]+`)
+	rawTablenameRegEx, _ := regexp.Compile(`(^\w+_[0-9]+$)|(^t[0-9]+$)`)
 
 	return &QueryValidator{
 		systemTablePrefix:  systemTablePrefix,
@@ -156,10 +156,10 @@ func (pp *QueryValidator) deconstructRefTable(refTable string) (string, string, 
 	var namePrefix, realTableName string
 	sepIdx := strings.LastIndex(refTable, "_")
 	if sepIdx == -1 {
-		realTableName = refTable
+		realTableName = refTable // No name prefix case, t{ID}.
 	} else {
-		namePrefix = refTable[:sepIdx] // If sepIdx==0, this is correct too.
-		realTableName = refTable[sepIdx+1:]
+		namePrefix = refTable[:sepIdx]            // If sepIdx==0, this is correct too.
+		realTableName = "t" + refTable[sepIdx+1:] // {name}_{id} doesn't contain a 't', so we add it.
 	}
 
 	return namePrefix, realTableName, nil

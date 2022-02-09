@@ -105,7 +105,7 @@ func TestMultiStatement(t *testing.T) {
 	{
 		req := tableland.RunSQLRequest{
 			Controller: "ctrl-1",
-			Statement:  `INSERT INTO foo_t1 values ('bar'); UPDATE foo_t1 SET name='zoo'`,
+			Statement:  `INSERT INTO foo_1 values ('bar'); UPDATE foo_1 SET name='zoo'`,
 		}
 		_, err := tbld.RunSQL(ctx, req)
 		require.NoError(t, err)
