@@ -6,9 +6,9 @@ spec:
   tls:
     - secretName: tableland-tls-cf-secret
       hosts:
-        - tableland.network
+        - testnet.tableland.network
   rules:
-    - host: tableland.network
+    - host: testnet.tableland.network
       http:
         paths:
           - path: /

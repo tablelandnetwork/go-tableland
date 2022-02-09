@@ -28,7 +28,7 @@ func (q *Queries) GetTable(ctx context.Context, id pgtype.Numeric) (SystemTable,
 }
 
 const getTablesByController = `-- name: GetTablesByController :many
-SELECT created_at, id, structure, controller, description, name FROM system_tables WHERE controller = $1
+SELECT created_at, id, structure, controller, description, name FROM system_tables WHERE controller ILIKE $1
 `
 
 func (q *Queries) GetTablesByController(ctx context.Context, controller string) ([]SystemTable, error) {

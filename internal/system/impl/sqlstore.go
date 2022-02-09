@@ -43,7 +43,7 @@ func (s *SystemSQLStoreService) GetTableMetadata(
 	}
 
 	return sqlstore.TableMetadata{
-		Name:        table.Name,
+		Name:        fmt.Sprintf("%s_%s", table.Name, table.ID),
 		Description: table.Description,
 		ExternalURL: fmt.Sprintf("%s/%s", s.extURLPrefix, id),
 		Image:       "https://hub.textile.io/thread/bafkqtqxkgt3moqxwa6rpvtuyigaoiavyewo67r3h7gsz4hov2kys7ha/buckets/bafzbeicpzsc423nuninuvrdsmrwurhv3g2xonnduq4gbhviyo5z4izwk5m/todo-list.png", //nolint

@@ -17,7 +17,7 @@ func (q *Queries) Authorize(ctx context.Context, address string) error {
 }
 
 const getAuthorized = `-- name: GetAuthorized :one
-SELECT address, created_at, last_seen, create_table_count, run_sql_count FROM system_auth WHERE address=$1
+SELECT address, created_at, last_seen, create_table_count, run_sql_count FROM system_auth WHERE address ILIKE $1
 `
 
 func (q *Queries) GetAuthorized(ctx context.Context, address string) (SystemAuth, error) {
@@ -34,7 +34,7 @@ func (q *Queries) GetAuthorized(ctx context.Context, address string) (SystemAuth
 }
 
 const incrementCreateTableCount = `-- name: IncrementCreateTableCount :exec
-UPDATE system_auth SET create_table_count = create_table_count+1, last_seen = NOW() WHERE address=$1
+UPDATE system_auth SET create_table_count = create_table_count+1, last_seen = NOW() WHERE address ILIKE $1
 `
 
 func (q *Queries) IncrementCreateTableCount(ctx context.Context, address string) error {
@@ -43,7 +43,7 @@ func (q *Queries) IncrementCreateTableCount(ctx context.Context, address string)
 }
 
 const incrementRunSQLCount = `-- name: IncrementRunSQLCount :exec
-UPDATE system_auth SET run_sql_count = run_sql_count+1, last_seen = NOW() WHERE address=$1
+UPDATE system_auth SET run_sql_count = run_sql_count+1, last_seen = NOW() WHERE address ILIKE $1
 `
 
 func (q *Queries) IncrementRunSQLCount(ctx context.Context, address string) error {
@@ -52,7 +52,7 @@ func (q *Queries) IncrementRunSQLCount(ctx context.Context, address string) erro
 }
 
 const isAuthorized = `-- name: IsAuthorized :one
-SELECT EXISTS(SELECT 1 from system_auth WHERE address=$1) AS "exists"
+SELECT EXISTS(SELECT 1 from system_auth WHERE address ILIKE $1) AS "exists"
 `
 
 func (q *Queries) IsAuthorized(ctx context.Context, address string) (bool, error) {
@@ -93,7 +93,7 @@ func (q *Queries) ListAuthorized(ctx context.Context) ([]SystemAuth, error) {
 }
 
 const revoke = `-- name: Revoke :exec
-DELETE FROM system_auth WHERE address=$1
+DELETE FROM system_auth WHERE address ILIKE $1
 `
 
 func (q *Queries) Revoke(ctx context.Context, address string) error {

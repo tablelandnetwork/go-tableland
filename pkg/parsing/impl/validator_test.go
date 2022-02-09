@@ -30,6 +30,11 @@ func TestRunSQL(t *testing.T) {
 			expErrType: ptr2ErrInvalidSyntax(),
 		},
 		{
+			name:       "numeric tablename",
+			query:      "insert into 10 valuez (1, 1)",
+			expErrType: ptr2ErrInvalidSyntax(),
+		},
+		{
 			name:       "malformed update",
 			query:      "update foo sez a=1, b=2",
 			expErrType: ptr2ErrInvalidSyntax(),
@@ -42,18 +47,13 @@ func TestRunSQL(t *testing.T) {
 
 		// Invalid table name format.
 		{
-			name:       "wrong char prefix",
-			query:      "delete from z123 where a=2",
-			expErrType: ptr2ErrInvalidTableName(),
-		},
-		{
-			name:       "wrong char prefix with name",
+			name:       "suffix is not an integer",
 			query:      "delete from oops_z123 where a=2",
 			expErrType: ptr2ErrInvalidTableName(),
 		},
 		{
-			name:       "with separator but 't' missing",
-			query:      "delete from person_123 where a=2",
+			name:       "suffix cannot include 't' even in long names",
+			query:      "delete from person_t123 where a=2",
 			expErrType: ptr2ErrInvalidTableName(),
 		},
 		{
@@ -65,35 +65,35 @@ func TestRunSQL(t *testing.T) {
 		// Valid insert and updates.
 		{
 			name:       "valid insert",
-			query:      "insert into duke_t3333 values ('hello', 1, 2)",
+			query:      "insert into duke_3333 values ('hello', 1, 2)",
 			tableID:    big.NewInt(3333),
 			namePrefix: "duke",
 			expErrType: nil,
 		},
 		{
-			name:       "valid simple update",
-			query:      "update t0 set a=1 where b='hello'",
+			name:       "valid simple update without name prefix needing '_' prefix",
+			query:      "update _0 set a=1 where b='hello'",
 			tableID:    big.NewInt(0),
 			namePrefix: "",
 			expErrType: nil,
 		},
 		{
 			name:       "valid delete",
-			query:      "delete from i_like_border_cases_t10 where a=2",
+			query:      "delete from i_like_border_cases_10 where a=2",
 			tableID:    big.NewInt(10),
 			namePrefix: "i_like_border_cases",
 			expErrType: nil,
 		},
 		{
 			name:       "valid custom func call",
-			query:      "insert into hoop_t3 values (myfunc(1))",
+			query:      "insert into hoop_3 values (myfunc(1))",
 			tableID:    big.NewInt(3),
 			namePrefix: "hoop",
 			expErrType: nil,
 		},
 		{
 			name:       "multi statement",
-			query:      "update a_t10 set a=1; update a_t10 set b=1;",
+			query:      "update a_10 set a=1; update a_10 set b=1;",
 			tableID:    big.NewInt(10),
 			namePrefix: "a",
 			expErrType: nil,
@@ -227,14 +227,14 @@ func TestRunSQL(t *testing.T) {
 		// Valid read-queries.
 		{
 			name:       "valid all",
-			query:      "select * from t1234",
+			query:      "select * from _1234",
 			tableID:    big.NewInt(1234),
 			namePrefix: "",
 			expErrType: nil,
 		},
 		{
 			name:       "valid defined rows",
-			query:      "select row1, row2 from zoo_t4321 where a=b",
+			query:      "select row1, row2 from zoo_4321 where a=b",
 			tableID:    big.NewInt(4321),
 			namePrefix: "zoo",
 			expErrType: nil,
@@ -491,9 +491,9 @@ func TestCreateTableResult(t *testing.T) {
 			// sha256(bar int4)
 			expStructureHash: "60b0e90a94273211e4836dc11d8eebd96e8020ce3408dd112ba9c42e762fe3cc",
 			expRawQueries: []rawQueryTableID{
-				{id: 1, rawQuery: "CREATE TABLE t1 (bar int)"},
-				{id: 42, rawQuery: "CREATE TABLE t42 (bar int)"},
-				{id: 2929392, rawQuery: "CREATE TABLE t2929392 (bar int)"},
+				{id: 1, rawQuery: "CREATE TABLE _1 (bar int)"},
+				{id: 42, rawQuery: "CREATE TABLE _42 (bar int)"},
+				{id: 2929392, rawQuery: "CREATE TABLE _2929392 (bar int)"},
 			},
 		},
 		{
@@ -507,9 +507,9 @@ func TestCreateTableResult(t *testing.T) {
 			// sha256(name:text,age:int4,fav_color:varchar)
 			expStructureHash: "3e846cb815f96b1a572246e1bf5eb5eec8a93598aa4a9741e7dade425ff2dc69",
 			expRawQueries: []rawQueryTableID{
-				{id: 1, rawQuery: "CREATE TABLE t1 (name text, age int, fav_color varchar(10))"},
-				{id: 42, rawQuery: "CREATE TABLE t42 (name text, age int, fav_color varchar(10))"},
-				{id: 2929392, rawQuery: "CREATE TABLE t2929392 (name text, age int, fav_color varchar(10))"},
+				{id: 1, rawQuery: "CREATE TABLE _1 (name text, age int, fav_color varchar(10))"},
+				{id: 42, rawQuery: "CREATE TABLE _42 (name text, age int, fav_color varchar(10))"},
+				{id: 2929392, rawQuery: "CREATE TABLE _2929392 (name text, age int, fav_color varchar(10))"},
 			},
 		},
 	}
@@ -545,18 +545,18 @@ func TestGetWriteStatements(t *testing.T) {
 	tests := []testCase{
 		{
 			name:  "double update",
-			query: "update foo_t100 set a=1;update foo_t100 set b=2;",
+			query: "update foo_100 set a=1;update foo_100 set b=2;",
 			expectedStmts: []string{
-				"UPDATE t100 SET a = 1",
-				"UPDATE t100 SET b = 2",
+				"UPDATE _100 SET a = 1",
+				"UPDATE _100 SET b = 2",
 			},
 		},
 		{
 			name:  "insert update",
-			query: "insert into foo_t0 values (1);update foo_t0 set b=2;",
+			query: "insert into foo_0 values (1);update foo_0 set b=2;",
 			expectedStmts: []string{
-				"INSERT INTO t0 VALUES (1)",
-				"UPDATE t0 SET b = 2",
+				"INSERT INTO _0 VALUES (1)",
+				"UPDATE _0 SET b = 2",
 			},
 		},
 	}
