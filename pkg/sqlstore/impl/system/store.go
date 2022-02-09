@@ -130,15 +130,15 @@ func (s *SystemStore) ListAuthorized(ctx context.Context) ([]sqlstore.Authorizat
 	}
 	records := make([]sqlstore.AuthorizationRecord, 0)
 	for _, r := range res {
-		var lastSeen *time.Time
+		var lastSeen time.Time
 		if r.LastSeen.Valid {
-			lastSeen = &r.LastSeen.Time
+			lastSeen = r.LastSeen.Time
 		}
 		records = append(records,
 			sqlstore.AuthorizationRecord{
 				Address:          r.Address,
 				CreatedAt:        r.CreatedAt,
-				LastSeen:         lastSeen,
+				LastSeen:         &lastSeen,
 				CreateTableCount: r.CreateTableCount,
 				RunSQLCount:      r.RunSqlCount,
 			},
