@@ -49,20 +49,29 @@ func TestReadGeneralTypeCorrectness(t *testing.T) {
 
 	// test decimal type parsing
 	{
-		data, err := execReadQuery(ctx, tx, "SELECT 1.2::decimal")
+		data, err := execReadQuery(ctx, tx, "SELECT 123.456789::decimal")
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
-		require.JSONEq(t, `{"columns":[{"name":"numeric"}],"rows":[["12e-1"]]}`, string(b))
+		require.JSONEq(t, `{"columns":[{"name":"numeric"}],"rows":[["123.456789"]]}`, string(b))
 	}
 
-	// test numeric type parsing
+	// test numeric type float parsing
 	{
-		data, err := execReadQuery(ctx, tx, "SELECT 1.2::numeric")
+		data, err := execReadQuery(ctx, tx, "SELECT 123.456789::numeric")
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
-		require.JSONEq(t, `{"columns":[{"name":"numeric"}],"rows":[["12e-1"]]}`, string(b))
+		require.JSONEq(t, `{"columns":[{"name":"numeric"}],"rows":[["123.456789"]]}`, string(b))
+	}
+
+	// test numeric type int parsing
+	{
+		data, err := execReadQuery(ctx, tx, "SELECT 100::numeric")
+		require.NoError(t, err)
+		b, err := json.Marshal(data)
+		require.NoError(t, err)
+		require.JSONEq(t, `{"columns":[{"name":"numeric"}],"rows":[["100"]]}`, string(b))
 	}
 
 	// test bool type parsing
