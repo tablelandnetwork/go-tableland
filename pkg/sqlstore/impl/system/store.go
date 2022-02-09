@@ -153,7 +153,9 @@ func (s *SystemStore) ListAuthorized(ctx context.Context) ([]sqlstore.Authorizat
 			RunSQLCount:      r.RunSqlCount,
 		}
 		if r.LastSeen.Valid {
-			rec.LastSeen = &r.LastSeen.Time
+			var lastSeen time.Time
+			lastSeen = r.LastSeen.Time
+			rec.LastSeen = &lastSeen
 		}
 		records = append(records, rec)
 	}
