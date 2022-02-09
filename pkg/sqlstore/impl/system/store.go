@@ -193,8 +193,14 @@ func executeMigration(postgresURI string, as *bindata.AssetSource) error {
 }
 
 func tableFromSQLToDTO(table db.SystemTable) (sqlstore.Table, error) {
-	strID := numericToString(table.ID)
-	id, err := tableland.NewTableID(strID)
+	br := &big.Rat{}
+	if err := table.ID.AssignTo(br); err != nil {
+		return sqlstore.Table{}, fmt.Errorf("parsing numeric to bigrat: %s", err)
+	}
+	if !br.IsInt() {
+		return sqlstore.Table{}, errors.New("parsed numeric isn't an integer")
+	}
+	id, err := tableland.NewTableID(br.Num().String())
 	if err != nil {
 		return sqlstore.Table{}, fmt.Errorf("parsing id to string: %s", err)
 	}
@@ -206,20 +212,4 @@ func tableFromSQLToDTO(table db.SystemTable) (sqlstore.Table, error) {
 		Structure:   table.Structure,
 		CreatedAt:   table.CreatedAt,
 	}, nil
-}
-
-// Unfortunately, looks like there's no clean way to decode a pgtype.Numeric
-// into a *big.Int or string. The code below is some internal method that
-// pgtype.Numeric uses actually, but unfortunately they don't export toBigInt().
-var big10 = big.NewInt(10)
-
-func numericToString(n pgtype.Numeric) string {
-	num := &big.Int{}
-	num.Set(n.Int)
-	if n.Exp > 0 {
-		mul := &big.Int{}
-		mul.Exp(big10, big.NewInt(int64(n.Exp)), nil)
-		num.Mul(num, mul)
-	}
-	return num.String()
 }

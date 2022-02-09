@@ -2,7 +2,9 @@ package user
 
 import (
 	"fmt"
+	"math/big"
 	"reflect"
+	"strings"
 
 	"github.com/jackc/pgproto3/v2"
 	"github.com/jackc/pgtype"
@@ -53,7 +55,10 @@ func getRowsData(rows pgx.Rows, fields []pgproto3.FieldDescription, nColumns int
 		}
 		rowData := make([]interface{}, nColumns)
 		for i := 0; i < nColumns; i++ {
-			rowData[i] = getValueFromScanArg(scanArgs[i])
+			rowData[i], err = getValueFromScanArg(scanArgs[i])
+			if err != nil {
+				return nil, fmt.Errorf("get value from scan: %s", err)
+			}
 		}
 
 		rowsData = append(rowsData, rowData)
@@ -63,60 +68,64 @@ func getRowsData(rows pgx.Rows, fields []pgproto3.FieldDescription, nColumns int
 }
 
 // do necessary conversions according to the type.
-func getValueFromScanArg(arg interface{}) interface{} {
+func getValueFromScanArg(arg interface{}) (interface{}, error) {
 	if _, ok := (arg).(pgtype.Value); ok {
 		if val, ok := (arg).(*pgtype.Numeric); ok {
 			if val.Status == pgtype.Null {
-				return nil
+				return nil, nil
 			}
-
-			buf := make([]byte, 0)
-			buf, _ = val.EncodeText(pgtype.NewConnInfo(), buf)
-			return string(buf)
+			br := &big.Rat{}
+			if err := val.AssignTo(br); err != nil {
+				return nil, fmt.Errorf("parsing numeric to bigrat: %s", err)
+			}
+			if br.IsInt() {
+				return br.Num().String(), nil
+			}
+			return strings.TrimRight(br.FloatString(64), "0"), nil
 		}
 
 		if val, ok := (arg).(*pgtype.Date); ok {
 			if val.Status == pgtype.Null {
-				return nil
+				return nil, nil
 			}
 
 			buf := make([]byte, 0)
 			buf, _ = val.EncodeText(pgtype.NewConnInfo(), buf)
-			return string(buf)
+			return string(buf), nil
 		}
 
 		if val, ok := (arg).(*pgtype.Timestamp); ok {
 			if val.Status == pgtype.Null {
-				return nil
+				return nil, nil
 			}
 
 			buf := make([]byte, 0)
 			buf, _ = val.EncodeText(pgtype.NewConnInfo(), buf)
-			return string(buf)
+			return string(buf), nil
 		}
 
 		if val, ok := (arg).(*pgtype.Timestamptz); ok {
 			if val.Status == pgtype.Null {
-				return nil
+				return nil, nil
 			}
 
 			buf := make([]byte, 0)
 			buf, _ = val.EncodeText(pgtype.NewConnInfo(), buf)
-			return string(buf)
+			return string(buf), nil
 		}
 
 		if val, ok := (arg).(*pgtype.UUID); ok {
 			if val.Status == pgtype.Null {
-				return nil
+				return nil, nil
 			}
 
 			buf := make([]byte, 0)
 			buf, _ = val.EncodeText(pgtype.NewConnInfo(), buf)
-			return string(buf)
+			return string(buf), nil
 		}
 	}
 
-	return arg
+	return arg, nil
 }
 
 func getScanArgs(fields []pgproto3.FieldDescription, nColumns int) ([]interface{}, error) {
