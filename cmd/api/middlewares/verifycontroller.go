@@ -53,7 +53,7 @@ func VerifyController(next http.Handler) http.Handler {
 			return
 		}
 
-		if strings.ToLower(addressString) != strings.ToLower(b.Params[0].Controller) {
+		if !strings.EqualFold(addressString, b.Params[0].Controller) {
 			w.WriteHeader(http.StatusBadRequest)
 			_ = json.NewEncoder(w).Encode(errors.ServiceError{Message: "jwt address does not match controller address"})
 			return
