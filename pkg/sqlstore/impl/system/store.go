@@ -128,22 +128,21 @@ func (s *SystemStore) ListAuthorized(ctx context.Context) ([]sqlstore.Authorizat
 	if err != nil {
 		return nil, fmt.Errorf("getthing authorization records: %s", err)
 	}
+
 	records := make([]sqlstore.AuthorizationRecord, 0)
 	for _, r := range res {
-		var lastSeen time.Time
-		if r.LastSeen.Valid {
-			lastSeen = r.LastSeen.Time
+		rec := sqlstore.AuthorizationRecord{
+			Address:          r.Address,
+			CreatedAt:        r.CreatedAt,
+			CreateTableCount: r.CreateTableCount,
+			RunSQLCount:      r.RunSqlCount,
 		}
-		records = append(records,
-			sqlstore.AuthorizationRecord{
-				Address:          r.Address,
-				CreatedAt:        r.CreatedAt,
-				LastSeen:         &lastSeen,
-				CreateTableCount: r.CreateTableCount,
-				RunSQLCount:      r.RunSqlCount,
-			},
-		)
+		if r.LastSeen.Valid {
+			rec.LastSeen = &r.LastSeen.Time
+		}
+		records = append(records, rec)
 	}
+
 	return records, nil
 }
 
