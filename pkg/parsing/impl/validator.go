@@ -37,7 +37,7 @@ func New(systemTablePrefix string) *QueryValidator {
 		acceptedTypesNames = append(acceptedTypesNames, at.Names...)
 	}
 
-	rawTablenameRegEx, _ := regexp.Compile(`(\w+_)?t[0-9]+`)
+	rawTablenameRegEx, _ := regexp.Compile(`^\w*_[0-9]+$`)
 
 	return &QueryValidator{
 		systemTablePrefix:  systemTablePrefix,
@@ -156,10 +156,10 @@ func (pp *QueryValidator) deconstructRefTable(refTable string) (string, string, 
 	var namePrefix, realTableName string
 	sepIdx := strings.LastIndex(refTable, "_")
 	if sepIdx == -1 {
-		realTableName = refTable
+		realTableName = refTable // No name prefix case, _{ID}.
 	} else {
-		namePrefix = refTable[:sepIdx] // If sepIdx==0, this is correct too.
-		realTableName = refTable[sepIdx+1:]
+		namePrefix = refTable[:sepIdx]    // If sepIdx==0, this is correct too.
+		realTableName = refTable[sepIdx:] // {name}_{id} -> _{id}
 	}
 
 	return namePrefix, realTableName, nil
@@ -611,7 +611,7 @@ var _ parsing.CreateStmt = (*createStmt)(nil)
 func (cs *createStmt) GetRawQueryForTableID(id tableland.TableID) (string, error) {
 	parsedTree := &pg_query.ParseResult{}
 
-	cs.cNode.GetCreateStmt().Relation.Relname = fmt.Sprintf("t%s", id)
+	cs.cNode.GetCreateStmt().Relation.Relname = fmt.Sprintf("_%s", id)
 	rs := &pg_query.RawStmt{Stmt: cs.cNode}
 	parsedTree.Stmts = []*pg_query.RawStmt{rs}
 	wq, err := pg_query.Deparse(parsedTree)
