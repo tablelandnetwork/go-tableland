@@ -29,6 +29,7 @@ func TestSystemControllerMock(t *testing.T) {
 	//nolint
 	expJSON := `{
 		"name":"name-1",
+		"queryable_name":"name-1",
 		"description": "description-1",
 		"external_url":"https://tableland.network/tables/100",
 		"image":"https://hub.textile.io/thread/bafkqtqxkgt3moqxwa6rpvtuyigaoiavyewo67r3h7gsz4hov2kys7ha/buckets/bafzbeicpzsc423nuninuvrdsmrwurhv3g2xonnduq4gbhviyo5z4izwk5m/todo-list.png",

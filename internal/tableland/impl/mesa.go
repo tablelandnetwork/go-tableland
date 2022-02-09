@@ -86,7 +86,7 @@ func (t *TablelandMesa) CreateTable(
 	}
 
 	return tableland.CreateTableResponse{
-		Tablename: fmt.Sprintf("%s_t%s", createStmt.GetNamePrefix(), req.ID),
+		QueryableName: fmt.Sprintf("%s_t%s", createStmt.GetNamePrefix(), req.ID),
 	}, nil
 }
 
