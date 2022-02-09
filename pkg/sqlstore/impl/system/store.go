@@ -56,6 +56,9 @@ func (s *SystemStore) GetTable(ctx context.Context, id tableland.TableID) (sqlst
 
 // GetTablesByController fetchs a table from controller address.
 func (s *SystemStore) GetTablesByController(ctx context.Context, controller string) ([]sqlstore.Table, error) {
+	if err := sanitizeAddress(controller); err != nil {
+		return []sqlstore.Table{}, fmt.Errorf("sanitizing address: %s", err)
+	}
 	sqlcTables, err := s.db.GetTablesByController(ctx, controller)
 	if err != nil {
 		return []sqlstore.Table{}, fmt.Errorf("failed to get the table: %s", err)
@@ -74,6 +77,9 @@ func (s *SystemStore) GetTablesByController(ctx context.Context, controller stri
 
 // Authorize grants the provided address permission to use the system.
 func (s *SystemStore) Authorize(ctx context.Context, address string) error {
+	if err := sanitizeAddress(address); err != nil {
+		return fmt.Errorf("sanitizing address: %s", err)
+	}
 	if err := s.db.Authorize(ctx, address); err != nil {
 		return fmt.Errorf("authorizating: %s", err)
 	}
@@ -82,6 +88,9 @@ func (s *SystemStore) Authorize(ctx context.Context, address string) error {
 
 // Revoke removes permission to use the system from the provided address.
 func (s *SystemStore) Revoke(ctx context.Context, address string) error {
+	if err := sanitizeAddress(address); err != nil {
+		return fmt.Errorf("sanitizing address: %s", err)
+	}
 	if err := s.db.Revoke(ctx, address); err != nil {
 		return fmt.Errorf("revoking: %s", err)
 	}
@@ -90,6 +99,9 @@ func (s *SystemStore) Revoke(ctx context.Context, address string) error {
 
 // IsAuthorized checks if the provided address has permission to use the system.
 func (s *SystemStore) IsAuthorized(ctx context.Context, address string) (sqlstore.IsAuthorizedResult, error) {
+	if err := sanitizeAddress(address); err != nil {
+		return sqlstore.IsAuthorizedResult{}, fmt.Errorf("sanitizing address: %s", err)
+	}
 	authorized, err := s.db.IsAuthorized(ctx, address)
 	if err != nil {
 		return sqlstore.IsAuthorizedResult{}, fmt.Errorf("checking authorization: %s", err)
@@ -102,6 +114,9 @@ func (s *SystemStore) GetAuthorizationRecord(
 	ctx context.Context,
 	address string,
 ) (sqlstore.AuthorizationRecord, error) {
+	if err := sanitizeAddress(address); err != nil {
+		return sqlstore.AuthorizationRecord{}, fmt.Errorf("sanitizing address: %s", err)
+	}
 	res, err := s.db.GetAuthorized(ctx, address)
 	if err != nil {
 		return sqlstore.AuthorizationRecord{}, fmt.Errorf("getthing authorization record: %s", err)
@@ -148,6 +163,9 @@ func (s *SystemStore) ListAuthorized(ctx context.Context) ([]sqlstore.Authorizat
 
 // IncrementCreateTableCount increments the counter.
 func (s *SystemStore) IncrementCreateTableCount(ctx context.Context, address string) error {
+	if err := sanitizeAddress(address); err != nil {
+		return fmt.Errorf("sanitizing address: %s", err)
+	}
 	if err := s.db.IncrementCreateTableCount(ctx, address); err != nil {
 		return fmt.Errorf("incrementing create table count: %s", err)
 	}
@@ -156,6 +174,9 @@ func (s *SystemStore) IncrementCreateTableCount(ctx context.Context, address str
 
 // IncrementRunSQLCount increments the counter.
 func (s *SystemStore) IncrementRunSQLCount(ctx context.Context, address string) error {
+	if err := sanitizeAddress(address); err != nil {
+		return fmt.Errorf("sanitizing address: %s", err)
+	}
 	if err := s.db.IncrementRunSQLCount(ctx, address); err != nil {
 		return fmt.Errorf("incrementing run sql count: %s", err)
 	}
@@ -221,4 +242,11 @@ func numericToString(n pgtype.Numeric) string {
 		num.Mul(num, mul)
 	}
 	return num.String()
+}
+
+func sanitizeAddress(address string) error {
+	if strings.ContainsAny(address, "%_") {
+		return errors.New("address contains invalid characters")
+	}
+	return nil
 }
