@@ -6,9 +6,9 @@ spec:
   tls:
     - secretName: tableland-tls-cf-secret
       hosts:
-        - testnet.tableland.network
+        - staging.tableland.network
   rules:
-    - host: testnet.tableland.network
+    - host: staging.tableland.network
       http:
         paths:
           - path: /
