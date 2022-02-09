@@ -16,7 +16,7 @@ type CreateTableRequest struct {
 
 // CreateTableResponse is a CreateTable response.
 type CreateTableResponse struct {
-	Tablename string `json:"tablename"`
+	QueryableName string `json:"queryable_name"`
 }
 
 // RunSQLRequest is a user RunSQL request.
