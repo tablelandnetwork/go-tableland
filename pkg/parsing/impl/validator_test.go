@@ -30,6 +30,11 @@ func TestRunSQL(t *testing.T) {
 			expErrType: ptr2ErrInvalidSyntax(),
 		},
 		{
+			name:       "numeric tablename",
+			query:      "insert into 10 valuez (1, 1)",
+			expErrType: ptr2ErrInvalidSyntax(),
+		},
+		{
 			name:       "malformed update",
 			query:      "update foo sez a=1, b=2",
 			expErrType: ptr2ErrInvalidSyntax(),
