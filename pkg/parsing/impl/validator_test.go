@@ -71,8 +71,8 @@ func TestRunSQL(t *testing.T) {
 			expErrType: nil,
 		},
 		{
-			name:       "valid simple update without name prefix needing 't' prefix",
-			query:      "update t0 set a=1 where b='hello'",
+			name:       "valid simple update without name prefix needing '_' prefix",
+			query:      "update _0 set a=1 where b='hello'",
 			tableID:    big.NewInt(0),
 			namePrefix: "",
 			expErrType: nil,
@@ -227,7 +227,7 @@ func TestRunSQL(t *testing.T) {
 		// Valid read-queries.
 		{
 			name:       "valid all",
-			query:      "select * from t1234",
+			query:      "select * from _1234",
 			tableID:    big.NewInt(1234),
 			namePrefix: "",
 			expErrType: nil,
@@ -491,9 +491,9 @@ func TestCreateTableResult(t *testing.T) {
 			// sha256(bar int4)
 			expStructureHash: "60b0e90a94273211e4836dc11d8eebd96e8020ce3408dd112ba9c42e762fe3cc",
 			expRawQueries: []rawQueryTableID{
-				{id: 1, rawQuery: "CREATE TABLE t1 (bar int)"},
-				{id: 42, rawQuery: "CREATE TABLE t42 (bar int)"},
-				{id: 2929392, rawQuery: "CREATE TABLE t2929392 (bar int)"},
+				{id: 1, rawQuery: "CREATE TABLE _1 (bar int)"},
+				{id: 42, rawQuery: "CREATE TABLE _42 (bar int)"},
+				{id: 2929392, rawQuery: "CREATE TABLE _2929392 (bar int)"},
 			},
 		},
 		{
@@ -507,9 +507,9 @@ func TestCreateTableResult(t *testing.T) {
 			// sha256(name:text,age:int4,fav_color:varchar)
 			expStructureHash: "3e846cb815f96b1a572246e1bf5eb5eec8a93598aa4a9741e7dade425ff2dc69",
 			expRawQueries: []rawQueryTableID{
-				{id: 1, rawQuery: "CREATE TABLE t1 (name text, age int, fav_color varchar(10))"},
-				{id: 42, rawQuery: "CREATE TABLE t42 (name text, age int, fav_color varchar(10))"},
-				{id: 2929392, rawQuery: "CREATE TABLE t2929392 (name text, age int, fav_color varchar(10))"},
+				{id: 1, rawQuery: "CREATE TABLE _1 (name text, age int, fav_color varchar(10))"},
+				{id: 42, rawQuery: "CREATE TABLE _42 (name text, age int, fav_color varchar(10))"},
+				{id: 2929392, rawQuery: "CREATE TABLE _2929392 (name text, age int, fav_color varchar(10))"},
 			},
 		},
 	}
@@ -547,16 +547,16 @@ func TestGetWriteStatements(t *testing.T) {
 			name:  "double update",
 			query: "update foo_100 set a=1;update foo_100 set b=2;",
 			expectedStmts: []string{
-				"UPDATE t100 SET a = 1",
-				"UPDATE t100 SET b = 2",
+				"UPDATE _100 SET a = 1",
+				"UPDATE _100 SET b = 2",
 			},
 		},
 		{
 			name:  "insert update",
 			query: "insert into foo_0 values (1);update foo_0 set b=2;",
 			expectedStmts: []string{
-				"INSERT INTO t0 VALUES (1)",
-				"UPDATE t0 SET b = 2",
+				"INSERT INTO _0 VALUES (1)",
+				"UPDATE _0 SET b = 2",
 			},
 		},
 	}

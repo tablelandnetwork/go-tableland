@@ -67,14 +67,14 @@ func TestInsertOnConflict(t *testing.T) {
 		}
 		req := baseReq
 		for i := 0; i < 10; i++ {
-			req.Statement = `INSERT INTO t1337 VALUES ('bar', 0) ON CONFLICT (name) DO UPDATE SET count=t1337.count+1`
+			req.Statement = `INSERT INTO _1337 VALUES ('bar', 0) ON CONFLICT (name) DO UPDATE SET count=_1337.count+1`
 			_, err := tbld.RunSQL(ctx, req)
 			if err != nil {
 				require.NoError(t, err)
 			}
 		}
 
-		req.Statement = "SELECT count FROM t1337"
+		req.Statement = "SELECT count FROM _1337"
 		res, err := tbld.RunSQL(ctx, req)
 		require.NoError(t, err)
 		js, err := json.Marshal(res.Result)
@@ -110,7 +110,7 @@ func TestMultiStatement(t *testing.T) {
 		_, err := tbld.RunSQL(ctx, req)
 		require.NoError(t, err)
 
-		req.Statement = "SELECT name from t1"
+		req.Statement = "SELECT name from _1"
 		res, err := tbld.RunSQL(ctx, req)
 		require.NoError(t, err)
 		js, err := json.Marshal(res.Result)

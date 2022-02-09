@@ -178,7 +178,7 @@ func TestRegisterTable(t *testing.T) {
 		require.NotEqual(t, new(time.Time), table.CreatedAt) // CreatedAt is not the zero value
 
 		// Check that the user table was created.
-		ok := existsTableWithName(t, pool, "t100")
+		ok := existsTableWithName(t, pool, "_100")
 		require.True(t, ok)
 	})
 }
@@ -186,7 +186,7 @@ func TestRegisterTable(t *testing.T) {
 func tableRowCountT100(t *testing.T, pool *pgxpool.Pool) int {
 	t.Helper()
 
-	q := "select count(*) from t100"
+	q := "select count(*) from _100"
 	row := pool.QueryRow(context.Background(), q)
 	var rowCount int
 	err := row.Scan(&rowCount)
