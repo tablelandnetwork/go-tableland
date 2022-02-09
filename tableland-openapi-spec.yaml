@@ -77,7 +77,7 @@ paths:
                     jsonrpc: "2.0"
                     id: 1
                     result:
-                      tablename: "myname_t0"
+                      name: "myname_t0"
                 runSQL:
                   value:
                     jsonrpc: "2.0"
