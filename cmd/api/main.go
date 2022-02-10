@@ -74,7 +74,7 @@ func main() {
 	parser := parserimpl.NewInstrumentedSQLValidator(
 		parserimpl.New(systemimpl.SystemTablesPrefix,
 			config.TableConstraints.MaxColumns,
-			config.TableConstraints.MaxTextLenght),
+			config.TableConstraints.MaxTextLength),
 	)
 
 	var txnp txn.TxnProcessor

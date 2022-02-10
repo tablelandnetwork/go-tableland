@@ -28,7 +28,7 @@ type config struct {
 	TableConstraints struct {
 		MaxRowCount   int `default:"100_000"`
 		MaxColumns    int `default:"24"`
-		MaxTextLenght int `default:"1024"`
+		MaxTextLength int `default:"1024"`
 	}
 	Throttling struct {
 		WriteQueryDelay string `default:"500ms"`

@@ -7,80 +7,222 @@ import (
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/metric/global"
 )
 
-// ThrottledSQLStorePGX implements a throttled SQLStore interface using pgx.
-type ThrottledSQLStorePGX struct {
-	store sqlstore.SQLStore
-	delay time.Duration
+// InstrumentedSQLStorePGX implements a instrumented SQLStore interface using pgx.
+type InstrumentedSQLStorePGX struct {
+	store            sqlstore.SQLStore
+	callCount        metric.Int64Counter
+	latencyHistogram metric.Int64Histogram
 }
 
-// NewThrottledSQLStorePGX creates a new pgx pool and instantiate both the user and system stores.
-func NewThrottledSQLStorePGX(store sqlstore.SQLStore, delay time.Duration) sqlstore.SQLStore {
-	return &ThrottledSQLStorePGX{store, delay}
+// NewInstrumentedSQLStorePGX creates a new pgx pool and instantiate both the user and system stores.
+func NewInstrumentedSQLStorePGX(store sqlstore.SQLStore) sqlstore.SQLStore {
+	meter := metric.Must(global.Meter("tableland"))
+	callCount := meter.NewInt64Counter("tableland.sqlstore.call.count")
+	latencyHistogram := meter.NewInt64Histogram("tableland.sqlstore.call.latency")
+
+	return &InstrumentedSQLStorePGX{store, callCount, latencyHistogram}
 }
 
 // GetTable fetchs a table from its UUID.
-func (s *ThrottledSQLStorePGX) GetTable(ctx context.Context, id tableland.TableID) (sqlstore.Table, error) {
-	return s.store.GetTable(ctx, id)
+func (s *InstrumentedSQLStorePGX) GetTable(ctx context.Context, id tableland.TableID) (sqlstore.Table, error) {
+	start := time.Now()
+	table, err := s.store.GetTable(ctx, id)
+	latency := time.Since(start).Milliseconds()
+
+	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("GetTable")},
+		{Key: "id", Value: attribute.StringValue(id.String())},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return table, err
 }
 
 // GetTablesByController fetchs a table from controller address.
-func (s *ThrottledSQLStorePGX) GetTablesByController(ctx context.Context,
+func (s *InstrumentedSQLStorePGX) GetTablesByController(ctx context.Context,
 	controller string) ([]sqlstore.Table, error) {
-	return s.store.GetTablesByController(ctx, controller)
+	start := time.Now()
+	tables, err := s.store.GetTablesByController(ctx, controller)
+	latency := time.Since(start).Milliseconds()
+
+	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("GetTablesByController")},
+		{Key: "controller", Value: attribute.StringValue(controller)},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return tables, err
 }
 
 // Authorize grants the provided address permission to use the system.
-func (s *ThrottledSQLStorePGX) Authorize(ctx context.Context, address string) error {
-	return s.store.Authorize(ctx, address)
+func (s *InstrumentedSQLStorePGX) Authorize(ctx context.Context, address string) error {
+	start := time.Now()
+	err := s.store.Authorize(ctx, address)
+	latency := time.Since(start).Milliseconds()
+
+	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("Authorize")},
+		{Key: "address", Value: attribute.StringValue(address)},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return err
 }
 
 // Revoke removes permission to use the system from the provided address.
-func (s *ThrottledSQLStorePGX) Revoke(ctx context.Context, address string) error {
-	return s.store.Revoke(ctx, address)
+func (s *InstrumentedSQLStorePGX) Revoke(ctx context.Context, address string) error {
+	start := time.Now()
+	err := s.store.Revoke(ctx, address)
+	latency := time.Since(start).Milliseconds()
+
+	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("Revoke")},
+		{Key: "address", Value: attribute.StringValue(address)},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return err
 }
 
 // IsAuthorized checks if the provided address has permission to use the system.
-func (s *ThrottledSQLStorePGX) IsAuthorized(
+func (s *InstrumentedSQLStorePGX) IsAuthorized(
 	ctx context.Context,
 	address string,
 ) (sqlstore.IsAuthorizedResult, error) {
-	return s.store.IsAuthorized(ctx, address)
+	start := time.Now()
+	res, err := s.store.IsAuthorized(ctx, address)
+	latency := time.Since(start).Milliseconds()
+
+	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("IsAuthorized")},
+		{Key: "address", Value: attribute.StringValue(address)},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return res, err
 }
 
 // GetAuthorizationRecord gets the authorization record for the provided address.
-func (s *ThrottledSQLStorePGX) GetAuthorizationRecord(
+func (s *InstrumentedSQLStorePGX) GetAuthorizationRecord(
 	ctx context.Context,
 	address string,
 ) (sqlstore.AuthorizationRecord, error) {
-	return s.store.GetAuthorizationRecord(ctx, address)
+	start := time.Now()
+	record, err := s.store.GetAuthorizationRecord(ctx, address)
+	latency := time.Since(start).Milliseconds()
+
+	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("GetAuthorizationRecord")},
+		{Key: "address", Value: attribute.StringValue(address)},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return record, err
 }
 
 // ListAuthorized returns a list of all authorization records.
-func (s *ThrottledSQLStorePGX) ListAuthorized(ctx context.Context) ([]sqlstore.AuthorizationRecord, error) {
-	return s.store.ListAuthorized(ctx)
+func (s *InstrumentedSQLStorePGX) ListAuthorized(ctx context.Context) ([]sqlstore.AuthorizationRecord, error) {
+	start := time.Now()
+	records, err := s.store.ListAuthorized(ctx)
+	latency := time.Since(start).Milliseconds()
+
+	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("ListAuthorized")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return records, err
 }
 
 // IncrementCreateTableCount increments the counter.
-func (s *ThrottledSQLStorePGX) IncrementCreateTableCount(ctx context.Context, address string) error {
-	return s.store.IncrementCreateTableCount(ctx, address)
+func (s *InstrumentedSQLStorePGX) IncrementCreateTableCount(ctx context.Context, address string) error {
+	start := time.Now()
+	err := s.store.IncrementCreateTableCount(ctx, address)
+	latency := time.Since(start).Milliseconds()
+
+	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("IncrementCreateTableCount")},
+		{Key: "address", Value: attribute.StringValue(address)},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return err
 }
 
 // IncrementRunSQLCount increments the counter.
-func (s *ThrottledSQLStorePGX) IncrementRunSQLCount(ctx context.Context, address string) error {
-	return s.store.IncrementRunSQLCount(ctx, address)
+func (s *InstrumentedSQLStorePGX) IncrementRunSQLCount(ctx context.Context, address string) error {
+	start := time.Now()
+	err := s.store.IncrementRunSQLCount(ctx, address)
+	latency := time.Since(start).Milliseconds()
+
+	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("IncrementRunSQLCount")},
+		{Key: "address", Value: attribute.StringValue(address)},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return err
 }
 
 // Read executes a read statement on the db.
-func (s *ThrottledSQLStorePGX) Read(ctx context.Context, stmt parsing.SugaredReadStmt) (interface{}, error) {
+func (s *InstrumentedSQLStorePGX) Read(ctx context.Context, stmt parsing.SugaredReadStmt) (interface{}, error) {
+	start := time.Now()
 	data, err := s.store.Read(ctx, stmt)
-	time.Sleep(s.delay)
+	latency := time.Since(start).Milliseconds()
+
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("Read")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
 
 	return data, err
 }
 
 // Close closes the connection pool.
-func (s *ThrottledSQLStorePGX) Close() {
+func (s *InstrumentedSQLStorePGX) Close() {
 	s.store.Close()
 }
