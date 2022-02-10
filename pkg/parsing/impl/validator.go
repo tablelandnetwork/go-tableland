@@ -3,7 +3,6 @@ package impl
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -439,7 +438,6 @@ func checkMaxTextValueLength(node *pg_query.Node, maxLength int) error {
 				}
 			}
 		}
-
 	}
 	return nil
 }
@@ -590,8 +588,6 @@ func checkCreateColTypes(createStmt *pg_query.CreateStmt, acceptedTypesNames []s
 	if createStmt == nil {
 		return nil, errEmptyNode
 	}
-	a, _ := json.MarshalIndent(createStmt, "", "  ")
-	fmt.Printf("lolz: %s\n", a)
 
 	if createStmt.OfTypename != nil {
 		// This will only ever be one, otherwise its a parsing error

@@ -160,7 +160,7 @@ func (b *batch) ExecWriteQueries(ctx context.Context, wqueries []parsing.Sugared
 		return nil
 	}
 	if err := b.txn.BeginFunc(ctx, f); err != nil {
-		return fmt.Errorf("running nested txn: %s", err)
+		return fmt.Errorf("running nested txn: %w", err)
 	}
 
 	return nil

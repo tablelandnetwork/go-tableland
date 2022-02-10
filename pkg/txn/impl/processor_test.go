@@ -12,6 +12,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
+	"github.com/textileio/go-tableland/pkg/txn"
 	"github.com/textileio/go-tableland/tests"
 )
 
@@ -211,11 +212,12 @@ func TestTableRowCountLimit(t *testing.T) {
 	require.Equal(t, rowLimit, tableRowCountT100(t, pool))
 
 	// The next insert should fail.
-	// TODO(jsign): check type.
-	require.Error(t, insertRow(t))
+	var errRowCount *txn.ErrRowCountExceeded
+	require.ErrorAs(t, insertRow(t), &errRowCount)
+	require.Equal(t, rowLimit, errRowCount.BeforeRowCount)
+	require.Equal(t, rowLimit+1, errRowCount.AfterRowCount)
 
 	require.NoError(t, txnp.Close(ctx))
-
 }
 
 func tableRowCountT100(t *testing.T, pool *pgxpool.Pool) int {

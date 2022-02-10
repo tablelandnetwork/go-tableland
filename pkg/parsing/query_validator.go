@@ -249,8 +249,8 @@ func (e *ErrTooManyColumns) Error() string {
 		e.ColumnCount, e.MaxAllowed)
 }
 
-// ErrTooManyColumns is an error returned when a create statement has
-// more columns that allowed.
+// ErrTextTooLong is an error returned when a write query contains a
+// text constant that is too long.
 type ErrTextTooLong struct {
 	Length     int
 	MaxAllowed int

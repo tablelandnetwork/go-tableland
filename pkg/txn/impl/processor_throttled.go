@@ -15,7 +15,7 @@ type ThrottledTxnProcessor struct {
 
 var _ txn.TxnProcessor = (*TblTxnProcessor)(nil)
 
-// NewTxnProcessor returns a new Tableland transaction processor.
+// NewThrottledTxnProcessor returns a new Tableland transaction processor.
 func NewThrottledTxnProcessor(txnp txn.TxnProcessor, delay time.Duration) txn.TxnProcessor {
 	return &ThrottledTxnProcessor{txnp, delay}
 }
