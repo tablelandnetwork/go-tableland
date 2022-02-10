@@ -23,12 +23,13 @@ type QueryValidator struct {
 	systemTablePrefix  string
 	acceptedTypesNames []string
 	rawTablenameRegEx  *regexp.Regexp
+	maxAllowedColumns  int
 }
 
 var _ parsing.SQLValidator = (*QueryValidator)(nil)
 
 // New returns a Tableland query validator.
-func New(systemTablePrefix string) *QueryValidator {
+func New(systemTablePrefix string, maxAllowedColumns int) *QueryValidator {
 	// We create here a flattened slice of all the accepted type names from
 	// the parsing.AcceptedTypes source of truth. We do this since having a
 	// slice is easier and faster to do checks.
@@ -42,8 +43,8 @@ func New(systemTablePrefix string) *QueryValidator {
 	return &QueryValidator{
 		systemTablePrefix:  systemTablePrefix,
 		acceptedTypesNames: acceptedTypesNames,
-
-		rawTablenameRegEx: rawTablenameRegEx,
+		rawTablenameRegEx:  rawTablenameRegEx,
+		maxAllowedColumns:  maxAllowedColumns,
 	}
 }
 
@@ -71,6 +72,13 @@ func (pp *QueryValidator) ValidateCreateTable(query string) (parsing.CreateStmt,
 	colNameTypes, err := checkCreateColTypes(stmt.GetCreateStmt(), pp.acceptedTypesNames)
 	if err != nil {
 		return nil, fmt.Errorf("disallowed column types: %w", err)
+	}
+
+	if pp.maxAllowedColumns > 0 && len(colNameTypes) > pp.maxAllowedColumns {
+		return nil, &parsing.ErrTooManyColumns{
+			ColumnCount: len(colNameTypes),
+			MaxAllowed:  pp.maxAllowedColumns,
+		}
 	}
 
 	return genCreateStmt(stmt, colNameTypes), nil

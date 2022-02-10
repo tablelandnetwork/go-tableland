@@ -71,10 +71,12 @@ func main() {
 	sqlstore = sqlstoreimpl.NewInstrumentedSQLStorePGX(sqlstore)
 	sqlstore = sqlstoreimpl.NewThrottledSQLStorePGX(sqlstore, readQueryDelay)
 
-	parser := parserimpl.NewInstrumentedSQLValidator(parserimpl.New(systemimpl.SystemTablesPrefix))
+	parser := parserimpl.NewInstrumentedSQLValidator(
+		parserimpl.New(systemimpl.SystemTablesPrefix, config.TableConstraints.MaxColumns),
+	)
 
 	var txnp txn.TxnProcessor
-	txnp, err = txnimpl.NewTxnProcessor(databaseURL, config.TableConstraints.TableMaxRowCount)
+	txnp, err = txnimpl.NewTxnProcessor(databaseURL, config.TableConstraints.MaxRowCount)
 	if err != nil {
 		log.Fatal().Err(err).Msg("creating txn processor")
 	}
