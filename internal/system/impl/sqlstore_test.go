@@ -23,7 +23,7 @@ func TestSystemSQLStoreService(t *testing.T) {
 	require.NoError(t, err)
 
 	// populate the system_tables with a table
-	txnp, err := txnimpl.NewTxnProcessor(url)
+	txnp, err := txnimpl.NewTxnProcessor(url, 0)
 	require.NoError(t, err)
 	b, err := txnp.OpenBatch(ctx)
 	require.NoError(t, err)

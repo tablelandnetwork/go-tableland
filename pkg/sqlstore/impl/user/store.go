@@ -26,7 +26,7 @@ func (db *UserStore) Read(ctx context.Context, rq parsing.SugaredReadStmt) (inte
 	f := func(tx pgx.Tx) error {
 		wqName := rq.GetNamePrefix()
 		if wqName != "" {
-			dbName, err := txnimpl.GetTableNameByTableID(ctx, tx, rq.GetTableID())
+			dbName, _, err := txnimpl.GetTableNameAndRowCountByTableID(ctx, tx, rq.GetTableID())
 			if err != nil {
 				return fmt.Errorf("table name lookup for table id: %s", err)
 			}

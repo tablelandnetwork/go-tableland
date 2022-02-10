@@ -66,7 +66,7 @@ func main() {
 	sqlstore = sqlstoreimpl.NewInstrumentedSQLStorePGX(sqlstore)
 	parser := parserimpl.NewInstrumentedSQLValidator(parserimpl.New(systemimpl.SystemTablesPrefix))
 
-	txnp, err := txnimpl.NewTxnProcessor(databaseURL)
+	txnp, err := txnimpl.NewTxnProcessor(databaseURL, config.Constraints.TableMaxRowCount)
 	if err != nil {
 		log.Fatal().Err(err).Msg("creating txn processor")
 	}
