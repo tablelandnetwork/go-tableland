@@ -19,21 +19,28 @@ import (
 type TblTxnProcessor struct {
 	pool    *pgxpool.Pool
 	chBatch chan struct{}
+
+	maxTableRowCount int
 }
 
 var _ txn.TxnProcessor = (*TblTxnProcessor)(nil)
 
 // NewTxnProcessor returns a new Tableland transaction processor.
-func NewTxnProcessor(postgresURI string) (*TblTxnProcessor, error) {
+func NewTxnProcessor(postgresURI string, maxTableRowCount int) (*TblTxnProcessor, error) {
 	ctx, cls := context.WithTimeout(context.Background(), time.Second*10)
 	defer cls()
 	pool, err := pgxpool.Connect(ctx, postgresURI)
 	if err != nil {
 		return nil, fmt.Errorf("connecting to postgres: %s", err)
 	}
+	if maxTableRowCount < 0 {
+		return nil, fmt.Errorf("maximum table row count is negative")
+	}
 	tblp := &TblTxnProcessor{
 		pool:    pool,
 		chBatch: make(chan struct{}, 1),
+
+		maxTableRowCount: maxTableRowCount,
 	}
 	tblp.chBatch <- struct{}{}
 

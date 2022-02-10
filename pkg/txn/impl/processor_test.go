@@ -21,7 +21,7 @@ func TestRunSQL(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, pool := newTxnProcessorWithTable(t)
+		txnp, pool := newTxnProcessorWithTable(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -41,7 +41,7 @@ func TestRunSQL(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, pool := newTxnProcessorWithTable(t)
+		txnp, pool := newTxnProcessorWithTable(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -74,7 +74,7 @@ func TestRunSQL(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, pool := newTxnProcessorWithTable(t)
+		txnp, pool := newTxnProcessorWithTable(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -114,7 +114,7 @@ func TestRunSQL(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, pool := newTxnProcessorWithTable(t)
+		txnp, pool := newTxnProcessorWithTable(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -148,7 +148,7 @@ func TestRegisterTable(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, pool := newTxnProcessor(t)
+		txnp, pool := newTxnProcessor(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -183,6 +183,41 @@ func TestRegisterTable(t *testing.T) {
 	})
 }
 
+func TestTableRowCountLimit(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	rowLimit := 10
+	txnp, pool := newTxnProcessorWithTable(t, rowLimit)
+
+	// Helper func to insert a row and return an error if happened.
+	insertRow := func(t *testing.T) error {
+		b, err := txnp.OpenBatch(ctx)
+		require.NoError(t, err)
+
+		q := mustWriteStmt(t, `insert into foo_100 values ('one')`)
+		err = b.ExecWriteQueries(ctx, []parsing.SugaredWriteStmt{q})
+		if err == nil {
+			require.NoError(t, b.Commit(ctx))
+		}
+		require.NoError(t, b.Close(ctx))
+		return err
+	}
+
+	// Insert up to 10 rows should succeed.
+	for i := 0; i < rowLimit; i++ {
+		require.NoError(t, insertRow(t))
+	}
+	require.Equal(t, rowLimit, tableRowCountT100(t, pool))
+
+	// The next insert should fail.
+	// TODO(jsign): check type.
+	require.Error(t, insertRow(t))
+
+	require.NoError(t, txnp.Close(ctx))
+
+}
+
 func tableRowCountT100(t *testing.T, pool *pgxpool.Pool) int {
 	t.Helper()
 
@@ -211,13 +246,13 @@ func existsTableWithName(t *testing.T, pool *pgxpool.Pool, tableName string) boo
 	return true
 }
 
-func newTxnProcessor(t *testing.T) (*TblTxnProcessor, *pgxpool.Pool) {
+func newTxnProcessor(t *testing.T, rowsLimit int) (*TblTxnProcessor, *pgxpool.Pool) {
 	t.Helper()
 
 	url, err := tests.PostgresURL()
 	require.NoError(t, err)
 
-	txnp, err := NewTxnProcessor(url)
+	txnp, err := NewTxnProcessor(url, rowsLimit)
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -230,10 +265,10 @@ func newTxnProcessor(t *testing.T) (*TblTxnProcessor, *pgxpool.Pool) {
 	return txnp, pool
 }
 
-func newTxnProcessorWithTable(t *testing.T) (*TblTxnProcessor, *pgxpool.Pool) {
+func newTxnProcessorWithTable(t *testing.T, rowsLimit int) (*TblTxnProcessor, *pgxpool.Pool) {
 	t.Helper()
 
-	txnp, pool := newTxnProcessor(t)
+	txnp, pool := newTxnProcessor(t, rowsLimit)
 	ctx := context.Background()
 
 	b, err := txnp.OpenBatch(ctx)
