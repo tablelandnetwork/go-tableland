@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -63,13 +64,25 @@ func main() {
 			Msg("failed to create new ethereum client")
 	}
 
+	readQueryDelay, err := time.ParseDuration(config.Throttling.ReadQueryDelay)
+	if err != nil {
+		log.Fatal().Err(err).Msg("parsing read query delay duration")
+	}
 	sqlstore = sqlstoreimpl.NewInstrumentedSQLStorePGX(sqlstore)
+	sqlstore = sqlstoreimpl.NewThrottledSQLStorePGX(sqlstore, readQueryDelay)
+
 	parser := parserimpl.NewInstrumentedSQLValidator(parserimpl.New(systemimpl.SystemTablesPrefix))
 
-	txnp, err := txnimpl.NewTxnProcessor(databaseURL, config.Constraints.TableMaxRowCount)
+	var txnp txn.TxnProcessor
+	txnp, err = txnimpl.NewTxnProcessor(databaseURL, config.TableConstraints.TableMaxRowCount)
 	if err != nil {
 		log.Fatal().Err(err).Msg("creating txn processor")
 	}
+	writeQueryDelay, err := time.ParseDuration(config.Throttling.WriteQueryDelay)
+	if err != nil {
+		log.Fatal().Err(err).Msg("parsing write query delay duration")
+	}
+	txnp = txnimpl.NewThrottledTxnProcessor(txnp, writeQueryDelay)
 
 	svc := getTablelandService(config, sqlstore, registry, parser, txnp)
 	if err := server.RegisterName("tableland", svc); err != nil {

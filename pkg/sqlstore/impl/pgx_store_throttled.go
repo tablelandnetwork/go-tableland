@@ -12,14 +12,14 @@ import (
 	"go.opentelemetry.io/otel/metric/global"
 )
 
-// InstrumentedSQLStorePGX implements a instrumented SQLStore interface using pgx.
+// InstrumentedSQLStorePGX implements a throttled SQLStore interface using pgx.
 type InstrumentedSQLStorePGX struct {
 	store            sqlstore.SQLStore
 	callCount        metric.Int64Counter
 	latencyHistogram metric.Int64Histogram
 }
 
-// NewInstrumentedSQLStorePGX creates a new pgx pool and instantiate both the user and system stores.
+// NewInstrumentedSQLStorePGX returns a throttled SQLStore.
 func NewInstrumentedSQLStorePGX(store sqlstore.SQLStore) sqlstore.SQLStore {
 	meter := metric.Must(global.Meter("tableland"))
 	callCount := meter.NewInt64Counter("tableland.sqlstore.call.count")

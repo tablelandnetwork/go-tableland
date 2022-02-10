@@ -25,10 +25,12 @@ type config struct {
 		Pass string `default:"dev_password"`
 		Name string `default:"dev_database"`
 	}
-	Constraints struct {
-		TableMaxRowCount  int `default:"100_000"`
-		WriteQueryDelayMs int `default:"1000"`
-		ReadQueryDelayMs  int `default:"1000"`
+	TableConstraints struct {
+		TableMaxRowCount int `default:"100_000"`
+	}
+	Throttling struct {
+		WriteQueryDelay string `default:"500ms"`
+		ReadQueryDelay  string `default:"100ms"`
 	}
 	Registry struct {
 		EthEndpoint     string `default:"eth_endpoint"`
