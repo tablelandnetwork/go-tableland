@@ -72,7 +72,7 @@ func main() {
 	sqlstore = sqlstoreimpl.NewThrottledSQLStorePGX(sqlstore, readQueryDelay)
 
 	parser := parserimpl.NewInstrumentedSQLValidator(
-		parserimpl.New(systemimpl.SystemTablesPrefix, config.TableConstraints.MaxColumns),
+		parserimpl.New(systemimpl.SystemTablesPrefix, config.TableConstraints.MaxColumns, config.TableConstraints.MaxTextLenght),
 	)
 
 	var txnp txn.TxnProcessor

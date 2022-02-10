@@ -248,3 +248,15 @@ func (e *ErrTooManyColumns) Error() string {
 	return fmt.Sprintf("table has too many columns (has %d, max %d)",
 		e.ColumnCount, e.MaxAllowed)
 }
+
+// ErrTooManyColumns is an error returned when a create statement has
+// more columns that allowed.
+type ErrTextTooLong struct {
+	Length     int
+	MaxAllowed int
+}
+
+func (e *ErrTextTooLong) Error() string {
+	return fmt.Sprintf("text field length is too long (has %d, max %d)",
+		e.Length, e.MaxAllowed)
+}

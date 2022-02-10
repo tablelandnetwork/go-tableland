@@ -3,6 +3,7 @@ package impl
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -24,12 +25,13 @@ type QueryValidator struct {
 	acceptedTypesNames []string
 	rawTablenameRegEx  *regexp.Regexp
 	maxAllowedColumns  int
+	maxTextLength      int
 }
 
 var _ parsing.SQLValidator = (*QueryValidator)(nil)
 
 // New returns a Tableland query validator.
-func New(systemTablePrefix string, maxAllowedColumns int) *QueryValidator {
+func New(systemTablePrefix string, maxAllowedColumns int, maxTextLength int) *QueryValidator {
 	// We create here a flattened slice of all the accepted type names from
 	// the parsing.AcceptedTypes source of truth. We do this since having a
 	// slice is easier and faster to do checks.
@@ -45,6 +47,7 @@ func New(systemTablePrefix string, maxAllowedColumns int) *QueryValidator {
 		acceptedTypesNames: acceptedTypesNames,
 		rawTablenameRegEx:  rawTablenameRegEx,
 		maxAllowedColumns:  maxAllowedColumns,
+		maxTextLength:      maxTextLength,
 	}
 }
 
@@ -238,6 +241,10 @@ func (pp *QueryValidator) validateWriteQuery(stmt *pg_query.Node) (string, error
 		return "", fmt.Errorf("no non-deterministic func check: %w", err)
 	}
 
+	if err := checkMaxTextValueLength(stmt, pp.maxTextLength); err != nil {
+		return "", fmt.Errorf("max text length check: %w", err)
+	}
+
 	referencedTable, err := getReferencedTable(stmt)
 	if err != nil {
 		return "", fmt.Errorf("get referenced table: %w", err)
@@ -408,6 +415,49 @@ func getReferencedTable(node *pg_query.Node) (string, error) {
 	return "", fmt.Errorf("the statement isn't an insert/update/delete")
 }
 
+func checkMaxTextValueLength(node *pg_query.Node, maxLength int) error {
+	if maxLength == 0 {
+		return nil
+	}
+	if insertStmt := node.GetInsertStmt(); insertStmt != nil {
+		if selStmt := insertStmt.SelectStmt.GetSelectStmt(); selStmt != nil {
+			for _, vl := range selStmt.ValuesLists {
+				if list := vl.GetList(); list != nil {
+					for _, item := range list.Items {
+						if err := validateAConstStringLength(item, maxLength); err != nil {
+							return err
+						}
+					}
+				}
+			}
+		}
+	} else if updateStmt := node.GetUpdateStmt(); updateStmt != nil {
+		for _, target := range updateStmt.TargetList {
+			if resTarget := target.GetResTarget(); resTarget != nil {
+				if err := validateAConstStringLength(resTarget.Val, maxLength); err != nil {
+					return err
+				}
+			}
+		}
+
+	}
+	return nil
+}
+
+func validateAConstStringLength(n *pg_query.Node, maxLength int) error {
+	if aConst := n.GetAConst(); aConst != nil {
+		if str := aConst.Val.GetString_(); str != nil {
+			if len(str.Str) > maxLength {
+				return &parsing.ErrTextTooLong{
+					Length:     len(str.Str),
+					MaxAllowed: maxLength,
+				}
+			}
+		}
+	}
+	return nil
+}
+
 // checkNonDeterministicFunctions walks the query tree and disallow references to
 // functions that aren't deterministic.
 func checkNonDeterministicFunctions(node *pg_query.Node) error {
@@ -540,6 +590,8 @@ func checkCreateColTypes(createStmt *pg_query.CreateStmt, acceptedTypesNames []s
 	if createStmt == nil {
 		return nil, errEmptyNode
 	}
+	a, _ := json.MarshalIndent(createStmt, "", "  ")
+	fmt.Printf("lolz: %s\n", a)
 
 	if createStmt.OfTypename != nil {
 		// This will only ever be one, otherwise its a parsing error
