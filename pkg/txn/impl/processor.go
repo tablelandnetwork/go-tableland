@@ -129,7 +129,7 @@ func (b *batch) ExecWriteQueries(ctx context.Context, wqueries []parsing.Sugared
 			log.Warn().Msg("no write-queries to execute in a batch")
 			return nil
 		}
-		dbName, err := GetTableNameByTableID(ctx, tx, wqueries[0].GetTableID())
+		dbName, beforeRowCount, err := GetTableNameAndRowCountByTableID(ctx, tx, wqueries[0].GetTableID())
 		if err != nil {
 			return fmt.Errorf("table name lookup for table id: %s", err)
 		}
@@ -142,8 +142,18 @@ func (b *batch) ExecWriteQueries(ctx context.Context, wqueries []parsing.Sugared
 			if err != nil {
 				return fmt.Errorf("get desugared query: %s", err)
 			}
-			if _, err := tx.Exec(ctx, desugared); err != nil {
+			cmdTag, err := tx.Exec(ctx, desugared)
+			if err != nil {
 				return fmt.Errorf("exec query: %s", err)
+			}
+			if b.tp.maxTableRowCount > 0 && cmdTag.Insert() {
+				afterRowCount := beforeRowCount + int(cmdTag.RowsAffected())
+				if afterRowCount > b.tp.maxTableRowCount {
+					return &txn.ErrRowCountExceeded{
+						BeforeRowCount: beforeRowCount,
+						AfterRowCount:  afterRowCount,
+					}
+				}
 			}
 		}
 
@@ -180,20 +190,23 @@ func (b *batch) Commit(ctx context.Context) error {
 	return nil
 }
 
-// GetTableNameByTableID returns the table name for a TableID within the provided transaction.
-func GetTableNameByTableID(ctx context.Context, tx pgx.Tx, id tableland.TableID) (string, error) {
+// GetTableNameAndRowCountByTableID returns the table name and current row count for a TableID
+// within the provided transaction.
+func GetTableNameAndRowCountByTableID(ctx context.Context, tx pgx.Tx, id tableland.TableID) (string, int, error) {
 	dbID := pgtype.Numeric{}
 	if err := dbID.Set(id.String()); err != nil {
-		return "", fmt.Errorf("parsing table id to numeric: %s", err)
+		return "", 0, fmt.Errorf("parsing table id to numeric: %s", err)
 	}
-	r := tx.QueryRow(ctx, `SELECT name FROM system_tables where id=$1`, dbID)
+	q := fmt.Sprintf("SELECT (SELECT name FROM system_tables where id=$1), (SELECT count(*) FROM _%s)", id)
+	r := tx.QueryRow(ctx, q, dbID)
 	var dbName string
-	err := r.Scan(&dbName)
+	var rowCount int
+	err := r.Scan(&dbName, &rowCount)
 	if err == pgx.ErrNoRows {
-		return "", fmt.Errorf("the table id doesn't exist")
+		return "", 0, fmt.Errorf("the table id doesn't exist")
 	}
 	if err != nil {
-		return "", fmt.Errorf("table name lookup: %s", err)
+		return "", 0, fmt.Errorf("table name lookup: %s", err)
 	}
-	return dbName, nil
+	return dbName, rowCount, nil
 }
