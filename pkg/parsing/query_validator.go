@@ -236,3 +236,27 @@ type ErrInvalidTableName struct{}
 func (e *ErrInvalidTableName) Error() string {
 	return "the query references a table name with the wrong format"
 }
+
+// ErrTooManyColumns is an error returned when a create statement has
+// more columns that allowed.
+type ErrTooManyColumns struct {
+	ColumnCount int
+	MaxAllowed  int
+}
+
+func (e *ErrTooManyColumns) Error() string {
+	return fmt.Sprintf("table has too many columns (has %d, max %d)",
+		e.ColumnCount, e.MaxAllowed)
+}
+
+// ErrTextTooLong is an error returned when a write query contains a
+// text constant that is too long.
+type ErrTextTooLong struct {
+	Length     int
+	MaxAllowed int
+}
+
+func (e *ErrTextTooLong) Error() string {
+	return fmt.Sprintf("text field length is too long (has %d, max %d)",
+		e.Length, e.MaxAllowed)
+}

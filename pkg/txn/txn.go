@@ -2,6 +2,7 @@ package txn
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
@@ -43,4 +44,16 @@ type Batch interface {
 
 	Commit(context.Context) error
 	Close(context.Context) error
+}
+
+// ErrRowCountExceeded is an error returned when a table exceeds the maximum number
+// of rows.
+type ErrRowCountExceeded struct {
+	BeforeRowCount int
+	AfterRowCount  int
+}
+
+func (e *ErrRowCountExceeded) Error() string {
+	return fmt.Sprintf("table maximum row count exceeded (before %d, after %d)",
+		e.BeforeRowCount, e.AfterRowCount)
 }

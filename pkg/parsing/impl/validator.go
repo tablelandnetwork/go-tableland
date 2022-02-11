@@ -23,12 +23,14 @@ type QueryValidator struct {
 	systemTablePrefix  string
 	acceptedTypesNames []string
 	rawTablenameRegEx  *regexp.Regexp
+	maxAllowedColumns  int
+	maxTextLength      int
 }
 
 var _ parsing.SQLValidator = (*QueryValidator)(nil)
 
 // New returns a Tableland query validator.
-func New(systemTablePrefix string) *QueryValidator {
+func New(systemTablePrefix string, maxAllowedColumns int, maxTextLength int) *QueryValidator {
 	// We create here a flattened slice of all the accepted type names from
 	// the parsing.AcceptedTypes source of truth. We do this since having a
 	// slice is easier and faster to do checks.
@@ -42,8 +44,9 @@ func New(systemTablePrefix string) *QueryValidator {
 	return &QueryValidator{
 		systemTablePrefix:  systemTablePrefix,
 		acceptedTypesNames: acceptedTypesNames,
-
-		rawTablenameRegEx: rawTablenameRegEx,
+		rawTablenameRegEx:  rawTablenameRegEx,
+		maxAllowedColumns:  maxAllowedColumns,
+		maxTextLength:      maxTextLength,
 	}
 }
 
@@ -71,6 +74,13 @@ func (pp *QueryValidator) ValidateCreateTable(query string) (parsing.CreateStmt,
 	colNameTypes, err := checkCreateColTypes(stmt.GetCreateStmt(), pp.acceptedTypesNames)
 	if err != nil {
 		return nil, fmt.Errorf("disallowed column types: %w", err)
+	}
+
+	if pp.maxAllowedColumns > 0 && len(colNameTypes) > pp.maxAllowedColumns {
+		return nil, &parsing.ErrTooManyColumns{
+			ColumnCount: len(colNameTypes),
+			MaxAllowed:  pp.maxAllowedColumns,
+		}
 	}
 
 	return genCreateStmt(stmt, colNameTypes), nil
@@ -228,6 +238,10 @@ func (pp *QueryValidator) validateWriteQuery(stmt *pg_query.Node) (string, error
 
 	if err := checkNonDeterministicFunctions(stmt); err != nil {
 		return "", fmt.Errorf("no non-deterministic func check: %w", err)
+	}
+
+	if err := checkMaxTextValueLength(stmt, pp.maxTextLength); err != nil {
+		return "", fmt.Errorf("max text length check: %w", err)
 	}
 
 	referencedTable, err := getReferencedTable(stmt)
@@ -398,6 +412,48 @@ func getReferencedTable(node *pg_query.Node) (string, error) {
 		return deleteStmt.Relation.Relname, nil
 	}
 	return "", fmt.Errorf("the statement isn't an insert/update/delete")
+}
+
+func checkMaxTextValueLength(node *pg_query.Node, maxLength int) error {
+	if maxLength == 0 {
+		return nil
+	}
+	if insertStmt := node.GetInsertStmt(); insertStmt != nil {
+		if selStmt := insertStmt.SelectStmt.GetSelectStmt(); selStmt != nil {
+			for _, vl := range selStmt.ValuesLists {
+				if list := vl.GetList(); list != nil {
+					for _, item := range list.Items {
+						if err := validateAConstStringLength(item, maxLength); err != nil {
+							return err
+						}
+					}
+				}
+			}
+		}
+	} else if updateStmt := node.GetUpdateStmt(); updateStmt != nil {
+		for _, target := range updateStmt.TargetList {
+			if resTarget := target.GetResTarget(); resTarget != nil {
+				if err := validateAConstStringLength(resTarget.Val, maxLength); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func validateAConstStringLength(n *pg_query.Node, maxLength int) error {
+	if aConst := n.GetAConst(); aConst != nil {
+		if str := aConst.Val.GetString_(); str != nil {
+			if len(str.Str) > maxLength {
+				return &parsing.ErrTextTooLong{
+					Length:     len(str.Str),
+					MaxAllowed: maxLength,
+				}
+			}
+		}
+	}
+	return nil
 }
 
 // checkNonDeterministicFunctions walks the query tree and disallow references to

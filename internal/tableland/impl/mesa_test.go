@@ -208,8 +208,8 @@ func newTablelandMesa(t *testing.T) tableland.Tableland {
 	require.NoError(t, err)
 	err = sqlstore.Authorize(ctx, "ctrl-1")
 	require.NoError(t, err)
-	parser := parserimpl.New("system_")
-	txnp, err := txnpimpl.NewTxnProcessor(url)
+	parser := parserimpl.New("system_", 0, 0)
+	txnp, err := txnpimpl.NewTxnProcessor(url, 0)
 	require.NoError(t, err)
 
 	return NewTablelandMesa(sqlstore, &dummyRegistry{}, parser, txnp)

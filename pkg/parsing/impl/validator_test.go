@@ -288,7 +288,7 @@ func TestRunSQL(t *testing.T) {
 		t.Run(it.name, func(tc testCase) func(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
-				parser := postgresparser.New("system_")
+				parser := postgresparser.New("system_", 0, 0)
 				rs, wss, err := parser.ValidateRunSQL(tc.query)
 				if tc.expErrType == nil {
 					require.NoError(t, err)
@@ -453,7 +453,7 @@ func TestCreateTableChecks(t *testing.T) {
 		t.Run(it.name, func(tc testCase) func(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
-				parser := postgresparser.New("system_")
+				parser := postgresparser.New("system_", 0, 0)
 				_, err := parser.ValidateCreateTable(tc.query)
 				if tc.expErrType == nil {
 					require.NoError(t, err)
@@ -518,7 +518,7 @@ func TestCreateTableResult(t *testing.T) {
 		t.Run(it.name, func(tc testCase) func(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
-				parser := postgresparser.New("system_")
+				parser := postgresparser.New("system_", 0, 0)
 				cs, err := parser.ValidateCreateTable(tc.query)
 				require.NoError(t, err)
 
@@ -532,6 +532,59 @@ func TestCreateTableResult(t *testing.T) {
 			}
 		}(it))
 	}
+}
+
+func TestCreateTableColLimit(t *testing.T) {
+	t.Parallel()
+
+	maxAllowedColumns := 3
+	parser := postgresparser.New("system_", maxAllowedColumns, 0)
+
+	t.Run("success one column", func(t *testing.T) {
+		_, err := parser.ValidateCreateTable("create table foo (a int)")
+		require.NoError(t, err)
+	})
+	t.Run("success exact max columns", func(t *testing.T) {
+		_, err := parser.ValidateCreateTable("create table foo (a int, b text,c int)")
+		require.NoError(t, err)
+	})
+	t.Run("failure max columns exceeded", func(t *testing.T) {
+		_, err := parser.ValidateCreateTable("create table foo (a int, b text,c int, d int)")
+		var expErr *parsing.ErrTooManyColumns
+		require.ErrorAs(t, err, &expErr)
+		require.Equal(t, 4, expErr.ColumnCount)
+		require.Equal(t, maxAllowedColumns, expErr.MaxAllowed)
+	})
+}
+
+func TestCreateTableTextLength(t *testing.T) {
+	t.Parallel()
+
+	textMaxLength := 4
+	parser := postgresparser.New("system_", 0, textMaxLength)
+
+	t.Run("success half limit", func(t *testing.T) {
+		_, _, err := parser.ValidateRunSQL(`insert into _0 values ('aa')`)
+		require.NoError(t, err)
+	})
+	t.Run("success exact max length", func(t *testing.T) {
+		_, _, err := parser.ValidateRunSQL(`insert into _0 values ('aaaa')`)
+		require.NoError(t, err)
+	})
+	t.Run("failure insert max length exceeded", func(t *testing.T) {
+		_, _, err := parser.ValidateRunSQL(`insert into _0 values ('aaaaa')`)
+		var expErr *parsing.ErrTextTooLong
+		require.ErrorAs(t, err, &expErr)
+		require.Equal(t, 5, expErr.Length)
+		require.Equal(t, textMaxLength, expErr.MaxAllowed)
+	})
+	t.Run("failure update max length exceeded", func(t *testing.T) {
+		_, _, err := parser.ValidateRunSQL(`update _0 set a='aaaaa'`)
+		var expErr *parsing.ErrTextTooLong
+		require.ErrorAs(t, err, &expErr)
+		require.Equal(t, 5, expErr.Length)
+		require.Equal(t, textMaxLength, expErr.MaxAllowed)
+	})
 }
 
 func TestGetWriteStatements(t *testing.T) {
@@ -565,7 +618,7 @@ func TestGetWriteStatements(t *testing.T) {
 		t.Run(it.name, func(tc testCase) func(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
-				parser := postgresparser.New("system_")
+				parser := postgresparser.New("system_", 0, 0)
 				rs, stmts, err := parser.ValidateRunSQL(tc.query)
 				require.NoError(t, err)
 				require.Nil(t, rs)
