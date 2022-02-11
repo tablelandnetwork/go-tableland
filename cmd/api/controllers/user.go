@@ -41,7 +41,8 @@ func (c *UserController) GetTableRow(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	req := tableland.RunSQLRequest{
-		Statement: fmt.Sprintf("SELECT * FROM _%s WHERE %s=%s", id.String(), vars["key"], vars["value"]),
+		Statement: fmt.Sprintf("SELECT * FROM _%s WHERE %s=%s LIMIT 1",
+			id.String(), vars["key"], vars["value"]),
 	}
 	res, err := c.runner.RunSQL(ctx, req)
 	if err != nil {
