@@ -405,7 +405,7 @@ func TestCreateTableChecks(t *testing.T) {
 				   zsmallint smallint,
 
 				   ztext text,
-				   zuri uri,
+				   zuri text,
 				   zvarchar varchar(10),
 				   zbpchar bpchar,
 				   zdate date,

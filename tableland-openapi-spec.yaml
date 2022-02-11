@@ -182,7 +182,7 @@ paths:
                   name: "myname"
                   description: "tableland rocks!"
                   external_url: "https://testnet.tableland.network/tables/0"
-                  image: "https://hub.textile.io/thread/bafkqtqxkgt3moqxwa6rpvtuyigaoiavyewo67r3h7gsz4hov2kys7ha/buckets/bafzbeicpzsc423nuninuvrdsmrwurhv3g2xonnduq4gbhviyo5z4izwk5m/todo-list.png"
+                  image: "https://bafkreifhuhrjhzbj4onqgbrmhpysk2mop2jimvdvfut6taiyzt2yqzt43a.ipfs.dweb.link"
                   attributes:
                     - display_type: "date"
                       trait_type: "created"

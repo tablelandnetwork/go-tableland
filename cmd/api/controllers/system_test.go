@@ -31,7 +31,7 @@ func TestSystemControllerMock(t *testing.T) {
 		"name":"name-1",
 		"description": "description-1",
 		"external_url":"https://tableland.network/tables/100",
-		"image":"https://hub.textile.io/thread/bafkqtqxkgt3moqxwa6rpvtuyigaoiavyewo67r3h7gsz4hov2kys7ha/buckets/bafzbeicpzsc423nuninuvrdsmrwurhv3g2xonnduq4gbhviyo5z4izwk5m/todo-list.png",
+		"image":"https://bafkreifhuhrjhzbj4onqgbrmhpysk2mop2jimvdvfut6taiyzt2yqzt43a.ipfs.dweb.link",
 		"attributes":[{"display_type":"date","trait_type":"created","value":1546360800}]
 	}`
 	require.JSONEq(t, expJSON, rr.Body.String())

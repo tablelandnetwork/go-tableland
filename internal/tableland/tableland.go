@@ -35,10 +35,15 @@ type AuthorizeRequest struct {
 	Controller string `json:"controller"`
 }
 
+// SQLRunner defines the run SQL interface of Tableland.
+type SQLRunner interface {
+	RunSQL(context.Context, RunSQLRequest) (RunSQLResponse, error)
+}
+
 // Tableland defines the interface of Tableland.
 type Tableland interface {
+	SQLRunner
 	CreateTable(context.Context, CreateTableRequest) (CreateTableResponse, error)
-	RunSQL(context.Context, RunSQLRequest) (RunSQLResponse, error)
 	Authorize(context.Context, AuthorizeRequest) error
 }
 

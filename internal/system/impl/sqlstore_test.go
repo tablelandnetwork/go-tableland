@@ -46,7 +46,7 @@ func TestSystemSQLStoreService(t *testing.T) {
 	require.Equal(t, "foo_42", metadata.Name)
 	require.Equal(t, "descrp-1", metadata.Description)
 	require.Equal(t, fmt.Sprintf("https://tableland.network/tables/%s", id), metadata.ExternalURL)
-	require.Equal(t, "https://hub.textile.io/thread/bafkqtqxkgt3moqxwa6rpvtuyigaoiavyewo67r3h7gsz4hov2kys7ha/buckets/bafzbeicpzsc423nuninuvrdsmrwurhv3g2xonnduq4gbhviyo5z4izwk5m/todo-list.png", metadata.Image) //nolint
+	require.Equal(t, "https://bafkreifhuhrjhzbj4onqgbrmhpysk2mop2jimvdvfut6taiyzt2yqzt43a.ipfs.dweb.link", metadata.Image) //nolint
 	require.Equal(t, "date", metadata.Attributes[0].DisplayType)
 	require.Equal(t, "created", metadata.Attributes[0].TraitType)
 

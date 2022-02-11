@@ -31,14 +31,13 @@ SELECT 'CREATE USER $DB_USER' WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolna
 GRANT $DB_USER TO $POSTGRES_USER;
 ALTER USER $DB_USER WITH PASSWORD '$DB_PASS';
 CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
-CREATE EXTENSION IF NOT EXISTS uri;
 DO \$\$ BEGIN
   CREATE TYPE erc721_metadata AS (
     id int,
     name text,
     description text,
-    image uri,
-    external_url uri,
+    image text,
+    external_url text,
     attributes json
   );
 EXCEPTION
@@ -50,7 +49,7 @@ DO \$\$ BEGIN
     name text,
     description text,
     image text, -- Note that we use text here because of the {id} replacement semantics
-    external_url uri,
+    external_url text,
     attributes json
   );
 EXCEPTION

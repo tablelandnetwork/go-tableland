@@ -7,18 +7,20 @@ services:
     platform: linux/{{platform}}
     entrypoint: ["./with-postgres.sh", "./api"]
     environment:
-      - POSTGRES_USER=postgres # used only in with-postgres.sh
-      - POSTGRES_PASSWORD=postgres # used only in with-postgres.sh
-      - HTTP_PORT=8080
       - IMPL=mesa
+      - HTTP_PORT=8080
       - DB_HOST=database
       - DB_POST=5432
+      - DB_USER=dev_user
       - DB_PASS=dev_password
       - DB_NAME=dev_database
-      - DB_USER=dev_user
       - METRICS_PORT=9090
-      - LOG_DEBUG=true
       - LOG_HUMAN=true
+      - LOG_DEBUG=true
+      - ADMINAPI_USERNAME=admin_user
+      - ADMINAPI_PASSWORD=admin_password
+      - POSTGRES_USER=postgres # used only in with-postgres.sh
+      - POSTGRES_PASSWORD=postgres # used only in with-postgres.sh
       - OTEL_SERVICE_NAME=tableland:api # this is just to the unknown_service from the metrics label
     ports:
       - "127.0.0.1:8080:8080"
