@@ -82,9 +82,6 @@ type TablelandColumnType struct {
 	Names []string
 }
 
-// URIOID for the custom uri type.
-const URIOID = 16412
-
 var (
 	// AcceptedTypes contains all the accepted column types in user-defined tables.
 	// It's used by the parser and the JSON marshaler to validate queries, and transform to appropriate
@@ -114,8 +111,6 @@ var (
 		pgtype.UUIDOID: {Oid: pgtype.UUIDOID, GoType: pgtype.UUID{}, Names: []string{"uuid"}},
 
 		pgtype.JSONOID: {Oid: pgtype.JSONOID, GoType: pgtype.JSON{}, Names: []string{"json"}},
-
-		URIOID: {Oid: URIOID, GoType: &dummyStr, Names: []string{"uri"}},
 	}
 	// TODO: the above list is tentative and incomplete; the accepted types are still not well defined at the spec level.
 
