@@ -110,7 +110,7 @@ var (
 
 		pgtype.UUIDOID: {Oid: pgtype.UUIDOID, GoType: pgtype.UUID{}, Names: []string{"uuid"}},
 
-		pgtype.JSONOID: {Oid: pgtype.JSONOID, GoType: map[string]interface{}{}, Names: []string{"json"}},
+		pgtype.JSONOID: {Oid: pgtype.JSONOID, GoType: pgtype.JSON{}, Names: []string{"json"}},
 	}
 	// TODO: the above list is tentative and incomplete; the accepted types are still not well defined at the spec level.
 
