@@ -51,7 +51,7 @@ func getRowsData(rows pgx.Rows, fields []pgproto3.FieldDescription, nColumns int
 		}
 
 		if err := rows.Scan(scanArgs...); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("scan row column: %s", err)
 		}
 		rowData := make([]interface{}, nColumns)
 		for i := 0; i < nColumns; i++ {

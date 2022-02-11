@@ -143,4 +143,28 @@ func TestReadGeneralTypeCorrectness(t *testing.T) {
 		require.NoError(t, err)
 		require.JSONEq(t, `{"columns":[{"name":"json"}],"rows":[[null]]}`, string(b))
 	}
+	// test json map
+	{
+		data, err := execReadQuery(ctx, tx, `SELECT ('{"foo": 1, "bar":"zar"}')::json;`)
+		require.NoError(t, err)
+		b, err := json.Marshal(data)
+		require.NoError(t, err)
+		require.JSONEq(t, `{"columns":[{"name":"json"}],"rows":[[{"bar":"zar","foo":1}]]}`, string(b))
+	}
+	// test json array
+	{
+		data, err := execReadQuery(ctx, tx, `SELECT ('[{"foo": 1}, {"bar":[1,2]}]')::json;`)
+		require.NoError(t, err)
+		b, err := json.Marshal(data)
+		require.NoError(t, err)
+		require.JSONEq(t, `{"columns":[{"name":"json"}],"rows":[[[{"foo":1},{"bar":[1,2]}]]]}`, string(b))
+	}
+	// test json single string
+	{
+		data, err := execReadQuery(ctx, tx, `SELECT ('"iam valid too"')::json;`)
+		require.NoError(t, err)
+		b, err := json.Marshal(data)
+		require.NoError(t, err)
+		require.JSONEq(t, `{"columns":[{"name":"json"}],"rows":[["iam valid too"]]}`, string(b))
+	}
 }
