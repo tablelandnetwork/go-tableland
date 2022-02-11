@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
 )
@@ -45,5 +46,12 @@ func (r *router) Use(mid ...mux.MiddlewareFunc) {
 
 // Serve starts listening on the specified port.
 func (r *router) Serve(port string) error {
-	return http.ListenAndServe(port, r.r)
+	srv := &http.Server{
+		Addr:         port,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 20 * time.Second,
+		IdleTimeout:  120 * time.Second,
+		Handler:      r.r,
+	}
+	return srv.ListenAndServe()
 }
