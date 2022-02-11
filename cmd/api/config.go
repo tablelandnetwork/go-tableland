@@ -32,7 +32,7 @@ type config struct {
 	}
 	Throttling struct {
 		WriteQueryDelay string `default:"500ms"`
-		ReadQueryDelay  string `default:"100ms"`
+		ReadQueryDelay  string `default:"0ms"`
 	}
 	Registry struct {
 		EthEndpoint     string `default:"eth_endpoint"`
