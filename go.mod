@@ -126,3 +126,5 @@ require (
 
 // add status code to HTTP request metrics, see https://github.com/open-telemetry/opentelemetry-go-contrib/pull/771
 replace go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp => github.com/textileio/opentelemetry-go-contrib/instrumentation/net/http/otelhttp v0.26.1-0.20220117135430-3604b55cd65b
+
+replace github.com/ybbus/jsonrpc/v2 => ../jsonrpc
