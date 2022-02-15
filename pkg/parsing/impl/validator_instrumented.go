@@ -50,6 +50,7 @@ func (ip *InstrumentedSQLValidator) ValidateCreateTable(query string) (parsing.C
 func (ip *InstrumentedSQLValidator) ValidateRunSQL(query string) (
 	parsing.SugaredReadStmt,
 	[]parsing.SugaredWriteStmt,
+	[]parsing.SugaredGrantStmt,
 	error) {
 	log.Debug().Str("query", query).Msg("call ValidateRunSQL")
 	start := time.Now()
@@ -69,5 +70,5 @@ func (ip *InstrumentedSQLValidator) ValidateRunSQL(query string) (
 	ip.callCount.Add(context.Background(), 1, attributes...)
 	ip.latencyHistogram.Record(context.Background(), latency, attributes...)
 
-	return readStmt, writeStmts, err
+	return readStmt, writeStmts, nil, err
 }
