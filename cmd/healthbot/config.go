@@ -8,10 +8,13 @@ import (
 
 type config struct {
 	Probe struct {
-		Endpoint      string `default:""`
+		Target        string `default:""`
 		CheckInterval string `default:"10s"`
 		JWT           string `default:""`
 		Tablename     string `default:""`
+	}
+	Metrics struct {
+		Port string `default:"9090"`
 	}
 	Log struct {
 		Human bool `default:"false"`

@@ -12,11 +12,15 @@ import (
 	"github.com/textileio/go-tableland/buildinfo"
 	"github.com/textileio/go-tableland/cmd/healthbot/counterprobe"
 	"github.com/textileio/go-tableland/pkg/logging"
+	"github.com/textileio/go-tableland/pkg/metrics"
 )
 
 func main() {
 	cfg := setupConfig()
 	logging.SetupLogger(buildinfo.GitCommit, cfg.Log.Debug, cfg.Log.Human)
+	if err := metrics.SetupInstrumentation(":" + cfg.Metrics.Port); err != nil {
+		log.Fatal().Err(err).Str("port", cfg.Metrics.Port).Msg("could not setup instrumentation")
+	}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
 	defer cancel()
@@ -27,7 +31,7 @@ func main() {
 		log.Fatal().Err(err).Msgf("check interval has invalid format: %s", cfg.Probe.CheckInterval)
 	}
 
-	cp, err := counterprobe.New(checkInterval, cfg.Probe.Endpoint, cfg.Probe.JWT, cfg.Probe.Tablename)
+	cp, err := counterprobe.New(checkInterval, cfg.Probe.Target, cfg.Probe.JWT, cfg.Probe.Tablename)
 	if err != nil {
 		log.Fatal().Err(err).Msg("initializing counter-probe")
 	}
