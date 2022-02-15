@@ -9,6 +9,9 @@ configMapGenerator:
 - envs:
   - configApi.env
   name: configmap-api
+- envs:
+  - configHealthbot.env
+  name: configmap-healthbot
 
 patchesStrategicMerge:
 - ingress-nginx-patch.yaml
