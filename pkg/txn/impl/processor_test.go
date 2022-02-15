@@ -292,7 +292,7 @@ func newTxnProcessorWithTable(t *testing.T, rowsLimit int) (*TblTxnProcessor, *p
 func mustWriteStmt(t *testing.T, q string) parsing.SugaredWriteStmt {
 	t.Helper()
 	p := parserimpl.New("system_", 0, 0)
-	_, wss, err := p.ValidateRunSQL(q)
+	_, wss, _, err := p.ValidateRunSQL(q)
 	require.NoError(t, err)
 	require.Len(t, wss, 1)
 	return wss[0]

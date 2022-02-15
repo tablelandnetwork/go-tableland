@@ -39,6 +39,15 @@ type SugaredReadStmt interface {
 	SugaredStmt
 }
 
+// SugaredGrantStmt is an already parsed grant statement that satisfies all
+// the parser validations. It provides a safe type to use in the business logic
+// with correct assumptions about parsing validity and being a grant statement
+// (GRANT).
+type SugaredGrantStmt interface {
+	SugaredStmt
+	//GetRole() string
+}
+
 // CreateStmt is a structured create statement. It provides methods to
 // help registering and executing the statement correctly.
 // Recall that the user sends a create table with the style:
@@ -67,7 +76,7 @@ type SQLValidator interface {
 	// ValidateRunSQL validates the query and returns an error if isn't allowed.
 	// It returns the table ID extracted from the query, and a read *or* write
 	// statement depending on the query type.
-	ValidateRunSQL(query string) (SugaredReadStmt, []SugaredWriteStmt, error)
+	ValidateRunSQL(query string) (SugaredReadStmt, []SugaredWriteStmt, []SugaredGrantStmt, error)
 }
 
 // TablelandColumnType represents an accepted column type for user-tables.

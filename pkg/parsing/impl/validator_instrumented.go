@@ -53,7 +53,7 @@ func (ip *InstrumentedSQLValidator) ValidateRunSQL(query string) (
 	error) {
 	log.Debug().Str("query", query).Msg("call ValidateRunSQL")
 	start := time.Now()
-	readStmt, writeStmts, err := ip.parser.ValidateRunSQL(query)
+	readStmt, writeStmts, _, err := ip.parser.ValidateRunSQL(query)
 	latency := time.Since(start).Milliseconds()
 
 	queryType := "write"

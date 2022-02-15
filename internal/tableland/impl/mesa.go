@@ -92,7 +92,7 @@ func (t *TablelandMesa) CreateTable(
 
 // RunSQL allows the user to run SQL.
 func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.RunSQLRequest) (tableland.RunSQLResponse, error) {
-	readStmt, writeStmts, err := t.parser.ValidateRunSQL(req.Statement)
+	readStmt, writeStmts, _, err := t.parser.ValidateRunSQL(req.Statement)
 	if err != nil {
 		return tableland.RunSQLResponse{}, fmt.Errorf("validating query: %s", err)
 	}

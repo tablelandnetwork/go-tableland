@@ -10,16 +10,24 @@ import (
 	postgresparser "github.com/textileio/go-tableland/pkg/parsing/impl"
 )
 
+type kindType int
+
+const (
+	writeStmt kindType = iota
+	grantStmt
+	readStmt
+)
+
 func TestRunSQL(t *testing.T) {
 	t.Parallel()
 
 	type testCase struct {
-		name        string
-		query       string
-		tableID     *big.Int
-		namePrefix  string
-		isWriteStmt bool
-		expErrType  interface{}
+		name       string
+		query      string
+		tableID    *big.Int
+		namePrefix string
+		kind       kindType
+		expErrType interface{}
 	}
 
 	writeQueryTests := []testCase{
@@ -212,8 +220,31 @@ func TestRunSQL(t *testing.T) {
 			expErrType: ptr2ErrNonDeterministicFunction(),
 		},
 	}
+
 	for i := range writeQueryTests {
-		writeQueryTests[i].isWriteStmt = true
+		writeQueryTests[i].kind = writeStmt
+	}
+
+	grantQueryTests := []testCase{
+		// Valid grant statement
+		{
+			name:       "grant statement",
+			query:      "grant select on a_10 to role",
+			tableID:    big.NewInt(10),
+			namePrefix: "a",
+			expErrType: nil,
+		},
+		{
+			name:       "revoke statement",
+			query:      "revoke select on a_10 from public",
+			tableID:    big.NewInt(10),
+			namePrefix: "a",
+			expErrType: nil,
+		},
+	}
+
+	for i := range grantQueryTests {
+		grantQueryTests[i].kind = grantStmt
 	}
 
 	readQueryTests := []testCase{
@@ -282,23 +313,36 @@ func TestRunSQL(t *testing.T) {
 		},
 	}
 
+	for i := range readQueryTests {
+		readQueryTests[i].kind = readStmt
+	}
+
 	tests := append(readQueryTests, writeQueryTests...)
+	tests = append(tests, grantQueryTests...)
 
 	for _, it := range tests {
 		t.Run(it.name, func(tc testCase) func(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
 				parser := postgresparser.New("system_", 0, 0)
-				rs, wss, err := parser.ValidateRunSQL(tc.query)
+				rs, wss, gss, err := parser.ValidateRunSQL(tc.query)
 				if tc.expErrType == nil {
 					require.NoError(t, err)
 
-					if tc.isWriteStmt {
+					if tc.kind == writeStmt {
 						require.NotEmpty(t, wss)
 						for _, ws := range wss {
 							require.Equal(t, tc.tableID.String(), ws.GetTableID().String())
 							require.Equal(t, tc.namePrefix, ws.GetNamePrefix())
 						}
+
+					} else if tc.kind == grantStmt {
+						require.NotEmpty(t, gss)
+						for _, ws := range gss {
+							require.Equal(t, tc.tableID.String(), ws.GetTableID().String())
+							require.Equal(t, tc.namePrefix, ws.GetNamePrefix())
+						}
+
 					} else {
 						require.NotNil(t, rs)
 						require.Equal(t, tc.tableID.String(), rs.GetTableID().String())
@@ -564,22 +608,22 @@ func TestCreateTableTextLength(t *testing.T) {
 	parser := postgresparser.New("system_", 0, textMaxLength)
 
 	t.Run("success half limit", func(t *testing.T) {
-		_, _, err := parser.ValidateRunSQL(`insert into _0 values ('aa')`)
+		_, _, _, err := parser.ValidateRunSQL(`insert into _0 values ('aa')`)
 		require.NoError(t, err)
 	})
 	t.Run("success exact max length", func(t *testing.T) {
-		_, _, err := parser.ValidateRunSQL(`insert into _0 values ('aaaa')`)
+		_, _, _, err := parser.ValidateRunSQL(`insert into _0 values ('aaaa')`)
 		require.NoError(t, err)
 	})
 	t.Run("failure insert max length exceeded", func(t *testing.T) {
-		_, _, err := parser.ValidateRunSQL(`insert into _0 values ('aaaaa')`)
+		_, _, _, err := parser.ValidateRunSQL(`insert into _0 values ('aaaaa')`)
 		var expErr *parsing.ErrTextTooLong
 		require.ErrorAs(t, err, &expErr)
 		require.Equal(t, 5, expErr.Length)
 		require.Equal(t, textMaxLength, expErr.MaxAllowed)
 	})
 	t.Run("failure update max length exceeded", func(t *testing.T) {
-		_, _, err := parser.ValidateRunSQL(`update _0 set a='aaaaa'`)
+		_, _, _, err := parser.ValidateRunSQL(`update _0 set a='aaaaa'`)
 		var expErr *parsing.ErrTextTooLong
 		require.ErrorAs(t, err, &expErr)
 		require.Equal(t, 5, expErr.Length)
@@ -619,7 +663,7 @@ func TestGetWriteStatements(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
 				parser := postgresparser.New("system_", 0, 0)
-				rs, stmts, err := parser.ValidateRunSQL(tc.query)
+				rs, stmts, _, err := parser.ValidateRunSQL(tc.query)
 				require.NoError(t, err)
 				require.Nil(t, rs)
 
