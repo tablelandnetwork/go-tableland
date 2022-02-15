@@ -90,8 +90,21 @@ jobs:
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache
 
+      - name: Build and push healthbot
+        uses: docker/build-push-action@v2
+        with:
+          context: ./
+          file: ./cmd/healthbot/Dockerfile
+          builder: ${{ steps.buildx.outputs.name }}
+          push: true
+          tags: ${{ env.CONTAINER_REGISTRY }}/${{ secrets.GKE_PROJECT }}/textile/tableland/healthbot:sha-${{ steps.prep.outputs.sha_short }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache
+
       - name: Deploy to GKE
         working-directory: ./k8
         run: |
           gcloud container clusters get-credentials $GKE_CLUSTER --region $GKE_REGION --project ${{ secrets.GKE_PROJECT }}
-          DEPLOYMENT=${{ steps.prep.outputs.deployment }} IMAGE=$CONTAINER_REGISTRY/${{ secrets.GKE_PROJECT }}/textile/tableland/api:sha-${{ steps.prep.outputs.sha_short }} make deploy
+          export API_IMAGE=$CONTAINER_REGISTRY/${{ secrets.GKE_PROJECT }}/textile/tableland/api:sha-${{ steps.prep.outputs.sha_short }}
+          export HEALTHBOT_IMAGE=$CONTAINER_REGISTRY/${{ secrets.GKE_PROJECT }}/textile/tableland/healthbot:sha-${{ steps.prep.outputs.sha_short }}
+          DEPLOYMENT=${{ steps.prep.outputs.deployment }} make deploy
