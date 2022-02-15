@@ -16,6 +16,3 @@ configMapGenerator:
 
 patchesStrategicMerge:
 - ingress-nginx-patch.yaml
-images:
-- name: tableland/api
-  newName: LOLZ

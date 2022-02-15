@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	metricPrefix = "tblhealthbot.e2eprobe"
+	metricPrefix = "tableland.healthbot.e2eprobe"
 )
 
 type CounterProbe struct {
@@ -110,32 +110,34 @@ func (cp *CounterProbe) execProbe(ctx context.Context) error {
 	defer cp.lock.Unlock()
 
 	cp.lastCheck = time.Now()
-	if err := cp.healthCheck(ctx); err != nil {
+	counterValue, err := cp.healthCheck(ctx)
+	if err != nil {
 		return fmt.Errorf("health check: %s", err)
 	}
 	cp.lastSuccessfulCheck = time.Now()
 	cp.latencyHist.Record(ctx, time.Since(cp.lastCheck).Milliseconds())
+	cp.lastCounterValue = counterValue
 	return nil
 }
 
-func (cp *CounterProbe) healthCheck(ctx context.Context) error {
+func (cp *CounterProbe) healthCheck(ctx context.Context) (int64, error) {
 	currentCounter, err := cp.getCurrentCounterValue(ctx)
 	if err != nil {
-		return fmt.Errorf("get current counter value: %s", err)
+		return 0, fmt.Errorf("get current counter value: %s", err)
 	}
 	if err := cp.increaseCounterValue(ctx); err != nil {
-		return fmt.Errorf("increasing counter value: %s", err)
+		return 0, fmt.Errorf("increasing counter value: %s", err)
 	}
 	updatedCounter, err := cp.getCurrentCounterValue(ctx)
 	if err != nil {
-		return fmt.Errorf("updated counter value: %s", err)
+		return 0, fmt.Errorf("updated counter value: %s", err)
 	}
 
 	if updatedCounter != currentCounter+1 {
-		return fmt.Errorf("unexpected updated counter value (exp: %d, got: %d)", currentCounter+1, updatedCounter)
+		return 0, fmt.Errorf("unexpected updated counter value (exp: %d, got: %d)", currentCounter+1, updatedCounter)
 	}
 
-	return nil
+	return updatedCounter, nil
 }
 
 func (cp *CounterProbe) increaseCounterValue(ctx context.Context) error {
@@ -151,14 +153,14 @@ func (cp *CounterProbe) increaseCounterValue(ctx context.Context) error {
 	return nil
 }
 
-func (cp *CounterProbe) getCurrentCounterValue(ctx context.Context) (int, error) {
+func (cp *CounterProbe) getCurrentCounterValue(ctx context.Context) (int64, error) {
 	getCounterReq := tableland.RunSQLRequest{
 		Controller: cp.ctrl,
 		Statement:  fmt.Sprintf("select * from %s", cp.tblname),
 	}
 
 	type Data struct {
-		Rows [][]int `json:"rows"`
+		Rows [][]int64 `json:"rows"`
 	}
 	var getCounterRes struct {
 		Result Data `json:"data"`

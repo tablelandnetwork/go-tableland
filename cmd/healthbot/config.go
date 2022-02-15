@@ -9,7 +9,7 @@ import (
 type config struct {
 	Probe struct {
 		Target        string `default:""`
-		CheckInterval string `default:"10s"`
+		CheckInterval string `default:"15s"`
 		JWT           string `default:""`
 		Tablename     string `default:""`
 	}
