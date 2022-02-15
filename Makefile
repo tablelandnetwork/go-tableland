@@ -30,6 +30,10 @@ build-api:
 	go build -ldflags="${GOVVV_FLAGS}" ./cmd/api
 .PHONY: build-api
 
+build-healthbot:
+	go build -ldflags="${GOVVV_FLAGS}" ./cmd/healthbot
+.PHONY: build-healthbot
+
 build-api-dev:
 	go build -ldflags="${GOVVV_FLAGS}" -gcflags="all=-N -l" ./cmd/api
 .PHONY: build-api-dev
