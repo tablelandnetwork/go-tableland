@@ -17,6 +17,7 @@ func TestProduction(t *testing.T) {
 	cp, err := New(time.Second, endpoint, jwt, tblname)
 	require.NoError(t, err)
 
-	err = cp.healthCheck(context.Background())
+	value, err := cp.healthCheck(context.Background())
 	require.NoError(t, err)
+	require.NotZero(t, value)
 }

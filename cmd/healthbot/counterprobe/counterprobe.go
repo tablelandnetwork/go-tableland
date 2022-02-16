@@ -22,6 +22,8 @@ const (
 	metricPrefix = "tableland.healthbot.e2eprobe"
 )
 
+// CounterProbe allows running an e2e probe for a pre-minted table
+// that has a counter column.
 type CounterProbe struct {
 	chckInterval time.Duration
 	rpcClient    *rpc.Client
@@ -36,6 +38,7 @@ type CounterProbe struct {
 	latencyHist metric.Int64Histogram
 }
 
+// New returns a *CounterProbe.
 func New(chckInterval time.Duration, endpoint, jwt, tblname string) (*CounterProbe, error) {
 	if len(tblname) == 0 {
 		return nil, errors.New("tablename is empty")
@@ -81,7 +84,6 @@ func New(chckInterval time.Duration, endpoint, jwt, tblname string) (*CounterPro
 			mCounterValue.Observation(cp.lastCounterValue),
 		}
 		r.Observe([]attribute.KeyValue{}, obs...)
-
 	})
 	mLastCheck = batchObs.NewInt64GaugeObserver(metricPrefix + ".last_check")
 	mLastSuccessfulCheck = batchObs.NewInt64GaugeObserver(metricPrefix + ".last_successful_check")
@@ -90,6 +92,7 @@ func New(chckInterval time.Duration, endpoint, jwt, tblname string) (*CounterPro
 	return cp, nil
 }
 
+// Run runs the probe until the provided ctx is canceled.
 func (cp *CounterProbe) Run(ctx context.Context) {
 	log.Info().Msg("starting counter-probe...")
 	for {
@@ -159,11 +162,11 @@ func (cp *CounterProbe) getCurrentCounterValue(ctx context.Context) (int64, erro
 		Statement:  fmt.Sprintf("select * from %s", cp.tblname),
 	}
 
-	type Data struct {
+	type data struct {
 		Rows [][]int64 `json:"rows"`
 	}
 	var getCounterRes struct {
-		Result Data `json:"data"`
+		Result data `json:"data"`
 	}
 	if err := cp.rpcClient.CallContext(ctx, &getCounterRes, "tableland_runSQL", getCounterReq); err != nil {
 		return 0, fmt.Errorf("calling tableland_runSQL: %s", err)
