@@ -16,6 +16,7 @@ import (
 	systemimpl "github.com/textileio/go-tableland/internal/system/impl"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/internal/tableland/impl"
+	"github.com/textileio/go-tableland/pkg/logging"
 	"github.com/textileio/go-tableland/pkg/metrics"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
@@ -28,7 +29,7 @@ import (
 
 func main() {
 	config := setupConfig()
-	setupLogger(buildinfo.GitCommit, config.Log.Debug, config.Log.Human)
+	logging.SetupLogger(buildinfo.GitCommit, config.Log.Debug, config.Log.Human)
 
 	server := rpc.NewServer()
 	ctx := context.Background()

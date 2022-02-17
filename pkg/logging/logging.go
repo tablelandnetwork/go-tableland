@@ -1,4 +1,4 @@
-package main
+package logging
 
 import (
 	"os"
@@ -7,11 +7,11 @@ import (
 
 	"cloud.google.com/go/logging"
 	"github.com/rs/zerolog"
-
 	"github.com/rs/zerolog/log"
 )
 
-func setupLogger(version string, debug, human bool) {
+// SetupLogger configures the logging library.
+func SetupLogger(version string, debug, human bool) {
 	zerolog.TimestampFieldName = "timestamp"
 	zerolog.TimeFieldFormat = time.RFC3339Nano
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)

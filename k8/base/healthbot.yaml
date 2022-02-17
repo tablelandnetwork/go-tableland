@@ -1,0 +1,77 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: healthbot
+  labels:
+    app: healthbot
+spec:
+  selector:
+    app: healthbot-v1
+  ports:
+    - port: 9090
+      name: metrics
+  type: ClusterIP
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: healthbot
+  labels:
+    app: healthbot
+spec:
+  endpoints:
+    - port: metrics
+  selector:
+    matchLabels:
+      app: healthbot
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: healthbot-01
+  labels:
+    app: healthbot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: healthbot-v1
+  template:
+    metadata:
+      labels:
+        app: healthbot-v1
+    spec:
+      containers:
+        - name: healthbot
+          image: tableland/healthbot
+          imagePullPolicy: Always
+          ports:
+            - name: metrics
+              containerPort: 9090
+          env:
+            - name: PROBE_JWT
+              valueFrom:
+                secretKeyRef:
+                  name: tableland-secret
+                  key: healthbot-jwt
+          envFrom:
+            - configMapRef:
+                name: configmap-healthbot
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3

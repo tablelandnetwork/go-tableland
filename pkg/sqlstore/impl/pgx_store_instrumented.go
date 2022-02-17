@@ -40,7 +40,6 @@ func (s *InstrumentedSQLStorePGX) GetTable(ctx context.Context, id tableland.Tab
 		{Key: "id", Value: attribute.StringValue(id.String())},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
 	}
-
 	s.callCount.Add(ctx, 1, attributes...)
 	s.latencyHistogram.Record(ctx, latency, attributes...)
 

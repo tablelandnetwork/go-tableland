@@ -8,9 +8,9 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel/exporters/prometheus"
 	"go.opentelemetry.io/otel/metric/global"
-	"go.opentelemetry.io/otel/sdk/export/metric/aggregation"
 	"go.opentelemetry.io/otel/sdk/metric/aggregator/histogram"
 	controller "go.opentelemetry.io/otel/sdk/metric/controller/basic"
+	"go.opentelemetry.io/otel/sdk/metric/export/aggregation"
 	processor "go.opentelemetry.io/otel/sdk/metric/processor/basic"
 	selector "go.opentelemetry.io/otel/sdk/metric/selector/simple"
 )
@@ -18,8 +18,7 @@ import (
 // SetupInstrumentation starts a metric endpoint.
 func SetupInstrumentation(prometheusAddr string) error {
 	config := prometheus.Config{
-		// 0.25 is for near deposit, others for duration in either millis, seconds, or minutes
-		DefaultHistogramBoundaries: []float64{0.25, 1, 10, 100, 1000, 10000},
+		DefaultHistogramBoundaries: []float64{1, 5, 10, 50, 100, 500, 1000, 5000},
 	}
 
 	c := controller.New(

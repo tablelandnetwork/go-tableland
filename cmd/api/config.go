@@ -31,7 +31,7 @@ type config struct {
 		MaxTextLength int `default:"1024"`
 	}
 	Throttling struct {
-		WriteQueryDelay string `default:"500ms"`
+		WriteQueryDelay string `default:"1s"`
 		ReadQueryDelay  string `default:"0ms"`
 	}
 	Registry struct {
