@@ -22,13 +22,13 @@ func TestSystemSQLStoreService(t *testing.T) {
 	store, err := impl.New(ctx, url)
 	require.NoError(t, err)
 
-	// populate the system_tables with a table
+	// populate the registry with a table
 	txnp, err := txnimpl.NewTxnProcessor(url, 0)
 	require.NoError(t, err)
 	b, err := txnp.OpenBatch(ctx)
 	require.NoError(t, err)
 
-	parser := parserimpl.New("system_", 0, 0)
+	parser := parserimpl.New([]string{"system_", "registry"}, 0, 0)
 	id, _ := tableland.NewTableID("42")
 	createStmt, err := parser.ValidateCreateTable("create table foo (bar int)")
 	require.NoError(t, err)

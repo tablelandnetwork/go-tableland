@@ -213,7 +213,7 @@ func executeMigration(postgresURI string, as *bindata.AssetSource) error {
 	return nil
 }
 
-func tableFromSQLToDTO(table db.SystemTable) (sqlstore.Table, error) {
+func tableFromSQLToDTO(table db.Registry) (sqlstore.Table, error) {
 	br := &big.Rat{}
 	if err := table.ID.AssignTo(br); err != nil {
 		return sqlstore.Table{}, fmt.Errorf("parsing numeric to bigrat: %s", err)

@@ -171,17 +171,17 @@ func TestRunSQL(t *testing.T) {
 		// Check no system-tables references.
 		{
 			name:       "update system table",
-			query:      "update system_tables set a=1",
+			query:      "update registry set a=1",
 			expErrType: ptr2ErrSystemTableReferencing(),
 		},
 		{
 			name:       "insert system table",
-			query:      "insert into system_tables values ('foo')",
+			query:      "insert into registry values ('foo')",
 			expErrType: ptr2ErrSystemTableReferencing(),
 		},
 		{
 			name:       "delete system table",
-			query:      "delete from system_tables",
+			query:      "delete from registry",
 			expErrType: ptr2ErrSystemTableReferencing(),
 		},
 
@@ -288,7 +288,7 @@ func TestRunSQL(t *testing.T) {
 		t.Run(it.name, func(tc testCase) func(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
-				parser := postgresparser.New("system_", 0, 0)
+				parser := postgresparser.New([]string{"system_", "registry"}, 0, 0)
 				rs, wss, err := parser.ValidateRunSQL(tc.query)
 				if tc.expErrType == nil {
 					require.NoError(t, err)
@@ -453,7 +453,7 @@ func TestCreateTableChecks(t *testing.T) {
 		t.Run(it.name, func(tc testCase) func(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
-				parser := postgresparser.New("system_", 0, 0)
+				parser := postgresparser.New([]string{"system_", "registry"}, 0, 0)
 				_, err := parser.ValidateCreateTable(tc.query)
 				if tc.expErrType == nil {
 					require.NoError(t, err)
@@ -518,7 +518,7 @@ func TestCreateTableResult(t *testing.T) {
 		t.Run(it.name, func(tc testCase) func(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
-				parser := postgresparser.New("system_", 0, 0)
+				parser := postgresparser.New([]string{"system_", "registry"}, 0, 0)
 				cs, err := parser.ValidateCreateTable(tc.query)
 				require.NoError(t, err)
 
@@ -538,7 +538,7 @@ func TestCreateTableColLimit(t *testing.T) {
 	t.Parallel()
 
 	maxAllowedColumns := 3
-	parser := postgresparser.New("system_", maxAllowedColumns, 0)
+	parser := postgresparser.New([]string{"system_", "registry"}, maxAllowedColumns, 0)
 
 	t.Run("success one column", func(t *testing.T) {
 		_, err := parser.ValidateCreateTable("create table foo (a int)")
@@ -561,7 +561,7 @@ func TestCreateTableTextLength(t *testing.T) {
 	t.Parallel()
 
 	textMaxLength := 4
-	parser := postgresparser.New("system_", 0, textMaxLength)
+	parser := postgresparser.New([]string{"system_", "registry"}, 0, textMaxLength)
 
 	t.Run("success half limit", func(t *testing.T) {
 		_, _, err := parser.ValidateRunSQL(`insert into _0 values ('aa')`)
@@ -618,7 +618,7 @@ func TestGetWriteStatements(t *testing.T) {
 		t.Run(it.name, func(tc testCase) func(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
-				parser := postgresparser.New("system_", 0, 0)
+				parser := postgresparser.New([]string{"system_", "registry"}, 0, 0)
 				rs, stmts, err := parser.ValidateRunSQL(tc.query)
 				require.NoError(t, err)
 				require.Nil(t, rs)

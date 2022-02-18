@@ -14,6 +14,10 @@ const (
 	// SystemTablesPrefix is the prefix used in table names that
 	// aren't owned by users, but the system.
 	SystemTablesPrefix = "system_"
+
+	// RegistryTableName is a special system table (not owned by user)
+	// that has information about all tables owned by users.
+	RegistryTableName = "registry"
 )
 
 // SystemSQLStoreService implements the SystemService interface using SQLStore.
