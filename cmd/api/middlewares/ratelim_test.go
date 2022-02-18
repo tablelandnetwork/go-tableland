@@ -52,11 +52,9 @@ func TestRateLimSingle(t *testing.T) {
 					rlc.ServeHTTP(res, r)
 					return res.Code == 429
 				}, time.Second*5, time.Second/time.Duration(tc.callRPS))
-
 			}
 		}(tc))
 	}
-
 }
 
 func TestRateLim10Addresses(t *testing.T) {
