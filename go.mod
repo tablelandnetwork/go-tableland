@@ -17,6 +17,7 @@ require (
 	github.com/ory/dockertest/v3 v3.8.1
 	github.com/pganalyze/pg_query_go/v2 v2.1.0
 	github.com/rs/zerolog v1.26.1
+	github.com/sethvargo/go-limiter v0.7.2
 	github.com/stretchr/testify v1.7.0
 	github.com/textileio/go-log/v2 v2.1.3-gke-2
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.28.0
