@@ -14,6 +14,9 @@ type config struct {
 	Impl string `default:"mesa"` // service implementation (mock or mesa)
 	HTTP struct {
 		Port string `default:"8080"` // HTTP port (e.g. 8080)
+
+		RateLimInterval       string `default:"1s"`
+		MaxRequestPerInterval uint64 `default:"10"`
 	}
 	Gateway struct {
 		ExternalURIPrefix string `default:"http://testnet.tableland.network"`

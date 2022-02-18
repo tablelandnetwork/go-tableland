@@ -6,11 +6,12 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/sethvargo/go-limiter/httplimit"
 	"github.com/sethvargo/go-limiter/memorystore"
 )
 
-func RateLimitController(maxRPI uint64, interval time.Duration, next http.Handler) (http.Handler, error) {
+func RateLimitController(maxRPI uint64, interval time.Duration) (mux.MiddlewareFunc, error) {
 	controllerAsKey := func(r *http.Request) (string, error) {
 		address := r.Context().Value(ContextKeyAddress)
 		ctrlAddress, ok := address.(string)
@@ -28,5 +29,5 @@ func RateLimitController(maxRPI uint64, interval time.Duration, next http.Handle
 	if err != nil {
 		return nil, fmt.Errorf("creating httplimiter: %s", err)
 	}
-	return m.Handle(next), nil
+	return m.Handle, nil
 }

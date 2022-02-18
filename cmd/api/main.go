@@ -104,19 +104,33 @@ func main() {
 	systemService := systemimpl.NewInstrumentedSystemSQLStoreService(sysStore)
 	systemController := controllers.NewSystemController(systemService)
 
+	// General router configuration.
 	router := newRouter()
 	router.Use(middlewares.CORS, middlewares.TraceID)
+
+	// RPC configuration.
+	rateLimInterval, err := time.ParseDuration(config.HTTP.RateLimInterval)
+	if err != nil {
+		log.Fatal().Err(err).Msg("parsing http rate lim interval")
+	}
+	rateLim, err := middlewares.RateLimitController(config.HTTP.MaxRequestPerInterval, rateLimInterval)
+	if err != nil {
+		log.Fatal().Err(err).Msg("creating rate limit controller middleware")
+	}
 	router.Post("/rpc", func(rw http.ResponseWriter, r *http.Request) {
 		server.ServeHTTP(rw, r)
-	}, middlewares.Authentication, middlewares.VerifyController, middlewares.OtelHTTP("rpc"))
+	}, middlewares.Authentication, middlewares.VerifyController, rateLim, middlewares.OtelHTTP("rpc"))
 
+	// Gateway configuration.
 	router.Get("/tables/{id}", systemController.GetTable, middlewares.OtelHTTP("GetTable"))
 	router.Get("/tables/{id}/{key}/{value}", userController.GetTableRow, middlewares.OtelHTTP("GetTableRow"))
 	router.Get("/tables/controller/{address}", systemController.GetTablesByController, middlewares.OtelHTTP("GetTablesByController")) //nolint
 
+	// Health endpoint configuration.
 	router.Get("/healthz", healthHandler)
 	router.Get("/health", healthHandler)
 
+	// Admin endpoint configuration.
 	if config.AdminAPI.Password == "" {
 		log.Warn().
 			Msg("no admin api password set")
@@ -128,6 +142,7 @@ func main() {
 	router.Get("/authorized-addresses/{address}/record", systemController.GetAuthorizationRecord, basicAuth, middlewares.OtelHTTP("GetAuthorizationRecord")) //nolint
 	router.Get("/authorized-addresses", systemController.ListAuthorized, basicAuth, middlewares.OtelHTTP("ListAuthorized"))
 
+	// Validator instrumentation configuration.
 	if err := metrics.SetupInstrumentation(":" + config.Metrics.Port); err != nil {
 		log.Fatal().
 			Err(err).

@@ -30,8 +30,9 @@ func TestRateLimSingle(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
 
-				rlc, err := RateLimitController(uint64(tc.limitRPS), time.Second, dummyHandler{})
+				rlcm, err := RateLimitController(uint64(tc.limitRPS), time.Second)
 				require.NoError(t, err)
+				rlc := rlcm(dummyHandler{})
 
 				ctx := context.WithValue(context.Background(), ContextKeyAddress, "0xdeadbeef")
 				r, err := http.NewRequestWithContext(ctx, "", "", nil)
@@ -62,8 +63,9 @@ func TestRateLim10Addresses(t *testing.T) {
 	t.Parallel()
 
 	// Only allow 10 req per second *per address*.
-	rlc, err := RateLimitController(100, time.Second, dummyHandler{})
+	rlcm, err := RateLimitController(100, time.Second)
 	require.NoError(t, err)
+	rlc := rlcm(dummyHandler{})
 
 	// Do 1000 requests as fast as we can with *different addresses*, and see that
 	// we never get a 429 status response. The request per second being done is
