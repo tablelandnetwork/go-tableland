@@ -12,6 +12,8 @@ type CreateTableRequest struct {
 	Controller  string `json:"controller"`
 	Statement   string `json:"statement"`
 	Description string `json:"description"`
+
+	DryRun bool `json:"dryrun"`
 }
 
 // CreateTableResponse is a CreateTable response.
