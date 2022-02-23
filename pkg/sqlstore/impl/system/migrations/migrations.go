@@ -11,6 +11,8 @@
 // migrations/004_add_last_seen.up.sql
 // migrations/005_mul_changes.down.sql
 // migrations/005_mul_changes.up.sql
+// migrations/006_rename_system_tables.down.sql
+// migrations/006_rename_system_tables.up.sql
 package migrations
 
 import (
@@ -102,7 +104,7 @@ func _001_initDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "001_init.down.sql", size: 25, mode: os.FileMode(420), modTime: time.Unix(1639499061, 0)}
+	info := bindataFileInfo{name: "001_init.down.sql", size: 25, mode: os.FileMode(420), modTime: time.Unix(1639484913, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -122,7 +124,7 @@ func _001_initUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "001_init.up.sql", size: 155, mode: os.FileMode(420), modTime: time.Unix(1639499061, 0)}
+	info := bindataFileInfo{name: "001_init.up.sql", size: 155, mode: os.FileMode(420), modTime: time.Unix(1639484913, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -142,7 +144,7 @@ func _002_add_type_columnDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_add_type_column.down.sql", size: 43, mode: os.FileMode(420), modTime: time.Unix(1642713605, 0)}
+	info := bindataFileInfo{name: "002_add_type_column.down.sql", size: 43, mode: os.FileMode(420), modTime: time.Unix(1642424618, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -162,7 +164,7 @@ func _002_add_type_columnUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_add_type_column.up.sql", size: 65, mode: os.FileMode(420), modTime: time.Unix(1642713605, 0)}
+	info := bindataFileInfo{name: "002_add_type_column.up.sql", size: 65, mode: os.FileMode(420), modTime: time.Unix(1642424618, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -182,7 +184,7 @@ func _003_authDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "003_auth.down.sql", size: 23, mode: os.FileMode(420), modTime: time.Unix(1643324586, 0)}
+	info := bindataFileInfo{name: "003_auth.down.sql", size: 23, mode: os.FileMode(420), modTime: time.Unix(1643380989, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -202,7 +204,7 @@ func _003_authUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "003_auth.up.sql", size: 122, mode: os.FileMode(420), modTime: time.Unix(1643324586, 0)}
+	info := bindataFileInfo{name: "003_auth.up.sql", size: 122, mode: os.FileMode(420), modTime: time.Unix(1643380989, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -222,7 +224,7 @@ func _004_add_last_seenDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "004_add_last_seen.down.sql", size: 106, mode: os.FileMode(420), modTime: time.Unix(1643744762, 0)}
+	info := bindataFileInfo{name: "004_add_last_seen.down.sql", size: 106, mode: os.FileMode(420), modTime: time.Unix(1643807505, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -242,7 +244,7 @@ func _004_add_last_seenUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "004_add_last_seen.up.sql", size: 179, mode: os.FileMode(420), modTime: time.Unix(1643744762, 0)}
+	info := bindataFileInfo{name: "004_add_last_seen.up.sql", size: 179, mode: os.FileMode(420), modTime: time.Unix(1643807505, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -262,7 +264,7 @@ func _005_mul_changesDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "005_mul_changes.down.sql", size: 311, mode: os.FileMode(420), modTime: time.Unix(1644266777, 0)}
+	info := bindataFileInfo{name: "005_mul_changes.down.sql", size: 311, mode: os.FileMode(420), modTime: time.Unix(1644351777, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -282,7 +284,47 @@ func _005_mul_changesUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "005_mul_changes.up.sql", size: 495, mode: os.FileMode(420), modTime: time.Unix(1644266777, 0)}
+	info := bindataFileInfo{name: "005_mul_changes.up.sql", size: 495, mode: os.FileMode(420), modTime: time.Unix(1644351777, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __006_rename_system_tablesDownSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\xf4\x09\x71\x0d\x52\x08\x71\x74\xf2\x71\x55\x28\x4a\x4d\xcf\x2c\x2e\x29\xaa\x54\x08\x72\xf5\x73\xf4\x75\x55\x08\xf1\x57\x28\xae\x2c\x2e\x49\xcd\x8d\x2f\x49\x4c\xca\x49\x2d\xb6\x06\x04\x00\x00\xff\xff\x72\x91\x5f\x1b\x2d\x00\x00\x00")
+
+func _006_rename_system_tablesDownSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__006_rename_system_tablesDownSql,
+		"006_rename_system_tables.down.sql",
+	)
+}
+
+func _006_rename_system_tablesDownSql() (*asset, error) {
+	bytes, err := _006_rename_system_tablesDownSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "006_rename_system_tables.down.sql", size: 45, mode: os.FileMode(420), modTime: time.Unix(1645209600, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __006_rename_system_tablesUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\xf4\x09\x71\x0d\x52\x08\x71\x74\xf2\x71\x55\x28\xae\x2c\x2e\x49\xcd\x8d\x2f\x49\x4c\xca\x49\x2d\x56\x08\x72\xf5\x73\xf4\x75\x55\x08\xf1\x57\x28\x4a\x4d\xcf\x2c\x2e\x29\xaa\xb4\x06\x04\x00\x00\xff\xff\x71\x64\x77\x61\x2d\x00\x00\x00")
+
+func _006_rename_system_tablesUpSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__006_rename_system_tablesUpSql,
+		"006_rename_system_tables.up.sql",
+	)
+}
+
+func _006_rename_system_tablesUpSql() (*asset, error) {
+	bytes, err := _006_rename_system_tablesUpSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "006_rename_system_tables.up.sql", size: 45, mode: os.FileMode(420), modTime: time.Unix(1645209586, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -339,16 +381,18 @@ func AssetNames() []string {
 
 // _bindata is a table, holding each asset generator, mapped to its name.
 var _bindata = map[string]func() (*asset, error){
-	"001_init.down.sql":            _001_initDownSql,
-	"001_init.up.sql":              _001_initUpSql,
-	"002_add_type_column.down.sql": _002_add_type_columnDownSql,
-	"002_add_type_column.up.sql":   _002_add_type_columnUpSql,
-	"003_auth.down.sql":            _003_authDownSql,
-	"003_auth.up.sql":              _003_authUpSql,
-	"004_add_last_seen.down.sql":   _004_add_last_seenDownSql,
-	"004_add_last_seen.up.sql":     _004_add_last_seenUpSql,
-	"005_mul_changes.down.sql":     _005_mul_changesDownSql,
-	"005_mul_changes.up.sql":       _005_mul_changesUpSql,
+	"001_init.down.sql":                 _001_initDownSql,
+	"001_init.up.sql":                   _001_initUpSql,
+	"002_add_type_column.down.sql":      _002_add_type_columnDownSql,
+	"002_add_type_column.up.sql":        _002_add_type_columnUpSql,
+	"003_auth.down.sql":                 _003_authDownSql,
+	"003_auth.up.sql":                   _003_authUpSql,
+	"004_add_last_seen.down.sql":        _004_add_last_seenDownSql,
+	"004_add_last_seen.up.sql":          _004_add_last_seenUpSql,
+	"005_mul_changes.down.sql":          _005_mul_changesDownSql,
+	"005_mul_changes.up.sql":            _005_mul_changesUpSql,
+	"006_rename_system_tables.down.sql": _006_rename_system_tablesDownSql,
+	"006_rename_system_tables.up.sql":   _006_rename_system_tablesUpSql,
 }
 
 // AssetDir returns the file names below a certain
@@ -392,16 +436,18 @@ type bintree struct {
 }
 
 var _bintree = &bintree{nil, map[string]*bintree{
-	"001_init.down.sql":            &bintree{_001_initDownSql, map[string]*bintree{}},
-	"001_init.up.sql":              &bintree{_001_initUpSql, map[string]*bintree{}},
-	"002_add_type_column.down.sql": &bintree{_002_add_type_columnDownSql, map[string]*bintree{}},
-	"002_add_type_column.up.sql":   &bintree{_002_add_type_columnUpSql, map[string]*bintree{}},
-	"003_auth.down.sql":            &bintree{_003_authDownSql, map[string]*bintree{}},
-	"003_auth.up.sql":              &bintree{_003_authUpSql, map[string]*bintree{}},
-	"004_add_last_seen.down.sql":   &bintree{_004_add_last_seenDownSql, map[string]*bintree{}},
-	"004_add_last_seen.up.sql":     &bintree{_004_add_last_seenUpSql, map[string]*bintree{}},
-	"005_mul_changes.down.sql":     &bintree{_005_mul_changesDownSql, map[string]*bintree{}},
-	"005_mul_changes.up.sql":       &bintree{_005_mul_changesUpSql, map[string]*bintree{}},
+	"001_init.down.sql":                 &bintree{_001_initDownSql, map[string]*bintree{}},
+	"001_init.up.sql":                   &bintree{_001_initUpSql, map[string]*bintree{}},
+	"002_add_type_column.down.sql":      &bintree{_002_add_type_columnDownSql, map[string]*bintree{}},
+	"002_add_type_column.up.sql":        &bintree{_002_add_type_columnUpSql, map[string]*bintree{}},
+	"003_auth.down.sql":                 &bintree{_003_authDownSql, map[string]*bintree{}},
+	"003_auth.up.sql":                   &bintree{_003_authUpSql, map[string]*bintree{}},
+	"004_add_last_seen.down.sql":        &bintree{_004_add_last_seenDownSql, map[string]*bintree{}},
+	"004_add_last_seen.up.sql":          &bintree{_004_add_last_seenUpSql, map[string]*bintree{}},
+	"005_mul_changes.down.sql":          &bintree{_005_mul_changesDownSql, map[string]*bintree{}},
+	"005_mul_changes.up.sql":            &bintree{_005_mul_changesUpSql, map[string]*bintree{}},
+	"006_rename_system_tables.down.sql": &bintree{_006_rename_system_tablesDownSql, map[string]*bintree{}},
+	"006_rename_system_tables.up.sql":   &bintree{_006_rename_system_tablesUpSql, map[string]*bintree{}},
 }}
 
 // RestoreAsset restores an asset under the given directory

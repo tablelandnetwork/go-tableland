@@ -98,7 +98,7 @@ func (b *batch) InsertTable(
 			return fmt.Errorf("parsing table id to numeric: %s", err)
 		}
 		if _, err := tx.Exec(ctx,
-			`INSERT INTO system_tables ("id","controller","name", "structure","description") 
+			`INSERT INTO registry ("id","controller","name", "structure","description") 
 			 VALUES ($1,$2,$3,$4,$5);`,
 			dbID,
 			controller,
@@ -197,7 +197,7 @@ func GetTableNameAndRowCountByTableID(ctx context.Context, tx pgx.Tx, id tablela
 	if err := dbID.Set(id.String()); err != nil {
 		return "", 0, fmt.Errorf("parsing table id to numeric: %s", err)
 	}
-	q := fmt.Sprintf("SELECT (SELECT name FROM system_tables where id=$1), (SELECT count(*) FROM _%s)", id)
+	q := fmt.Sprintf("SELECT (SELECT name FROM registry where id=$1), (SELECT count(*) FROM _%s)", id)
 	r := tx.QueryRow(ctx, q, dbID)
 	var dbName string
 	var rowCount int

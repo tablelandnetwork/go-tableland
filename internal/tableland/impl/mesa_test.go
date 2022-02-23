@@ -136,7 +136,7 @@ func TestReadSystemTable(t *testing.T) {
 
 	req2 := tableland.RunSQLRequest{
 		Controller: "ctrl-1",
-		Statement:  `select * from system_tables`,
+		Statement:  `select * from registry`,
 	}
 	res, err := tbld.RunSQL(ctx, req2)
 	require.NoError(t, err)
@@ -208,7 +208,7 @@ func newTablelandMesa(t *testing.T) tableland.Tableland {
 	require.NoError(t, err)
 	err = sqlstore.Authorize(ctx, "ctrl-1")
 	require.NoError(t, err)
-	parser := parserimpl.New("system_", 0, 0)
+	parser := parserimpl.New([]string{"system_", "registry"}, 0, 0)
 	txnp, err := txnpimpl.NewTxnProcessor(url, 0)
 	require.NoError(t, err)
 

@@ -20,17 +20,17 @@ var (
 
 // QueryValidator enforces PostgresSQL constraints for Tableland.
 type QueryValidator struct {
-	systemTablePrefix  string
-	acceptedTypesNames []string
-	rawTablenameRegEx  *regexp.Regexp
-	maxAllowedColumns  int
-	maxTextLength      int
+	systemTablePrefixes []string
+	acceptedTypesNames  []string
+	rawTablenameRegEx   *regexp.Regexp
+	maxAllowedColumns   int
+	maxTextLength       int
 }
 
 var _ parsing.SQLValidator = (*QueryValidator)(nil)
 
 // New returns a Tableland query validator.
-func New(systemTablePrefix string, maxAllowedColumns int, maxTextLength int) *QueryValidator {
+func New(systemTablePrefixes []string, maxAllowedColumns int, maxTextLength int) *QueryValidator {
 	// We create here a flattened slice of all the accepted type names from
 	// the parsing.AcceptedTypes source of truth. We do this since having a
 	// slice is easier and faster to do checks.
@@ -42,11 +42,11 @@ func New(systemTablePrefix string, maxAllowedColumns int, maxTextLength int) *Qu
 	rawTablenameRegEx, _ := regexp.Compile(`^\w*_[0-9]+$`)
 
 	return &QueryValidator{
-		systemTablePrefix:  systemTablePrefix,
-		acceptedTypesNames: acceptedTypesNames,
-		rawTablenameRegEx:  rawTablenameRegEx,
-		maxAllowedColumns:  maxAllowedColumns,
-		maxTextLength:      maxTextLength,
+		systemTablePrefixes: systemTablePrefixes,
+		acceptedTypesNames:  acceptedTypesNames,
+		rawTablenameRegEx:   rawTablenameRegEx,
+		maxAllowedColumns:   maxAllowedColumns,
+		maxTextLength:       maxTextLength,
 	}
 }
 
@@ -156,7 +156,7 @@ func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.SugaredReadStmt,
 }
 
 func (pp *QueryValidator) deconstructRefTable(refTable string) (string, string, error) {
-	if strings.HasPrefix(refTable, pp.systemTablePrefix) {
+	if hasPrefix(refTable, pp.systemTablePrefixes) {
 		return "", refTable, nil
 	}
 	if !pp.rawTablenameRegEx.MatchString(refTable) {
@@ -232,7 +232,7 @@ func (pp *QueryValidator) validateWriteQuery(stmt *pg_query.Node) (string, error
 		return "", fmt.Errorf("no returning clause check: %w", err)
 	}
 
-	if err := checkNoSystemTablesReferencing(stmt, pp.systemTablePrefix); err != nil {
+	if err := checkNoSystemTablesReferencing(stmt, pp.systemTablePrefixes); err != nil {
 		return "", fmt.Errorf("no system-table reference: %w", err)
 	}
 
@@ -353,50 +353,50 @@ func checkNoReturningClause(node *pg_query.Node) error {
 	return nil
 }
 
-func checkNoSystemTablesReferencing(node *pg_query.Node, systemTablePrefix string) error {
+func checkNoSystemTablesReferencing(node *pg_query.Node, systemTablePrefixes []string) error {
 	if node == nil {
 		return nil
 	}
 	if rangeVar := node.GetRangeVar(); rangeVar != nil {
-		if strings.HasPrefix(rangeVar.Relname, systemTablePrefix) {
+		if hasPrefix(rangeVar.Relname, systemTablePrefixes) {
 			return &parsing.ErrSystemTableReferencing{}
 		}
 	} else if insertStmt := node.GetInsertStmt(); insertStmt != nil {
-		if strings.HasPrefix(insertStmt.Relation.Relname, systemTablePrefix) {
+		if hasPrefix(insertStmt.Relation.Relname, systemTablePrefixes) {
 			return &parsing.ErrSystemTableReferencing{}
 		}
-		return checkNoSystemTablesReferencing(insertStmt.SelectStmt, systemTablePrefix)
+		return checkNoSystemTablesReferencing(insertStmt.SelectStmt, systemTablePrefixes)
 	} else if selectStmt := node.GetSelectStmt(); selectStmt != nil {
 		for _, fcn := range selectStmt.FromClause {
-			if err := checkNoSystemTablesReferencing(fcn, systemTablePrefix); err != nil {
+			if err := checkNoSystemTablesReferencing(fcn, systemTablePrefixes); err != nil {
 				return fmt.Errorf("from clause: %w", err)
 			}
 		}
 	} else if updateStmt := node.GetUpdateStmt(); updateStmt != nil {
-		if strings.HasPrefix(updateStmt.Relation.Relname, systemTablePrefix) {
+		if hasPrefix(updateStmt.Relation.Relname, systemTablePrefixes) {
 			return &parsing.ErrSystemTableReferencing{}
 		}
 		for _, fcn := range updateStmt.FromClause {
-			if err := checkNoSystemTablesReferencing(fcn, systemTablePrefix); err != nil {
+			if err := checkNoSystemTablesReferencing(fcn, systemTablePrefixes); err != nil {
 				return fmt.Errorf("from clause: %w", err)
 			}
 		}
 	} else if deleteStmt := node.GetDeleteStmt(); deleteStmt != nil {
-		if strings.HasPrefix(deleteStmt.Relation.Relname, systemTablePrefix) {
+		if hasPrefix(deleteStmt.Relation.Relname, systemTablePrefixes) {
 			return &parsing.ErrSystemTableReferencing{}
 		}
-		if err := checkNoSystemTablesReferencing(deleteStmt.WhereClause, systemTablePrefix); err != nil {
+		if err := checkNoSystemTablesReferencing(deleteStmt.WhereClause, systemTablePrefixes); err != nil {
 			return fmt.Errorf("where clause: %w", err)
 		}
 	} else if rangeSubselectStmt := node.GetRangeSubselect(); rangeSubselectStmt != nil {
-		if err := checkNoSystemTablesReferencing(rangeSubselectStmt.Subquery, systemTablePrefix); err != nil {
+		if err := checkNoSystemTablesReferencing(rangeSubselectStmt.Subquery, systemTablePrefixes); err != nil {
 			return fmt.Errorf("subquery: %w", err)
 		}
 	} else if joinExpr := node.GetJoinExpr(); joinExpr != nil {
-		if err := checkNoSystemTablesReferencing(joinExpr.Larg, systemTablePrefix); err != nil {
+		if err := checkNoSystemTablesReferencing(joinExpr.Larg, systemTablePrefixes); err != nil {
 			return fmt.Errorf("join left arg: %w", err)
 		}
-		if err := checkNoSystemTablesReferencing(joinExpr.Rarg, systemTablePrefix); err != nil {
+		if err := checkNoSystemTablesReferencing(joinExpr.Rarg, systemTablePrefixes); err != nil {
 			return fmt.Errorf("join right arg: %w", err)
 		}
 	}
@@ -654,6 +654,16 @@ func genCreateStmt(cNode *pg_query.Node, cols []colNameType) *createStmt {
 		structureHash: hex.EncodeToString(hash),
 		namePrefix:    cNode.GetCreateStmt().Relation.Relname,
 	}
+}
+
+func hasPrefix(s string, prefixes []string) bool {
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(s, prefix) {
+			return true
+		}
+	}
+
+	return false
 }
 
 type createStmt struct {

@@ -9,19 +9,19 @@ import (
 	"github.com/jackc/pgtype"
 )
 
-type SystemAuth struct {
-	Address          string
-	CreatedAt        time.Time
-	LastSeen         sql.NullTime
-	CreateTableCount int32
-	RunSqlCount      int32
-}
-
-type SystemTable struct {
+type Registry struct {
 	CreatedAt   time.Time
 	ID          pgtype.Numeric
 	Structure   string
 	Controller  string
 	Description string
 	Name        string
+}
+
+type SystemAuth struct {
+	Address          string
+	CreatedAt        time.Time
+	LastSeen         sql.NullTime
+	CreateTableCount int32
+	RunSqlCount      int32
 }
