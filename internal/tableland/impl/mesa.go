@@ -57,17 +57,17 @@ func (t *TablelandMesa) CreateTable(
 		return tableland.CreateTableResponse{}, fmt.Errorf("query validation: %s", err)
 	}
 
+	fullTableName := fmt.Sprintf("%s_%s", createStmt.GetNamePrefix(), req.ID)
+	if req.DryRun {
+		return tableland.CreateTableResponse{Name: fullTableName}, nil
+	}
+
 	isOwner, err := t.isOwner(ctx, req.Controller, tableID.ToBigInt())
 	if err != nil {
 		return tableland.CreateTableResponse{}, fmt.Errorf("failed to check owner: %s", err)
 	}
 	if !isOwner {
 		return tableland.CreateTableResponse{}, errors.New("you aren't the owner of the provided token")
-	}
-
-	fullTableName := fmt.Sprintf("%s_%s", createStmt.GetNamePrefix(), req.ID)
-	if req.DryRun {
-		return tableland.CreateTableResponse{Name: fullTableName}, nil
 	}
 
 	b, err := t.txnp.OpenBatch(ctx)
