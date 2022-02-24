@@ -57,6 +57,11 @@ func (t *TablelandMesa) CreateTable(
 		return tableland.CreateTableResponse{}, fmt.Errorf("query validation: %s", err)
 	}
 
+	fullTableName := fmt.Sprintf("%s_%s", createStmt.GetNamePrefix(), req.ID)
+	if req.DryRun {
+		return tableland.CreateTableResponse{Name: fullTableName}, nil
+	}
+
 	isOwner, err := t.isOwner(ctx, req.Controller, tableID.ToBigInt())
 	if err != nil {
 		return tableland.CreateTableResponse{}, fmt.Errorf("failed to check owner: %s", err)
@@ -85,9 +90,7 @@ func (t *TablelandMesa) CreateTable(
 		log.Error().Err(err).Msg("incrementing create table count")
 	}
 
-	return tableland.CreateTableResponse{
-		Name: fmt.Sprintf("%s_%s", createStmt.GetNamePrefix(), req.ID),
-	}, nil
+	return tableland.CreateTableResponse{Name: fullTableName}, nil
 }
 
 // RunSQL allows the user to run SQL.
