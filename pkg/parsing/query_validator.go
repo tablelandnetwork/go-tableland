@@ -192,15 +192,15 @@ func (e *ErrNoTopLevelUpdateInsertDelete) Error() string {
 }
 
 // ErrStatementIsNotSupported is an error returned when the stament isn't
-// a SELECT, UPDATE, INSERT, DELETE, GRANT OR REVOKE.
+// a SELECT, UPDATE, INSERT, DELETE, GRANT or REVOKE.
 type ErrStatementIsNotSupported struct{}
 
 func (e *ErrStatementIsNotSupported) Error() string {
-	return "the query isn't supported"
+	return "the statement isn't supported"
 }
 
 // ErrNoTopLevelGrant is an error returned when the query isn't
-// an UPDATE, INSERT or DELETE.
+// a GRANT or REVOKE.
 type ErrNoTopLevelGrant struct{}
 
 func (e *ErrNoTopLevelGrant) Error() string {
@@ -223,12 +223,12 @@ func (e *ErrNoInsertUpdateDeletePrivilege) Error() string {
 	return "the privilege can only be INSERT, UPDATE or DELETE"
 }
 
-// ErrNoSingleObjectReference is an error returned when the grant isn't
-// referencing only one object.
-type ErrNoSingleObjectReference struct{}
+// ErrNoSingleTableReference is an error returned when the grant isn't
+// referencing only one table.
+type ErrNoSingleTableReference struct{}
 
-func (e *ErrNoSingleObjectReference) Error() string {
-	return "grant can only reference one object"
+func (e *ErrNoSingleTableReference) Error() string {
+	return "grant can only reference one table"
 }
 
 // ErrObjectTypeIsNotTable is an error returned when the grant isn't

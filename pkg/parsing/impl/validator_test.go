@@ -272,14 +272,14 @@ func TestRunSQL(t *testing.T) {
 			query:      "grant insert, update, delete on a_10, a_11 to role",
 			tableID:    big.NewInt(10),
 			namePrefix: "a",
-			expErrType: ptr2ErrNoSingleObjectReference(),
+			expErrType: ptr2ErrNoSingleTableReference(),
 		},
 		{
 			name:       "revoke statement multiple table",
 			query:      "revoke insert, update, delete on a_10, a_11 from role",
 			tableID:    big.NewInt(10),
 			namePrefix: "a",
-			expErrType: ptr2ErrNoSingleObjectReference(),
+			expErrType: ptr2ErrNoSingleTableReference(),
 		},
 		// disallow grant on target object different than ACL_TARGET_OBJECT
 		{
@@ -917,8 +917,8 @@ func ptr2ErrInvalidTableName() **parsing.ErrInvalidTableName {
 	return &e
 }
 
-func ptr2ErrNoSingleObjectReference() **parsing.ErrNoSingleObjectReference {
-	var e *parsing.ErrNoSingleObjectReference
+func ptr2ErrNoSingleTableReference() **parsing.ErrNoSingleTableReference {
+	var e *parsing.ErrNoSingleTableReference
 	return &e
 }
 

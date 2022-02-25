@@ -222,6 +222,9 @@ func (ws *sugaredStmt) GetDesugaredQuery() (string, error) {
 			rangeVar.Relname = ws.postgresTableName
 		}
 	} else if grantStmt := ws.node.GetGrantStmt(); grantStmt != nil {
+		// It is safe to assume Objects has always one element.
+		// This is validated in the checkPrivileges call.
+
 		grantStmt.Objects[0].GetRangeVar().Relname = ws.postgresTableName
 	}
 	rs := &pg_query.RawStmt{Stmt: ws.node}
@@ -247,6 +250,9 @@ type sugaredGrantStmt struct {
 }
 
 func (gs *sugaredGrantStmt) GetRoles() []common.Address {
+	// The rolenames of grantees are safe to use.
+	// They were already validated in the previous checkRoles call.
+
 	grantees := gs.sugaredStmt.node.GetGrantStmt().GetGrantees()
 	roles := make([]common.Address, len(grantees))
 	for i, grantee := range grantees {
@@ -434,7 +440,7 @@ func checkGrantReference(node *pg_query.GrantStmt) error {
 
 	objects := node.GetObjects()
 	if len(objects) != 1 {
-		return &parsing.ErrNoSingleObjectReference{}
+		return &parsing.ErrNoSingleTableReference{}
 	}
 
 	if node.GetObjtype().String() != "OBJECT_TABLE" {
@@ -566,6 +572,9 @@ func getReferencedTable(node *pg_query.Node) (string, error) {
 	} else if deleteStmt := node.GetDeleteStmt(); deleteStmt != nil {
 		return deleteStmt.Relation.Relname, nil
 	} else if grantStmt := node.GetGrantStmt(); grantStmt != nil {
+		// It is safe to assume Objects has always one element.
+		// This is validated in the checkPrivileges call.
+
 		return grantStmt.GetObjects()[0].GetRangeVar().GetRelname(), nil
 	}
 	return "", fmt.Errorf("the statement isn't an insert/update/delete")
