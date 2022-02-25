@@ -123,22 +123,26 @@ func (b *batch) InsertTable(
 	return nil
 }
 
-func (b *batch) ExecWriteQueries(ctx context.Context, wqueries []parsing.SugaredWriteStmt) error {
+func (b *batch) ExecWriteQueries(ctx context.Context, mqueries []parsing.SugaredMutatingStmt) error {
 	f := func(tx pgx.Tx) error {
-		if len(wqueries) == 0 {
-			log.Warn().Msg("no write-queries to execute in a batch")
+		if len(mqueries) == 0 {
+			log.Warn().Msg("no mutating-queries to execute in a batch")
 			return nil
 		}
-		dbName, beforeRowCount, err := GetTableNameAndRowCountByTableID(ctx, tx, wqueries[0].GetTableID())
+		dbName, beforeRowCount, err := GetTableNameAndRowCountByTableID(ctx, tx, mqueries[0].GetTableID())
 		if err != nil {
 			return fmt.Errorf("table name lookup for table id: %s", err)
 		}
-		for _, wq := range wqueries {
-			wqName := wq.GetNamePrefix()
-			if wqName != "" && dbName != wqName {
-				return fmt.Errorf("table name prefix doesn't match (exp %s, got %s)", dbName, wqName)
+		for _, mq := range mqueries {
+			if _, ok := mq.(parsing.SugaredGrantStmt); ok {
+				return fmt.Errorf("grant queries are not supported")
 			}
-			desugared, err := wq.GetDesugaredQuery()
+
+			mqName := mq.GetNamePrefix()
+			if mqName != "" && dbName != mqName {
+				return fmt.Errorf("table name prefix doesn't match (exp %s, got %s)", dbName, mqName)
+			}
+			desugared, err := mq.GetDesugaredQuery()
 			if err != nil {
 				return fmt.Errorf("get desugared query: %s", err)
 			}

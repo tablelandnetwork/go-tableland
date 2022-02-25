@@ -4,6 +4,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
@@ -14,12 +15,12 @@ func TestRunSQL(t *testing.T) {
 	t.Parallel()
 
 	type testCase struct {
-		name        string
-		query       string
-		tableID     *big.Int
-		namePrefix  string
-		isWriteStmt bool
-		expErrType  interface{}
+		name           string
+		query          string
+		tableID        *big.Int
+		namePrefix     string
+		isMutatingStmt bool
+		expErrType     interface{}
 	}
 
 	writeQueryTests := []testCase{
@@ -117,17 +118,17 @@ func TestRunSQL(t *testing.T) {
 		{
 			name:       "create",
 			query:      "create table foo (bar int)",
-			expErrType: ptr2ErrNoTopLevelUpdateInsertDelete(),
+			expErrType: ptr2ErrStatementIsNotSupported(),
 		},
 		{
 			name:       "drop",
 			query:      "drop table foo",
-			expErrType: ptr2ErrNoTopLevelUpdateInsertDelete(),
+			expErrType: ptr2ErrStatementIsNotSupported(),
 		},
 		{
 			name:       "update select",
 			query:      "update foo set a=1;select * from foo",
-			expErrType: ptr2ErrNoTopLevelUpdateInsertDelete(),
+			expErrType: ptr2ErrStatementIsNotSupported(),
 		},
 
 		// Disallow JOINs and sub-queries
@@ -212,8 +213,183 @@ func TestRunSQL(t *testing.T) {
 			expErrType: ptr2ErrNonDeterministicFunction(),
 		},
 	}
+
 	for i := range writeQueryTests {
-		writeQueryTests[i].isWriteStmt = true
+		writeQueryTests[i].isMutatingStmt = true
+	}
+
+	grantQueryTests := []testCase{
+		// Valid grant statement
+		{
+			name:       "grant statement",
+			query:      "grant insert, update, delete on a_10 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\",  \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"", //nolint
+			tableID:    big.NewInt(10),
+			namePrefix: "a",
+			expErrType: nil,
+		},
+		{
+			name:       "revoke statement",
+			query:      "revoke insert, update, delete on a_10 from \"0xd43c59d5694ec111eb9e986c233200b14249558d\",  \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"", //nolint
+			tableID:    big.NewInt(10),
+			namePrefix: "a",
+			expErrType: nil,
+		},
+
+		// grant membership is not supported
+		{
+			name:       "grant membership",
+			query:      "GRANT admin to joe;",
+			expErrType: ptr2ErrStatementIsNotSupported(),
+		},
+
+		// disallow privileges
+		{
+			name:       "grant statement all privileges",
+			query:      "grant all privileges on a_10 to role",
+			tableID:    big.NewInt(10),
+			namePrefix: "a",
+			expErrType: ptr2ErrAllPrivilegesNotAllowed(),
+		},
+		{
+			name:       "revoke statement all privileges",
+			query:      "revoke all on a_10 from role",
+			tableID:    big.NewInt(10),
+			namePrefix: "a",
+			expErrType: ptr2ErrAllPrivilegesNotAllowed(),
+		},
+
+		{
+			name:       "grant statement connect",
+			query:      "grant connect on a_10 to role",
+			tableID:    big.NewInt(10),
+			namePrefix: "a",
+			expErrType: ptr2ErrNoInsertUpdateDeletePrivilege(),
+		},
+
+		// disallow grant on multiple objects
+		{
+			name:       "grant statement multiple table",
+			query:      "grant insert, update, delete on a_10, a_11 to role",
+			tableID:    big.NewInt(10),
+			namePrefix: "a",
+			expErrType: ptr2ErrNoSingleTableReference(),
+		},
+		{
+			name:       "revoke statement multiple table",
+			query:      "revoke insert, update, delete on a_10, a_11 from role",
+			tableID:    big.NewInt(10),
+			namePrefix: "a",
+			expErrType: ptr2ErrNoSingleTableReference(),
+		},
+		// disallow grant on target object different than ACL_TARGET_OBJECT
+		{
+			name:       "grant statement all tables",
+			query:      "grant insert, update, delete on all tables in schema s to role",
+			tableID:    big.NewInt(10),
+			namePrefix: "a",
+			expErrType: ptr2ErrTargetTypeIsNotObject(),
+		},
+		{
+			name:       "revoke statement all tables",
+			query:      "revoke insert, update, delete on all tables in schema s from role",
+			tableID:    big.NewInt(10),
+			namePrefix: "a",
+			expErrType: ptr2ErrTargetTypeIsNotObject(),
+		},
+
+		// disallow grant on object that is not table
+		{
+			name:       "grant statement database",
+			query:      "grant insert, update, delete on database db to role",
+			tableID:    big.NewInt(10),
+			namePrefix: "a",
+			expErrType: ptr2ErrObjectTypeIsNotTable(),
+		},
+		{
+			name:       "grant statement sequence",
+			query:      "grant insert, update, delete on sequence s to role",
+			tableID:    big.NewInt(10),
+			namePrefix: "a",
+			expErrType: ptr2ErrObjectTypeIsNotTable(),
+		},
+		{
+			name:       "grant statement schema",
+			query:      "grant insert, update, delete on schema s to role",
+			tableID:    big.NewInt(10),
+			namePrefix: "a",
+			expErrType: ptr2ErrObjectTypeIsNotTable(),
+		},
+		{
+			name:       "grant statement fdw",
+			query:      "grant insert, update, delete on foreign data wrapper fdw to role",
+			tableID:    big.NewInt(10),
+			namePrefix: "a",
+			expErrType: ptr2ErrObjectTypeIsNotTable(),
+		},
+		{
+			name:       "grant statement foreign server",
+			query:      "grant insert, update, delete on foreign server fdw to role",
+			tableID:    big.NewInt(10),
+			namePrefix: "a",
+			expErrType: ptr2ErrObjectTypeIsNotTable(),
+		},
+		{
+			name:       "grant statement function",
+			query:      "grant insert, update, delete on function f to role",
+			tableID:    big.NewInt(10),
+			namePrefix: "a",
+			expErrType: ptr2ErrObjectTypeIsNotTable(),
+		},
+		{
+			name:       "grant statement language",
+			query:      "grant insert, update, delete on language l to role",
+			tableID:    big.NewInt(10),
+			namePrefix: "a",
+			expErrType: ptr2ErrObjectTypeIsNotTable(),
+		},
+		{
+			name:       "grant statement large object",
+			query:      "grant insert, update, delete on large object 1 to role",
+			tableID:    big.NewInt(10),
+			namePrefix: "a",
+			expErrType: ptr2ErrObjectTypeIsNotTable(),
+		},
+		{
+			name:       "grant statement tablespace",
+			query:      "grant insert, update, delete on tablespace tblsp to role",
+			tableID:    big.NewInt(10),
+			namePrefix: "a",
+			expErrType: ptr2ErrObjectTypeIsNotTable(),
+		},
+
+		// disallow grant on roles that are not cstring
+		{
+			name:       "grant statement public",
+			query:      "grant insert, update, delete on a_10 to public",
+			tableID:    big.NewInt(10),
+			namePrefix: "a",
+			expErrType: ptr2ErrRoleIsNotCString(),
+		},
+		{
+			name:       "revoke statement public",
+			query:      "revoke insert, update, delete on a_10 from public",
+			tableID:    big.NewInt(10),
+			namePrefix: "a",
+			expErrType: ptr2ErrRoleIsNotCString(),
+		},
+
+		// disallow grant on roles that are not eth addresses
+		{
+			name:       "grant statement eth address",
+			query:      "grant insert, update, delete on a_10 to role",
+			tableID:    big.NewInt(10),
+			namePrefix: "a",
+			expErrType: ptr2ErrRoleIsNotAnEthAddress(),
+		},
+	}
+
+	for i := range grantQueryTests {
+		grantQueryTests[i].isMutatingStmt = true
 	}
 
 	readQueryTests := []testCase{
@@ -283,21 +459,24 @@ func TestRunSQL(t *testing.T) {
 	}
 
 	tests := append(readQueryTests, writeQueryTests...)
+	tests = append(tests, grantQueryTests...)
 
 	for _, it := range tests {
 		t.Run(it.name, func(tc testCase) func(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
+
 				parser := postgresparser.New([]string{"system_", "registry"}, 0, 0)
-				rs, wss, err := parser.ValidateRunSQL(tc.query)
+				rs, mss, err := parser.ValidateRunSQL(tc.query)
+
 				if tc.expErrType == nil {
 					require.NoError(t, err)
 
-					if tc.isWriteStmt {
-						require.NotEmpty(t, wss)
-						for _, ws := range wss {
-							require.Equal(t, tc.tableID.String(), ws.GetTableID().String())
-							require.Equal(t, tc.namePrefix, ws.GetNamePrefix())
+					if tc.isMutatingStmt {
+						require.NotEmpty(t, mss)
+						for _, ms := range mss {
+							require.Equal(t, tc.tableID.String(), ms.GetTableID().String())
+							require.Equal(t, tc.namePrefix, ms.GetNamePrefix())
 						}
 					} else {
 						require.NotNil(t, rs)
@@ -633,6 +812,60 @@ func TestGetWriteStatements(t *testing.T) {
 	}
 }
 
+func TestGetGrantStatementRolesAndPrivileges(t *testing.T) {
+	t.Parallel()
+
+	type testCase struct {
+		name         string
+		query        string
+		roles        []common.Address
+		privileges   []string
+		expectedStmt string
+	}
+	tests := []testCase{
+		{
+			name:         "grant",
+			query:        "grant insert, UPDATE on a_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\";",
+			roles:        []common.Address{common.HexToAddress("0xd43c59d5694ec111eb9e986c233200b14249558d")},
+			privileges:   []string{"insert", "update"},
+			expectedStmt: "GRANT insert, update ON _100 TO \"0xd43c59d5694ec111eb9e986c233200b14249558d\"",
+		},
+
+		{
+			name:  "revoke",
+			query: "revoke delete on a_100 from \"0xd43c59d5694ec111eb9e986c233200b14249558d\", \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\";", // nolint
+			roles: []common.Address{
+				common.HexToAddress("0xd43c59d5694ec111eb9e986c233200b14249558d"),
+				common.HexToAddress("0x4afe8e30db4549384b0a05bb796468b130c7d6e0"),
+			},
+			privileges:   []string{"delete"},
+			expectedStmt: "REVOKE delete ON _100 FROM \"0xd43c59d5694ec111eb9e986c233200b14249558d\", \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"", // nolint
+		},
+	}
+
+	for _, it := range tests {
+		t.Run(it.name, func(tc testCase) func(t *testing.T) {
+			return func(t *testing.T) {
+				t.Parallel()
+				parser := postgresparser.New([]string{"system_", "registry"}, 0, 0)
+				rs, stmts, err := parser.ValidateRunSQL(tc.query)
+				require.NoError(t, err)
+				require.Nil(t, rs)
+
+				for i := range stmts {
+					gs, ok := stmts[i].(parsing.SugaredGrantStmt)
+					require.True(t, ok)
+					desugared, err := gs.GetDesugaredQuery()
+					require.NoError(t, err)
+					require.Equal(t, tc.expectedStmt, desugared)
+					require.Equal(t, tc.roles, gs.GetRoles())
+					require.Equal(t, tc.privileges, gs.GetPrivileges())
+				}
+			}
+		}(it))
+	}
+}
+
 // Helpers to have a pointer to pointer for generic test-case running.
 func ptr2ErrInvalidSyntax() **parsing.ErrInvalidSyntax {
 	var e *parsing.ErrInvalidSyntax
@@ -654,10 +887,7 @@ func ptr2ErrSystemTableReferencing() **parsing.ErrSystemTableReferencing {
 	var e *parsing.ErrSystemTableReferencing
 	return &e
 }
-func ptr2ErrNoTopLevelUpdateInsertDelete() **parsing.ErrNoTopLevelUpdateInsertDelete {
-	var e *parsing.ErrNoTopLevelUpdateInsertDelete
-	return &e
-}
+
 func ptr2ErrReturningClause() **parsing.ErrReturningClause {
 	var e *parsing.ErrReturningClause
 	return &e
@@ -684,5 +914,45 @@ func ptr2ErrMultiTableReference() **parsing.ErrMultiTableReference {
 }
 func ptr2ErrInvalidTableName() **parsing.ErrInvalidTableName {
 	var e *parsing.ErrInvalidTableName
+	return &e
+}
+
+func ptr2ErrNoSingleTableReference() **parsing.ErrNoSingleTableReference {
+	var e *parsing.ErrNoSingleTableReference
+	return &e
+}
+
+func ptr2ErrObjectTypeIsNotTable() **parsing.ErrObjectTypeIsNotTable {
+	var e *parsing.ErrObjectTypeIsNotTable
+	return &e
+}
+
+func ptr2ErrRoleIsNotCString() **parsing.ErrRoleIsNotCString {
+	var e *parsing.ErrRoleIsNotCString
+	return &e
+}
+
+func ptr2ErrTargetTypeIsNotObject() **parsing.ErrTargetTypeIsNotObject {
+	var e *parsing.ErrTargetTypeIsNotObject
+	return &e
+}
+
+func ptr2ErrAllPrivilegesNotAllowed() **parsing.ErrAllPrivilegesNotAllowed {
+	var e *parsing.ErrAllPrivilegesNotAllowed
+	return &e
+}
+
+func ptr2ErrNoInsertUpdateDeletePrivilege() **parsing.ErrNoInsertUpdateDeletePrivilege {
+	var e *parsing.ErrNoInsertUpdateDeletePrivilege
+	return &e
+}
+
+func ptr2ErrStatementIsNotSupported() **parsing.ErrStatementIsNotSupported {
+	var e *parsing.ErrStatementIsNotSupported
+	return &e
+}
+
+func ptr2ErrRoleIsNotAnEthAddress() **parsing.ErrRoleIsNotAnEthAddress {
+	var e *parsing.ErrRoleIsNotAnEthAddress
 	return &e
 }

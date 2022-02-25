@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/common"
 	pg_query "github.com/pganalyze/pg_query_go/v2"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
@@ -88,7 +89,7 @@ func (pp *QueryValidator) ValidateCreateTable(query string) (parsing.CreateStmt,
 
 // ValidateRunSQL validates the query and returns an error if isn't allowed.
 // If the query validates correctly, it returns the query type and nil.
-func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.SugaredReadStmt, []parsing.SugaredWriteStmt, error) {
+func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.SugaredReadStmt, []parsing.SugaredMutatingStmt, error) {
 	parsed, err := pg_query.Parse(query)
 	if err != nil {
 		return nil, nil, &parsing.ErrInvalidSyntax{InternalError: err}
@@ -119,16 +120,28 @@ func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.SugaredReadStmt,
 		}, nil, nil
 	}
 
-	// It's a write-query.
+	// It's a write-query or a grant-query.
 
 	// Since we support write queries with more than one statement,
-	// do the write-query validation in each of them. Also, check
+	// do the write/grant-query validation in each of them. Also, check
 	// that each statement reference always the same table.
-	var targetTable string
+	var targetTable, refTable string
 	for i := range parsed.Stmts {
-		refTable, err := pp.validateWriteQuery(parsed.Stmts[i].Stmt)
-		if err != nil {
-			return nil, nil, fmt.Errorf("validating write-query: %w", err)
+		stmt := parsed.Stmts[i].Stmt
+
+		switch {
+		case isWrite(stmt):
+			refTable, err = pp.validateWriteQuery(stmt)
+			if err != nil {
+				return nil, nil, fmt.Errorf("validating write-query: %w", err)
+			}
+		case isGrant(stmt):
+			refTable, err = pp.validateGrantQuery(stmt)
+			if err != nil {
+				return nil, nil, fmt.Errorf("validating grant-query: %w", err)
+			}
+		default:
+			return nil, nil, &parsing.ErrStatementIsNotSupported{}
 		}
 
 		if targetTable == "" {
@@ -143,12 +156,22 @@ func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.SugaredReadStmt,
 		return nil, nil, fmt.Errorf("deconstructing referenced table name: %w", err)
 	}
 
-	ret := make([]parsing.SugaredWriteStmt, len(parsed.Stmts))
+	ret := make([]parsing.SugaredMutatingStmt, len(parsed.Stmts))
 	for i := range parsed.Stmts {
-		ret[i] = &sugaredStmt{
-			node:              parsed.Stmts[i].Stmt,
+		stmt := parsed.Stmts[i].Stmt
+		s := &sugaredStmt{
+			node:              stmt,
 			namePrefix:        namePrefix,
 			postgresTableName: posTableName,
+		}
+
+		switch {
+		case isWrite(stmt):
+			ret[i] = parsing.SugaredWriteStmt(s)
+		case isGrant(stmt):
+			ret[i] = parsing.SugaredGrantStmt(&sugaredGrantStmt{s})
+		default:
+			return nil, nil, &parsing.ErrStatementIsNotSupported{}
 		}
 	}
 
@@ -181,8 +204,6 @@ type sugaredStmt struct {
 	postgresTableName string
 }
 
-var _ parsing.SugaredWriteStmt = (*sugaredStmt)(nil)
-
 func (ws *sugaredStmt) GetDesugaredQuery() (string, error) {
 	parsedTree := &pg_query.ParseResult{}
 
@@ -200,6 +221,11 @@ func (ws *sugaredStmt) GetDesugaredQuery() (string, error) {
 			}
 			rangeVar.Relname = ws.postgresTableName
 		}
+	} else if grantStmt := ws.node.GetGrantStmt(); grantStmt != nil {
+		// It is safe to assume Objects has always one element.
+		// This is validated in the checkPrivileges call.
+
+		grantStmt.Objects[0].GetRangeVar().Relname = ws.postgresTableName
 	}
 	rs := &pg_query.RawStmt{Stmt: ws.node}
 	parsedTree.Stmts = []*pg_query.RawStmt{rs}
@@ -217,6 +243,33 @@ func (ws *sugaredStmt) GetNamePrefix() string {
 func (ws *sugaredStmt) GetTableID() tableland.TableID {
 	tid, _ := tableland.NewTableID(ws.postgresTableName[1:])
 	return tid
+}
+
+type sugaredGrantStmt struct {
+	*sugaredStmt
+}
+
+func (gs *sugaredGrantStmt) GetRoles() []common.Address {
+	// The rolenames of grantees are safe to use.
+	// They were already validated in the previous checkRoles call.
+
+	grantees := gs.sugaredStmt.node.GetGrantStmt().GetGrantees()
+	roles := make([]common.Address, len(grantees))
+	for i, grantee := range grantees {
+		roles[i] = common.HexToAddress(grantee.GetRoleSpec().GetRolename())
+	}
+
+	return roles
+}
+
+func (gs *sugaredGrantStmt) GetPrivileges() []string {
+	privilegesNodes := gs.sugaredStmt.node.GetGrantStmt().GetPrivileges()
+	privileges := make([]string, len(privilegesNodes))
+	for i, privilegeNode := range privilegesNodes {
+		privileges[i] = privilegeNode.GetAccessPriv().GetPrivName()
+	}
+
+	return privileges
 }
 
 func (pp *QueryValidator) validateWriteQuery(stmt *pg_query.Node) (string, error) {
@@ -249,6 +302,34 @@ func (pp *QueryValidator) validateWriteQuery(stmt *pg_query.Node) (string, error
 		return "", fmt.Errorf("get referenced table: %w", err)
 	}
 
+	return referencedTable, nil
+}
+
+func (pp *QueryValidator) validateGrantQuery(stmt *pg_query.Node) (string, error) {
+	if err := checkTopLevelGrant(stmt); err != nil {
+		return "", fmt.Errorf("allowed top level stmt: %w", err)
+	}
+
+	grantStmt := stmt.GetGrantStmt()
+	if err := checkGrantType(grantStmt); err != nil {
+		return "", fmt.Errorf("wrong target type in stmt: %w", err)
+	}
+	if err := checkPrivileges(grantStmt); err != nil {
+		return "", fmt.Errorf("wrong privileges in stmt: %w", err)
+	}
+
+	if err := checkGrantReference(grantStmt); err != nil {
+		return "", fmt.Errorf("wrong reference in stmt: %w", err)
+	}
+
+	if err := checkRoles(grantStmt); err != nil {
+		return "", fmt.Errorf("wrong roles in stmt: %w", err)
+	}
+
+	referencedTable, err := getReferencedTable(stmt)
+	if err != nil {
+		return "", fmt.Errorf("get referenced table: %w", err)
+	}
 	return referencedTable, nil
 }
 
@@ -309,6 +390,86 @@ func checkTopLevelUpdateInsertDelete(node *pg_query.Node) error {
 		node.GetDeleteStmt() == nil {
 		return &parsing.ErrNoTopLevelUpdateInsertDelete{}
 	}
+	return nil
+}
+
+func checkTopLevelGrant(node *pg_query.Node) error {
+	if node.GetGrantStmt() == nil {
+		return &parsing.ErrNoTopLevelGrant{}
+	}
+	return nil
+}
+
+func checkPrivileges(node *pg_query.GrantStmt) error {
+	if node == nil {
+		return errEmptyNode
+	}
+
+	// ALL PRIVILEGES is not allowed
+	if len(node.GetPrivileges()) == 0 {
+		return &parsing.ErrAllPrivilegesNotAllowed{}
+	}
+
+	// only INSERT, UPDATE and DELETE are allowed
+	for _, privilegeNode := range node.GetPrivileges() {
+		privilege := privilegeNode.GetAccessPriv().GetPrivName()
+		if privilege != "insert" && privilege != "update" && privilege != "delete" {
+			return &parsing.ErrNoInsertUpdateDeletePrivilege{}
+		}
+	}
+
+	return nil
+}
+
+func checkGrantType(node *pg_query.GrantStmt) error {
+	if node == nil {
+		return errEmptyNode
+	}
+
+	if node.GetTargtype().String() != "ACL_TARGET_OBJECT" {
+		return &parsing.ErrTargetTypeIsNotObject{}
+	}
+
+	return nil
+}
+
+func checkGrantReference(node *pg_query.GrantStmt) error {
+	if node == nil {
+		return errEmptyNode
+	}
+
+	objects := node.GetObjects()
+	if len(objects) != 1 {
+		return &parsing.ErrNoSingleTableReference{}
+	}
+
+	if node.GetObjtype().String() != "OBJECT_TABLE" {
+		return &parsing.ErrObjectTypeIsNotTable{}
+	}
+
+	if rangeVar := objects[0].GetRangeVar(); rangeVar == nil {
+		return &parsing.ErrRangeVarIsNil{}
+	}
+
+	return nil
+}
+
+func checkRoles(node *pg_query.GrantStmt) error {
+	if node == nil {
+		return errEmptyNode
+	}
+
+	for _, grantee := range node.GetGrantees() {
+		if grantee.GetRoleSpec().Roletype.String() != "ROLESPEC_CSTRING" {
+			return &parsing.ErrRoleIsNotCString{}
+		}
+
+		addr := common.Address{}
+		if err := addr.UnmarshalText([]byte(grantee.GetRoleSpec().Rolename)); err != nil {
+			return &parsing.ErrRoleIsNotAnEthAddress{}
+		}
+	}
+
 	return nil
 }
 
@@ -410,6 +571,11 @@ func getReferencedTable(node *pg_query.Node) (string, error) {
 		return updateStmt.Relation.Relname, nil
 	} else if deleteStmt := node.GetDeleteStmt(); deleteStmt != nil {
 		return deleteStmt.Relation.Relname, nil
+	} else if grantStmt := node.GetGrantStmt(); grantStmt != nil {
+		// It is safe to assume Objects has always one element.
+		// This is validated in the checkPrivileges call.
+
+		return grantStmt.GetObjects()[0].GetRangeVar().GetRelname(), nil
 	}
 	return "", fmt.Errorf("the statement isn't an insert/update/delete")
 }
@@ -577,6 +743,14 @@ func checkNoJoinOrSubquery(node *pg_query.Node) error {
 		}
 	}
 	return nil
+}
+
+func isGrant(node *pg_query.Node) bool {
+	return node.GetGrantStmt() != nil
+}
+
+func isWrite(node *pg_query.Node) bool {
+	return node.GetUpdateStmt() != nil || node.GetInsertStmt() != nil || node.GetDeleteStmt() != nil
 }
 
 type colNameType struct {

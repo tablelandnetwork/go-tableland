@@ -3,6 +3,7 @@ package parsing
 import (
 	"fmt"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgtype"
 	"github.com/textileio/go-tableland/internal/tableland"
 )
@@ -28,6 +29,22 @@ type SugaredStmt interface {
 // with correct assumptions about parsing validity and being a write statement
 // (update, insert, delete).
 type SugaredWriteStmt interface {
+	SugaredStmt
+}
+
+// SugaredGrantStmt is an already parsed grant statement that satisfies all
+// the parser validations. It provides a safe type to use in the business logic
+// with correct assumptions about parsing validity and being a write statement
+// (grant, revoke).
+type SugaredGrantStmt interface {
+	SugaredStmt
+	GetRoles() []common.Address
+	GetPrivileges() []string
+}
+
+// SugaredMutatingStmt represents mutating statement, that is either
+// a SugaredWriteStmt or a SugaredGrantStmt.
+type SugaredMutatingStmt interface {
 	SugaredStmt
 }
 
@@ -67,7 +84,7 @@ type SQLValidator interface {
 	// ValidateRunSQL validates the query and returns an error if isn't allowed.
 	// It returns the table ID extracted from the query, and a read *or* write
 	// statement depending on the query type.
-	ValidateRunSQL(query string) (SugaredReadStmt, []SugaredWriteStmt, error)
+	ValidateRunSQL(query string) (SugaredReadStmt, []SugaredMutatingStmt, error)
 }
 
 // TablelandColumnType represents an accepted column type for user-tables.
@@ -172,6 +189,85 @@ type ErrNoTopLevelUpdateInsertDelete struct{}
 
 func (e *ErrNoTopLevelUpdateInsertDelete) Error() string {
 	return "the query isn't a an UPDATE, INSERT, or DELETE"
+}
+
+// ErrStatementIsNotSupported is an error returned when the stament isn't
+// a SELECT, UPDATE, INSERT, DELETE, GRANT or REVOKE.
+type ErrStatementIsNotSupported struct{}
+
+func (e *ErrStatementIsNotSupported) Error() string {
+	return "the statement isn't supported"
+}
+
+// ErrNoTopLevelGrant is an error returned when the query isn't
+// a GRANT or REVOKE.
+type ErrNoTopLevelGrant struct{}
+
+func (e *ErrNoTopLevelGrant) Error() string {
+	return "the query isn't a an GRANT or REVOKE"
+}
+
+// ErrAllPrivilegesNotAllowed is an error returned when the grant
+// is ALL PRIVILEGES.
+type ErrAllPrivilegesNotAllowed struct{}
+
+func (e *ErrAllPrivilegesNotAllowed) Error() string {
+	return "ALL PRIVILEGES is not allowed"
+}
+
+// ErrNoInsertUpdateDeletePrivilege is an error returned when the privilege isn't
+// an UPDATE, INSERT or DELETE.
+type ErrNoInsertUpdateDeletePrivilege struct{}
+
+func (e *ErrNoInsertUpdateDeletePrivilege) Error() string {
+	return "the privilege can only be INSERT, UPDATE or DELETE"
+}
+
+// ErrNoSingleTableReference is an error returned when the grant isn't
+// referencing only one table.
+type ErrNoSingleTableReference struct{}
+
+func (e *ErrNoSingleTableReference) Error() string {
+	return "grant can only reference one table"
+}
+
+// ErrObjectTypeIsNotTable is an error returned when the grant isn't
+// referencing a table.
+type ErrObjectTypeIsNotTable struct{}
+
+func (e *ErrObjectTypeIsNotTable) Error() string {
+	return "grant can only reference object of type OBJECT_TABLE"
+}
+
+// ErrRangeVarIsNil is an error returned when the grant RangeVar is nil.
+type ErrRangeVarIsNil struct{}
+
+func (e *ErrRangeVarIsNil) Error() string {
+	return "grant rangevar is nil"
+}
+
+// ErrRoleIsNotCString is an error returned when the rolespec
+// of the role is not cstring.
+type ErrRoleIsNotCString struct{}
+
+func (e *ErrRoleIsNotCString) Error() string {
+	return "rolespec if not of type cstring"
+}
+
+// ErrRoleIsNotAnEthAddress is an error returned when the role
+// is not an eth address.
+type ErrRoleIsNotAnEthAddress struct{}
+
+func (e *ErrRoleIsNotAnEthAddress) Error() string {
+	return "role is not an eth address"
+}
+
+// ErrTargetTypeIsNotObject is an error returned when the target type
+// is not object.
+type ErrTargetTypeIsNotObject struct{}
+
+func (e *ErrTargetTypeIsNotObject) Error() string {
+	return "target type is not ACL_TARGET_OBJECT"
 }
 
 // ErrReturningClause is an error returned when queries use a RETURNING clause.

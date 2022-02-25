@@ -28,7 +28,7 @@ func TestRunSQL(t *testing.T) {
 		require.NoError(t, err)
 
 		wq1 := mustWriteStmt(t, `insert into foo_100 values ('one')`)
-		err = b.ExecWriteQueries(ctx, []parsing.SugaredWriteStmt{wq1})
+		err = b.ExecWriteQueries(ctx, []parsing.SugaredMutatingStmt{wq1})
 		require.NoError(t, err)
 
 		require.NoError(t, b.Commit(ctx))
@@ -49,18 +49,18 @@ func TestRunSQL(t *testing.T) {
 
 		{
 			wq1 := mustWriteStmt(t, `insert into foo_100 values ('wq1one')`)
-			err = b.ExecWriteQueries(ctx, []parsing.SugaredWriteStmt{wq1})
+			err = b.ExecWriteQueries(ctx, []parsing.SugaredMutatingStmt{wq1})
 			require.NoError(t, err)
 		}
 		{
 			wq1 := mustWriteStmt(t, `insert into foo_100 values ('wq1two')`)
 			wq2 := mustWriteStmt(t, `insert into foo_100 values ('wq2three')`)
-			err = b.ExecWriteQueries(ctx, []parsing.SugaredWriteStmt{wq1, wq2})
+			err = b.ExecWriteQueries(ctx, []parsing.SugaredMutatingStmt{wq1, wq2})
 			require.NoError(t, err)
 		}
 		{
 			wq1 := mustWriteStmt(t, `insert into foo_100 values ('wq1four')`)
-			err = b.ExecWriteQueries(ctx, []parsing.SugaredWriteStmt{wq1})
+			err = b.ExecWriteQueries(ctx, []parsing.SugaredMutatingStmt{wq1})
 			require.NoError(t, err)
 		}
 
@@ -82,18 +82,18 @@ func TestRunSQL(t *testing.T) {
 
 		{
 			wq1_1 := mustWriteStmt(t, `insert into foo_100 values ('onez')`)
-			err = b.ExecWriteQueries(ctx, []parsing.SugaredWriteStmt{wq1_1})
+			err = b.ExecWriteQueries(ctx, []parsing.SugaredMutatingStmt{wq1_1})
 			require.NoError(t, err)
 		}
 		{
 			wq2_1 := mustWriteStmt(t, `insert into foo_100 values ('twoz')`)
 			wq2_2 := mustWriteStmt(t, `insert into foo_101 values ('threez')`)
-			err = b.ExecWriteQueries(ctx, []parsing.SugaredWriteStmt{wq2_1, wq2_2})
+			err = b.ExecWriteQueries(ctx, []parsing.SugaredMutatingStmt{wq2_1, wq2_2})
 			require.Error(t, err)
 		}
 		{
 			wq3_1 := mustWriteStmt(t, `insert into foo_100 values ('fourz')`)
-			err = b.ExecWriteQueries(ctx, []parsing.SugaredWriteStmt{wq3_1})
+			err = b.ExecWriteQueries(ctx, []parsing.SugaredMutatingStmt{wq3_1})
 			require.NoError(t, err)
 		}
 
@@ -122,13 +122,13 @@ func TestRunSQL(t *testing.T) {
 
 		{
 			wq1_1 := mustWriteStmt(t, `insert into foo_100 values ('one')`)
-			err = b.ExecWriteQueries(ctx, []parsing.SugaredWriteStmt{wq1_1})
+			err = b.ExecWriteQueries(ctx, []parsing.SugaredMutatingStmt{wq1_1})
 			require.NoError(t, err)
 		}
 		{
 			wq2_1 := mustWriteStmt(t, `insert into foo_100 values ('two')`)
 			wq2_2 := mustWriteStmt(t, `insert into foo_100 values ('three')`)
-			err = b.ExecWriteQueries(ctx, []parsing.SugaredWriteStmt{wq2_1, wq2_2})
+			err = b.ExecWriteQueries(ctx, []parsing.SugaredMutatingStmt{wq2_1, wq2_2})
 			require.NoError(t, err)
 		}
 
@@ -197,7 +197,7 @@ func TestTableRowCountLimit(t *testing.T) {
 		require.NoError(t, err)
 
 		q := mustWriteStmt(t, `insert into foo_100 values ('one')`)
-		err = b.ExecWriteQueries(ctx, []parsing.SugaredWriteStmt{q})
+		err = b.ExecWriteQueries(ctx, []parsing.SugaredMutatingStmt{q})
 		if err == nil {
 			require.NoError(t, b.Commit(ctx))
 		}
@@ -289,7 +289,7 @@ func newTxnProcessorWithTable(t *testing.T, rowsLimit int) (*TblTxnProcessor, *p
 	return txnp, pool
 }
 
-func mustWriteStmt(t *testing.T, q string) parsing.SugaredWriteStmt {
+func mustWriteStmt(t *testing.T, q string) parsing.SugaredMutatingStmt {
 	t.Helper()
 	p := parserimpl.New([]string{"system_", "registry"}, 0, 0)
 	_, wss, err := p.ValidateRunSQL(q)

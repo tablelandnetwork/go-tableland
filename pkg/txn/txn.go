@@ -40,7 +40,7 @@ type Batch interface {
 		controller string,
 		description string,
 		createStmt parsing.CreateStmt) error
-	ExecWriteQueries(ctx context.Context, wquery []parsing.SugaredWriteStmt) error
+	ExecWriteQueries(ctx context.Context, wquery []parsing.SugaredMutatingStmt) error
 
 	Commit(context.Context) error
 	Close(context.Context) error

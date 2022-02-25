@@ -95,7 +95,7 @@ func (t *TablelandMesa) CreateTable(
 
 // RunSQL allows the user to run SQL.
 func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.RunSQLRequest) (tableland.RunSQLResponse, error) {
-	readStmt, writeStmts, err := t.parser.ValidateRunSQL(req.Statement)
+	readStmt, mutatingStmts, err := t.parser.ValidateRunSQL(req.Statement)
 	if err != nil {
 		return tableland.RunSQLResponse{}, fmt.Errorf("validating query: %s", err)
 	}
@@ -109,8 +109,8 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.RunSQLRequest)
 		return tableland.RunSQLResponse{Result: queryResult}, nil
 	}
 
-	// Write statements
-	tableID := writeStmts[0].GetTableID()
+	// Mutating statements
+	tableID := mutatingStmts[0].GetTableID()
 	isOwner, err := t.isOwner(ctx, req.Controller, tableID.ToBigInt())
 	if err != nil {
 		return tableland.RunSQLResponse{}, fmt.Errorf("failed to check authorization: %s", err)
@@ -118,7 +118,7 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.RunSQLRequest)
 	if !isOwner {
 		return tableland.RunSQLResponse{}, errors.New("you aren't authorized")
 	}
-	if err := t.runInsertOrUpdate(ctx, req.Controller, writeStmts); err != nil {
+	if err := t.runMutating(ctx, req.Controller, mutatingStmts); err != nil {
 		return tableland.RunSQLResponse{}, fmt.Errorf("running statement: %s", err)
 	}
 	return tableland.RunSQLResponse{}, nil
@@ -132,10 +132,10 @@ func (t *TablelandMesa) Authorize(ctx context.Context, req tableland.AuthorizeRe
 	return nil
 }
 
-func (t *TablelandMesa) runInsertOrUpdate(
+func (t *TablelandMesa) runMutating(
 	ctx context.Context,
 	controller string,
-	ws []parsing.SugaredWriteStmt) error {
+	ms []parsing.SugaredMutatingStmt) error {
 	b, err := t.txnp.OpenBatch(ctx)
 	if err != nil {
 		return fmt.Errorf("opening batch: %s", err)
@@ -145,8 +145,8 @@ func (t *TablelandMesa) runInsertOrUpdate(
 			log.Error().Err(err).Msg("closing batch")
 		}
 	}()
-	if err := b.ExecWriteQueries(ctx, ws); err != nil {
-		return fmt.Errorf("executing write-query: %s", err)
+	if err := b.ExecWriteQueries(ctx, ms); err != nil {
+		return fmt.Errorf("executing mutating-query: %s", err)
 	}
 
 	if err := b.Commit(ctx); err != nil {
