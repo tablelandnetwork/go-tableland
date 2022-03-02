@@ -211,6 +211,28 @@ func (s *InstrumentedSQLStorePGX) IncrementRunSQLCount(ctx context.Context, addr
 	return err
 }
 
+// GetACLOnTableByController increments the counter.
+func (s *InstrumentedSQLStorePGX) GetACLOnTableByController(
+	ctx context.Context,
+	table tableland.TableID,
+	address string) (sqlstore.SystemACL, error) {
+	start := time.Now()
+	systemACL, err := s.store.GetACLOnTableByController(ctx, table, address)
+	latency := time.Since(start).Milliseconds()
+
+	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("GetACLOnTableByController")},
+		{Key: "address", Value: attribute.StringValue(address)},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return systemACL, err
+}
+
 // Read executes a read statement on the db.
 func (s *InstrumentedSQLStorePGX) Read(ctx context.Context, stmt parsing.SugaredReadStmt) (interface{}, error) {
 	start := time.Now()

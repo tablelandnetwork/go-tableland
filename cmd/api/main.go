@@ -84,8 +84,10 @@ func main() {
 		log.Fatal().Err(err).Msg("instrumenting sql validator")
 	}
 
+	acl := impl.NewACL(sqlstore, registry)
+
 	var txnp txn.TxnProcessor
-	txnp, err = txnimpl.NewTxnProcessor(databaseURL, config.TableConstraints.MaxRowCount)
+	txnp, err = txnimpl.NewTxnProcessor(databaseURL, config.TableConstraints.MaxRowCount, acl)
 	if err != nil {
 		log.Fatal().Err(err).Msg("creating txn processor")
 	}
@@ -95,7 +97,7 @@ func main() {
 	}
 	txnp = txnimpl.NewThrottledTxnProcessor(txnp, writeQueryDelay)
 
-	svc := getTablelandService(config, sqlstore, registry, parser, txnp)
+	svc := getTablelandService(config, sqlstore, acl, parser, txnp)
 	if err := server.RegisterName("tableland", svc); err != nil {
 		log.Fatal().
 			Err(err).
@@ -170,13 +172,13 @@ func main() {
 func getTablelandService(
 	conf *config,
 	store sqlstore.SQLStore,
-	registry *ethereum.Client,
+	acl tableland.ACL,
 	parser parsing.SQLValidator,
 	txnp txn.TxnProcessor,
 ) tableland.Tableland {
 	switch conf.Impl {
 	case "mesa":
-		mesa := impl.NewTablelandMesa(store, registry, parser, txnp)
+		mesa := impl.NewTablelandMesa(store, parser, txnp, acl)
 		instrumentedMesa, err := impl.NewInstrumentedTablelandMesa(mesa)
 		if err != nil {
 			log.Fatal().Err(err).Msg("instrumenting mesa")

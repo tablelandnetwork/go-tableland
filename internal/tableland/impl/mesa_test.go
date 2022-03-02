@@ -5,7 +5,6 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"log"
-	"math/big"
 	"os"
 	"testing"
 
@@ -209,14 +208,26 @@ func newTablelandMesa(t *testing.T) tableland.Tableland {
 	err = sqlstore.Authorize(ctx, "ctrl-1")
 	require.NoError(t, err)
 	parser := parserimpl.New([]string{"system_", "registry"}, 0, 0)
-	txnp, err := txnpimpl.NewTxnProcessor(url, 0)
+	txnp, err := txnpimpl.NewTxnProcessor(url, 0, &aclMock{})
 	require.NoError(t, err)
 
-	return NewTablelandMesa(sqlstore, &dummyRegistry{}, parser, txnp)
+	return NewTablelandMesa(sqlstore, parser, txnp, &aclMock{})
 }
 
-type dummyRegistry struct{}
+type aclMock struct{}
 
-func (dr *dummyRegistry) IsOwner(context context.Context, addrress common.Address, id *big.Int) (bool, error) {
+func (acl *aclMock) CheckPrivileges(
+	ctx context.Context,
+	controller common.Address,
+	id tableland.TableID,
+	op tableland.Operation) error {
+	return nil
+}
+
+func (acl *aclMock) CheckAuthorization(ctx context.Context, controller common.Address) error {
+	return nil
+}
+
+func (acl *aclMock) IsOwner(ctx context.Context, controller common.Address, id tableland.TableID) (bool, error) {
 	return true, nil
 }

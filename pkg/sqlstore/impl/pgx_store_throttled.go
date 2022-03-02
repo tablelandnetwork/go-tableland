@@ -72,6 +72,14 @@ func (s *ThrottledSQLStorePGX) IncrementRunSQLCount(ctx context.Context, address
 	return s.store.IncrementRunSQLCount(ctx, address)
 }
 
+// GetACLOnTableByController increments the counter.
+func (s *ThrottledSQLStorePGX) GetACLOnTableByController(
+	ctx context.Context,
+	table tableland.TableID,
+	address string) (sqlstore.SystemACL, error) {
+	return s.store.GetACLOnTableByController(ctx, table, address)
+}
+
 // Read executes a read statement on the db.
 func (s *ThrottledSQLStorePGX) Read(ctx context.Context, stmt parsing.SugaredReadStmt) (interface{}, error) {
 	data, err := s.store.Read(ctx, stmt)

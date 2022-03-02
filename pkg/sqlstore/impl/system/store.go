@@ -15,6 +15,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/database/postgres" // triggers something?
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
 	"github.com/jackc/pgtype"
+	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
@@ -184,6 +185,33 @@ func (s *SystemStore) IncrementRunSQLCount(ctx context.Context, address string) 
 	return nil
 }
 
+// GetACLOnTableByController returns the privileges on table stored in the database for a given controller.
+func (s *SystemStore) GetACLOnTableByController(
+	ctx context.Context,
+	id tableland.TableID,
+	controller string) (sqlstore.SystemACL, error) {
+	dbID := pgtype.Numeric{}
+	if err := dbID.Set(id.String()); err != nil {
+		return sqlstore.SystemACL{}, fmt.Errorf("parsing table id to numeric: %s", err)
+	}
+
+	params := db.GetAclByTableAndControllerParams{
+		Controller: controller,
+		TableID:    dbID,
+	}
+
+	systemACL, err := s.db.GetAclByTableAndController(ctx, params)
+	if err == pgx.ErrNoRows {
+		return sqlstore.SystemACL{}, nil
+	}
+
+	if err != nil {
+		return sqlstore.SystemACL{}, fmt.Errorf("failed to get the acl info: %s", err)
+	}
+
+	return aclFromSQLtoDTO(systemACL)
+}
+
 // executeMigration run db migrations and return a ready to use connection to the Postgres database.
 func executeMigration(postgresURI string, as *bindata.AssetSource) error {
 	// To avoid dealing with time zone issues, we just enforce UTC timezone
@@ -233,6 +261,32 @@ func tableFromSQLToDTO(table db.Registry) (sqlstore.Table, error) {
 		Structure:   table.Structure,
 		CreatedAt:   table.CreatedAt,
 	}, nil
+}
+
+func aclFromSQLtoDTO(acl db.SystemAcl) (sqlstore.SystemACL, error) {
+	br := &big.Rat{}
+	if err := acl.TableID.AssignTo(br); err != nil {
+		return sqlstore.SystemACL{}, fmt.Errorf("parsing numeric to bigrat: %s", err)
+	}
+	if !br.IsInt() {
+		return sqlstore.SystemACL{}, errors.New("parsed numeric isn't an integer")
+	}
+	id, err := tableland.NewTableID(br.Num().String())
+	if err != nil {
+		return sqlstore.SystemACL{}, fmt.Errorf("parsing id to string: %s", err)
+	}
+	systemACL := sqlstore.SystemACL{
+		TableID:    id,
+		Controller: acl.Controller,
+		Privileges: acl.Privileges,
+		CreatedAt:  acl.CreatedAt,
+	}
+
+	if acl.UpdatedAt.Valid {
+		systemACL.UpdatedAt = &acl.UpdatedAt.Time
+	}
+
+	return systemACL, nil
 }
 
 func sanitizeAddress(address string) error {

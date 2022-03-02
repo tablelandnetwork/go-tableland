@@ -31,3 +31,12 @@ type TableMetadataAttribute struct {
 	TraitType   string      `json:"trait_type"`
 	Value       interface{} `json:"value"`
 }
+
+// SystemACL represents the system acl table.
+type SystemACL struct {
+	Controller string
+	TableID    tableland.TableID
+	Privileges []string
+	CreatedAt  time.Time
+	UpdatedAt  *time.Time
+}

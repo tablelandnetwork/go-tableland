@@ -22,6 +22,9 @@ type SugaredStmt interface {
 	GetNamePrefix() string
 	// GetTableID returns the table id. "insert into foo_100" -> 100.
 	GetTableID() tableland.TableID
+
+	// Operation returns the type of the operation
+	Operation() tableland.Operation
 }
 
 // SugaredWriteStmt is an already parsed write statement that satisfies all
@@ -39,7 +42,7 @@ type SugaredWriteStmt interface {
 type SugaredGrantStmt interface {
 	SugaredStmt
 	GetRoles() []common.Address
-	GetPrivileges() []string
+	GetPrivileges() tableland.Privileges
 }
 
 // SugaredMutatingStmt represents mutating statement, that is either

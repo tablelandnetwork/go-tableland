@@ -117,6 +117,7 @@ func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.SugaredReadStmt,
 			node:              stmt,
 			namePrefix:        namePrefix,
 			postgresTableName: posTableName,
+			operation:         tableland.OpSelect,
 		}, nil, nil
 	}
 
@@ -167,8 +168,23 @@ func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.SugaredReadStmt,
 
 		switch {
 		case isWrite(stmt):
+			if stmt.GetInsertStmt() != nil {
+				s.operation = tableland.OpInsert
+			}
+			if stmt.GetUpdateStmt() != nil {
+				s.operation = tableland.OpUpdate
+			}
+			if stmt.GetDeleteStmt() != nil {
+				s.operation = tableland.OpDelete
+			}
 			ret[i] = parsing.SugaredWriteStmt(s)
 		case isGrant(stmt):
+			if stmt.GetGrantStmt().IsGrant {
+				s.operation = tableland.OpGrant
+			} else {
+				s.operation = tableland.OpRevoke
+			}
+
 			ret[i] = parsing.SugaredGrantStmt(&sugaredGrantStmt{s})
 		default:
 			return nil, nil, &parsing.ErrStatementIsNotSupported{}
@@ -202,32 +218,33 @@ type sugaredStmt struct {
 	node              *pg_query.Node
 	namePrefix        string
 	postgresTableName string
+	operation         tableland.Operation
 }
 
-func (ws *sugaredStmt) GetDesugaredQuery() (string, error) {
+func (s *sugaredStmt) GetDesugaredQuery() (string, error) {
 	parsedTree := &pg_query.ParseResult{}
 
-	if insertStmt := ws.node.GetInsertStmt(); insertStmt != nil {
-		insertStmt.Relation.Relname = ws.postgresTableName
-	} else if updateStmt := ws.node.GetUpdateStmt(); updateStmt != nil {
-		updateStmt.Relation.Relname = ws.postgresTableName
-	} else if deleteStmt := ws.node.GetDeleteStmt(); deleteStmt != nil {
-		deleteStmt.Relation.Relname = ws.postgresTableName
-	} else if selectStmt := ws.node.GetSelectStmt(); selectStmt != nil {
+	if insertStmt := s.node.GetInsertStmt(); insertStmt != nil {
+		insertStmt.Relation.Relname = s.postgresTableName
+	} else if updateStmt := s.node.GetUpdateStmt(); updateStmt != nil {
+		updateStmt.Relation.Relname = s.postgresTableName
+	} else if deleteStmt := s.node.GetDeleteStmt(); deleteStmt != nil {
+		deleteStmt.Relation.Relname = s.postgresTableName
+	} else if selectStmt := s.node.GetSelectStmt(); selectStmt != nil {
 		for i := range selectStmt.FromClause {
 			rangeVar := selectStmt.FromClause[i].GetRangeVar()
 			if rangeVar == nil {
 				return "", fmt.Errorf("select doesn't reference a table")
 			}
-			rangeVar.Relname = ws.postgresTableName
+			rangeVar.Relname = s.postgresTableName
 		}
-	} else if grantStmt := ws.node.GetGrantStmt(); grantStmt != nil {
+	} else if grantStmt := s.node.GetGrantStmt(); grantStmt != nil {
 		// It is safe to assume Objects has always one element.
 		// This is validated in the checkPrivileges call.
 
-		grantStmt.Objects[0].GetRangeVar().Relname = ws.postgresTableName
+		grantStmt.Objects[0].GetRangeVar().Relname = s.postgresTableName
 	}
-	rs := &pg_query.RawStmt{Stmt: ws.node}
+	rs := &pg_query.RawStmt{Stmt: s.node}
 	parsedTree.Stmts = []*pg_query.RawStmt{rs}
 	wq, err := pg_query.Deparse(parsedTree)
 	if err != nil {
@@ -236,13 +253,17 @@ func (ws *sugaredStmt) GetDesugaredQuery() (string, error) {
 	return wq, nil
 }
 
-func (ws *sugaredStmt) GetNamePrefix() string {
-	return ws.namePrefix
+func (s *sugaredStmt) GetNamePrefix() string {
+	return s.namePrefix
 }
 
-func (ws *sugaredStmt) GetTableID() tableland.TableID {
-	tid, _ := tableland.NewTableID(ws.postgresTableName[1:])
+func (s *sugaredStmt) GetTableID() tableland.TableID {
+	tid, _ := tableland.NewTableID(s.postgresTableName[1:])
 	return tid
+}
+
+func (s *sugaredStmt) Operation() tableland.Operation {
+	return s.operation
 }
 
 type sugaredGrantStmt struct {
@@ -262,11 +283,13 @@ func (gs *sugaredGrantStmt) GetRoles() []common.Address {
 	return roles
 }
 
-func (gs *sugaredGrantStmt) GetPrivileges() []string {
+func (gs *sugaredGrantStmt) GetPrivileges() tableland.Privileges {
 	privilegesNodes := gs.sugaredStmt.node.GetGrantStmt().GetPrivileges()
-	privileges := make([]string, len(privilegesNodes))
+	privileges := make(tableland.Privileges, len(privilegesNodes))
 	for i, privilegeNode := range privilegesNodes {
-		privileges[i] = privilegeNode.GetAccessPriv().GetPrivName()
+		// error is safe to ignore here because string were validated
+		privilege, _ := tableland.NewPrivilegeFromString(privilegeNode.GetAccessPriv().GetPrivName())
+		privileges[i] = privilege
 	}
 
 	return privileges

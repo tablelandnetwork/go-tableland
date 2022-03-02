@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -21,12 +22,13 @@ type TblTxnProcessor struct {
 	chBatch chan struct{}
 
 	maxTableRowCount int
+	acl              tableland.ACL
 }
 
 var _ txn.TxnProcessor = (*TblTxnProcessor)(nil)
 
 // NewTxnProcessor returns a new Tableland transaction processor.
-func NewTxnProcessor(postgresURI string, maxTableRowCount int) (*TblTxnProcessor, error) {
+func NewTxnProcessor(postgresURI string, maxTableRowCount int, acl tableland.ACL) (*TblTxnProcessor, error) {
 	ctx, cls := context.WithTimeout(context.Background(), time.Second*10)
 	defer cls()
 	pool, err := pgxpool.Connect(ctx, postgresURI)
@@ -41,6 +43,7 @@ func NewTxnProcessor(postgresURI string, maxTableRowCount int) (*TblTxnProcessor
 		chBatch: make(chan struct{}, 1),
 
 		maxTableRowCount: maxTableRowCount,
+		acl:              acl,
 	}
 	tblp.chBatch <- struct{}{}
 
@@ -97,6 +100,7 @@ func (b *batch) InsertTable(
 		if err := dbID.Set(id.String()); err != nil {
 			return fmt.Errorf("parsing table id to numeric: %s", err)
 		}
+
 		if _, err := tx.Exec(ctx,
 			`INSERT INTO registry ("id","controller","name", "structure","description") 
 			 VALUES ($1,$2,$3,$4,$5);`,
@@ -107,6 +111,17 @@ func (b *batch) InsertTable(
 			description); err != nil {
 			return fmt.Errorf("inserting new table in system-wide registry: %s", err)
 		}
+
+		if _, err := tx.Exec(ctx,
+			`INSERT INTO system_acl ("table_id","controller","privileges") 
+			 VALUES ($1,$2,$3);`,
+			dbID,
+			controller,
+			[]string{"a", "w", "d"}, // the abbreviations for PrivInsert, PrivUpdate and PrivDelete
+		); err != nil {
+			return fmt.Errorf("inserting new entry into system acl: %s", err)
+		}
+
 		query, err := createStmt.GetRawQueryForTableID(id)
 		if err != nil {
 			return fmt.Errorf("get query for table id: %s", err)
@@ -123,41 +138,107 @@ func (b *batch) InsertTable(
 	return nil
 }
 
-func (b *batch) ExecWriteQueries(ctx context.Context, mqueries []parsing.SugaredMutatingStmt) error {
+func (b *batch) ExecWriteQueries(
+	ctx context.Context,
+	controller common.Address,
+	mqueries []parsing.SugaredMutatingStmt) error {
 	f := func(tx pgx.Tx) error {
 		if len(mqueries) == 0 {
 			log.Warn().Msg("no mutating-queries to execute in a batch")
 			return nil
 		}
+
 		dbName, beforeRowCount, err := GetTableNameAndRowCountByTableID(ctx, tx, mqueries[0].GetTableID())
 		if err != nil {
 			return fmt.Errorf("table name lookup for table id: %s", err)
 		}
-		for _, mq := range mqueries {
-			if _, ok := mq.(parsing.SugaredGrantStmt); ok {
-				return fmt.Errorf("grant queries are not supported")
-			}
 
+		dbID := pgtype.Numeric{}
+		if err := dbID.Set(mqueries[0].GetTableID().String()); err != nil {
+			return fmt.Errorf("parsing table id to numeric: %s", err)
+		}
+
+		for _, mq := range mqueries {
 			mqName := mq.GetNamePrefix()
 			if mqName != "" && dbName != mqName {
 				return fmt.Errorf("table name prefix doesn't match (exp %s, got %s)", dbName, mqName)
 			}
-			desugared, err := mq.GetDesugaredQuery()
-			if err != nil {
-				return fmt.Errorf("get desugared query: %s", err)
-			}
-			cmdTag, err := tx.Exec(ctx, desugared)
-			if err != nil {
-				return fmt.Errorf("exec query: %s", err)
-			}
-			if b.tp.maxTableRowCount > 0 && cmdTag.Insert() {
-				afterRowCount := beforeRowCount + int(cmdTag.RowsAffected())
-				if afterRowCount > b.tp.maxTableRowCount {
-					return &txn.ErrRowCountExceeded{
-						BeforeRowCount: beforeRowCount,
-						AfterRowCount:  afterRowCount,
+
+			if ss, ok := mq.(parsing.SugaredGrantStmt); ok {
+				isOwner, err := b.tp.acl.IsOwner(ctx, controller, mq.GetTableID())
+				if err != nil {
+					return fmt.Errorf("error checking acl: %s", err)
+				}
+
+				if !isOwner {
+					return fmt.Errorf("non owner cannot execute grant stmt: %s", err)
+				}
+
+				for _, role := range ss.GetRoles() {
+					if ss.Operation() == tableland.OpGrant {
+						// Upserts the privileges into the acl table,
+						// making sure the array has unique elements.
+						if _, err := tx.Exec(ctx,
+							`INSERT INTO system_acl ("table_id","controller","privileges") 
+						VALUES ($1, $2, $3)
+						ON CONFLICT (table_id, controller)
+						DO UPDATE SET privileges = ARRAY(
+							SELECT DISTINCT UNNEST(privileges || $3) 
+							FROM system_acl 
+							WHERE table_id = $1 AND controller = $2
+						), updated_at = now();`,
+							dbID,
+							role.Hex(),
+							ss.GetPrivileges().Abbreviations(),
+						); err != nil {
+							return fmt.Errorf("creating new acl entry into system acl: %s", err)
+						}
+					}
+
+					if ss.Operation() == tableland.OpRevoke {
+						for _, privAbbr := range ss.GetPrivileges().Abbreviations() {
+							if _, err := tx.Exec(ctx,
+								`UPDATE system_acl 
+								SET privileges = array_remove(privileges, $3), 
+									updated_at = now()
+								WHERE table_id = $1 AND controller = $2;`,
+								dbID,
+								role.Hex(),
+								privAbbr,
+							); err != nil {
+								return fmt.Errorf("creating new acl entry into system acl: %s", err)
+							}
+						}
 					}
 				}
+
+				continue
+			}
+
+			if ws, ok := mq.(parsing.SugaredWriteStmt); ok {
+				if err := b.tp.acl.CheckPrivileges(ctx, controller, mq.GetTableID(), mq.Operation()); err != nil {
+					return fmt.Errorf("error checking acl: %s", err)
+				}
+
+				desugared, err := ws.GetDesugaredQuery()
+				if err != nil {
+					return fmt.Errorf("get desugared query: %s", err)
+				}
+				cmdTag, err := tx.Exec(ctx, desugared)
+				if err != nil {
+					return fmt.Errorf("exec query: %s", err)
+				}
+				if b.tp.maxTableRowCount > 0 && cmdTag.Insert() {
+					afterRowCount := beforeRowCount + int(cmdTag.RowsAffected())
+					if afterRowCount > b.tp.maxTableRowCount {
+						return &txn.ErrRowCountExceeded{
+							BeforeRowCount: beforeRowCount,
+							AfterRowCount:  afterRowCount,
+						}
+					}
+				}
+
+				continue
 			}
 		}
 
