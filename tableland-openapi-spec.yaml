@@ -36,6 +36,13 @@ paths:
                     controller: "0xbAb12215Ed94713A290e0c618fa8177fAb5eFd2D"
                     statement: "CREATE TABLE myname (column_a int, column_b text);"
                     dryrun: "false"
+              calculateTableHash:
+                value:
+                  jsonrpc: "2.0"
+                  method: tableland_calculateTableHash
+                  id: 1
+                  params:
+                    create_statement: "CREATE TABLE myname (column_a int, column_b text);"
               runSQL:
                 value:
                   jsonrpc: "2.0"
@@ -79,6 +86,13 @@ paths:
                     id: 1
                     result:
                       name: "myname_0"
+                      structure_hash: "ef7be01282ea97380e4d3bbcba6774cbc7242c46ee51b7e611f1efdfa3623e53"
+                calculateTableHash:
+                  value:
+                    jsonrpc: "2.0"
+                    id: 1
+                    result:
+                      structure_hash: "ef7be01282ea97380e4d3bbcba6774cbc7242c46ee51b7e611f1efdfa3623e53"
                 runSQL:
                   value:
                     jsonrpc: "2.0"

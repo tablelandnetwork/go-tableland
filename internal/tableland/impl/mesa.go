@@ -90,7 +90,24 @@ func (t *TablelandMesa) CreateTable(
 		log.Error().Err(err).Msg("incrementing create table count")
 	}
 
-	return tableland.CreateTableResponse{Name: fullTableName}, nil
+	return tableland.CreateTableResponse{
+		Name:          fullTableName,
+		StructureHash: createStmt.GetStructureHash(),
+	}, nil
+}
+
+// CalculateTableHash allows to calculate the structure hash for a CREATE TABLE statement.
+// This RPC method is stateless.
+func (t *TablelandMesa) CalculateTableHash(
+	ctx context.Context,
+	req tableland.CalculateTableHashRequest) (tableland.CalculateTableHashResponse, error) {
+	createStmt, err := t.parser.ValidateCreateTable(req.CreateStatement)
+	if err != nil {
+		return tableland.CalculateTableHashResponse{}, fmt.Errorf("create stmt validation: %s", err)
+	}
+	return tableland.CalculateTableHashResponse{
+		StructureHash: createStmt.GetStructureHash(),
+	}, nil
 }
 
 // RunSQL allows the user to run SQL.

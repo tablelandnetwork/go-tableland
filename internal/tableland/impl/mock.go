@@ -16,6 +16,13 @@ func (t *TablelandMock) CreateTable(
 	return tableland.CreateTableResponse{}, nil
 }
 
+// CalculateTableHash implements CalculateTableHash.
+func (t *TablelandMock) CalculateTableHash(
+	ctx context.Context,
+	req tableland.CalculateTableHashRequest) (tableland.CalculateTableHashResponse, error) {
+	return tableland.CalculateTableHashResponse{}, nil
+}
+
 // RunSQL implements RunSQL.
 func (t *TablelandMock) RunSQL(
 	ctx context.Context,
