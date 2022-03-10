@@ -89,6 +89,7 @@ type batch struct {
 // InsertTable creates a new table in Tableland:
 // - Registers the table in the system-wide table registry.
 // - Executes the CREATE statement.
+// - Add default privileges in the system_acl table.
 func (b *batch) InsertTable(
 	ctx context.Context,
 	id tableland.TableID,
