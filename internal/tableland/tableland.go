@@ -18,7 +18,8 @@ type CreateTableRequest struct {
 
 // CreateTableResponse is a CreateTable response.
 type CreateTableResponse struct {
-	Name string `json:"name"`
+	Name          string `json:"name"`
+	StructureHash string `json:"structure_hash"`
 }
 
 // RunSQLRequest is a user RunSQL request.
@@ -30,6 +31,16 @@ type RunSQLRequest struct {
 // RunSQLResponse is a RunSQL response.
 type RunSQLResponse struct {
 	Result interface{} `json:"data"`
+}
+
+// CalculateTableHashRequest is a CreateTableHash request.
+type CalculateTableHashRequest struct {
+	CreateStatement string `json:"create_statement"`
+}
+
+// CalculateTableHashResponse is a CreateTableHash response.
+type CalculateTableHashResponse struct {
+	StructureHash string `json:"structure_hash"`
 }
 
 // AuthorizeRequest is a user Authorize request.

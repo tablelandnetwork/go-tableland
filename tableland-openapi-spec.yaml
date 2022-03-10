@@ -36,6 +36,13 @@ paths:
                     controller: "0xbAb12215Ed94713A290e0c618fa8177fAb5eFd2D"
                     statement: "CREATE TABLE myname (column_a int, column_b text);"
                     dryrun: "false"
+              createTable:
+                value:
+                  jsonrpc: "2.0"
+                  method: tableland_calculateTableHash
+                  id: 1
+                  params:
+                    statement: "CREATE TABLE myname (column_a int, column_b text);"
               runSQL:
                 value:
                   jsonrpc: "2.0"
