@@ -44,6 +44,16 @@ func (t *InstrumentedTablelandMesa) CreateTable(ctx context.Context,
 	return resp, err
 }
 
+// CalculateTableHash allows the user to calculate a table hash.
+func (t *InstrumentedTablelandMesa) CalculateTableHash(ctx context.Context,
+	req tableland.CalculateTableHashRequest) (tableland.CalculateTableHashResponse, error) {
+	start := time.Now()
+	resp, err := t.tableland.CalculateTableHash(ctx, req)
+	latency := time.Since(start).Milliseconds()
+	t.record(ctx, recordData{"CalculateTableHash", "", "", err == nil, latency})
+	return resp, err
+}
+
 // RunSQL allows the user to run SQL.
 func (t *InstrumentedTablelandMesa) RunSQL(ctx context.Context,
 	req tableland.RunSQLRequest) (tableland.RunSQLResponse, error) {

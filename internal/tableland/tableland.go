@@ -57,6 +57,7 @@ type SQLRunner interface {
 type Tableland interface {
 	SQLRunner
 	CreateTable(context.Context, CreateTableRequest) (CreateTableResponse, error)
+	CalculateTableHash(context.Context, CalculateTableHashRequest) (CalculateTableHashResponse, error)
 	Authorize(context.Context, AuthorizeRequest) error
 }
 
