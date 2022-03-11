@@ -79,14 +79,14 @@ func (t *TablelandMesa) CreateTable(
 			log.Error().Err(err).Msg("closing batch")
 		}
 	}()
-	if err := b.InsertTable(ctx, tableID, req.Controller, req.Description, createStmt); err != nil {
+	if err := b.InsertTable(ctx, tableID, controller.Hex(), req.Description, createStmt); err != nil {
 		return tableland.CreateTableResponse{}, fmt.Errorf("processing table registration: %s", err)
 	}
 	if err := b.Commit(ctx); err != nil {
 		return tableland.CreateTableResponse{}, fmt.Errorf("committing changes: %s", err)
 	}
 
-	if err := t.store.IncrementCreateTableCount(ctx, req.Controller); err != nil {
+	if err := t.store.IncrementCreateTableCount(ctx, controller.Hex()); err != nil {
 		log.Error().Err(err).Msg("incrementing create table count")
 	}
 
