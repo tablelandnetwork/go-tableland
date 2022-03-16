@@ -168,13 +168,8 @@ func (b *batch) ExecWriteQueries(
 				}
 			case parsing.SugaredWriteStmt:
 				err := b.executeWriteStmt(ctx, tx, stmt, controller, beforeRowCount)
-				_, ok := err.(*txn.ErrRowCountExceeded)
-				if ok {
-					return err
-				}
-
 				if err != nil {
-					return fmt.Errorf("executing write stmt: %s", err)
+					return fmt.Errorf("executing write stmt: %w", err)
 				}
 			default:
 				return fmt.Errorf("unknown stmt type")
