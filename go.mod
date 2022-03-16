@@ -18,7 +18,7 @@ require (
 	github.com/pganalyze/pg_query_go/v2 v2.1.0
 	github.com/rs/zerolog v1.26.1
 	github.com/sethvargo/go-limiter v0.7.2
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.7.1
 	github.com/textileio/go-log/v2 v2.1.3-gke-2
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.28.0
 	go.opentelemetry.io/contrib/instrumentation/runtime v0.29.0
@@ -91,6 +91,7 @@ require (
 	github.com/rjeczalik/notify v0.9.1 // indirect
 	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
+	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 // indirect
 	github.com/tklauser/go-sysconf v0.3.5 // indirect
 	github.com/tklauser/numcpus v0.2.2 // indirect
