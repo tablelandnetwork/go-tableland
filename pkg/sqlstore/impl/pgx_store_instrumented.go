@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v4"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
@@ -253,4 +254,9 @@ func (s *InstrumentedSQLStorePGX) Read(ctx context.Context, stmt parsing.Sugared
 // Close closes the connection pool.
 func (s *InstrumentedSQLStorePGX) Close() {
 	s.store.Close()
+}
+
+// WithTx returns a copy of the current InstrumentedSQLStorePGX with a tx attached.
+func (s *InstrumentedSQLStorePGX) WithTx(tx pgx.Tx) sqlstore.SystemStore {
+	return s.store.WithTx(tx)
 }

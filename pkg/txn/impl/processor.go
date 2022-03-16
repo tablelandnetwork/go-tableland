@@ -154,92 +154,30 @@ func (b *batch) ExecWriteQueries(
 			return fmt.Errorf("table name lookup for table id: %s", err)
 		}
 
-		dbID := pgtype.Numeric{}
-		if err := dbID.Set(mqueries[0].GetTableID().String()); err != nil {
-			return fmt.Errorf("parsing table id to numeric: %s", err)
-		}
-
 		for _, mq := range mqueries {
 			mqName := mq.GetNamePrefix()
 			if mqName != "" && dbName != mqName {
 				return fmt.Errorf("table name prefix doesn't match (exp %s, got %s)", dbName, mqName)
 			}
 
-			if ss, ok := mq.(parsing.SugaredGrantStmt); ok {
-				isOwner, err := b.tp.acl.IsOwner(ctx, controller, mq.GetTableID())
+			switch stmt := mq.(type) {
+			case parsing.SugaredGrantStmt:
+				err := b.executeGrantStmt(ctx, tx, stmt, controller)
 				if err != nil {
-					return fmt.Errorf("error checking acl: %s", err)
+					return fmt.Errorf("executing grant stmt: %s", err)
+				}
+			case parsing.SugaredWriteStmt:
+				err := b.executeWriteStmt(ctx, tx, stmt, controller, beforeRowCount)
+				_, ok := err.(*txn.ErrRowCountExceeded)
+				if ok {
+					return err
 				}
 
-				if !isOwner {
-					return fmt.Errorf("non owner cannot execute grant stmt: %s", err)
-				}
-
-				for _, role := range ss.GetRoles() {
-					if ss.Operation() == tableland.OpGrant {
-						// Upserts the privileges into the acl table,
-						// making sure the array has unique elements.
-						if _, err := tx.Exec(ctx,
-							`INSERT INTO system_acl ("table_id","controller","privileges") 
-						VALUES ($1, $2, $3)
-						ON CONFLICT (table_id, controller)
-						DO UPDATE SET privileges = ARRAY(
-							SELECT DISTINCT UNNEST(privileges || $3) 
-							FROM system_acl 
-							WHERE table_id = $1 AND controller = $2
-						), updated_at = now();`,
-							dbID,
-							role.Hex(),
-							ss.GetPrivileges().Abbreviations(),
-						); err != nil {
-							return fmt.Errorf("creating new acl entry into system acl: %s", err)
-						}
-					}
-
-					if ss.Operation() == tableland.OpRevoke {
-						for _, privAbbr := range ss.GetPrivileges().Abbreviations() {
-							if _, err := tx.Exec(ctx,
-								`UPDATE system_acl 
-								SET privileges = array_remove(privileges, $3), 
-									updated_at = now()
-								WHERE table_id = $1 AND controller = $2;`,
-								dbID,
-								role.Hex(),
-								privAbbr,
-							); err != nil {
-								return fmt.Errorf("creating new acl entry into system acl: %s", err)
-							}
-						}
-					}
-				}
-
-				continue
-			}
-
-			if ws, ok := mq.(parsing.SugaredWriteStmt); ok {
-				if err := b.tp.acl.CheckPrivileges(ctx, controller, mq.GetTableID(), mq.Operation()); err != nil {
-					return fmt.Errorf("error checking acl: %s", err)
-				}
-
-				desugared, err := ws.GetDesugaredQuery()
 				if err != nil {
-					return fmt.Errorf("get desugared query: %s", err)
+					return fmt.Errorf("executing write stmt: %s", err)
 				}
-				cmdTag, err := tx.Exec(ctx, desugared)
-				if err != nil {
-					return fmt.Errorf("exec query: %s", err)
-				}
-				if b.tp.maxTableRowCount > 0 && cmdTag.Insert() {
-					afterRowCount := beforeRowCount + int(cmdTag.RowsAffected())
-					if afterRowCount > b.tp.maxTableRowCount {
-						return &txn.ErrRowCountExceeded{
-							BeforeRowCount: beforeRowCount,
-							AfterRowCount:  afterRowCount,
-						}
-					}
-				}
-
-				continue
+			default:
+				return fmt.Errorf("unknown stmt type")
 			}
 		}
 
@@ -295,4 +233,98 @@ func GetTableNameAndRowCountByTableID(ctx context.Context, tx pgx.Tx, id tablela
 		return "", 0, fmt.Errorf("table name lookup: %s", err)
 	}
 	return dbName, rowCount, nil
+}
+
+func (b *batch) executeGrantStmt(
+	ctx context.Context,
+	tx pgx.Tx,
+	gs parsing.SugaredGrantStmt,
+	controller common.Address) error {
+	tableID := gs.GetTableID()
+
+	dbID := pgtype.Numeric{}
+	if err := dbID.Set(tableID.String()); err != nil {
+		return fmt.Errorf("parsing table id to numeric: %s", err)
+	}
+
+	isOwner, err := b.tp.acl.IsOwner(ctx, controller, tableID)
+	if err != nil {
+		return fmt.Errorf("error checking acl: %s", err)
+	}
+
+	if !isOwner {
+		return fmt.Errorf("non owner cannot execute grant stmt")
+	}
+
+	for _, role := range gs.GetRoles() {
+		switch gs.Operation() {
+		case tableland.OpGrant:
+			// Upserts the privileges into the acl table,
+			// making sure the array has unique elements.
+			if _, err := tx.Exec(ctx,
+				`INSERT INTO system_acl ("table_id","controller","privileges") 
+						VALUES ($1, $2, $3)
+						ON CONFLICT (table_id, controller)
+						DO UPDATE SET privileges = ARRAY(
+							SELECT DISTINCT UNNEST(privileges || $3) 
+							FROM system_acl 
+							WHERE table_id = $1 AND controller = $2
+						), updated_at = now();`,
+				dbID,
+				role.Hex(),
+				gs.GetPrivileges(),
+			); err != nil {
+				return fmt.Errorf("creating/updating acl entry on system acl: %s", err)
+			}
+		case tableland.OpRevoke:
+			for _, privAbbr := range gs.GetPrivileges() {
+				if _, err := tx.Exec(ctx,
+					`UPDATE system_acl 
+								SET privileges = array_remove(privileges, $3), 
+									updated_at = now()
+								WHERE table_id = $1 AND controller = $2;`,
+					dbID,
+					role.Hex(),
+					privAbbr,
+				); err != nil {
+					return fmt.Errorf("removing acl entry from system acl: %s", err)
+				}
+			}
+		default:
+			return fmt.Errorf("unknown grant stmt operation=%s", gs.Operation().String())
+		}
+	}
+
+	return nil
+}
+
+func (b *batch) executeWriteStmt(
+	ctx context.Context,
+	tx pgx.Tx,
+	ws parsing.SugaredWriteStmt,
+	controller common.Address,
+	beforeRowCount int) error {
+	if err := b.tp.acl.CheckPrivileges(ctx, tx, controller, ws.GetTableID(), ws.Operation()); err != nil {
+		return fmt.Errorf("error checking acl: %s", err)
+	}
+
+	desugared, err := ws.GetDesugaredQuery()
+	if err != nil {
+		return fmt.Errorf("get desugared query: %s", err)
+	}
+	cmdTag, err := tx.Exec(ctx, desugared)
+	if err != nil {
+		return fmt.Errorf("exec query: %s", err)
+	}
+	if b.tp.maxTableRowCount > 0 && cmdTag.Insert() {
+		afterRowCount := beforeRowCount + int(cmdTag.RowsAffected())
+		if afterRowCount > b.tp.maxTableRowCount {
+			return &txn.ErrRowCountExceeded{
+				BeforeRowCount: beforeRowCount,
+				AfterRowCount:  afterRowCount,
+			}
+		}
+	}
+
+	return nil
 }

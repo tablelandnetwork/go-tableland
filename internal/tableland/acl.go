@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/jackc/pgx/v4"
 )
 
 // ACL is the API for access control rules check.
@@ -16,43 +17,25 @@ type ACL interface {
 	IsOwner(context.Context, common.Address, TableID) (bool, error)
 
 	// CheckPrivileges checks if an address can execute a specific operation on a table.
-	CheckPrivileges(context.Context, common.Address, TableID, Operation) error
+	CheckPrivileges(context.Context, pgx.Tx, common.Address, TableID, Operation) error
 }
 
 // Privilege maps to SQL privilege and is the thing needed to execute an operation.
-type Privilege int
+type Privilege string
 
 const (
-	_ Privilege = iota // the zero (0) is reserved for handling special cases
-	// PrivInsert represents the privilege to execute the operation OpInsert
-	// The value is 1, the abbreviation is "a".
-	PrivInsert
+	// PrivInsert allows insert operations to be executed. The abbreviation is "a".
+	PrivInsert = "a"
 
-	// PrivUpdate represents the privilege to execute the operation OpUpdate
-	// the value is 2, the abbreviation is "w".
-	PrivUpdate
+	// PrivUpdate allows updated operations to be executed. The abbreviation is "w".
+	PrivUpdate = "w"
 
-	// PrivDelete represents the privilege to execute the operation OpDelete
-	// the value is 3, the abbreviation is "d".
-	PrivDelete
+	// PrivDelete allows delete operations to be executed. The abbreviation is "d".
+	PrivDelete = "d"
 )
 
-// NewPrivilegeFromAbbreviation converts a privilege abbreviation into a Privilege.
-func NewPrivilegeFromAbbreviation(abbreviation string) (Privilege, error) {
-	switch abbreviation {
-	case "a":
-		return PrivInsert, nil
-	case "w":
-		return PrivUpdate, nil
-	case "d":
-		return PrivDelete, nil
-	}
-
-	return 0, fmt.Errorf("unsupported abbreviation string=%s", abbreviation)
-}
-
-// NewPrivilegeFromString converts a privilege string into a Privilege.
-func NewPrivilegeFromString(s string) (Privilege, error) {
+// NewPrivilegeFromSQLString converts a SQL privilege string into a Privilege.
+func NewPrivilegeFromSQLString(s string) (Privilege, error) {
 	switch s {
 	case "insert":
 		return PrivInsert, nil
@@ -62,11 +45,11 @@ func NewPrivilegeFromString(s string) (Privilege, error) {
 		return PrivDelete, nil
 	}
 
-	return 0, fmt.Errorf("unsupported string=%s", s)
+	return "", fmt.Errorf("unsupported string=%s", s)
 }
 
-// String returns the string representation of a Privilege.
-func (p Privilege) String() string {
+// ToSQLString returns the SQL string representation of a Privilege.
+func (p Privilege) ToSQLString() string {
 	switch p {
 	case PrivInsert:
 		return "insert"
@@ -76,20 +59,6 @@ func (p Privilege) String() string {
 		return "delete"
 	default:
 		return "nil"
-	}
-}
-
-// Abbreviation returns the char that abbreviates the privilege.
-func (p Privilege) Abbreviation() string {
-	switch p {
-	case PrivInsert:
-		return "a"
-	case PrivUpdate:
-		return "w"
-	case PrivDelete:
-		return "d"
-	default:
-		return ""
 	}
 }
 
@@ -113,10 +82,33 @@ const (
 	OpCreate
 )
 
+// String returns the string representation of the operation.
+func (op Operation) String() string {
+	switch op {
+	case OpSelect:
+		return "OpSelect"
+	case OpInsert:
+		return "OpInsert"
+	case OpUpdate:
+		return "OpUpdate"
+	case OpDelete:
+		return "OpDelete"
+	case OpGrant:
+		return "OpGrant"
+	case OpRevoke:
+		return "OpRevoke"
+	case OpCreate:
+		return "OpCreate"
+	}
+
+	return ""
+}
+
 var operationPrivilegeMap map[Operation]Privilege
 
 func init() {
 	// This map gives the privilege that is needed for each operation.
+	// If an operation is not in the map, it means it doesn't need any privilege.
 	operationPrivilegeMap = map[Operation]Privilege{
 		OpInsert: PrivInsert,
 		OpDelete: PrivDelete,
@@ -131,20 +123,14 @@ type Privileges []Privilege
 // In case the operation cannot be executed, it returns the privilege that
 // would allow the execution.
 func (p Privileges) CanExecute(operation Operation) (bool, Privilege) {
-	privilegeNeededForOperation := operationPrivilegeMap[operation]
+	privilegeNeededForOperation, ok := operationPrivilegeMap[operation]
+	if !ok {
+		return true, ""
+	}
 	for _, privilege := range p {
 		if privilege == privilegeNeededForOperation {
-			return true, 0
+			return true, ""
 		}
 	}
 	return false, privilegeNeededForOperation
-}
-
-// Abbreviations returns a slice of abbreviations.
-func (p Privileges) Abbreviations() []string {
-	abbreviations := make([]string, len(p))
-	for i, privilege := range p {
-		abbreviations[i] = privilege.Abbreviation()
-	}
-	return abbreviations
 }

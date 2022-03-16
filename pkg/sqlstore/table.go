@@ -36,7 +36,7 @@ type TableMetadataAttribute struct {
 type SystemACL struct {
 	Controller string
 	TableID    tableland.TableID
-	Privileges []string
+	Privileges tableland.Privileges
 	CreatedAt  time.Time
 	UpdatedAt  *time.Time
 }

@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/tableland"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
@@ -176,31 +177,31 @@ func TestCheckPrivileges(t *testing.T) {
 
 	tests := []testCase{
 		{"INSERT INTO foo_1337 (bar) VALUES ('Hello')", tableland.Privileges{}, false},
-		{"INSERT INTO foo_1337 (bar) VALUES ('Hello')", tableland.Privileges{1}, true},
-		{"INSERT INTO foo_1337 (bar) VALUES ('Hello')", tableland.Privileges{2}, false},
-		{"INSERT INTO foo_1337 (bar) VALUES ('Hello')", tableland.Privileges{3}, false},
-		{"INSERT INTO foo_1337 (bar) VALUES ('Hello')", tableland.Privileges{1, 2}, true},
-		{"INSERT INTO foo_1337 (bar) VALUES ('Hello')", tableland.Privileges{1, 3}, true},
-		{"INSERT INTO foo_1337 (bar) VALUES ('Hello')", tableland.Privileges{2, 3}, false},
-		{"INSERT INTO foo_1337 (bar) VALUES ('Hello')", tableland.Privileges{1, 2, 3}, true},
+		{"INSERT INTO foo_1337 (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivInsert}, true},
+		{"INSERT INTO foo_1337 (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivUpdate}, false},
+		{"INSERT INTO foo_1337 (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivDelete}, false},
+		{"INSERT INTO foo_1337 (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate}, true},                       //nolint
+		{"INSERT INTO foo_1337 (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivInsert, tableland.PrivDelete}, true},                       //nolint
+		{"INSERT INTO foo_1337 (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivUpdate, tableland.PrivDelete}, false},                      //nolint
+		{"INSERT INTO foo_1337 (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate, tableland.PrivDelete}, true}, //nolint
 
 		{"UPDATE foo_1337 SET bar = 'Hello 2'", tableland.Privileges{}, false},
-		{"UPDATE foo_1337 SET bar = 'Hello 2'", tableland.Privileges{1}, false},
-		{"UPDATE foo_1337 SET bar = 'Hello 2'", tableland.Privileges{2}, true},
-		{"UPDATE foo_1337 SET bar = 'Hello 2'", tableland.Privileges{3}, false},
-		{"UPDATE foo_1337 SET bar = 'Hello 2'", tableland.Privileges{1, 2}, true},
-		{"UPDATE foo_1337 SET bar = 'Hello 2'", tableland.Privileges{1, 3}, false},
-		{"UPDATE foo_1337 SET bar = 'Hello 2'", tableland.Privileges{2, 3}, true},
-		{"UPDATE foo_1337 SET bar = 'Hello 2'", tableland.Privileges{1, 2, 3}, true},
+		{"UPDATE foo_1337 SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivInsert}, false},
+		{"UPDATE foo_1337 SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivUpdate}, true},
+		{"UPDATE foo_1337 SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivDelete}, false},
+		{"UPDATE foo_1337 SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate}, true},
+		{"UPDATE foo_1337 SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivInsert, tableland.PrivDelete}, false},
+		{"UPDATE foo_1337 SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivUpdate, tableland.PrivDelete}, true},
+		{"UPDATE foo_1337 SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate, tableland.PrivDelete}, true}, //nolint
 
 		{"DELETE FROM foo_1337", tableland.Privileges{}, false},
-		{"DELETE FROM foo_1337", tableland.Privileges{1}, false},
-		{"DELETE FROM foo_1337", tableland.Privileges{2}, false},
-		{"DELETE FROM foo_1337", tableland.Privileges{3}, true},
-		{"DELETE FROM foo_1337", tableland.Privileges{1, 2}, false},
-		{"DELETE FROM foo_1337", tableland.Privileges{1, 3}, true},
-		{"DELETE FROM foo_1337", tableland.Privileges{2, 3}, true},
-		{"DELETE FROM foo_1337", tableland.Privileges{1, 2, 3}, true},
+		{"DELETE FROM foo_1337", tableland.Privileges{tableland.PrivInsert}, false},
+		{"DELETE FROM foo_1337", tableland.Privileges{tableland.PrivUpdate}, false},
+		{"DELETE FROM foo_1337", tableland.Privileges{tableland.PrivDelete}, true},
+		{"DELETE FROM foo_1337", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate}, false},
+		{"DELETE FROM foo_1337", tableland.Privileges{tableland.PrivInsert, tableland.PrivDelete}, true},
+		{"DELETE FROM foo_1337", tableland.Privileges{tableland.PrivUpdate, tableland.PrivDelete}, true},
+		{"DELETE FROM foo_1337", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate, tableland.PrivDelete}, true}, //nolint
 	}
 
 	ctx := context.Background()
@@ -228,7 +229,7 @@ func TestCheckPrivileges(t *testing.T) {
 			if len(test.privileges) > 0 {
 				privileges := make([]string, len(test.privileges))
 				for i, priv := range test.privileges {
-					privileges[i] = priv.String()
+					privileges[i] = priv.ToSQLString()
 				}
 
 				// execute grant statement according to test case
@@ -263,7 +264,7 @@ func TestCheckPrivileges(t *testing.T) {
 			if len(test.privileges) > 0 {
 				privileges := make([]string, len(test.privileges))
 				for i, priv := range test.privileges {
-					privileges[i] = priv.String()
+					privileges[i] = priv.ToSQLString()
 				}
 
 				// execute revoke statement according to test case
@@ -283,6 +284,38 @@ func TestCheckPrivileges(t *testing.T) {
 			require.Equal(t, !test.isAllowed, err == nil)
 		})
 	}
+}
+
+func TestOwnerRevokesItsPrivilegeInsideMultipleStatements(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	tbld := newTablelandMesa(t)
+
+	req := tableland.CreateTableRequest{
+		ID:          "1337",
+		Description: "descrp-1",
+		Controller:  "0xd43c59d5694ec111eb9e986c233200b14249558d",
+		Statement:   `CREATE TABLE foo (bar text);`,
+	}
+	_, err := tbld.CreateTable(ctx, req)
+	require.NoError(t, err)
+
+	multiStatements := `
+		INSERT INTO foo_1337 (bar) VALUES ('Hello');
+		UPDATE foo_1337 SET bar = 'Hello 2';
+		REVOKE update ON foo_1337 FROM "0xd43c59d5694ec111eb9e986c233200b14249558d";
+		UPDATE foo_1337 SET bar = 'Hello 3';
+	`
+
+	grantReq := tableland.RunSQLRequest{
+		Controller: "0xd43c59d5694ec111eb9e986c233200b14249558d",
+		Statement:  multiStatements,
+	}
+	_, err = tbld.RunSQL(ctx, grantReq)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "cannot execute operation, missing privilege=update")
 }
 
 func processCSV(t *testing.T, controller string, tbld tableland.Tableland, csvPath string) {
@@ -344,11 +377,12 @@ type aclHalfMock struct {
 
 func (acl *aclHalfMock) CheckPrivileges(
 	ctx context.Context,
+	tx pgx.Tx,
 	controller common.Address,
 	id tableland.TableID,
 	op tableland.Operation) error {
 	aclImpl := NewACL(acl.sqlStore, nil)
-	return aclImpl.CheckPrivileges(ctx, controller, id, op)
+	return aclImpl.CheckPrivileges(ctx, tx, controller, id, op)
 }
 
 func (acl *aclHalfMock) CheckAuthorization(ctx context.Context, controller common.Address) error {

@@ -287,8 +287,9 @@ func (gs *sugaredGrantStmt) GetPrivileges() tableland.Privileges {
 	privilegesNodes := gs.sugaredStmt.node.GetGrantStmt().GetPrivileges()
 	privileges := make(tableland.Privileges, len(privilegesNodes))
 	for i, privilegeNode := range privilegesNodes {
-		// error is safe to ignore here because string were validated
-		privilege, _ := tableland.NewPrivilegeFromString(privilegeNode.GetAccessPriv().GetPrivName())
+		// error is safe to ignore here because the SQL strings were validated before
+		// in checkPrivileges(...) method.
+		privilege, _ := tableland.NewPrivilegeFromSQLString(privilegeNode.GetAccessPriv().GetPrivName())
 		privileges[i] = privilege
 	}
 

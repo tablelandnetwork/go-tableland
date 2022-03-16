@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/jackc/pgx/v4"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/tableregistry"
@@ -27,7 +28,7 @@ func NewACL(store sqlstore.SQLStore, registry tableregistry.TableRegistry) table
 func (acl *acl) CheckAuthorization(ctx context.Context, controller common.Address) error {
 	res, err := acl.store.IsAuthorized(ctx, controller.String())
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to check if address is authorized: %s", err)
 	}
 
 	if !res.IsAuthorized {
@@ -49,26 +50,18 @@ func (acl *acl) IsOwner(ctx context.Context, controller common.Address, id table
 // CheckPrivileges checks if an address can execute a specific operation on a table.
 func (acl *acl) CheckPrivileges(
 	ctx context.Context,
+	tx pgx.Tx,
 	controller common.Address,
 	id tableland.TableID,
 	op tableland.Operation) error {
-	aclRule, err := acl.store.GetACLOnTableByController(ctx, id, controller.String())
+	aclRule, err := acl.store.WithTx(tx).GetACLOnTableByController(ctx, id, controller.String())
 	if err != nil {
 		return fmt.Errorf("privileges lookup: %s", err)
 	}
 
-	privileges := make(tableland.Privileges, len(aclRule.Privileges))
-	for i, abbreviation := range aclRule.Privileges {
-		privilege, err := tableland.NewPrivilegeFromAbbreviation(abbreviation)
-		if err != nil {
-			return fmt.Errorf("error converting privilege abbreviation: %s", err)
-		}
-		privileges[i] = privilege
-	}
-
-	isAllowed, missingPrivilege := privileges.CanExecute(op)
+	isAllowed, missingPrivilege := aclRule.Privileges.CanExecute(op)
 	if !isAllowed {
-		return fmt.Errorf("cannot execute operation, missing privilege=%s", missingPrivilege.String())
+		return fmt.Errorf("cannot execute operation, missing privilege=%s", missingPrivilege.ToSQLString())
 	}
 
 	return nil
