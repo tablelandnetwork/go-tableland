@@ -21,7 +21,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/textileio/go-log/v2 v2.1.3-gke-2
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.28.0
-	go.opentelemetry.io/contrib/instrumentation/runtime v0.29.0
+	go.opentelemetry.io/contrib/instrumentation/runtime v0.30.0
 	go.opentelemetry.io/otel v1.4.1
 	go.opentelemetry.io/otel/exporters/prometheus v0.27.0
 	go.opentelemetry.io/otel/metric v0.27.0
