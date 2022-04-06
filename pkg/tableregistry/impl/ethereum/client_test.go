@@ -5,8 +5,10 @@ import (
 	"crypto/ecdsa"
 	"math"
 	"math/big"
+	"strings"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
@@ -30,6 +32,54 @@ func TestIsOwner(t *testing.T) {
 	owner, err = client.IsOwner(context.Background(), fromAuth.From, tokenID)
 	require.NoError(t, err)
 	require.False(t, owner)
+}
+
+func TestRunSQL(t *testing.T) {
+	backend, key, fromAuth, contract, _ := setup(t)
+	_, toAuth := requireNewAuth(t)
+	requireAuthGas(t, backend, toAuth)
+	requireTxn(t, backend, key, fromAuth.From, toAuth.From, big.NewInt(1000000000000000000))
+
+	addr := common.HexToAddress("0xB0Cf943Cf94E7B6A2657D15af41c5E06c2BFEA3D")
+	requireRunSQL(t, backend, contract, fromAuth, "1", addr, "insert into XXX values (1,2,3)")
+}
+
+func requireRunSQL(
+	t *testing.T,
+	backend *backends.SimulatedBackend,
+	contract *Contract,
+	txOpts *bind.TransactOpts,
+	table string,
+	controller common.Address,
+	statement string,
+) {
+	txn, err := contract.RunSQL(txOpts, table, controller, statement)
+	require.NoError(t, err)
+
+	backend.Commit()
+
+	receipt, err := backend.TransactionReceipt(context.Background(), txn.Hash())
+	require.NoError(t, err)
+	require.NotNil(t, receipt)
+
+	require.Len(t, receipt.Logs, 1)
+	require.Len(t, receipt.Logs[0].Topics, 2)
+
+	require.Equal(t, crypto.Keccak256Hash([]byte(table)).Bytes(), receipt.Logs[0].Topics[1].Bytes())
+
+	contractAbi, err := abi.JSON(strings.NewReader(ContractMetaData.ABI))
+	require.NoError(t, err)
+	event := struct {
+		Table      string
+		Controller common.Address
+		Statement  string
+	}{}
+
+	err = contractAbi.UnpackIntoInterface(&event, "RunSQL", receipt.Logs[0].Data)
+	require.NoError(t, err)
+	require.Equal(t, table, event.Table)
+	require.Equal(t, controller, event.Controller)
+	require.Equal(t, statement, event.Statement)
 }
 
 func requireMint(
