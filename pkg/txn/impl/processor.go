@@ -185,8 +185,8 @@ func (b *batch) ExecWriteQueries(
 	return nil
 }
 
-func (b *batch) GetLastProcessedHeight(ctx context.Context) (uint64, error) {
-	var blockNumber uint64
+func (b *batch) GetLastProcessedHeight(ctx context.Context) (int64, error) {
+	var blockNumber int64
 	f := func(tx pgx.Tx) error {
 		r := tx.QueryRow(ctx, "SELECT block_number FROM txn_processor LIMIT 1")
 		if err := r.Scan(&blockNumber); err != nil {
@@ -200,7 +200,7 @@ func (b *batch) GetLastProcessedHeight(ctx context.Context) (uint64, error) {
 	return blockNumber, nil
 }
 
-func (b *batch) SetLastProcessedHeight(ctx context.Context, height uint64) error {
+func (b *batch) SetLastProcessedHeight(ctx context.Context, height int64) error {
 	f := func(tx pgx.Tx) error {
 		_, err := tx.Exec(ctx, "UPDATE txn_processor set block_number=$1", height)
 		if err != nil {

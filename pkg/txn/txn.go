@@ -43,8 +43,8 @@ type Batch interface {
 		createStmt parsing.CreateStmt) error
 	ExecWriteQueries(ctx context.Context, controller common.Address, wquery []parsing.SugaredMutatingStmt) error
 
-	GetLastProcessedHeight(ctx context.Context) (uint64, error)
-	SetLastProcessedHeight(ctx context.Context, height uint64) error
+	GetLastProcessedHeight(ctx context.Context) (int64, error)
+	SetLastProcessedHeight(ctx context.Context, height int64) error
 
 	Commit(context.Context) error
 	Close(context.Context) error
