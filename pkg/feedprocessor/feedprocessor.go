@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/pkg/parsing"
@@ -70,10 +71,16 @@ func (fp *FeedProcessor) daemon() {
 		log.Error().Msgf("opening batch in daemon: %s", err)
 		return
 	}
-	fromHeight, err := b.GetLastProcessedHeight()
+
+	ctx, cls := context.WithTimeout(fp.daemonCtx, time.Second*5)
+	defer cls()
+	fromHeight, err := b.GetLastProcessedHeight(ctx)
 	if err != nil {
 		log.Err(err).Msg("getting last processed height")
 	}
+	ctx, cls = context.WithTimeout(fp.daemonCtx, time.Second*5)
+	defer cls()
+
 	if err := b.Close(fp.daemonCtx); err != nil {
 		log.Err(err).Msg("closing batch")
 		return
@@ -124,22 +131,30 @@ func (fp *FeedProcessor) runBlockQueries(ctx context.Context, bqs BlockQueries) 
 		return fmt.Errorf("last processed height %d isn't smaller than new height %d", lastHeight, bqs.Height)
 	}
 
+	// TODO(jsign)
 	// Execute each query event and track the execution trace.
-	traces := make([]txn.TxnExecutionTrace, len(bqs.Queries))
+	//traces := make([]txn.TxnExecutionTrace, len(bqs.Queries))
 	for i, q := range bqs.Queries {
+		/* TODO(jsign)
 		traces[i] = txn.TxnExecutionTrace{
 			BlockNumber: bqs.BlockNumber,
 			Query:       q,
 			Error:       fp.executeQuery(ctx, b, q),
 		}
+		*/
+		if err := fp.executeQuery(ctx, b, q); err != nil {
+			log.Warn().Err(err).Msg("executing query")
+		}
 
 	}
 
+	/* TODO(jsign)
 	// Persist the execution trace for this block height. This is done for
 	// debuggability, history tracking, and potentially future state-comparison between validators.
 	if err := fp.txnp.SaveBlockQueriesTrace(ctx, bqs); err != nil {
 		return fmt.Errorf("saving block queries: %s", err)
 	}
+	*/
 
 	// Update the last processed height.
 	if err := b.SetLastProcessedHeight(ctx, bqs.Height); err != nil {
@@ -150,6 +165,7 @@ func (fp *FeedProcessor) runBlockQueries(ctx context.Context, bqs BlockQueries) 
 		return fmt.Errorf("committing changes: %s", err)
 	}
 
+	// TODO(jsign): metrics in general.
 	//t.incrementRunSQLCount(ctx, ctrl)
 
 	return nil
