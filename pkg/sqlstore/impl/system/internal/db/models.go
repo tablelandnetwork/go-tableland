@@ -33,3 +33,7 @@ type SystemAuth struct {
 	CreateTableCount int32
 	RunSqlCount      int32
 }
+
+type TxnProcessor struct {
+	BlockNumber sql.NullInt64
+}
