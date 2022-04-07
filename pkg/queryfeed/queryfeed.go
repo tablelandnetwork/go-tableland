@@ -11,12 +11,14 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/rs/zerolog/log"
 	tbleth "github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
 )
 
 type QueryFeed struct {
-	ethClient bind.ContractFilterer
-	scAddress common.Address
+	ethClient   bind.ContractFilterer
+	scAddress   common.Address
+	contractAbi abi.ABI
 }
 
 type MutStatement struct {
@@ -24,21 +26,22 @@ type MutStatement struct {
 	Statement string
 }
 
-func New(ethClient bind.ContractFilterer, scAddress common.Address) *QueryFeed {
-	return &QueryFeed{
-		ethClient: ethClient,
-		scAddress: scAddress,
+func New(ethClient bind.ContractFilterer, scAddress common.Address) (*QueryFeed, error) {
+	contractAbi, err := abi.JSON(strings.NewReader(tbleth.ContractMetaData.ABI))
+	if err != nil {
+		return nil, fmt.Errorf("get contract-abi: %s", err)
 	}
+	return &QueryFeed{
+		ethClient:   ethClient,
+		scAddress:   scAddress,
+		contractAbi: contractAbi,
+	}, nil
 }
 
-func (qf *QueryFeed) Start(ctx context.Context, fromHeight int64, ch chan<- MutStatement, filterTables ...string) error {
+func (qf *QueryFeed) Start(ctx context.Context, fromHeight int64, ch chan<- interface{}) {
 	query := ethereum.FilterQuery{
 		FromBlock: big.NewInt(fromHeight),
 		Addresses: []common.Address{qf.scAddress},
-	}
-	contractAbi, err := abi.JSON(strings.NewReader(tbleth.ContractMetaData.ABI))
-	if err != nil {
-		return fmt.Errorf("get contract-abi: %s", err)
 	}
 
 	sink := make(chan types.Log)
@@ -49,13 +52,13 @@ func (qf *QueryFeed) Start(ctx context.Context, fromHeight int64, ch chan<- MutS
 	for {
 		select {
 		case event := <-sink:
-			fmt.Printf("RECEIVED at height %d\n", event.BlockNumber)
+			log.Debug().Uint64("blockNumber", event.BlockNumber).Msg("received event")
 			e := struct {
 				Table      string
 				Controller common.Address
 				Statement  string
 			}{}
-			err = contractAbi.UnpackIntoInterface(&e, "RunSQL", event.Data)
+			err = qf.contractAbi.UnpackIntoInterface(&e, "RunSQL", event.Data)
 			if err != nil {
 				return fmt.Errorf("unpacking event into interface: %s", err)
 			}
@@ -66,7 +69,9 @@ func (qf *QueryFeed) Start(ctx context.Context, fromHeight int64, ch chan<- MutS
 			}
 		case err := <-sub.Err():
 			return fmt.Errorf("subscription error: %s", err)
+		case <-ctx.Done():
+			log.Debug().Msg("gracefully closing query feed monitoring")
+			return nil
 		}
 	}
-	return nil
 }

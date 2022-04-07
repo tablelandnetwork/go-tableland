@@ -17,6 +17,8 @@ import (
 )
 
 func TestStart(t *testing.T) {
+	t.Parallel()
+
 	backend, addr, sc, authOpts := setup(t)
 
 	controller := common.HexToAddress("0xB0Cf943Cf94E7B6A2657D15af41c5E06c2BFEA3D")
@@ -29,7 +31,7 @@ func TestStart(t *testing.T) {
 
 	// Start listening to Logs for the contract from the next block.
 	currBlockNumber := backend.Blockchain().CurrentHeader().Number.Int64()
-	ch := make(chan MutStatement)
+	ch := make(chan interface{})
 	go func() {
 		err := qf.Start(context.Background(), currBlockNumber+1, ch)
 		require.NoError(t, err)
@@ -61,6 +63,36 @@ func TestStart(t *testing.T) {
 	_, err = sc.RunSQL(authOpts, "tbl-4", controller, "stmt-4")
 	require.NoError(t, err)
 	backend.Commit()
+	for i := 0; i < 2; i++ {
+		select {
+		case <-ch:
+		case <-time.After(time.Second):
+			t.Fatalf("didn't receive expected log")
+		}
+	}
+}
+
+func TestStartForTwoEventTypes(t *testing.T) {
+	t.Parallel()
+
+	backend, addr, sc, authOpts := setup(t)
+
+	controller := common.HexToAddress("0xB0Cf943Cf94E7B6A2657D15af41c5E06c2BFEA3D")
+	qf := New(backend, addr)
+
+	ch := make(chan interface{})
+	go func() {
+		err := qf.Start(context.Background(), 0, ch)
+		require.NoError(t, err)
+	}()
+
+	// Make two calls to different functions emiting different events
+	_, err := sc.RunSQL(authOpts, "tbl-2", controller, "stmt-2")
+	require.NoError(t, err)
+	_, err = sc.SafeMint(authOpts, common.HexToAddress("0xB0Cf943Cf94E7B6A2657D15af41c5E06c2BFEA3E"))
+	require.NoError(t, err)
+	backend.Commit()
+
 	for i := 0; i < 2; i++ {
 		select {
 		case <-ch:
