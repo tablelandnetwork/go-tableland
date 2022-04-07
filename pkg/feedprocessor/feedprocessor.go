@@ -10,6 +10,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/queryfeed"
+	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/txn"
 )
 
@@ -18,9 +19,10 @@ type FeedProcessor struct {
 	txnp   txn.TxnProcessor
 	qf     queryfeed.QueryFeed
 
-	lock         sync.Mutex
-	daemonCtx    context.Context
-	daemonCancel context.CancelFunc
+	lock           sync.Mutex
+	daemonCtx      context.Context
+	daemonCancel   context.CancelFunc
+	daemonCanceled chan struct{}
 }
 
 func New(parser parsing.SQLValidator, txnp txn.TxnProcessor, qf queryfeed.QueryFeed) *FeedProcessor {
@@ -41,30 +43,34 @@ func (fp *FeedProcessor) StartSync() error {
 	ctx, cls := context.WithCancel(context.Background())
 	fp.daemonCtx = ctx
 	fp.daemonCancel = cls
+	fp.daemonCanceled = make(chan struct{})
 	go fp.daemon()
 
 	return nil
 }
 
-func (fp *FeedProcessor) StopSync() error {
+func (fp *FeedProcessor) StopSync() {
 	fp.lock.Lock()
 	defer fp.lock.Unlock()
 	if fp.daemonCtx == nil {
-		return fmt.Errorf("processor isn't running")
+		return
 	}
 
-	panic("TODO(jsign): do actual logic")
+	log.Debug().Msg("stopping feed processor")
+	fp.daemonCancel()
+	<-fp.daemonCanceled
 
 	fp.daemonCtx = nil
 	fp.daemonCancel = nil
+	fp.daemonCanceled = nil
 
-	return nil
+	log.Debug().Msg("feed processor stopped")
 }
 
 func (fp *FeedProcessor) daemon() {
 	log.Debug().Msg("starting feed processor daemon")
 
-	ch := make(chan interface{})
+	ch := make(chan queryfeed.BlockEvents)
 
 	b, err := fp.txnp.OpenBatch(fp.daemonCtx)
 	if err != nil {
@@ -86,30 +92,28 @@ func (fp *FeedProcessor) daemon() {
 		return
 	}
 
-	feedCtx, feedCls := context.WithCancel(context.Background())
 	go func() {
-		fp.qf.Start(feedCtx, fromHeight, ch)
-		close(ch)
+		defer close(ch)
+		if err := fp.qf.Start(fp.daemonCtx, int64(fromHeight), ch); err != nil {
+			fp.StopSync()
+			return
+		}
+		log.Info().Msg("closing feed processor daemon")
 	}()
 
 	for {
 		select {
-		case <-fp.daemonCtx.Done():
-			log.Debug().Msg("closing feed processor daemon")
-			feedCls()
-			<-ch
-			return
-		case _, ok := <-ch:
+		case bqs, ok := <-ch:
 			if !ok {
-				log.Error().Msg("query feed closed unexpectedly")
 				return
 			}
-			log.Debug().Msg("received query block")
+			if err := fp.runBlockQueries(fp.daemonCtx, bqs); err != nil {
+			}
 		}
 	}
 }
 
-func (fp *FeedProcessor) runBlockQueries(ctx context.Context, bqs BlockQueries) error {
+func (fp *FeedProcessor) runBlockQueries(ctx context.Context, bqs queryfeed.BlockEvents) error {
 	b, err := fp.txnp.OpenBatch(ctx)
 	if err != nil {
 		return fmt.Errorf("opening batch: %s", err)
@@ -127,14 +131,14 @@ func (fp *FeedProcessor) runBlockQueries(ctx context.Context, bqs BlockQueries) 
 	}
 
 	// The new height to process must be strictly greated than the last processed height.
-	if lastHeight >= bqs.Height {
-		return fmt.Errorf("last processed height %d isn't smaller than new height %d", lastHeight, bqs.Height)
+	if lastHeight >= bqs.BlockNumber {
+		return fmt.Errorf("last processed height %d isn't smaller than new height %d", lastHeight, bqs.BlockNumber)
 	}
 
 	// TODO(jsign)
 	// Execute each query event and track the execution trace.
 	//traces := make([]txn.TxnExecutionTrace, len(bqs.Queries))
-	for i, q := range bqs.Queries {
+	for _, e := range bqs.Events {
 		/* TODO(jsign)
 		traces[i] = txn.TxnExecutionTrace{
 			BlockNumber: bqs.BlockNumber,
@@ -142,7 +146,7 @@ func (fp *FeedProcessor) runBlockQueries(ctx context.Context, bqs BlockQueries) 
 			Error:       fp.executeQuery(ctx, b, q),
 		}
 		*/
-		if err := fp.executeQuery(ctx, b, q); err != nil {
+		if err := fp.executeEvent(ctx, b, e); err != nil {
 			log.Warn().Err(err).Msg("executing query")
 		}
 
@@ -157,8 +161,8 @@ func (fp *FeedProcessor) runBlockQueries(ctx context.Context, bqs BlockQueries) 
 	*/
 
 	// Update the last processed height.
-	if err := b.SetLastProcessedHeight(ctx, bqs.Height); err != nil {
-		return fmt.Errorf("set new processed height %d: %s", bqs.Height, err)
+	if err := b.SetLastProcessedHeight(ctx, bqs.BlockNumber); err != nil {
+		return fmt.Errorf("set new processed height %d: %s", bqs.BlockNumber, err)
 	}
 
 	if err := b.Commit(ctx); err != nil {
@@ -171,16 +175,22 @@ func (fp *FeedProcessor) runBlockQueries(ctx context.Context, bqs BlockQueries) 
 	return nil
 }
 
-func (fp *FeedProcessor) executeQuery(ctx context.Context, b txn.Batch, query string) error {
-	readStmt, mutatingStmts, err := fp.parser.ValidateRunSQL(query)
-	if err != nil {
-		return fmt.Errorf("validating query: %s", err)
+func (fp *FeedProcessor) executeEvent(ctx context.Context, b txn.Batch, e interface{}) error {
+	switch e := e.(type) {
+	case *ethereum.ContractRunSQL:
+		readStmt, mutatingStmts, err := fp.parser.ValidateRunSQL(e.Statement)
+		if err != nil {
+			return fmt.Errorf("validating query: %s", err)
+		}
+		if readStmt != nil {
+			return errors.New("query is a read statement")
+		}
+		if err := b.ExecWriteQueries(ctx, mutatingStmts); err != nil {
+			return fmt.Errorf("executing mutating-query: %s", err)
+		}
+	default:
+		return fmt.Errorf("unkown event type %t", e)
 	}
-	if readStmt != nil {
-		return errors.New("query is a read statement")
-	}
-	if err := b.ExecWriteQueries(ctx, mutatingStmts); err != nil {
-		return fmt.Errorf("executing mutating-query: %s", err)
-	}
+
 	return nil
 }

@@ -52,7 +52,7 @@ func New(ethClient EthClient, scAddress common.Address) (*QueryFeed, error) {
 	}, nil
 }
 
-func (qf *QueryFeed) Start(ctx context.Context, fromHeight int64, ch chan<- BlockEvents) error {
+func (qf *QueryFeed) Start(ctx context.Context, fromHeight int64, ch chan<- BlockEvents, filterEventTypes ...common.Hash) error {
 	ctx, abort := context.WithCancel(ctx)
 	defer abort()
 
@@ -99,10 +99,15 @@ func (qf *QueryFeed) Start(ctx context.Context, fromHeight int64, ch chan<- Bloc
 				toHeight = fromHeight + maxLogsBatchSize
 			}
 
+			var topics [][]common.Hash
+			if len(filterEventTypes) > 0 {
+				topics = [][]common.Hash{filterEventTypes}
+			}
 			query := ethereum.FilterQuery{
 				FromBlock: big.NewInt(fromHeight),
 				ToBlock:   big.NewInt(toHeight),
 				Addresses: []common.Address{qf.scAddress},
+				Topics:    topics,
 			}
 			logs, err := qf.ethClient.FilterLogs(ctx, query)
 			if err != nil {
