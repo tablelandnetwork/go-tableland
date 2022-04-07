@@ -49,6 +49,7 @@ func (qf *QueryFeed) Start(ctx context.Context, fromHeight int64, ch chan<- MutS
 	for {
 		select {
 		case event := <-sink:
+			fmt.Printf("RECEIVED at height %d\n", event.BlockNumber)
 			e := struct {
 				Table      string
 				Controller common.Address
