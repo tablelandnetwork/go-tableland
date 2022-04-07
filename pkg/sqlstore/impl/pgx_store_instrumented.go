@@ -2,30 +2,37 @@ package impl
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/metric/global"
+	"go.opentelemetry.io/otel/metric/instrument/syncint64"
 )
 
 // InstrumentedSQLStorePGX implements a instrumented SQLStore interface using pgx.
 type InstrumentedSQLStorePGX struct {
 	store            sqlstore.SQLStore
-	callCount        metric.Int64Counter
-	latencyHistogram metric.Int64Histogram
+	callCount        syncint64.Counter
+	latencyHistogram syncint64.Histogram
 }
 
 // NewInstrumentedSQLStorePGX creates a new pgx pool and instantiate both the user and system stores.
-func NewInstrumentedSQLStorePGX(store sqlstore.SQLStore) sqlstore.SQLStore {
-	meter := metric.Must(global.Meter("tableland"))
-	callCount := meter.NewInt64Counter("tableland.sqlstore.call.count")
-	latencyHistogram := meter.NewInt64Histogram("tableland.sqlstore.call.latency")
+func NewInstrumentedSQLStorePGX(store sqlstore.SQLStore) (sqlstore.SQLStore, error) {
+	meter := global.MeterProvider().Meter("tableland")
+	callCount, err := meter.SyncInt64().Counter("tableland.sqlstore.call.count")
+	if err != nil {
+		return &InstrumentedSQLStorePGX{}, fmt.Errorf("registering call counter: %s", err)
+	}
+	latencyHistogram, err := meter.SyncInt64().Histogram("tableland.sqlstore.call.latency")
+	if err != nil {
+		return &InstrumentedSQLStorePGX{}, fmt.Errorf("registering latency histogram: %s", err)
+	}
 
-	return &InstrumentedSQLStorePGX{store, callCount, latencyHistogram}
+	return &InstrumentedSQLStorePGX{store, callCount, latencyHistogram}, nil
 }
 
 // GetTable fetchs a table from its UUID.

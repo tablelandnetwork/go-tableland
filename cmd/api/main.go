@@ -69,14 +69,20 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("parsing read query delay duration")
 	}
-	sqlstore = sqlstoreimpl.NewInstrumentedSQLStorePGX(sqlstore)
+	sqlstore, err = sqlstoreimpl.NewInstrumentedSQLStorePGX(sqlstore)
+	if err != nil {
+		log.Fatal().Err(err).Msg("instrumenting sql store pgx")
+	}
 	sqlstore = sqlstoreimpl.NewThrottledSQLStorePGX(sqlstore, readQueryDelay)
 
-	parser := parserimpl.NewInstrumentedSQLValidator(
+	parser, err := parserimpl.NewInstrumentedSQLValidator(
 		parserimpl.New([]string{systemimpl.SystemTablesPrefix, systemimpl.RegistryTableName},
 			config.TableConstraints.MaxColumns,
 			config.TableConstraints.MaxTextLength),
 	)
+	if err != nil {
+		log.Fatal().Err(err).Msg("instrumenting sql validator")
+	}
 
 	var txnp txn.TxnProcessor
 	txnp, err = txnimpl.NewTxnProcessor(databaseURL, config.TableConstraints.MaxRowCount)
@@ -101,7 +107,10 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("creating system store")
 	}
-	systemService := systemimpl.NewInstrumentedSystemSQLStoreService(sysStore)
+	systemService, err := systemimpl.NewInstrumentedSystemSQLStoreService(sysStore)
+	if err != nil {
+		log.Fatal().Err(err).Msg("instrumenting system sql store")
+	}
 	systemController := controllers.NewSystemController(systemService)
 
 	// General router configuration.
@@ -168,7 +177,11 @@ func getTablelandService(
 	switch conf.Impl {
 	case "mesa":
 		mesa := impl.NewTablelandMesa(store, registry, parser, txnp)
-		return impl.NewInstrumentedTablelandMesa(mesa)
+		instrumentedMesa, err := impl.NewInstrumentedTablelandMesa(mesa)
+		if err != nil {
+			log.Fatal().Err(err).Msg("instrumenting mesa")
+		}
+		return instrumentedMesa
 	case "mock":
 		return new(impl.TablelandMock)
 	}
