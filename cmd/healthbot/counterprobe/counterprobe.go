@@ -11,9 +11,9 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/tableland"
 	jwtp "github.com/textileio/go-tableland/pkg/jwt"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/metric/global"
+	"go.opentelemetry.io/otel/metric/instrument"
+	"go.opentelemetry.io/otel/metric/instrument/syncint64"
 
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -35,7 +35,7 @@ type CounterProbe struct {
 	lastCheck           time.Time
 	lastSuccessfulCheck time.Time
 
-	latencyHist metric.Int64Histogram
+	latencyHist syncint64.Histogram
 }
 
 // New returns a *CounterProbe.
@@ -62,32 +62,47 @@ func New(chckInterval time.Duration, endpoint, jwt, tblname string) (*CounterPro
 	}
 	rpcClient.SetHeader("Authorization", "Bearer "+jwt)
 
-	meter := metric.Must(global.Meter("tableland"))
+	meter := global.MeterProvider().Meter("tableland")
+	latencyHistogram, err := meter.SyncInt64().Histogram(metricPrefix + ".latency")
+	if err != nil {
+		return &CounterProbe{}, fmt.Errorf("registering latency histogram: %s", err)
+	}
+
 	cp := &CounterProbe{
 		chckInterval: chckInterval,
 		rpcClient:    rpcClient,
 		ctrl:         j.Claims.Issuer,
 		tblname:      tblname,
 
-		latencyHist: meter.NewInt64Histogram(metricPrefix + ".latency"),
+		latencyHist: latencyHistogram,
 	}
-	var mLastCheck metric.Int64GaugeObserver
-	var mLastSuccessfulCheck metric.Int64GaugeObserver
-	var mCounterValue metric.Int64GaugeObserver
-	batchObs := meter.NewBatchObserver(func(ctx context.Context, r metric.BatchObserverResult) {
+
+	mLastCheck, err := meter.AsyncInt64().Gauge(metricPrefix + ".last_check")
+	if err != nil {
+		return &CounterProbe{}, fmt.Errorf("registering last check gauge: %s", err)
+	}
+
+	mLastSuccessfulCheck, err := meter.AsyncInt64().Gauge(metricPrefix + ".last_successful_check")
+	if err != nil {
+		return &CounterProbe{}, fmt.Errorf("registering last full check gauge: %s", err)
+	}
+
+	mCounterValue, err := meter.AsyncInt64().Gauge(metricPrefix + ".counter_value")
+	if err != nil {
+		return &CounterProbe{}, fmt.Errorf("registering counter value gauge: %s", err)
+	}
+
+	instruments := []instrument.Asynchronous{mLastCheck, mLastSuccessfulCheck, mCounterValue}
+	if err := meter.RegisterCallback(instruments, func(ctx context.Context) {
 		cp.lock.RLock()
 		defer cp.lock.RUnlock()
 
-		obs := []metric.Observation{
-			mLastCheck.Observation(cp.lastCheck.Unix()),
-			mLastSuccessfulCheck.Observation(cp.lastSuccessfulCheck.Unix()),
-			mCounterValue.Observation(cp.lastCounterValue),
-		}
-		r.Observe([]attribute.KeyValue{}, obs...)
-	})
-	mLastCheck = batchObs.NewInt64GaugeObserver(metricPrefix + ".last_check")
-	mLastSuccessfulCheck = batchObs.NewInt64GaugeObserver(metricPrefix + ".last_successful_check")
-	mCounterValue = batchObs.NewInt64GaugeObserver(metricPrefix + ".counter_value")
+		mLastCheck.Observe(ctx, cp.lastCheck.Unix())
+		mLastSuccessfulCheck.Observe(ctx, cp.lastSuccessfulCheck.Unix())
+		mCounterValue.Observe(ctx, cp.lastCounterValue)
+	}); err != nil {
+		return &CounterProbe{}, fmt.Errorf("registering callback on instruments: %s", err)
+	}
 
 	return cp, nil
 }
