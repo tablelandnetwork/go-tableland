@@ -2,10 +2,8 @@ package queryfeed
 
 import (
 	"context"
-	"fmt"
 	"math"
 	"math/big"
-	"strconv"
 	"testing"
 	"time"
 
@@ -21,29 +19,54 @@ import (
 func TestStart(t *testing.T) {
 	backend, addr, sc, authOpts := setup(t)
 
+	controller := common.HexToAddress("0xB0Cf943Cf94E7B6A2657D15af41c5E06c2BFEA3D")
 	qf := New(backend, addr)
 
+	// Make one call before start listening.
+	_, err := sc.RunSQL(authOpts, "tbl-1", controller, "stmt-1")
+	require.NoError(t, err)
+	backend.Commit()
+
+	// Start listening to Logs for the contract from the next block.
+	currBlockNumber := backend.Blockchain().CurrentHeader().Number.Int64()
 	ch := make(chan MutStatement)
 	go func() {
-		err := qf.Start(context.Background(), 0, ch)
+		err := qf.Start(context.Background(), currBlockNumber+1, ch)
 		require.NoError(t, err)
 	}()
-	go func() {
-		controller := common.HexToAddress("0xB0Cf943Cf94E7B6A2657D15af41c5E06c2BFEA3D")
-		var i int
-		for {
-			table := strconv.Itoa(i)
-			stmt := fmt.Sprintf("insert into %d", i)
-			_, err := sc.RunSQL(authOpts, table, controller, stmt)
-			require.NoError(t, err)
-			fmt.Println("WIN")
-			i++
-			backend.Commit()
-			<-time.After(time.Second)
+
+	// Verify that the RunSQL call we did before listening doesn't appear,
+	// since we start from height currentBlockNumber+1 intentionally excluding
+	// the first runSQL call. This is to check that the `fromHeight` argument
+	// in Start(...) is working as expected.
+	select {
+	case <-ch:
+		t.Fatalf("received unexpected event")
+	default:
+	}
+
+	// Make a second call, that should be detected as a new event next.
+	_, err = sc.RunSQL(authOpts, "tbl-2", controller, "stmt-2")
+	require.NoError(t, err)
+	backend.Commit()
+	select {
+	case <-ch:
+	case <-time.After(time.Second):
+		t.Fatalf("didn't receive expected log")
+	}
+
+	// Try making two calls in a single block now, and assert we receive things correctly.
+	_, err = sc.RunSQL(authOpts, "tbl-3", controller, "stmt-3")
+	require.NoError(t, err)
+	_, err = sc.RunSQL(authOpts, "tbl-4", controller, "stmt-4")
+	require.NoError(t, err)
+	backend.Commit()
+	for i := 0; i < 2; i++ {
+		select {
+		case <-ch:
+		case <-time.After(time.Second):
+			t.Fatalf("didn't receive expected log")
 		}
-	}()
-	for mq := range ch {
-		fmt.Printf("New event: %#v", mq)
 	}
 }
 
