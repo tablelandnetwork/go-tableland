@@ -125,12 +125,12 @@ func (fp *FeedProcessor) runBlockQueries(ctx context.Context, bqs BlockQueries) 
 	}
 
 	// Execute each query event and track the execution trace.
-	traces := make([]TxnExecutionTrace, len(bqs.Queries))
+	traces := make([]txn.TxnExecutionTrace, len(bqs.Queries))
 	for i, q := range bqs.Queries {
-		traces[i] = TxnExecutionTrace{
+		traces[i] = txn.TxnExecutionTrace{
 			BlockNumber: bqs.BlockNumber,
 			Query:       q,
-			Error:       executeQuery(ctx, q),
+			Error:       fp.executeQuery(ctx, b, q),
 		}
 
 	}

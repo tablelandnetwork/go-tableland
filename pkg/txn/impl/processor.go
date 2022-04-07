@@ -185,6 +185,35 @@ func (b *batch) ExecWriteQueries(
 	return nil
 }
 
+func (b *batch) GetLastProcessedHeight(ctx context.Context) (uint64, error) {
+	var blockNumber uint64
+	f := func(tx pgx.Tx) error {
+		r := tx.QueryRow(ctx, "SELECT block_number FROM txn_processor LIMIT 1")
+		if err := r.Scan(&blockNumber); err != nil {
+			return fmt.Errorf("get last block number query: %s", err)
+		}
+		return nil
+	}
+	if err := b.txn.BeginFunc(ctx, f); err != nil {
+		return 0, fmt.Errorf("processing register table: %s", err)
+	}
+	return blockNumber, nil
+}
+
+func (b *batch) SetLastProcessedHeight(ctx context.Context, height uint64) error {
+	f := func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, "UPDATE txn_processor set block_number=$1", height)
+		if err != nil {
+			return fmt.Errorf("set last block number query: %s", err)
+		}
+		return nil
+	}
+	if err := b.txn.BeginFunc(ctx, f); err != nil {
+		return fmt.Errorf("processing register table: %s", err)
+	}
+	return nil
+}
+
 // Close closes gracefully the batch. Clients should *always* `defer Close()` when
 // opening batches.
 func (b *batch) Close(ctx context.Context) error {
