@@ -34,7 +34,7 @@ func TestStart(t *testing.T) {
 	currBlockNumber := backend.Blockchain().CurrentHeader().Number.Int64()
 	ch := make(chan BlockEvents)
 	go func() {
-		err := qf.Start(context.Background(), currBlockNumber+1, ch)
+		err := qf.Start(context.Background(), currBlockNumber+1, ch, []EventType{RunSQL})
 		require.NoError(t, err)
 	}()
 
@@ -87,7 +87,7 @@ func TestStartForTwoEventTypes(t *testing.T) {
 
 	ch := make(chan BlockEvents)
 	go func() {
-		err := qf.Start(context.Background(), 0, ch)
+		err := qf.Start(context.Background(), 0, ch, []EventType{RunSQL, Transfer})
 		require.NoError(t, err)
 	}()
 

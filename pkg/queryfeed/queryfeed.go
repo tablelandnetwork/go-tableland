@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"reflect"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -40,6 +41,20 @@ type MutStatement struct {
 	Statement string
 }
 
+type EventType string
+
+const (
+	RunSQL   EventType = "RunSQL"
+	Transfer           = "Transfer"
+)
+
+var (
+	supportedEvents = map[string]reflect.Type{
+		"RunSQL":   reflect.TypeOf(tbleth.ContractRunSQL{}),
+		"Transfer": reflect.TypeOf(tbleth.ContractTransfer{}),
+	}
+)
+
 func New(ethClient EthClient, scAddress common.Address) (*QueryFeed, error) {
 	contractAbi, err := tbleth.ContractMetaData.GetAbi()
 	if err != nil {
@@ -52,7 +67,21 @@ func New(ethClient EthClient, scAddress common.Address) (*QueryFeed, error) {
 	}, nil
 }
 
-func (qf *QueryFeed) Start(ctx context.Context, fromHeight int64, ch chan<- BlockEvents, filterEventTypes ...common.Hash) error {
+func (qf *QueryFeed) Start(ctx context.Context, fromHeight int64, ch chan<- BlockEvents, filterEventTypes []EventType) error {
+	for _, fet := range filterEventTypes {
+		if _, ok := supportedEvents[string(fet)]; !ok {
+			return fmt.Errorf("event type filter %s isn't supported", fet)
+		}
+	}
+	topics := make([]common.Hash, len(filterEventTypes))
+	for i, et := range filterEventTypes {
+		e, ok := qf.contractAbi.Events[string(et)]
+		if !ok {
+			return fmt.Errorf("event type %s wasn't found in compiled contract", et)
+		}
+		topics[i] = e.ID
+	}
+
 	ctx, abort := context.WithCancel(ctx)
 	defer abort()
 
@@ -100,15 +129,11 @@ func (qf *QueryFeed) Start(ctx context.Context, fromHeight int64, ch chan<- Bloc
 				toHeight = fromHeight + maxLogsBatchSize
 			}
 
-			var topics [][]common.Hash
-			if len(filterEventTypes) > 0 {
-				topics = [][]common.Hash{filterEventTypes}
-			}
 			query := ethereum.FilterQuery{
 				FromBlock: big.NewInt(fromHeight),
 				ToBlock:   big.NewInt(toHeight),
 				Addresses: []common.Address{qf.scAddress},
-				Topics:    topics,
+				Topics:    [][]common.Hash{topics},
 			}
 			logs, err := qf.ethClient.FilterLogs(ctx, query)
 			if err != nil {
@@ -152,16 +177,11 @@ func (qf *QueryFeed) parseEvent(l types.Log) (interface{}, error) {
 		return nil, fmt.Errorf("detecting event type: %s", err)
 	}
 
-	var i interface{}
-	switch eventDescr.Name {
-	case "RunSQL":
-		i = &tbleth.ContractRunSQL{}
-	case "Transfer":
-		i = &tbleth.ContractTransfer{}
-	default:
-		// TODO(jsign): make this safer
+	se, ok := supportedEvents[eventDescr.Name]
+	if !ok {
 		return nil, fmt.Errorf("unknown event type %s", eventDescr.Name)
 	}
+	i := reflect.New(se).Interface()
 
 	if len(l.Data) > 0 {
 		if err := qf.contractAbi.UnpackIntoInterface(i, eventDescr.Name, l.Data); err != nil {
