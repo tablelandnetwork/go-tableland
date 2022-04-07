@@ -94,7 +94,7 @@ func (fp *FeedProcessor) daemon() {
 
 	go func() {
 		defer close(ch)
-		if err := fp.qf.Start(fp.daemonCtx, int64(fromHeight), ch); err != nil {
+		if err := fp.qf.Start(fp.daemonCtx, int64(fromHeight), ch, []queryfeed.EventType{queryfeed.RunSQL}); err != nil {
 			fp.StopSync()
 			return
 		}
