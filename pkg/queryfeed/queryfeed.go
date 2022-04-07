@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math/big"
-	"strings"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -15,8 +14,9 @@ import (
 )
 
 const (
+	// TODO(jsign): make these options
 	maxLogsBatchSize = 1000
-	minChainDepth    = 5
+	minChainDepth    = 0
 )
 
 type BlockEvents struct {
@@ -32,7 +32,7 @@ type EthClient interface {
 type QueryFeed struct {
 	ethClient   EthClient
 	scAddress   common.Address
-	contractAbi abi.ABI
+	contractAbi *abi.ABI
 }
 
 type MutStatement struct {
@@ -41,7 +41,7 @@ type MutStatement struct {
 }
 
 func New(ethClient EthClient, scAddress common.Address) (*QueryFeed, error) {
-	contractAbi, err := abi.JSON(strings.NewReader(tbleth.ContractMetaData.ABI))
+	contractAbi, err := tbleth.ContractMetaData.GetAbi()
 	if err != nil {
 		return nil, fmt.Errorf("get contract-abi: %s", err)
 	}
@@ -84,6 +84,7 @@ func (qf *QueryFeed) Start(ctx context.Context, fromHeight int64, ch chan<- Bloc
 				log.Info().Msg("new head channel was closed, closing gracefully")
 				return nil
 			}
+			log.Debug().Int64("height", h.Number.Int64()).Msg("received new chain header")
 
 			// Only make a new filter logs query if the next intended height to
 			// process is at least minChainDepth behind the reported head. This is
@@ -130,7 +131,7 @@ func (qf *QueryFeed) Start(ctx context.Context, fromHeight int64, ch chan<- Bloc
 					}
 				}
 
-				event, err := qf.parseEvent(l.Topics[0], l.Data)
+				event, err := qf.parseEvent(l)
 				if err != nil {
 					return fmt.Errorf("couldn't parse event: %s", err)
 				}
@@ -145,16 +146,37 @@ func (qf *QueryFeed) Start(ctx context.Context, fromHeight int64, ch chan<- Bloc
 	}
 }
 
-func (qf *QueryFeed) parseEvent(eventSignature common.Hash, eventData []byte) (interface{}, error) {
-	eventDescr, err := qf.contractAbi.EventByID(eventSignature)
+func (qf *QueryFeed) parseEvent(l types.Log) (interface{}, error) {
+	eventDescr, err := qf.contractAbi.EventByID(l.Topics[0])
 	if err != nil {
 		return nil, fmt.Errorf("detecting event type: %s", err)
 	}
 
-	e, err := qf.contractAbi.Unpack(eventDescr.Name, eventData)
-	if err != nil {
-		return nil, fmt.Errorf("unpacking event: %s", err)
+	var i interface{}
+	switch eventDescr.Name {
+	case "RunSQL":
+		i = &tbleth.ContractRunSQL{}
+	case "Transfer":
+		i = &tbleth.ContractTransfer{}
+	default:
+		// TODO(jsign): make this safer
+		return nil, fmt.Errorf("unknown event type %s", eventDescr.Name)
 	}
 
-	return e, nil
+	if len(l.Data) > 0 {
+		if err := qf.contractAbi.UnpackIntoInterface(i, eventDescr.Name, l.Data); err != nil {
+			return nil, fmt.Errorf("unpacking into interface: %s", err)
+		}
+	}
+	var indexed abi.Arguments
+	for _, arg := range eventDescr.Inputs {
+		if arg.Indexed {
+			indexed = append(indexed, arg)
+		}
+	}
+	if err := abi.ParseTopics(i, indexed, l.Topics[1:]); err != nil {
+		return nil, fmt.Errorf("unpacking indexed topics: %s", err)
+	}
+
+	return i, nil
 }

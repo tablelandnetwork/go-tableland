@@ -53,7 +53,9 @@ func TestStart(t *testing.T) {
 	require.NoError(t, err)
 	backend.Commit()
 	select {
-	case <-ch:
+	case bes := <-ch:
+		require.Len(t, bes.Events, 1)
+		require.IsType(t, &ethereum.ContractRunSQL{}, bes.Events[0])
 	case <-time.After(time.Second):
 		t.Fatalf("didn't receive expected log")
 	}
@@ -64,12 +66,13 @@ func TestStart(t *testing.T) {
 	_, err = sc.RunSQL(authOpts, "tbl-4", controller, "stmt-4")
 	require.NoError(t, err)
 	backend.Commit()
-	for i := 0; i < 2; i++ {
-		select {
-		case <-ch:
-		case <-time.After(time.Second):
-			t.Fatalf("didn't receive expected log")
-		}
+	select {
+	case bes := <-ch:
+		require.Len(t, bes.Events, 2)
+		require.IsType(t, &ethereum.ContractRunSQL{}, bes.Events[0])
+		require.IsType(t, &ethereum.ContractRunSQL{}, bes.Events[1])
+	case <-time.After(time.Second):
+		t.Fatalf("didn't receive expected log")
 	}
 }
 
@@ -95,12 +98,13 @@ func TestStartForTwoEventTypes(t *testing.T) {
 	require.NoError(t, err)
 	backend.Commit()
 
-	for i := 0; i < 2; i++ {
-		select {
-		case <-ch:
-		case <-time.After(time.Second):
-			t.Fatalf("didn't receive expected log")
-		}
+	select {
+	case bes := <-ch:
+		require.Len(t, bes.Events, 2)
+		require.IsType(t, &ethereum.ContractRunSQL{}, bes.Events[0])
+		require.IsType(t, &ethereum.ContractTransfer{}, bes.Events[1])
+	case <-time.After(time.Second):
+		t.Fatalf("didn't receive expected log")
 	}
 }
 
