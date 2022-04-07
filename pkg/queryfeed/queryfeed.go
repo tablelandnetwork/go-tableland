@@ -19,6 +19,11 @@ const (
 	minChainDepth    = 5
 )
 
+type BlockEvents struct {
+	BlockNumber int64
+	Events      []interface{}
+}
+
 type EthClient interface {
 	SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error)
 	FilterLogs(ctx context.Context, query ethereum.FilterQuery) ([]types.Log, error)
@@ -47,7 +52,9 @@ func New(ethClient EthClient, scAddress common.Address) (*QueryFeed, error) {
 	}, nil
 }
 
-func (qf *QueryFeed) Start(ctx context.Context, fromHeight int64, ch chan<- interface{}) error {
+func (qf *QueryFeed) Start(ctx context.Context, fromHeight int64, ch chan<- BlockEvents) error {
+	ctx, abort := context.WithCancel(ctx)
+	defer abort()
 
 	// TODO(jsign): add mechanism to fire with the current head to avoid waiting and refactor.
 	chHeader := make(chan *types.Header)
@@ -81,12 +88,13 @@ func (qf *QueryFeed) Start(ctx context.Context, fromHeight int64, ch chan<- inte
 			// Only make a new filter logs query if the next intended height to
 			// process is at least minChainDepth behind the reported head. This is
 			// done to avoid reorg problems.
-			if fromHeight+minChainDepth >= h.Number.Int64() {
+			toHeight := h.Number.Int64() - minChainDepth
+			if toHeight < fromHeight {
 				continue
 			}
 
-			// Take care of putting a cap on how big the request will be.
-			toHeight := h.Number.Int64() - minChainDepth
+			// Put a cap on how big the query will be. This is important if we are
+			// doing a cold syncing or have fall behind after a long stop.
 			if toHeight-fromHeight > maxLogsBatchSize {
 				toHeight = fromHeight + maxLogsBatchSize
 			}
@@ -98,41 +106,50 @@ func (qf *QueryFeed) Start(ctx context.Context, fromHeight int64, ch chan<- inte
 			}
 			logs, err := qf.ethClient.FilterLogs(ctx, query)
 			if err != nil {
-				log.Error().Err(err).Msgf("filter logs from %d to %d", fromHeight, toHeight)
+				log.Warn().Err(err).Msgf("filter logs from %d to %d", fromHeight, toHeight)
 				continue
 			}
+
+			if len(logs) == 0 {
+				continue
+			}
+
+			bq := BlockEvents{
+				BlockNumber: int64(logs[0].BlockNumber),
+			}
+			for _, l := range logs {
+				if bq.BlockNumber != int64(l.BlockNumber) {
+					ch <- bq
+					bq = BlockEvents{
+						BlockNumber: int64(l.BlockNumber),
+					}
+				}
+
+				event, err := qf.parseEvent(l.Topics[0], l.Data)
+				if err != nil {
+					return fmt.Errorf("couldn't parse event: %s", err)
+				}
+				bq.Events = append(bq.Events, event)
+			}
+			// Sent last block events construction of the loop.
+			ch <- bq
+
+			// Update our fromHeight to the latest processed height plus one.
+			fromHeight = bq.BlockNumber + 1
 		}
 	}
+}
 
-	//////
-
-	sub, err := qf.ethClient.SubscribeFilterLogs(ctx, query, sink)
+func (qf *QueryFeed) parseEvent(eventSignature common.Hash, eventData []byte) (interface{}, error) {
+	eventDescr, err := qf.contractAbi.EventByID(eventSignature)
 	if err != nil {
-		return fmt.Errorf("subscribing to filtered logs: %s", err)
+		return nil, fmt.Errorf("detecting event type: %s", err)
 	}
-	for {
-		select {
-		case event := <-sink:
-			log.Debug().Uint64("blockNumber", event.BlockNumber).Msg("received event")
-			e := struct {
-				Table      string
-				Controller common.Address
-				Statement  string
-			}{}
-			err = qf.contractAbi.UnpackIntoInterface(&e, "RunSQL", event.Data)
-			if err != nil {
-				return fmt.Errorf("unpacking event into interface: %s", err)
-			}
 
-			ch <- MutStatement{
-				Height:    event.BlockNumber,
-				Statement: e.Statement,
-			}
-		case err := <-sub.Err():
-			return fmt.Errorf("subscription error: %s", err)
-		case <-ctx.Done():
-			log.Debug().Msg("gracefully closing query feed monitoring")
-			return nil
-		}
+	e, err := qf.contractAbi.Unpack(eventDescr.Name, eventData)
+	if err != nil {
+		return nil, fmt.Errorf("unpacking event: %s", err)
 	}
+
+	return e, nil
 }
