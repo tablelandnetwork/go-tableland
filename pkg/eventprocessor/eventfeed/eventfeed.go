@@ -29,10 +29,6 @@ type BlockEvents struct {
 type EventType string
 
 const (
-	// TODO(jsign): make these options
-	maxLogsBatchSize = 1000
-	minChainDepth    = 0
-
 	RunSQL   EventType = "RunSQL"
 	Transfer           = "Transfer"
 )
