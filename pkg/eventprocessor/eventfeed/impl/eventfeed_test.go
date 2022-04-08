@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
+	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
 )
 
@@ -22,7 +23,7 @@ func TestStart(t *testing.T) {
 	backend, addr, sc, authOpts := setup(t)
 
 	controller := common.HexToAddress("0xB0Cf943Cf94E7B6A2657D15af41c5E06c2BFEA3D")
-	qf, err := New(backend, addr)
+	qf, err := New(backend, addr, eventfeed.WithMinBlockChainDepth(0))
 	require.NoError(t, err)
 
 	// Make one call before start listening.
@@ -32,9 +33,9 @@ func TestStart(t *testing.T) {
 
 	// Start listening to Logs for the contract from the next block.
 	currBlockNumber := backend.Blockchain().CurrentHeader().Number.Int64()
-	ch := make(chan BlockEvents)
+	ch := make(chan eventfeed.BlockEvents)
 	go func() {
-		err := qf.Start(context.Background(), currBlockNumber+1, ch, []EventType{RunSQL})
+		err := qf.Start(context.Background(), currBlockNumber+1, ch, []eventfeed.EventType{eventfeed.RunSQL})
 		require.NoError(t, err)
 	}()
 
@@ -82,12 +83,12 @@ func TestStartForTwoEventTypes(t *testing.T) {
 	backend, addr, sc, authOpts := setup(t)
 
 	controller := common.HexToAddress("0xB0Cf943Cf94E7B6A2657D15af41c5E06c2BFEA3D")
-	qf, err := New(backend, addr)
+	qf, err := New(backend, addr, eventfeed.WithMinBlockChainDepth(0))
 	require.NoError(t, err)
 
-	ch := make(chan BlockEvents)
+	ch := make(chan eventfeed.BlockEvents)
 	go func() {
-		err := qf.Start(context.Background(), 0, ch, []EventType{RunSQL, Transfer})
+		err := qf.Start(context.Background(), 0, ch, []eventfeed.EventType{eventfeed.RunSQL, eventfeed.Transfer})
 		require.NoError(t, err)
 	}()
 
