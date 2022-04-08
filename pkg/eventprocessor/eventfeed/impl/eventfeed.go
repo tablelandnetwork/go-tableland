@@ -15,25 +15,35 @@ import (
 	tbleth "github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
 )
 
-type QueryFeed struct {
+type EventFeed struct {
 	ethClient   eventfeed.EthClient
 	scAddress   common.Address
 	contractAbi *abi.ABI
+
+	config *eventfeed.Config
 }
 
-func New(ethClient eventfeed.EthClient, scAddress common.Address) (*QueryFeed, error) {
+func New(ethClient eventfeed.EthClient, scAddress common.Address, opts ...eventfeed.Option) (*EventFeed, error) {
+	config := eventfeed.DefaultConfig()
+	for _, o := range opts {
+		if err := o(config); err != nil {
+			return nil, fmt.Errorf("applying provided option: %s", err)
+		}
+	}
+
 	contractAbi, err := tbleth.ContractMetaData.GetAbi()
 	if err != nil {
 		return nil, fmt.Errorf("get contract-abi: %s", err)
 	}
-	return &QueryFeed{
+	return &EventFeed{
 		ethClient:   ethClient,
 		scAddress:   scAddress,
 		contractAbi: contractAbi,
+		config:      config,
 	}, nil
 }
 
-func (qf *QueryFeed) Start(ctx context.Context, fromHeight int64, ch chan<- eventfeed.BlockEvents, filterEventTypes []eventfeed.EventType) error {
+func (ef *EventFeed) Start(ctx context.Context, fromHeight int64, ch chan<- eventfeed.BlockEvents, filterEventTypes []eventfeed.EventType) error {
 	// Spinup a background process that will post to chHeads when a new block is detected.
 	// This channel will be the heart-beat to pull new logs from the chain.
 	//
@@ -42,12 +52,12 @@ func (qf *QueryFeed) Start(ctx context.Context, fromHeight int64, ch chan<- even
 	ctx, cls := context.WithCancel(ctx)
 	defer cls()
 	chHeads := make(chan *types.Header, 1)
-	if err := qf.notifyNewHeads(ctx, chHeads); err != nil {
+	if err := ef.notifyNewHeads(ctx, chHeads); err != nil {
 		return fmt.Errorf("creating background head notificator: %s", err)
 	}
 
 	// Create filterTopics that will be used to only listening for the desired events.
-	filterTopics, err := qf.getTopicsForEventTypes(filterEventTypes)
+	filterTopics, err := ef.getTopicsForEventTypes(filterEventTypes)
 	if err != nil {
 		return fmt.Errorf("creating topics for filtered event types: %s", err)
 	}
@@ -65,7 +75,7 @@ func (qf *QueryFeed) Start(ctx context.Context, fromHeight int64, ch chan<- even
 			// Recall that we only accept as "final" blocks the one that are at least
 			// minChainDepth behind the new known head. This is done to avoid reorgs
 			// sideffects.
-			toHeight := h.Number.Int64() - minChainDepth
+			toHeight := h.Number.Int64() - int64(ef.config.MinBlockChainDepth)
 			if toHeight < fromHeight {
 				continue
 			}
@@ -74,18 +84,19 @@ func (qf *QueryFeed) Start(ctx context.Context, fromHeight int64, ch chan<- even
 			// doing a cold syncing or have fall behind after a long stop.
 			// i.e: asking for events in a 100k blocks can cause problems in the API
 			// call, require too much bandwidth or memory.
-			if toHeight-fromHeight > maxLogsBatchSize {
-				toHeight = fromHeight + maxLogsBatchSize
+			// Note that toHeight and fromHeight are inclusive.
+			if toHeight-fromHeight+1 > int64(ef.config.MaxEventsBatchSize) {
+				toHeight = fromHeight + int64(ef.config.MaxEventsBatchSize) - 1
 			}
 
 			// Ask for the desired events between fromHeight to toHeight.
 			query := ethereum.FilterQuery{
 				FromBlock: big.NewInt(fromHeight),
 				ToBlock:   big.NewInt(toHeight),
-				Addresses: []common.Address{qf.scAddress},
+				Addresses: []common.Address{ef.scAddress},
 				Topics:    [][]common.Hash{filterTopics},
 			}
-			logs, err := qf.ethClient.FilterLogs(ctx, query)
+			logs, err := ef.ethClient.FilterLogs(ctx, query)
 			if err != nil {
 				// If we got an error here, log it but allow to be retried
 				// in the next head. Probably the API can have transient unavailability.
@@ -112,7 +123,7 @@ func (qf *QueryFeed) Start(ctx context.Context, fromHeight int64, ch chan<- even
 					}
 				}
 
-				event, err := qf.parseEvent(l)
+				event, err := ef.parseEvent(l)
 				if err != nil {
 					return fmt.Errorf("couldn't parse event: %s", err)
 				}
@@ -133,10 +144,10 @@ func (qf *QueryFeed) Start(ctx context.Context, fromHeight int64, ch chan<- even
 // Every possible type in the interface{} is an auto-generated struct by
 // `make ethereum` named `Contract*` (e.g: ContractRunSQL, ContractTransfer, etc).
 // See this mapping in the `supportedEvents` map global variable in this file.
-func (qf *QueryFeed) parseEvent(l types.Log) (interface{}, error) {
+func (ef *EventFeed) parseEvent(l types.Log) (interface{}, error) {
 	// We get an event descriptior from the common.Hash value that is always
 	// in Topic[0] in events. This is an ID for the kind of event.
-	eventDescr, err := qf.contractAbi.EventByID(l.Topics[0])
+	eventDescr, err := ef.contractAbi.EventByID(l.Topics[0])
 	if err != nil {
 		return nil, fmt.Errorf("detecting event type: %s", err)
 	}
@@ -153,7 +164,7 @@ func (qf *QueryFeed) parseEvent(l types.Log) (interface{}, error) {
 	// First, we unmarshal the information contained in the `data` of the event, which
 	// are non-indexed fields of the event.
 	if len(l.Data) > 0 {
-		if err := qf.contractAbi.UnpackIntoInterface(i, eventDescr.Name, l.Data); err != nil {
+		if err := ef.contractAbi.UnpackIntoInterface(i, eventDescr.Name, l.Data); err != nil {
 			return nil, fmt.Errorf("unpacking into interface: %s", err)
 		}
 	}
@@ -175,7 +186,7 @@ func (qf *QueryFeed) parseEvent(l types.Log) (interface{}, error) {
 	return i, nil
 }
 
-func (qf *QueryFeed) getTopicsForEventTypes(ets []eventfeed.EventType) ([]common.Hash, error) {
+func (ef *EventFeed) getTopicsForEventTypes(ets []eventfeed.EventType) ([]common.Hash, error) {
 	for _, fet := range ets {
 		if _, ok := eventfeed.SupportedEvents[fet]; !ok {
 			return nil, fmt.Errorf("event type filter %s isn't supported", fet)
@@ -183,7 +194,7 @@ func (qf *QueryFeed) getTopicsForEventTypes(ets []eventfeed.EventType) ([]common
 	}
 	topics := make([]common.Hash, len(ets))
 	for i, et := range ets {
-		e, ok := qf.contractAbi.Events[string(et)]
+		e, ok := ef.contractAbi.Events[string(et)]
 		if !ok {
 			return nil, fmt.Errorf("event type %s wasn't found in compiled contract", et)
 		}
@@ -195,8 +206,8 @@ func (qf *QueryFeed) getTopicsForEventTypes(ets []eventfeed.EventType) ([]common
 // notifyNewHeads will send to the provided channel new detected heads in the chain.
 // It's mandatory that the caller cancels the provided context to gracefully close the background process.
 // When this happens the provided channel will be closed.
-func (qf *QueryFeed) notifyNewHeads(ctx context.Context, ch chan *types.Header) error {
-	subHeader, err := qf.ethClient.SubscribeNewHead(ctx, ch)
+func (ef *EventFeed) notifyNewHeads(ctx context.Context, ch chan *types.Header) error {
+	subHeader, err := ef.ethClient.SubscribeNewHead(ctx, ch)
 	if err != nil {
 		return fmt.Errorf("subscribing to new heads: %s", err)
 	}

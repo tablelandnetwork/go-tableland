@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
+	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	"github.com/textileio/go-tableland/pkg/parsing"
-	"github.com/textileio/go-tableland/pkg/queryfeed"
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/txn"
 )
@@ -17,7 +17,7 @@ import (
 type FeedProcessor struct {
 	parser parsing.SQLValidator
 	txnp   txn.TxnProcessor
-	qf     queryfeed.QueryFeed
+	qf     eventfeed.EventFeed
 
 	lock           sync.Mutex
 	daemonCtx      context.Context
@@ -25,7 +25,7 @@ type FeedProcessor struct {
 	daemonCanceled chan struct{}
 }
 
-func New(parser parsing.SQLValidator, txnp txn.TxnProcessor, qf queryfeed.QueryFeed) *FeedProcessor {
+func New(parser parsing.SQLValidator, txnp txn.TxnProcessor, qf eventfeed.EventFeed) *FeedProcessor {
 	return &FeedProcessor{
 		parser: parser,
 		txnp:   txnp,
@@ -70,7 +70,7 @@ func (fp *FeedProcessor) StopSync() {
 func (fp *FeedProcessor) daemon() {
 	log.Debug().Msg("starting feed processor daemon")
 
-	ch := make(chan queryfeed.BlockEvents)
+	ch := make(chan eventfeed.BlockEvents)
 
 	b, err := fp.txnp.OpenBatch(fp.daemonCtx)
 	if err != nil {
@@ -94,7 +94,7 @@ func (fp *FeedProcessor) daemon() {
 
 	go func() {
 		defer close(ch)
-		if err := fp.qf.Start(fp.daemonCtx, int64(fromHeight), ch, []queryfeed.EventType{queryfeed.RunSQL}); err != nil {
+		if err := fp.qf.Start(fp.daemonCtx, int64(fromHeight), ch, []eventfeed.EventType{eventfeed.RunSQL}); err != nil {
 			fp.StopSync()
 			return
 		}
@@ -113,7 +113,7 @@ func (fp *FeedProcessor) daemon() {
 	}
 }
 
-func (fp *FeedProcessor) runBlockQueries(ctx context.Context, bqs queryfeed.BlockEvents) error {
+func (fp *FeedProcessor) runBlockQueries(ctx context.Context, bqs eventfeed.BlockEvents) error {
 	b, err := fp.txnp.OpenBatch(ctx)
 	if err != nil {
 		return fmt.Errorf("opening batch: %s", err)
