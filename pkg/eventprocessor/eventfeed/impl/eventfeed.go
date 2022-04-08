@@ -1,4 +1,4 @@
-package queryfeed
+package impl
 
 import (
 	"context"
@@ -11,52 +11,17 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/rs/zerolog/log"
+	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	tbleth "github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
 )
 
-const (
-	// TODO(jsign): make these options
-	maxLogsBatchSize = 1000
-	minChainDepth    = 0
-)
-
-type BlockEvents struct {
-	BlockNumber int64
-	Events      []interface{}
-}
-
-type EthClient interface {
-	SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error)
-	FilterLogs(ctx context.Context, query ethereum.FilterQuery) ([]types.Log, error)
-	HeaderByNumber(ctx context.Context, block *big.Int) (*types.Header, error)
-}
-
 type QueryFeed struct {
-	ethClient   EthClient
+	ethClient   eventfeed.EthClient
 	scAddress   common.Address
 	contractAbi *abi.ABI
 }
 
-type MutStatement struct {
-	Height    uint64
-	Statement string
-}
-
-type EventType string
-
-const (
-	RunSQL   EventType = "RunSQL"
-	Transfer           = "Transfer"
-)
-
-var (
-	supportedEvents = map[string]reflect.Type{
-		"RunSQL":   reflect.TypeOf(tbleth.ContractRunSQL{}),
-		"Transfer": reflect.TypeOf(tbleth.ContractTransfer{}),
-	}
-)
-
-func New(ethClient EthClient, scAddress common.Address) (*QueryFeed, error) {
+func New(ethClient eventfeed.EthClient, scAddress common.Address) (*QueryFeed, error) {
 	contractAbi, err := tbleth.ContractMetaData.GetAbi()
 	if err != nil {
 		return nil, fmt.Errorf("get contract-abi: %s", err)
@@ -68,7 +33,7 @@ func New(ethClient EthClient, scAddress common.Address) (*QueryFeed, error) {
 	}, nil
 }
 
-func (qf *QueryFeed) Start(ctx context.Context, fromHeight int64, ch chan<- BlockEvents, filterEventTypes []EventType) error {
+func (qf *QueryFeed) Start(ctx context.Context, fromHeight int64, ch chan<- eventfeed.BlockEvents, filterEventTypes []eventfeed.EventType) error {
 	// Spinup a background process that will post to chHeads when a new block is detected.
 	// This channel will be the heart-beat to pull new logs from the chain.
 	//
@@ -136,13 +101,13 @@ func (qf *QueryFeed) Start(ctx context.Context, fromHeight int64, ch chan<- Bloc
 			// We received new events. We'll group/pack them by block number in
 			// BLockEvents structs, and send them to the `ch` channel provided
 			// by the caller.
-			bq := BlockEvents{
+			bq := eventfeed.BlockEvents{
 				BlockNumber: int64(logs[0].BlockNumber),
 			}
 			for _, l := range logs {
 				if bq.BlockNumber != int64(l.BlockNumber) {
 					ch <- bq
-					bq = BlockEvents{
+					bq = eventfeed.BlockEvents{
 						BlockNumber: int64(l.BlockNumber),
 					}
 				}
@@ -176,7 +141,7 @@ func (qf *QueryFeed) parseEvent(l types.Log) (interface{}, error) {
 		return nil, fmt.Errorf("detecting event type: %s", err)
 	}
 
-	se, ok := supportedEvents[eventDescr.Name]
+	se, ok := eventfeed.SupportedEvents[eventfeed.EventType(eventDescr.Name)]
 	if !ok {
 		return nil, fmt.Errorf("unknown event type %s", eventDescr.Name)
 	}
@@ -210,9 +175,9 @@ func (qf *QueryFeed) parseEvent(l types.Log) (interface{}, error) {
 	return i, nil
 }
 
-func (qf *QueryFeed) getTopicsForEventTypes(ets []EventType) ([]common.Hash, error) {
+func (qf *QueryFeed) getTopicsForEventTypes(ets []eventfeed.EventType) ([]common.Hash, error) {
 	for _, fet := range ets {
-		if _, ok := supportedEvents[string(fet)]; !ok {
+		if _, ok := eventfeed.SupportedEvents[fet]; !ok {
 			return nil, fmt.Errorf("event type filter %s isn't supported", fet)
 		}
 	}

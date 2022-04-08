@@ -1,4 +1,4 @@
-package feedprocessor
+package eventprocessor
 
 import (
 	"context"
