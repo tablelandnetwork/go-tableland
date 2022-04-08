@@ -1,4 +1,4 @@
-package queryfeed
+package impl
 
 import (
 	"context"
