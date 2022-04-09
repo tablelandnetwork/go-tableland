@@ -62,6 +62,7 @@ func (ep *EventProcessor) StartSync() error {
 		return fmt.Errorf("background daemon failed starting: %s", err)
 	}
 
+	log.Info().Msg("syncer started")
 	return nil
 }
 
@@ -72,7 +73,7 @@ func (ep *EventProcessor) StopSync() {
 		return
 	}
 
-	log.Debug().Msg("stopping gracefully")
+	log.Debug().Msg("stopping syncer gracefully...")
 	ep.daemonCancel()
 	<-ep.daemonCanceled
 
@@ -80,32 +81,27 @@ func (ep *EventProcessor) StopSync() {
 	ep.daemonCancel = nil
 	ep.daemonCanceled = nil
 
-	log.Debug().Msg("fully stopped")
+	log.Debug().Msg("syncer stopped")
 }
 
 func (fp *EventProcessor) startDaemon() error {
 	log.Debug().Msg("starting daemon")
 
-	ch := make(chan eventfeed.BlockEvents)
-
-	b, err := fp.txnp.OpenBatch(fp.daemonCtx)
+	ctx, cls := context.WithTimeout(fp.daemonCtx, time.Second*10)
+	defer cls()
+	b, err := fp.txnp.OpenBatch(ctx)
 	if err != nil {
 		return fmt.Errorf("opening batch in daemon: %s", err)
 	}
-
-	ctx, cls := context.WithTimeout(fp.daemonCtx, time.Second*5)
-	defer cls()
 	fromHeight, err := b.GetLastProcessedHeight(ctx)
 	if err != nil {
 		log.Err(err).Msg("getting last processed height")
 	}
-	ctx, cls = context.WithTimeout(fp.daemonCtx, time.Second*5)
-	defer cls()
-
-	if err := b.Close(fp.daemonCtx); err != nil {
+	if err := b.Close(ctx); err != nil {
 		return fmt.Errorf("closing batch: %s", err)
 	}
 
+	ch := make(chan eventfeed.BlockEvents)
 	go func() {
 		defer close(ch)
 		if err := fp.qf.Start(fp.daemonCtx, int64(fromHeight), ch, []eventfeed.EventType{eventfeed.RunSQL}); err != nil {
@@ -117,6 +113,7 @@ func (fp *EventProcessor) startDaemon() error {
 	}()
 
 	go func() {
+		defer close(fp.daemonCanceled)
 		for {
 			select {
 			case bqs, ok := <-ch:
