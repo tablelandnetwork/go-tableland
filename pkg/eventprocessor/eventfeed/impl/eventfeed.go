@@ -70,6 +70,7 @@ func (ef *EventFeed) Start(ctx context.Context, fromHeight int64, ch chan<- even
 				log.Info().Msg("new head channel was closed, closing gracefully")
 				return nil
 			}
+			// TODO(jsign): increase a counter metric
 			log.Debug().Int64("height", h.Number.Int64()).Msg("received new chain header")
 
 			// Recall that we only accept as "final" blocks the one that are at least
@@ -134,6 +135,7 @@ func (ef *EventFeed) Start(ctx context.Context, fromHeight int64, ch chan<- even
 
 			// Update our fromHeight to the latest processed height plus one.
 			fromHeight = bq.BlockNumber + 1
+			// TODO(jsign): metric for "fromHeight"
 		}
 	}
 }
@@ -182,6 +184,8 @@ func (ef *EventFeed) parseEvent(l types.Log) (interface{}, error) {
 	// to us, it's just how Ethereum works.
 	// This parsedEvent(...) function was coded in a generic way, so it will hardly
 	// ever change.
+
+	// TODO(jsign): add counter of parsed events per event type.
 
 	return i, nil
 }
