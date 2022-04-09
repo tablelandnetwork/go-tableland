@@ -5,7 +5,6 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 	"testing"
@@ -325,7 +324,7 @@ func processCSV(t *testing.T, controller string, tbld tableland.Tableland, csvPa
 	baseReq := tableland.RunSQLRequest{
 		Controller: controller,
 	}
-	records := readCsvFile(csvPath)
+	records := readCsvFile(t, csvPath)
 	for _, record := range records {
 		req := baseReq
 		req.Statement = record[1]
@@ -340,17 +339,19 @@ func processCSV(t *testing.T, controller string, tbld tableland.Tableland, csvPa
 	}
 }
 
-func readCsvFile(filePath string) [][]string {
+func readCsvFile(t *testing.T, filePath string) [][]string {
+	t.Helper()
+
 	f, err := os.Open(filePath)
 	if err != nil {
-		log.Fatal("Unable to read input file "+filePath, err)
+		t.Fatalf("unable to read input file "+filePath, err)
 	}
 	defer f.Close() // nolint
 
 	csvReader := csv.NewReader(f)
 	records, err := csvReader.ReadAll()
 	if err != nil {
-		log.Fatal("Unable to parse file as CSV for "+filePath, err)
+		t.Fatalf("unable to parse file as CSV for "+filePath, err)
 	}
 
 	return records

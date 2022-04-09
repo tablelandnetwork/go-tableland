@@ -10,11 +10,13 @@ import (
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/rs/zerolog/log"
+	logger "github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/txn"
 )
+
+var log = logger.With().Str("component", "txnprocessor").Logger()
 
 // TblTxnProcessor executes mutating actions in a Tableland database.
 type TblTxnProcessor struct {
