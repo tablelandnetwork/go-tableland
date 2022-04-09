@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
+	"time"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -46,6 +47,8 @@ func New(ethClient eventfeed.EthClient, scAddress common.Address, opts ...eventf
 }
 
 func (ef *EventFeed) Start(ctx context.Context, fromHeight int64, ch chan<- eventfeed.BlockEvents, filterEventTypes []eventfeed.EventType) error {
+	log.Debug().Msg("starting...")
+	defer log.Debug().Msg("stopped")
 	// Spinup a background process that will post to chHeads when a new block is detected.
 	// This channel will be the heart-beat to pull new logs from the chain.
 	//
@@ -75,69 +78,77 @@ func (ef *EventFeed) Start(ctx context.Context, fromHeight int64, ch chan<- even
 			// TODO(jsign): increase a counter metric
 			log.Debug().Int64("height", h.Number.Int64()).Msg("received new chain header")
 
-			// Recall that we only accept as "final" blocks the one that are at least
-			// minChainDepth behind the new known head. This is done to avoid reorgs
-			// sideffects.
-			toHeight := h.Number.Int64() - int64(ef.config.MinBlockChainDepth)
-			if toHeight < fromHeight {
-				continue
-			}
-
-			// Put a cap on how big the query will be. This is important if we are
-			// doing a cold syncing or have fall behind after a long stop.
-			// i.e: asking for events in a 100k blocks can cause problems in the API
-			// call, require too much bandwidth or memory.
-			// Note that toHeight and fromHeight are inclusive.
-			if toHeight-fromHeight+1 > int64(ef.config.MaxEventsBatchSize) {
-				toHeight = fromHeight + int64(ef.config.MaxEventsBatchSize) - 1
-			}
-
-			// Ask for the desired events between fromHeight to toHeight.
-			query := ethereum.FilterQuery{
-				FromBlock: big.NewInt(fromHeight),
-				ToBlock:   big.NewInt(toHeight),
-				Addresses: []common.Address{ef.scAddress},
-				Topics:    [][]common.Hash{filterTopics},
-			}
-			logs, err := ef.ethClient.FilterLogs(ctx, query)
-			if err != nil {
-				// If we got an error here, log it but allow to be retried
-				// in the next head. Probably the API can have transient unavailability.
-				log.Warn().Err(err).Msgf("filter logs from %d to %d", fromHeight, toHeight)
-				continue
-			}
-
-			// If there're no events, nothing to do here.
-			if len(logs) == 0 {
-				continue
-			}
-
-			// We received new events. We'll group/pack them by block number in
-			// BLockEvents structs, and send them to the `ch` channel provided
-			// by the caller.
-			bq := eventfeed.BlockEvents{
-				BlockNumber: int64(logs[0].BlockNumber),
-			}
-			for _, l := range logs {
-				if bq.BlockNumber != int64(l.BlockNumber) {
-					ch <- bq
-					bq = eventfeed.BlockEvents{
-						BlockNumber: int64(l.BlockNumber),
-					}
+			// We do a for loop since we'll try to catch from fromHeight to the new reported
+			// head in batches with max size MaxEventsBatchSize. This is important to
+			// avoid asking the API for very big ranges (e.g: newHead - fromHeight > 100k) since
+			// that could would be too big (i.e: make the API fail, the response would be too big,
+			// and would consume too much memory).
+			for {
+				if ctx.Err() != nil {
+					break
 				}
 
-				event, err := ef.parseEvent(l)
+				// Recall that we only accept as "final" blocks the one that are at least
+				// minChainDepth behind the new known head. This is done to avoid reorgs
+				// sideffects.
+				toHeight := h.Number.Int64() - int64(ef.config.MinBlockChainDepth)
+				if toHeight < fromHeight {
+					break
+				}
+
+				if toHeight-fromHeight+1 > int64(ef.config.MaxEventsBatchSize) {
+					toHeight = fromHeight + int64(ef.config.MaxEventsBatchSize) - 1
+				}
+
+				// Ask for the desired events between fromHeight to toHeight.
+				query := ethereum.FilterQuery{
+					FromBlock: big.NewInt(fromHeight),
+					ToBlock:   big.NewInt(toHeight),
+					Addresses: []common.Address{ef.scAddress},
+					Topics:    [][]common.Hash{filterTopics},
+				}
+				log.Debug().Int64("from", fromHeight).Int64("to", toHeight).Msg("calling filter logs")
+				logs, err := ef.ethClient.FilterLogs(ctx, query)
 				if err != nil {
-					return fmt.Errorf("couldn't parse event: %s", err)
+					// If we got an error here, log it but allow to be retried
+					// in the next head. Probably the API can have transient unavailability.
+					log.Warn().Err(err).Msgf("filter logs from %d to %d", fromHeight, toHeight)
+					time.Sleep(ef.config.ChainAPIBackoff)
+					continue
 				}
-				bq.Events = append(bq.Events, event)
-			}
-			// Sent last block events construction of the loop.
-			ch <- bq
 
-			// Update our fromHeight to the latest processed height plus one.
-			fromHeight = bq.BlockNumber + 1
-			// TODO(jsign): metric for "fromHeight"
+				// If there're no events, nothing to do here.
+				if len(logs) == 0 {
+					log.Debug().Msg("no filter logs")
+				} else {
+					// We received new events. We'll group/pack them by block number in
+					// BLockEvents structs, and send them to the `ch` channel provided
+					// by the caller.
+					bq := eventfeed.BlockEvents{
+						BlockNumber: int64(logs[0].BlockNumber),
+					}
+					for _, l := range logs {
+						if bq.BlockNumber != int64(l.BlockNumber) {
+							ch <- bq
+							bq = eventfeed.BlockEvents{
+								BlockNumber: int64(l.BlockNumber),
+							}
+						}
+
+						event, err := ef.parseEvent(l)
+						if err != nil {
+							return fmt.Errorf("couldn't parse event: %s", err)
+						}
+						bq.Events = append(bq.Events, event)
+					}
+					// Sent last block events construction of the loop.
+					ch <- bq
+				}
+
+				// Update our fromHeight to the latest processed height plus one.
+				fromHeight = toHeight + 1
+				// TODO(jsign): metric for "fromHeight"
+			}
 		}
 	}
 }
@@ -213,6 +224,12 @@ func (ef *EventFeed) getTopicsForEventTypes(ets []eventfeed.EventType) ([]common
 // It's mandatory that the caller cancels the provided context to gracefully close the background process.
 // When this happens the provided channel will be closed.
 func (ef *EventFeed) notifyNewHeads(ctx context.Context, ch chan *types.Header) error {
+	h, err := ef.ethClient.HeaderByNumber(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("get current head: %s", err)
+	}
+	ch <- h
+
 	subHeader, err := ef.ethClient.SubscribeNewHead(ctx, ch)
 	if err != nil {
 		return fmt.Errorf("subscribing to new heads: %s", err)
