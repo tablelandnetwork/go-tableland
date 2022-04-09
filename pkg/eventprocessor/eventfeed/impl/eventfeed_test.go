@@ -81,10 +81,14 @@ func TestStartForTwoEventTypes(t *testing.T) {
 	qf, err := New(backend, addr, eventfeed.WithMinBlockChainDepth(0))
 	require.NoError(t, err)
 
+	ctx, cls := context.WithCancel(context.Background())
+	defer cls()
+	chFeedClosed := make(chan struct{})
 	ch := make(chan eventfeed.BlockEvents)
 	go func() {
-		err := qf.Start(context.Background(), 0, ch, []eventfeed.EventType{eventfeed.RunSQL, eventfeed.Transfer})
+		err := qf.Start(ctx, 0, ch, []eventfeed.EventType{eventfeed.RunSQL, eventfeed.Transfer})
 		require.NoError(t, err)
+		close(chFeedClosed)
 	}()
 
 	ctrl := common.HexToAddress("0xB0Cf943Cf94E7B6A2657D15af41c5E06c2BFEA3D")
@@ -103,9 +107,11 @@ func TestStartForTwoEventTypes(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatalf("didn't receive expected log")
 	}
-}
 
-// TODO(jsign): TestStartCancelation(...)
+	// Test graceful closing.
+	cls()
+	<-chFeedClosed
+}
 
 func TestInfura(t *testing.T) {
 	t.Parallel()
