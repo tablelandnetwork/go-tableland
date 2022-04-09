@@ -32,17 +32,19 @@ type EventProcessor struct {
 func New(parser parsing.SQLValidator,
 	txnp txn.TxnProcessor,
 	qf eventfeed.EventFeed,
-	opts ...eventprocessor.Option) *EventProcessor {
+	opts ...eventprocessor.Option) (*EventProcessor, error) {
 	config := eventprocessor.DefaultConfig()
 	for _, op := range opts {
-		op(config)
+		if err := op(config); err != nil {
+			return nil, fmt.Errorf("applying option: %s", err)
+		}
 	}
 	return &EventProcessor{
 		parser: parser,
 		txnp:   txnp,
 		qf:     qf,
 		config: config,
-	}
+	}, nil
 }
 
 func (ep *EventProcessor) StartSync() error {

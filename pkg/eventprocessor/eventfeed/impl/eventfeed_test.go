@@ -2,32 +2,26 @@ package impl
 
 import (
 	"context"
-	"math"
-	"math/big"
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
+	"github.com/textileio/go-tableland/pkg/tableregistry/impl/testutil"
 )
 
 func TestStart(t *testing.T) {
 	t.Parallel()
 
-	backend, addr, sc, authOpts := setup(t)
-
-	controller := common.HexToAddress("0xB0Cf943Cf94E7B6A2657D15af41c5E06c2BFEA3D")
+	backend, addr, sc, authOpts := testutil.Setup(t)
 	qf, err := New(backend, addr, eventfeed.WithMinBlockChainDepth(0))
 	require.NoError(t, err)
 
+	ctrl := common.HexToAddress("0xB0Cf943Cf94E7B6A2657D15af41c5E06c2BFEA3D")
 	// Make one call before start listening.
-	_, err = sc.RunSQL(authOpts, "tbl-1", controller, "stmt-1")
+	_, err = sc.RunSQL(authOpts, "tbl-1", ctrl, "stmt-1")
 	require.NoError(t, err)
 	backend.Commit()
 
@@ -50,7 +44,7 @@ func TestStart(t *testing.T) {
 	}
 
 	// Make a second call, that should be detected as a new event next.
-	_, err = sc.RunSQL(authOpts, "tbl-2", controller, "stmt-2")
+	_, err = sc.RunSQL(authOpts, "tbl-2", ctrl, "stmt-2")
 	require.NoError(t, err)
 	backend.Commit()
 	select {
@@ -62,9 +56,9 @@ func TestStart(t *testing.T) {
 	}
 
 	// Try making two calls in a single block now, and assert we receive things correctly.
-	_, err = sc.RunSQL(authOpts, "tbl-3", controller, "stmt-3")
+	_, err = sc.RunSQL(authOpts, "tbl-3", ctrl, "stmt-3")
 	require.NoError(t, err)
-	_, err = sc.RunSQL(authOpts, "tbl-4", controller, "stmt-4")
+	_, err = sc.RunSQL(authOpts, "tbl-4", ctrl, "stmt-4")
 	require.NoError(t, err)
 	backend.Commit()
 	select {
@@ -80,9 +74,7 @@ func TestStart(t *testing.T) {
 func TestStartForTwoEventTypes(t *testing.T) {
 	t.Parallel()
 
-	backend, addr, sc, authOpts := setup(t)
-
-	controller := common.HexToAddress("0xB0Cf943Cf94E7B6A2657D15af41c5E06c2BFEA3D")
+	backend, addr, sc, authOpts := testutil.Setup(t)
 	qf, err := New(backend, addr, eventfeed.WithMinBlockChainDepth(0))
 	require.NoError(t, err)
 
@@ -92,8 +84,9 @@ func TestStartForTwoEventTypes(t *testing.T) {
 		require.NoError(t, err)
 	}()
 
+	ctrl := common.HexToAddress("0xB0Cf943Cf94E7B6A2657D15af41c5E06c2BFEA3D")
 	// Make two calls to different functions emiting different events
-	_, err = sc.RunSQL(authOpts, "tbl-2", controller, "stmt-2")
+	_, err = sc.RunSQL(authOpts, "tbl-2", ctrl, "stmt-2")
 	require.NoError(t, err)
 	_, err = sc.SafeMint(authOpts, common.HexToAddress("0xB0Cf943Cf94E7B6A2657D15af41c5E06c2BFEA3E"))
 	require.NoError(t, err)
@@ -110,32 +103,3 @@ func TestStartForTwoEventTypes(t *testing.T) {
 }
 
 // TOOD(jsign): TestStartCancelation(...)
-
-func setup(t *testing.T) (*backends.SimulatedBackend, common.Address, *ethereum.Contract, *bind.TransactOpts) {
-	key, err := crypto.GenerateKey()
-	require.NoError(t, err)
-	auth := bind.NewKeyedTransactor(key) //nolint
-
-	alloc := make(core.GenesisAlloc)
-	alloc[auth.From] = core.GenesisAccount{Balance: big.NewInt(math.MaxInt64)}
-	backend := backends.NewSimulatedBackend(alloc, math.MaxInt64)
-	gas, err := backend.SuggestGasPrice(context.Background())
-	require.NoError(t, err)
-	auth.GasPrice = gas
-
-	//Deploy contract
-	address, _, contract, err := ethereum.DeployContract(
-		auth,
-		backend,
-	)
-
-	// commit all pending transactions
-	backend.Commit()
-
-	require.NoError(t, err)
-
-	if len(address.Bytes()) == 0 {
-		t.Error("Expected a valid deployment address. Received empty address byte array instead")
-	}
-	return backend, address, contract, auth
-}
