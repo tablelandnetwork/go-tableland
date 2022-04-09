@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/jackc/pgconn"
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -161,6 +162,7 @@ func (b *batch) ExecWriteQueries(
 			if mqName != "" && dbName != mqName {
 				return fmt.Errorf("table name prefix doesn't match (exp %s, got %s)", dbName, mqName)
 			}
+<<<<<<< HEAD
 
 			switch stmt := mq.(type) {
 			case parsing.SugaredGrantStmt:
@@ -172,6 +174,34 @@ func (b *batch) ExecWriteQueries(
 				err := b.executeWriteStmt(ctx, tx, stmt, controller, beforeRowCount)
 				if err != nil {
 					return fmt.Errorf("executing write stmt: %w", err)
+=======
+			desugared, err := mq.GetDesugaredQuery()
+			if err != nil {
+				return fmt.Errorf("get desugared query: %s", err)
+			}
+			cmdTag, err := tx.Exec(ctx, desugared)
+			if err != nil {
+				var pgErr *pgconn.PgError
+				if errors.As(err, &pgErr) {
+					log.Info().Str("pgxErrorCode", pgErr.Code).Msg("query execution soft-fail")
+					switch pgErr.Code {
+					case "22P02": // wrong type for column
+						return &txn.ErrQueryExecution{
+							Code: pgErr.Code,
+							Msg:  err.Error(),
+						}
+					}
+				}
+				return fmt.Errorf("exec query: %s", err)
+			}
+			if b.tp.maxTableRowCount > 0 && cmdTag.Insert() {
+				afterRowCount := beforeRowCount + int(cmdTag.RowsAffected())
+				if afterRowCount > b.tp.maxTableRowCount {
+					return &txn.ErrRowCountExceeded{
+						BeforeRowCount: beforeRowCount,
+						AfterRowCount:  afterRowCount,
+					}
+>>>>>>> 8226c01... eventprocessor: test hardening and manage soft-fail errors
 				}
 			default:
 				return fmt.Errorf("unknown stmt type")

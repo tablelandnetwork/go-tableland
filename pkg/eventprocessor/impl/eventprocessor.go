@@ -170,31 +170,15 @@ func (fp *EventProcessor) runBlockQueries(ctx context.Context, bqs eventfeed.Blo
 		return fmt.Errorf("last processed height %d isn't smaller than new height %d", lastHeight, bqs.BlockNumber)
 	}
 
-	// Execute each query event and track the execution trace.
-	//traces := make([]txn.TxnExecutionTrace, len(bqs.Queries))
 	for _, e := range bqs.Events {
-		/* TODO(jsign)
-		traces[i] = txn.TxnExecutionTrace{
-			BlockNumber: bqs.BlockNumber,
-			Query:       q,
-			Error:       fp.executeQuery(ctx, b, q),
-		}
-		*/
 		if err := fp.executeEvent(ctx, b, e); err != nil {
-			log.Warn().Err(err).Msg("executing query")
+			return fmt.Errorf("executing query: %s", err)
 		}
 
 	}
-
-	/* TODO(jsign)
-	// Persist the execution trace for this block height. This is done for
-	// debuggability, history tracking, and potentially future state-comparison between validators.
-	if err := fp.txnp.SaveBlockQueriesTrace(ctx, bqs); err != nil {
-		return fmt.Errorf("saving block queries: %s", err)
-	}
-	*/
 
 	// Update the last processed height.
+	log.Debug().Int64("lastProcessedHeieght", bqs.BlockNumber).Msg("new last processed height")
 	if err := b.SetLastProcessedHeight(ctx, bqs.BlockNumber); err != nil {
 		return fmt.Errorf("set new processed height %d: %s", bqs.BlockNumber, err)
 	}
@@ -212,6 +196,7 @@ func (fp *EventProcessor) runBlockQueries(ctx context.Context, bqs eventfeed.Blo
 func (fp *EventProcessor) executeEvent(ctx context.Context, b txn.Batch, e interface{}) error {
 	switch e := e.(type) {
 	case *ethereum.ContractRunSQL:
+		log.Debug().Str("statement", e.Statement).Msgf("executing run-sql event")
 		readStmt, mutatingStmts, err := fp.parser.ValidateRunSQL(e.Statement)
 		if err != nil {
 			return fmt.Errorf("validating query: %s", err)
@@ -220,6 +205,11 @@ func (fp *EventProcessor) executeEvent(ctx context.Context, b txn.Batch, e inter
 			return errors.New("query is a read statement")
 		}
 		if err := b.ExecWriteQueries(ctx, mutatingStmts); err != nil {
+			var pgErr *txn.ErrQueryExecution
+			if errors.As(err, &pgErr) {
+				log.Info().Str("code", pgErr.Code).Str("msg", pgErr.Msg).Msg("query execution failure")
+				return nil
+			}
 			return fmt.Errorf("executing mutating-query: %s", err)
 		}
 	default:

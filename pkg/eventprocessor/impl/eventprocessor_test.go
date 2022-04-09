@@ -19,8 +19,7 @@ import (
 	"github.com/textileio/go-tableland/tests"
 )
 
-// TODO(jsign): add tests
-func TestBlockWithSingleEvent(t *testing.T) {
+func TestBlockProcessing(t *testing.T) {
 	t.Parallel()
 
 	cond := func(dr dbReader, exp []int) func() bool {
@@ -60,20 +59,33 @@ func TestBlockWithSingleEvent(t *testing.T) {
 		require.Never(t, cond(dbReader, notExpectedRows), time.Second*5, time.Millisecond*100)
 
 	})
-}
-
-func TestBlockWithTwoEvents(t *testing.T) {
-	t.Parallel()
-
 	t.Run("success-success", func(t *testing.T) {
+		t.Parallel()
+		contractSendRunSQL, dbReader := setup(t)
+		queries := []string{"insert into test_1 values (1001)", "insert into test_1 values (1002)"}
+		contractSendRunSQL(queries)
+
+		expectedRows := []int{1001, 1002}
+		require.Eventually(t, cond(dbReader, expectedRows), time.Second*5, time.Millisecond*100)
 	})
-	t.Run("failure-success", func(t *testing.T) {})
-	t.Run("success-failure", func(t *testing.T) {})
-}
+	t.Run("failure-success", func(t *testing.T) {
+		t.Parallel()
+		contractSendRunSQL, dbReader := setup(t)
+		queries := []string{"insert into test_1 values ('abc')", "insert into test_1 values (1002)"}
+		contractSendRunSQL(queries)
 
-func eventuallyExpectedRows(t *testing.T, dr dbReader, exp []int) {
-	t.Helper()
+		expectedRows := []int{1002}
+		require.Eventually(t, cond(dbReader, expectedRows), time.Second*5, time.Millisecond*100)
+	})
+	t.Run("success-failure", func(t *testing.T) {
+		t.Parallel()
+		contractSendRunSQL, dbReader := setup(t)
+		queries := []string{"insert into test_1 values (1001)", "insert into test_1 values ('abc')"}
+		contractSendRunSQL(queries)
 
+		expectedRows := []int{1001}
+		require.Eventually(t, cond(dbReader, expectedRows), time.Second*5, time.Millisecond*100)
+	})
 }
 
 type dbReader func(string) []int

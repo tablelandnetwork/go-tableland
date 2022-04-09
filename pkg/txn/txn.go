@@ -61,3 +61,13 @@ func (e *ErrRowCountExceeded) Error() string {
 	return fmt.Sprintf("table maximum row count exceeded (before %d, after %d)",
 		e.BeforeRowCount, e.AfterRowCount)
 }
+
+type ErrQueryExecution struct {
+	Code string
+	Msg  string
+}
+
+func (e *ErrQueryExecution) Error() string {
+	return fmt.Sprintf("query execution failed with code %s: %s",
+		e.Code, e.Msg)
+}
