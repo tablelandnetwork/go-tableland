@@ -192,6 +192,10 @@ func (b *batch) GetLastProcessedHeight(ctx context.Context) (int64, error) {
 	f := func(tx pgx.Tx) error {
 		r := tx.QueryRow(ctx, "SELECT block_number FROM txn_processor LIMIT 1")
 		if err := r.Scan(&blockNumber); err != nil {
+			if err == pgx.ErrNoRows {
+				blockNumber = 0
+				return nil
+			}
 			return fmt.Errorf("get last block number query: %s", err)
 		}
 		return nil

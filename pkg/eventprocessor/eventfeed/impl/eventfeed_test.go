@@ -108,6 +108,8 @@ func TestStartForTwoEventTypes(t *testing.T) {
 // TODO(jsign): TestStartCancelation(...)
 
 func TestInfura(t *testing.T) {
+	t.Parallel()
+
 	infuraAPI := os.Getenv("INFURA_API")
 	if infuraAPI == "" {
 		t.Skipf("no infura API present in env INFURA_API")

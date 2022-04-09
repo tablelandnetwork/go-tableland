@@ -1,12 +1,19 @@
 package eventprocessor
 
 import (
+	"context"
+	"math/big"
 	"testing"
+	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
+	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
+	"github.com/textileio/go-tableland/pkg/sqlstore"
+	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/testutil"
 	txnpimpl "github.com/textileio/go-tableland/pkg/txn/impl"
 	"github.com/textileio/go-tableland/tests"
@@ -16,23 +23,63 @@ import (
 func TestBlockWithSingleEvent(t *testing.T) {
 	t.Parallel()
 
+	cond := func(dr dbReader, exp []int) func() bool {
+		return func() bool {
+			got := dr("select * from test_1")
+			if len(exp) != len(got) {
+				return false
+			}
+			for i := range exp {
+				if exp[i] != got[i] {
+					return false
+				}
+			}
+			return true
+		}
+	}
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
+		contractSendRunSQL, dbReader := setup(t)
+		queries := []string{"insert into test_1 values (1001)"}
+		contractSendRunSQL(queries)
+
+		expectedRows := []int{1001}
+		require.Eventually(t, cond(dbReader, expectedRows), time.Second*5, time.Millisecond*100)
 
 	})
-	t.Run("failure", func(t *testing.T) {})
+	t.Run("failure", func(t *testing.T) {
+		t.Parallel()
+
+		contractSendRunSQL, dbReader := setup(t)
+		queries := []string{"insert into test_1 values ('wrongtype1001')"}
+		contractSendRunSQL(queries)
+
+		notExpectedRows := []int{1001}
+		require.Never(t, cond(dbReader, notExpectedRows), time.Second*5, time.Millisecond*100)
+
+	})
 }
 
 func TestBlockWithTwoEvents(t *testing.T) {
 	t.Parallel()
 
-	t.Run("success-success", func(t *testing.T) {})
+	t.Run("success-success", func(t *testing.T) {
+	})
 	t.Run("failure-success", func(t *testing.T) {})
 	t.Run("success-failure", func(t *testing.T) {})
 }
 
-// TODO(jsign): test exec trace
+func eventuallyExpectedRows(t *testing.T, dr dbReader, exp []int) {
+	t.Helper()
 
-func setup(t *testing.T) *EventProcessor {
+}
+
+type dbReader func(string) []int
+type contractRunSQLBlockSender func([]string)
+
+func setup(t *testing.T) (contractRunSQLBlockSender, dbReader) {
 	t.Helper()
 
 	// Spin up the EVM chain with the contract.
@@ -52,5 +99,47 @@ func setup(t *testing.T) *EventProcessor {
 	ep, err := New(parser, txnp, ef)
 	require.NoError(t, err)
 
-	return ep
+	ctx := context.Background()
+	contractSendRunSQL := func(queries []string) {
+		for _, q := range queries {
+			_, err := sc.RunSQL(authOpts, "1", common.HexToAddress("0xdeadbeef"), q)
+			require.NoError(t, err)
+		}
+		backend.Commit()
+	}
+
+	sqlstr, err := sqlstoreimpl.New(ctx, url)
+	require.NoError(t, err)
+	tableReader := func(readQuery string) []int {
+		rq, _, err := parser.ValidateRunSQL(readQuery)
+		require.NoError(t, err)
+		require.NotNil(t, rq)
+		res, err := sqlstr.Read(ctx, rq)
+		require.NoError(t, err)
+
+		queryRes := res.(sqlstore.UserRows)
+		ret := make([]int, len(queryRes.Rows))
+		for i := range queryRes.Rows {
+			ret[i] = **queryRes.Rows[i][0].(**int)
+		}
+		return ret
+	}
+
+	b, err := txnp.OpenBatch(ctx)
+	require.NoError(t, err)
+
+	createStmt, err := parser.ValidateCreateTable("CREATE TABLE test (foo int)")
+	require.NoError(t, err)
+	err = b.InsertTable(ctx, tableland.TableID(*big.NewInt(1)), "ctrl-1", "descrp-1", createStmt)
+	require.NoError(t, err)
+	err = b.Commit(ctx)
+	require.NoError(t, err)
+	err = b.Close(ctx)
+	require.NoError(t, err)
+
+	err = ep.StartSync()
+	require.NoError(t, err)
+	t.Cleanup(func() { ep.StopSync() })
+
+	return contractSendRunSQL, tableReader
 }
