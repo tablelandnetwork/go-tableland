@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
+	"time"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -51,15 +52,14 @@ var (
 type Config struct {
 	MinBlockChainDepth int
 	MaxEventsBatchSize int
+	ChainAPIBackoff    time.Duration
 }
 
 func DefaultConfig() *Config {
 	return &Config{
-		// This is a safe value in Ethereum L1 (currently PoW).
 		MinBlockChainDepth: 5,
-		// Ask for Ethereum API node up to 1000 blocks for new
-		// events.
-		MaxEventsBatchSize: 1000,
+		MaxEventsBatchSize: 10000,
+		ChainAPIBackoff:    time.Second * 15,
 	}
 }
 
@@ -81,6 +81,16 @@ func WithMaxEventsBatchSize(batchSize int) Option {
 			return fmt.Errorf("batch size should greater than zero")
 		}
 		c.MaxEventsBatchSize = batchSize
+		return nil
+	}
+}
+
+func WithChainAPIBackoff(backoff time.Duration) Option {
+	return func(c *Config) error {
+		if backoff < time.Second {
+			return fmt.Errorf("chain api backoff is too low (<1s)")
+		}
+		c.ChainAPIBackoff = backoff
 		return nil
 	}
 }

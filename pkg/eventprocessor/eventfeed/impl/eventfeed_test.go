@@ -2,10 +2,13 @@ package impl
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
@@ -102,4 +105,43 @@ func TestStartForTwoEventTypes(t *testing.T) {
 	}
 }
 
-// TOOD(jsign): TestStartCancelation(...)
+// TODO(jsign): TestStartCancelation(...)
+
+func TestInfura(t *testing.T) {
+	infuraAPI := os.Getenv("INFURA_API")
+	if infuraAPI == "" {
+		t.Skipf("no infura API present in env INFURA_API")
+	}
+	conn, err := ethclient.Dial(infuraAPI)
+	require.NoError(t, err)
+	rinkebyContractAddr := common.HexToAddress("0x847645b7dAA32eFda757d3c10f1c82BFbB7b41D0")
+
+	qf, err := New(conn, rinkebyContractAddr, eventfeed.WithMinBlockChainDepth(0))
+	require.NoError(t, err)
+
+	ctx, cls := context.WithCancel(context.Background())
+	defer cls()
+	chFeedClosed := make(chan struct{})
+	ch := make(chan eventfeed.BlockEvents)
+	go func() {
+		contractDeploymentBlockNumber := 10140812 - 100
+		err := qf.Start(ctx, int64(contractDeploymentBlockNumber), ch, []eventfeed.EventType{eventfeed.RunSQL, eventfeed.Transfer})
+		require.NoError(t, err)
+		close(chFeedClosed)
+	}()
+
+	var num int
+	for {
+		select {
+		case e := <-ch:
+			ct := e.Events[0].(*ethereum.ContractTransfer)
+			fmt.Printf("blocknumber %d, %d events. (tokenId %d -> %s)\n", e.BlockNumber, len(e.Events), ct.TokenId, ct.To)
+			num++
+			if num > 40 {
+				cls()
+			}
+		case <-chFeedClosed:
+			return
+		}
+	}
+}
