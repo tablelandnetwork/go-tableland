@@ -21,6 +21,8 @@ import (
 	"github.com/textileio/go-tableland/tests"
 )
 
+// TODO(jsign): adjust to use full contract e2e.
+
 func TestTodoAppWorkflow(t *testing.T) {
 	t.Parallel()
 

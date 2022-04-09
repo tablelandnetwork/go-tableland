@@ -65,6 +65,8 @@ func main() {
 			Msg("failed to create new ethereum client")
 	}
 
+	// TODO(jsign): wire eventprocessor
+
 	readQueryDelay, err := time.ParseDuration(config.Throttling.ReadQueryDelay)
 	if err != nil {
 		log.Fatal().Err(err).Msg("parsing read query delay duration")
