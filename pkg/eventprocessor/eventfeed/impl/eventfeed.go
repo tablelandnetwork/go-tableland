@@ -10,10 +10,12 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/rs/zerolog/log"
+	logger "github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	tbleth "github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
 )
+
+var log = logger.With().Str("component", "eventfeed").Logger()
 
 type EventFeed struct {
 	ethClient   eventfeed.EthClient

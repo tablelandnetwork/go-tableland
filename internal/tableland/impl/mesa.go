@@ -6,12 +6,14 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/rs/zerolog/log"
+	logger "github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/txn"
 )
+
+var log = logger.With().Str("component", "mesa").Logger()
 
 // TablelandMesa is the main implementation of Tableland spec.
 type TablelandMesa struct {
