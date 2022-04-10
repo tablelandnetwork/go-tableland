@@ -19,7 +19,7 @@ func TestStart(t *testing.T) {
 	t.Parallel()
 
 	backend, addr, sc, authOpts := testutil.Setup(t)
-	qf, err := New(backend, addr, eventfeed.WithMinBlockChainDepth(0))
+	qf, err := New(backend, addr, eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
 
 	ctrl := common.HexToAddress("0xB0Cf943Cf94E7B6A2657D15af41c5E06c2BFEA3D")
@@ -78,7 +78,7 @@ func TestStartForTwoEventTypes(t *testing.T) {
 	t.Parallel()
 
 	backend, addr, sc, authOpts := testutil.Setup(t)
-	qf, err := New(backend, addr, eventfeed.WithMinBlockChainDepth(0))
+	qf, err := New(backend, addr, eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
 
 	ctx, cls := context.WithCancel(context.Background())
@@ -92,7 +92,7 @@ func TestStartForTwoEventTypes(t *testing.T) {
 	}()
 
 	ctrl := common.HexToAddress("0xB0Cf943Cf94E7B6A2657D15af41c5E06c2BFEA3D")
-	// Make two calls to different functions emiting different events
+	// Make two calls to different functions emitting different events
 	_, err = sc.RunSQL(authOpts, "tbl-2", ctrl, "stmt-2")
 	require.NoError(t, err)
 	_, err = sc.SafeMint(authOpts, common.HexToAddress("0xB0Cf943Cf94E7B6A2657D15af41c5E06c2BFEA3E"))
@@ -124,7 +124,7 @@ func TestInfura(t *testing.T) {
 	require.NoError(t, err)
 	rinkebyContractAddr := common.HexToAddress("0x847645b7dAA32eFda757d3c10f1c82BFbB7b41D0")
 
-	qf, err := New(conn, rinkebyContractAddr, eventfeed.WithMinBlockChainDepth(0))
+	qf, err := New(conn, rinkebyContractAddr, eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
 
 	ctx, cls := context.WithCancel(context.Background())
@@ -133,7 +133,11 @@ func TestInfura(t *testing.T) {
 	ch := make(chan eventfeed.BlockEvents)
 	go func() {
 		contractDeploymentBlockNumber := 10140812 - 100
-		err := qf.Start(ctx, int64(contractDeploymentBlockNumber), ch, []eventfeed.EventType{eventfeed.RunSQL, eventfeed.Transfer})
+		err := qf.Start(ctx,
+			int64(contractDeploymentBlockNumber),
+			ch,
+			[]eventfeed.EventType{eventfeed.RunSQL,
+				eventfeed.Transfer})
 		require.NoError(t, err)
 		close(chFeedClosed)
 	}()

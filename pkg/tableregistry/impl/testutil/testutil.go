@@ -15,6 +15,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
 )
 
+// Setup spinup a simulated backend node connected to a test EVM chain running the Registry smart-contract.
 func Setup(t *testing.T) (*backends.SimulatedBackend, common.Address, *ethereum.Contract, *bind.TransactOpts) {
 	key, err := crypto.GenerateKey()
 	require.NoError(t, err)

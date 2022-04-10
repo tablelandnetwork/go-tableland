@@ -20,6 +20,7 @@ import (
 
 var log = logger.With().Str("component", "eventprocessor").Logger()
 
+// EventProcessor processes new events detected by an event feed.
 type EventProcessor struct {
 	parser parsing.SQLValidator
 	txnp   txn.TxnProcessor
@@ -39,6 +40,7 @@ type EventProcessor struct {
 	mEventExecutionLatency syncint64.Histogram
 }
 
+// New returns a new EventProcessor.
 func New(parser parsing.SQLValidator,
 	txnp txn.TxnProcessor,
 	qf eventfeed.EventFeed,
@@ -57,15 +59,17 @@ func New(parser parsing.SQLValidator,
 		config: config,
 	}
 	if err := ep.initMetrics(); err != nil {
-		return nil, fmt.Errorf("initializing metrics instruments: %s", err)
+		return nil, fmt.Errorf("initializing metric instruments: %s", err)
 	}
 
 	return ep, nil
 }
 
-func (ep *EventProcessor) StartSync() error {
+// Start starts processing new events from the last processed height.
+func (ep *EventProcessor) Start() error {
 	ep.lock.Lock()
 	defer ep.lock.Unlock()
+
 	if ep.daemonCtx != nil {
 		return fmt.Errorf("already started")
 	}
@@ -83,7 +87,8 @@ func (ep *EventProcessor) StartSync() error {
 	return nil
 }
 
-func (ep *EventProcessor) StopSync() {
+// Stop stops processing new events.
+func (ep *EventProcessor) Stop() {
 	ep.lock.Lock()
 	defer ep.lock.Unlock()
 	if ep.daemonCtx == nil {
@@ -103,12 +108,12 @@ func (ep *EventProcessor) StopSync() {
 	log.Debug().Msg("syncer stopped")
 }
 
-func (fp *EventProcessor) startDaemon() error {
+func (ep *EventProcessor) startDaemon() error {
 	// We start by fetching the lastest processed height to start processing
 	// new events from that point forward.
-	ctx, cls := context.WithTimeout(fp.daemonCtx, time.Second*10)
+	ctx, cls := context.WithTimeout(ep.daemonCtx, time.Second*10)
 	defer cls()
-	b, err := fp.txnp.OpenBatch(ctx)
+	b, err := ep.txnp.OpenBatch(ctx)
 	if err != nil {
 		return fmt.Errorf("opening batch in daemon: %s", err)
 	}
@@ -119,7 +124,7 @@ func (fp *EventProcessor) startDaemon() error {
 	if err := b.Close(ctx); err != nil {
 		return fmt.Errorf("closing batch: %s", err)
 	}
-	fp.mLastProcessedHeight.Store(fromHeight)
+	ep.mLastProcessedHeight.Store(fromHeight)
 
 	// We fire an EventFeed asking for new events from the last processing height.
 	// Notice that if the client calls StopSync(...) it will cancel fp.daemonCtx
@@ -128,58 +133,53 @@ func (fp *EventProcessor) startDaemon() error {
 	ch := make(chan eventfeed.BlockEvents)
 	go func() {
 		defer close(ch)
-		if err := fp.qf.Start(fp.daemonCtx, int64(fromHeight), ch, []eventfeed.EventType{eventfeed.RunSQL}); err != nil {
+		if err := ep.qf.Start(ep.daemonCtx, fromHeight, ch, []eventfeed.EventType{eventfeed.RunSQL}); err != nil {
 			log.Error().Err(err).Msg("query feed was closed unexpectedly")
-			fp.StopSync() // We cleanup daemon ctx and allow the processor to StartSync() cleanly if needed.
+			ep.Stop() // We cleanup daemon ctx and allow the processor to StartSync() cleanly if needed.
 			return
 		}
 		log.Info().Msg("event feed gracefully closed")
 	}()
 
+	// Listen to new events from the EventFeed, and process them.
 	go func() {
-		defer close(fp.daemonCanceled)
-		for {
-			select {
-			case bqs, ok := <-ch:
-				if !ok {
-					log.Info().Msg("processor gracefully closed")
-					return
-				}
+		defer close(ep.daemonCanceled)
+		defer log.Info().Msg("processor gracefully closed")
 
-				// If a runBlockQueries execution fails, we keep retrying since it *must* be
-				// a transient error (e.g: the database is down, disk is corrupted, etc).
-				// If the block has queries that failed execution but are part of the protocol,
-				// those won't make the block execution fail but only that query.
-				// We should keep retrying because we *must* always be able to make progress.
-				//
-				// The validator operator should monitor the published metrics to detect if
-				// we're continously retrying which must signal something is definitely wrong with
-				// our database, infrastructure, or there's a software bug.
-				for {
-					// fp.mExecutionRound is a value tracked by a metric that allows
-					// to monitor if the current block execution is stuck.
-					// Usually this value must be zero. Maybe 1 or 2 if
-					// the database is temporarily down. Higher values indicate that we're
-					// definitely stuck processing a block and definitely needs close attention.
-					fp.mExecutionRound.Store(0)
-					if err := fp.runBlockQueries(fp.daemonCtx, bqs); err != nil {
-						log.Error().Int("attempt", int(fp.mExecutionRound.Load())).Err(err).Msg("executing block queries")
-						fp.mExecutionRound.Inc()
-						time.Sleep(fp.config.BlockFailedExecutionBackoff)
-						continue
-					}
-					break
+		for bqs := range ch {
+			// If a runBlockQueries execution fails, we keep retrying since it *must* be
+			// a transient error (e.g: the database is down, disk is corrupted, etc).
+			// If the block has queries that failed execution but are part of the protocol,
+			// those won't make the block execution fail but only that query.
+			// We should keep retrying because we *must* always be able to make progress.
+			//
+			// The validator operator should monitor the published metrics to detect if
+			// we're continuously retrying which must signal something is definitely wrong with
+			// our database, infrastructure, or there's a software bug.
+			for {
+				// fp.mExecutionRound is a value tracked by a metric that allows
+				// to monitor if the current block execution is stuck.
+				// Usually this value must be zero. Maybe 1 or 2 if
+				// the database is temporarily down. Higher values indicate that we're
+				// definitely stuck processing a block and definitely needs close attention.
+				if err := ep.runBlockQueries(ep.daemonCtx, bqs); err != nil {
+					log.Error().Int("attempt", int(ep.mExecutionRound.Load())).Err(err).Msg("executing block queries")
+					ep.mExecutionRound.Inc()
+					time.Sleep(ep.config.BlockFailedExecutionBackoff)
+					continue
 				}
+				break
 			}
+			ep.mExecutionRound.Store(0)
 		}
 	}()
 
 	return nil
 }
 
-func (fp *EventProcessor) runBlockQueries(ctx context.Context, bqs eventfeed.BlockEvents) error {
+func (ep *EventProcessor) runBlockQueries(ctx context.Context, bqs eventfeed.BlockEvents) error {
 	start := time.Now()
-	b, err := fp.txnp.OpenBatch(ctx)
+	b, err := ep.txnp.OpenBatch(ctx)
 	if err != nil {
 		return fmt.Errorf("opening batch: %s", err)
 	}
@@ -195,16 +195,15 @@ func (fp *EventProcessor) runBlockQueries(ctx context.Context, bqs eventfeed.Blo
 		return fmt.Errorf("get last processed height: %s", err)
 	}
 
-	// The new height to process must be strictly greated than the last processed height.
+	// The new height to process must be strictly greater than the last processed height.
 	if lastHeight >= bqs.BlockNumber {
 		return fmt.Errorf("last processed height %d isn't smaller than new height %d", lastHeight, bqs.BlockNumber)
 	}
 
 	for _, e := range bqs.Events {
-		if err := fp.executeEvent(ctx, b, e); err != nil {
+		if err := ep.executeEvent(ctx, b, e); err != nil {
 			return fmt.Errorf("executing query: %s", err)
 		}
-
 	}
 
 	// Update the last processed height.
@@ -217,23 +216,25 @@ func (fp *EventProcessor) runBlockQueries(ctx context.Context, bqs eventfeed.Blo
 		return fmt.Errorf("committing changes: %s", err)
 	}
 
-	fp.mLastProcessedHeight.Store(bqs.BlockNumber)
-	fp.mBlockExecutionLatency.Record(ctx, time.Since(start).Milliseconds())
+	ep.mLastProcessedHeight.Store(bqs.BlockNumber)
+	ep.mBlockExecutionLatency.Record(ctx, time.Since(start).Milliseconds())
 
 	return nil
 }
 
-func (fp *EventProcessor) executeEvent(ctx context.Context, b txn.Batch, e interface{}) error {
+func (ep *EventProcessor) executeEvent(ctx context.Context, b txn.Batch, e interface{}) error {
 	start := time.Now()
 	switch e := e.(type) {
 	case *ethereum.ContractRunSQL:
 		log.Debug().Str("statement", e.Statement).Msgf("executing run-sql event")
-		readStmt, mutatingStmts, err := fp.parser.ValidateRunSQL(e.Statement)
+		readStmt, mutatingStmts, err := ep.parser.ValidateRunSQL(e.Statement)
 		if err != nil {
-			return fmt.Errorf("validating query: %s", err)
+			log.Info().Msg("detected an invalid syntax query, skipping")
+			return nil
 		}
 		if readStmt != nil {
-			return errors.New("query is a read statement")
+			log.Info().Msg("detected a read query, skipping")
+			return nil
 		}
 		if err := b.ExecWriteQueries(ctx, mutatingStmts); err != nil {
 			var pgErr *txn.ErrQueryExecution
@@ -244,12 +245,12 @@ func (fp *EventProcessor) executeEvent(ctx context.Context, b txn.Batch, e inter
 			return fmt.Errorf("executing mutating-query: %s", err)
 		}
 	default:
-		return fmt.Errorf("unkown event type %t", e)
+		return fmt.Errorf("unknown event type %t", e)
 	}
 
 	attr := attribute.String("eventtype", fmt.Sprintf("%T", e))
-	fp.mEventExecutionCounter.Add(ctx, 1, attr)
-	fp.mEventExecutionLatency.Record(ctx, time.Since(start).Milliseconds(), attr)
+	ep.mEventExecutionCounter.Add(ctx, 1, attr)
+	ep.mEventExecutionLatency.Record(ctx, time.Since(start).Milliseconds(), attr)
 
 	return nil
 }

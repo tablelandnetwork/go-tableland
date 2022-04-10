@@ -5,19 +5,25 @@ import (
 	"time"
 )
 
+// Config contains configuration attributes for an event processor.
 type Config struct {
 	BlockFailedExecutionBackoff time.Duration
 }
 
+// DefaultConfig returns the default configuration.
 func DefaultConfig() *Config {
 	return &Config{
 		BlockFailedExecutionBackoff: time.Second * 10,
 	}
 }
 
+// Option modifies a configuration attribute.
 type Option func(*Config) error
 
-func WithBLockFailedExecutionBackoff(backoff time.Duration) Option {
+// WithBlockFailedExecutionBackoff provides a sleep duration between retryiable
+// executions. e.g: if execution block events fails due to the underlying database
+// being unavailable, we'll wait this time before retrying.
+func WithBlockFailedExecutionBackoff(backoff time.Duration) Option {
 	return func(c *Config) error {
 		if backoff.Seconds() < 1 {
 			return fmt.Errorf("backoff is too low (<1s)")
@@ -27,6 +33,7 @@ func WithBLockFailedExecutionBackoff(backoff time.Duration) Option {
 	}
 }
 
+// EventProcessor processes events from a smart-contract.
 type EventProcessor interface {
 	StartSync() error
 	StopSync()
