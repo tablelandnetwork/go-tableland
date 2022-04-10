@@ -46,7 +46,6 @@ func TestBlockProcessing(t *testing.T) {
 
 		expectedRows := []int{1001}
 		require.Eventually(t, cond(dbReader, expectedRows), time.Second*5, time.Millisecond*100)
-
 	})
 	t.Run("failure", func(t *testing.T) {
 		t.Parallel()
@@ -57,7 +56,6 @@ func TestBlockProcessing(t *testing.T) {
 
 		notExpectedRows := []int{1001}
 		require.Never(t, cond(dbReader, notExpectedRows), time.Second*5, time.Millisecond*100)
-
 	})
 	t.Run("success-success", func(t *testing.T) {
 		t.Parallel()
@@ -99,7 +97,7 @@ func setup(t *testing.T) (contractRunSQLBlockSender, dbReader) {
 
 	// Spin up dependencies needed for the EventProcessor.
 	// i.e: TxnProcessor, Parser, and EventFeed (connected to the EVM chain)
-	ef, err := efimpl.New(backend, addr, eventfeed.WithMinBlockChainDepth(0))
+	ef, err := efimpl.New(backend, addr, eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
 	url, err := tests.PostgresURL()
 	require.NoError(t, err)
@@ -149,9 +147,9 @@ func setup(t *testing.T) (contractRunSQLBlockSender, dbReader) {
 	err = b.Close(ctx)
 	require.NoError(t, err)
 
-	err = ep.StartSync()
+	err = ep.Start()
 	require.NoError(t, err)
-	t.Cleanup(func() { ep.StopSync() })
+	t.Cleanup(func() { ep.Stop() })
 
 	return contractSendRunSQL, tableReader
 }

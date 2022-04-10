@@ -20,11 +20,14 @@ func (ep *EventProcessor) initMetrics() error {
 	if err != nil {
 		return fmt.Errorf("creating last processed height gauge: %s", err)
 	}
-	meter.RegisterCallback([]instrument.Asynchronous{mExecutionRound, mLastProcessedHeight},
+	err = meter.RegisterCallback([]instrument.Asynchronous{mExecutionRound, mLastProcessedHeight},
 		func(ctx context.Context) {
 			mExecutionRound.Observe(ctx, ep.mExecutionRound.Load())
 			mLastProcessedHeight.Observe(ctx, ep.mLastProcessedHeight.Load())
 		})
+	if err != nil {
+		return fmt.Errorf("registering async metric callback: %s", err)
+	}
 
 	// Sync instruments.
 	ep.mEventExecutionCounter, err = meter.SyncInt64().Counter("tableland.eventprocessor.event.execution.count")

@@ -21,8 +21,9 @@ import (
 
 var log = logger.With().Str("component", "eventfeed").Logger()
 
+// EventFeed provides a stream of filtered events from a SC.
 type EventFeed struct {
-	ethClient eventfeed.EthClient
+	ethClient eventfeed.ChainClient
 	scAddress common.Address
 	scABI     *abi.ABI
 	config    *eventfeed.Config
@@ -32,7 +33,8 @@ type EventFeed struct {
 	mCurrentHeight    atomic.Int64
 }
 
-func New(ethClient eventfeed.EthClient, scAddress common.Address, opts ...eventfeed.Option) (*EventFeed, error) {
+// New returns a new EventFeed.
+func New(ethClient eventfeed.ChainClient, scAddress common.Address, opts ...eventfeed.Option) (*EventFeed, error) {
 	config := eventfeed.DefaultConfig()
 	for _, o := range opts {
 		if err := o(config); err != nil {
@@ -56,7 +58,14 @@ func New(ethClient eventfeed.EthClient, scAddress common.Address, opts ...eventf
 	return ef, nil
 }
 
-func (ef *EventFeed) Start(ctx context.Context, fromHeight int64, ch chan<- eventfeed.BlockEvents, filterEventTypes []eventfeed.EventType) error {
+// Start sends a stream of filtered events from a smart contract since `fromHeight` to the provided channel.
+// This is a blocking call, which the caller must cancel the provided context to shut down gracefully the feed.
+// The received channel won't be closed.
+func (ef *EventFeed) Start(
+	ctx context.Context,
+	fromHeight int64,
+	ch chan<- eventfeed.BlockEvents,
+	filterEventTypes []eventfeed.EventType) error {
 	log.Debug().Msg("starting...")
 	defer log.Debug().Msg("stopped")
 
@@ -78,88 +87,82 @@ func (ef *EventFeed) Start(ctx context.Context, fromHeight int64, ch chan<- even
 	}
 
 	// Listen for new blocks, and get new events.
-	for {
-		select {
-		case h, ok := <-chHeads:
-			if !ok {
-				log.Info().Msg("new head channel was closed, closing gracefully")
-				return nil
+	for h := range chHeads {
+		log.Debug().Int64("height", h.Number.Int64()).Msg("received new chain header")
+
+		// We do a for loop since we'll try to catch from fromHeight to the new reported
+		// head in batches with max size MaxEventsBatchSize. This is important to
+		// avoid asking the API for very big ranges (e.g: newHead - fromHeight > 100k) since
+		// that could would be too big (i.e: make the API fail, the response would be too big,
+		// and would consume too much memory).
+		for {
+			if ctx.Err() != nil {
+				break
 			}
-			log.Debug().Int64("height", h.Number.Int64()).Msg("received new chain header")
 
-			// We do a for loop since we'll try to catch from fromHeight to the new reported
-			// head in batches with max size MaxEventsBatchSize. This is important to
-			// avoid asking the API for very big ranges (e.g: newHead - fromHeight > 100k) since
-			// that could would be too big (i.e: make the API fail, the response would be too big,
-			// and would consume too much memory).
-			for {
-				if ctx.Err() != nil {
-					break
-				}
-
-				// Recall that we only accept as "final" blocks the one that are at least
-				// minChainDepth behind the new known head. This is done to avoid reorgs
-				// sideffects.
-				toHeight := h.Number.Int64() - int64(ef.config.MinBlockChainDepth)
-				if toHeight < fromHeight {
-					break
-				}
-
-				if toHeight-fromHeight+1 > int64(ef.config.MaxEventsBatchSize) {
-					toHeight = fromHeight + int64(ef.config.MaxEventsBatchSize) - 1
-				}
-
-				// Ask for the desired events between fromHeight to toHeight.
-				query := ethereum.FilterQuery{
-					FromBlock: big.NewInt(fromHeight),
-					ToBlock:   big.NewInt(toHeight),
-					Addresses: []common.Address{ef.scAddress},
-					Topics:    [][]common.Hash{filterTopics},
-				}
-				log.Debug().Int64("from", fromHeight).Int64("to", toHeight).Msg("calling filter logs")
-				logs, err := ef.ethClient.FilterLogs(ctx, query)
-				if err != nil {
-					// If we got an error here, log it but allow to be retried
-					// in the next head. Probably the API can have transient unavailability.
-					log.Warn().Err(err).Msgf("filter logs from %d to %d", fromHeight, toHeight)
-					time.Sleep(ef.config.ChainAPIBackoff)
-					continue
-				}
-
-				// If there're no events, nothing to do here.
-				if len(logs) == 0 {
-					log.Debug().Msg("no filter logs")
-				} else {
-					// We received new events. We'll group/pack them by block number in
-					// BLockEvents structs, and send them to the `ch` channel provided
-					// by the caller.
-					bq := eventfeed.BlockEvents{
-						BlockNumber: int64(logs[0].BlockNumber),
-					}
-					for _, l := range logs {
-						if bq.BlockNumber != int64(l.BlockNumber) {
-							ch <- bq
-							bq = eventfeed.BlockEvents{
-								BlockNumber: int64(l.BlockNumber),
-							}
-						}
-
-						event, err := ef.parseEvent(l)
-						if err != nil {
-							return fmt.Errorf("couldn't parse event: %s", err)
-						}
-						bq.Events = append(bq.Events, event)
-					}
-					// Sent last block events construction of the loop.
-					ch <- bq
-				}
-
-				// Update our fromHeight to the latest processed height plus one.
-				fromHeight = toHeight + 1
-				ef.mCurrentHeight.Store(fromHeight)
+			// Recall that we only accept as "final" blocks the one that are at least
+			// minChainDepth behind the new known head. This is done to avoid reorgs
+			// sideffects.
+			toHeight := h.Number.Int64() - int64(ef.config.MinBlockChainDepth)
+			if toHeight < fromHeight {
+				break
 			}
+
+			if toHeight-fromHeight+1 > int64(ef.config.MaxBlocksFetchSize) {
+				toHeight = fromHeight + int64(ef.config.MaxBlocksFetchSize) - 1
+			}
+
+			// Ask for the desired events between fromHeight to toHeight.
+			query := ethereum.FilterQuery{
+				FromBlock: big.NewInt(fromHeight),
+				ToBlock:   big.NewInt(toHeight),
+				Addresses: []common.Address{ef.scAddress},
+				Topics:    [][]common.Hash{filterTopics},
+			}
+			log.Debug().Int64("from", fromHeight).Int64("to", toHeight).Msg("calling filter logs")
+			logs, err := ef.ethClient.FilterLogs(ctx, query)
+			if err != nil {
+				// If we got an error here, log it but allow to be retried
+				// in the next head. Probably the API can have transient unavailability.
+				log.Warn().Err(err).Msgf("filter logs from %d to %d", fromHeight, toHeight)
+				time.Sleep(ef.config.ChainAPIBackoff)
+				continue
+			}
+
+			// If there're no events, nothing to do here.
+			if len(logs) == 0 {
+				log.Debug().Msg("no filter logs")
+			} else {
+				// We received new events. We'll group/pack them by block number in
+				// BLockEvents structs, and send them to the `ch` channel provided
+				// by the caller.
+				bq := eventfeed.BlockEvents{
+					BlockNumber: int64(logs[0].BlockNumber),
+				}
+				for _, l := range logs {
+					if bq.BlockNumber != int64(l.BlockNumber) {
+						ch <- bq
+						bq = eventfeed.BlockEvents{
+							BlockNumber: int64(l.BlockNumber),
+						}
+					}
+
+					event, err := ef.parseEvent(l)
+					if err != nil {
+						return fmt.Errorf("couldn't parse event: %s", err)
+					}
+					bq.Events = append(bq.Events, event)
+				}
+				// Sent last block events construction of the loop.
+				ch <- bq
+			}
+
+			// Update our fromHeight to the latest processed height plus one.
+			fromHeight = toHeight + 1
+			ef.mCurrentHeight.Store(fromHeight)
 		}
 	}
+	return nil
 }
 
 // parseEvent deconstructs a raw event that was received from the Ethereum node,
