@@ -10,12 +10,17 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/rs/zerolog/log"
+	"github.com/textileio/cli"
 	"github.com/textileio/go-tableland/buildinfo"
 	"github.com/textileio/go-tableland/cmd/api/controllers"
 	"github.com/textileio/go-tableland/cmd/api/middlewares"
 	systemimpl "github.com/textileio/go-tableland/internal/system/impl"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/internal/tableland/impl"
+	"github.com/textileio/go-tableland/pkg/eventprocessor"
+	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
+	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
+	epimpl "github.com/textileio/go-tableland/pkg/eventprocessor/impl"
 	"github.com/textileio/go-tableland/pkg/logging"
 	"github.com/textileio/go-tableland/pkg/metrics"
 	"github.com/textileio/go-tableland/pkg/parsing"
@@ -57,15 +62,14 @@ func main() {
 	}
 	defer conn.Close()
 
-	registry, err := ethereum.NewClient(conn, common.HexToAddress(config.Registry.ContractAddress))
+	scAddress := common.HexToAddress(config.Registry.ContractAddress)
+	registry, err := ethereum.NewClient(conn, scAddress)
 	if err != nil {
 		log.Fatal().
 			Err(err).
 			Str("contractAddress", config.Registry.ContractAddress).
 			Msg("failed to create new ethereum client")
 	}
-
-	// TODO(jsign): wire eventprocessor
 
 	readQueryDelay, err := time.ParseDuration(config.Throttling.ReadQueryDelay)
 	if err != nil {
@@ -93,17 +97,37 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("creating txn processor")
 	}
-	writeQueryDelay, err := time.ParseDuration(config.Throttling.WriteQueryDelay)
+	chainAPIBackoff, err := time.ParseDuration(config.EventFeed.ChainAPIBackoff)
 	if err != nil {
-		log.Fatal().Err(err).Msg("parsing write query delay duration")
+		log.Fatal().Err(err).Msg("parsing chain api backoff duration")
 	}
-	txnp = txnimpl.NewThrottledTxnProcessor(txnp, writeQueryDelay)
+	efOpts := []eventfeed.Option{
+		eventfeed.WithChainAPIBackoff(chainAPIBackoff),
+		eventfeed.WithMaxBlocksFetchSize(config.EventFeed.MaxBlocksFetchSize),
+		eventfeed.WithMinBlockDepth(config.EventFeed.MinBlockDepth),
+	}
+	ef, err := efimpl.New(conn, scAddress, efOpts...)
+	if err != nil {
+		log.Fatal().Err(err).Msg("creating event feed")
+	}
+	blockFailedExecutionBackoff, err := time.ParseDuration(config.EventProcessor.BlockFailedExecutionBackoff)
+	if err != nil {
+		log.Fatal().Err(err).Msg("parsing block failed execution backoff duration")
+	}
+	epOpts := []eventprocessor.Option{
+		eventprocessor.WithBlockFailedExecutionBackoff(blockFailedExecutionBackoff),
+	}
+	ep, err := epimpl.New(parser, txnp, ef, epOpts...)
+	if err != nil {
+		log.Fatal().Err(err).Msg("creating event processor")
+	}
+	if err := ep.Start(); err != nil {
+		log.Fatal().Err(err).Msg("starting event processor")
+	}
 
-	svc := getTablelandService(config, sqlstore, acl, parser, txnp)
+	svc := getTablelandService(config, sqlstore, acl, parser, txnp) // TODO(S3): txnp argument should go away soon.
 	if err := server.RegisterName("tableland", svc); err != nil {
-		log.Fatal().
-			Err(err).
-			Msg("failed to register a json-rpc service")
+		log.Fatal().Err(err).Msg("failed to register a json-rpc service")
 	}
 	userController := controllers.NewUserController(svc)
 
@@ -163,12 +187,28 @@ func main() {
 			Msg("could not setup instrumentation")
 	}
 
-	if err := router.Serve(":" + config.HTTP.Port); err != nil {
-		log.Fatal().
-			Err(err).
-			Str("port", config.HTTP.Port).
-			Msg("could not start server")
-	}
+	go func() {
+		if err := router.Serve(":" + config.HTTP.Port); err != nil {
+			if err == http.ErrServerClosed {
+				log.Info().Msg("http serve gracefully closed")
+				return
+			}
+			log.Fatal().
+				Err(err).
+				Str("port", config.HTTP.Port).
+				Msg("could not start server")
+		}
+	}()
+
+	cli.HandleInterrupt(func() {
+		ep.Stop()
+
+		ctx, cls := context.WithTimeout(context.Background(), time.Second*10)
+		defer cls()
+		if err := router.Close(ctx); err != nil {
+			log.Error().Err(err).Msg("closing http server")
+		}
+	})
 }
 
 func getTablelandService(

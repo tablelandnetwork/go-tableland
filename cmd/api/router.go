@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -8,14 +9,15 @@ import (
 )
 
 type router struct {
-	r *mux.Router
+	r   *mux.Router
+	srv *http.Server
 }
 
 // newRouter is a Mux HTTP router constructor.
 func newRouter() *router {
 	r := mux.NewRouter()
 	r.PathPrefix("/").Methods(http.MethodOptions) // accept OPTIONS on all routes and do nothing
-	return &router{r}
+	return &router{r: r}
 }
 
 // Get creates a subroute on the specified URI that only accepts GET. You can provide specific middlewares.
@@ -46,12 +48,16 @@ func (r *router) Use(mid ...mux.MiddlewareFunc) {
 
 // Serve starts listening on the specified port.
 func (r *router) Serve(port string) error {
-	srv := &http.Server{
+	r.srv = &http.Server{
 		Addr:         port,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 20 * time.Second,
 		IdleTimeout:  120 * time.Second,
 		Handler:      r.r,
 	}
-	return srv.ListenAndServe()
+	return r.srv.ListenAndServe()
+}
+
+func (r *router) Close(ctx context.Context) error {
+	return r.srv.Shutdown(ctx)
 }

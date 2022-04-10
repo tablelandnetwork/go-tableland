@@ -24,7 +24,7 @@ var log = logger.With().Str("component", "eventprocessor").Logger()
 type EventProcessor struct {
 	parser parsing.SQLValidator
 	txnp   txn.TxnProcessor
-	qf     eventfeed.EventFeed
+	ef     eventfeed.EventFeed
 	config *eventprocessor.Config
 
 	lock           sync.Mutex
@@ -43,7 +43,7 @@ type EventProcessor struct {
 // New returns a new EventProcessor.
 func New(parser parsing.SQLValidator,
 	txnp txn.TxnProcessor,
-	qf eventfeed.EventFeed,
+	ef eventfeed.EventFeed,
 	opts ...eventprocessor.Option) (*EventProcessor, error) {
 	config := eventprocessor.DefaultConfig()
 	for _, op := range opts {
@@ -55,7 +55,7 @@ func New(parser parsing.SQLValidator,
 	ep := &EventProcessor{
 		parser: parser,
 		txnp:   txnp,
-		qf:     qf,
+		ef:     ef,
 		config: config,
 	}
 	if err := ep.initMetrics(); err != nil {
@@ -133,7 +133,7 @@ func (ep *EventProcessor) startDaemon() error {
 	ch := make(chan eventfeed.BlockEvents)
 	go func() {
 		defer close(ch)
-		if err := ep.qf.Start(ep.daemonCtx, fromHeight, ch, []eventfeed.EventType{eventfeed.RunSQL}); err != nil {
+		if err := ep.ef.Start(ep.daemonCtx, fromHeight, ch, []eventfeed.EventType{eventfeed.RunSQL}); err != nil {
 			log.Error().Err(err).Msg("query feed was closed unexpectedly")
 			ep.Stop() // We cleanup daemon ctx and allow the processor to StartSync() cleanly if needed.
 			return
@@ -201,6 +201,7 @@ func (ep *EventProcessor) runBlockQueries(ctx context.Context, bqs eventfeed.Blo
 	}
 
 	for _, e := range bqs.Events {
+		// TODO(jsign): add more details about which kind of failure happened
 		if err := ep.executeEvent(ctx, b, e); err != nil {
 			return fmt.Errorf("executing query: %s", err)
 		}

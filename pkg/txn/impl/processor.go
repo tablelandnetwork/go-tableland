@@ -162,46 +162,29 @@ func (b *batch) ExecWriteQueries(
 			if mqName != "" && dbName != mqName {
 				return fmt.Errorf("table name prefix doesn't match (exp %s, got %s)", dbName, mqName)
 			}
-<<<<<<< HEAD
 
 			switch stmt := mq.(type) {
 			case parsing.SugaredGrantStmt:
 				err := b.executeGrantStmt(ctx, tx, stmt, controller)
 				if err != nil {
+					if code, ok := isErrCausedByQuery(err); ok {
+						return &txn.ErrQueryExecution{
+							Code: code,
+							Msg:  err.Error(),
+						}
+					}
 					return fmt.Errorf("executing grant stmt: %s", err)
 				}
 			case parsing.SugaredWriteStmt:
 				err := b.executeWriteStmt(ctx, tx, stmt, controller, beforeRowCount)
 				if err != nil {
+					if code, ok := isErrCausedByQuery(err); ok {
+						return &txn.ErrQueryExecution{
+							Code: code,
+							Msg:  err.Error(),
+						}
+					}
 					return fmt.Errorf("executing write stmt: %w", err)
-=======
-			desugared, err := mq.GetDesugaredQuery()
-			if err != nil {
-				return fmt.Errorf("get desugared query: %s", err)
-			}
-			cmdTag, err := tx.Exec(ctx, desugared)
-			if err != nil {
-				// We detect here if the query execution failed because of possibly expected
-				// bad queries from users. If that's the case the call might want to accept the failure
-				// as an expected event in the flow.
-				if code, ok := isErrCausedByQuery(err); ok {
-					return &txn.ErrQueryExecution{
-						Code: code,
-						Msg:  err.Error(),
-					}
-				}
-				// If the error wasn't related tot he query (e.g: db timeout, disk corrupted, etc?)
-				// This isn't a txn.ErrQueryExecution and probably the caller will want to retry later.
-				return fmt.Errorf("exec query: %s", err)
-			}
-			if b.tp.maxTableRowCount > 0 && cmdTag.Insert() {
-				afterRowCount := beforeRowCount + int(cmdTag.RowsAffected())
-				if afterRowCount > b.tp.maxTableRowCount {
-					return &txn.ErrRowCountExceeded{
-						BeforeRowCount: beforeRowCount,
-						AfterRowCount:  afterRowCount,
-					}
->>>>>>> 8226c01... eventprocessor: test hardening and manage soft-fail errors
 				}
 			default:
 				return fmt.Errorf("unknown stmt type")
@@ -217,6 +200,9 @@ func (b *batch) ExecWriteQueries(
 	return nil
 }
 
+// isErrCausedByQuery detects if the query execution failed because of possibly expected
+// bad queries from users. If that's the case the call might want to accept the failure
+// as an expected event in the flow.
 func isErrCausedByQuery(err error) (string, bool) {
 	// This array contains all the postgres errors that should be query related.
 	// e.g: inserting a column with the wrong type, some function call failing, etc.

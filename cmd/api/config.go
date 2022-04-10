@@ -34,8 +34,7 @@ type config struct {
 		MaxTextLength int `default:"1024"`
 	}
 	Throttling struct {
-		WriteQueryDelay string `default:"1s"`
-		ReadQueryDelay  string `default:"0ms"`
+		ReadQueryDelay string `default:"0ms"`
 	}
 	Registry struct {
 		EthEndpoint     string `default:"eth_endpoint"`
@@ -51,6 +50,14 @@ type config struct {
 	AdminAPI struct {
 		Username string `default:""`
 		Password string `default:""`
+	}
+	EventFeed struct {
+		ChainAPIBackoff    string `default:"15s"`
+		MaxBlocksFetchSize int    `default:"10000"`
+		MinBlockDepth      int    `default:"5"`
+	}
+	EventProcessor struct {
+		BlockFailedExecutionBackoff string `default:"10s"`
 	}
 }
 
