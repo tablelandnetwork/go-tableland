@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
-	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum"
@@ -17,6 +16,7 @@ import (
 	tbleth "github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
+	"go.uber.org/atomic"
 )
 
 var log = logger.With().Str("component", "eventfeed").Logger()
@@ -27,11 +27,9 @@ type EventFeed struct {
 	scABI     *abi.ABI
 	config    *eventfeed.Config
 
-	// Sync metrics
+	// Metrics
 	mEventTypeCounter syncint64.Counter
-	// Async metrics
-	mLock          sync.Mutex
-	mCurrentHeight int64
+	mCurrentHeight    atomic.Int64
 }
 
 func New(ethClient eventfeed.EthClient, scAddress common.Address, opts ...eventfeed.Option) (*EventFeed, error) {
@@ -158,9 +156,7 @@ func (ef *EventFeed) Start(ctx context.Context, fromHeight int64, ch chan<- even
 
 				// Update our fromHeight to the latest processed height plus one.
 				fromHeight = toHeight + 1
-				ef.mLock.Lock()
-				ef.mCurrentHeight = fromHeight
-				ef.mLock.Unlock()
+				ef.mCurrentHeight.Store(fromHeight)
 			}
 		}
 	}

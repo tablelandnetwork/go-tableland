@@ -1,4 +1,4 @@
-package eventprocessor
+package impl
 
 import (
 	"context"
@@ -13,6 +13,9 @@ import (
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/txn"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric/instrument/syncint64"
+	"go.uber.org/atomic"
 )
 
 var log = logger.With().Str("component", "eventprocessor").Logger()
@@ -21,12 +24,19 @@ type EventProcessor struct {
 	parser parsing.SQLValidator
 	txnp   txn.TxnProcessor
 	qf     eventfeed.EventFeed
+	config *eventprocessor.Config
 
-	config         *eventprocessor.Config
 	lock           sync.Mutex
 	daemonCtx      context.Context
 	daemonCancel   context.CancelFunc
 	daemonCanceled chan struct{}
+
+	// Metrics
+	mExecutionRound        atomic.Int64
+	mLastProcessedHeight   atomic.Int64
+	mBlockExecutionLatency syncint64.Histogram
+	mEventExecutionCounter syncint64.Counter
+	mEventExecutionLatency syncint64.Histogram
 }
 
 func New(parser parsing.SQLValidator,
@@ -39,21 +49,28 @@ func New(parser parsing.SQLValidator,
 			return nil, fmt.Errorf("applying option: %s", err)
 		}
 	}
-	return &EventProcessor{
+
+	ep := &EventProcessor{
 		parser: parser,
 		txnp:   txnp,
 		qf:     qf,
 		config: config,
-	}, nil
+	}
+	if err := ep.initMetrics(); err != nil {
+		return nil, fmt.Errorf("initializing metrics instruments: %s", err)
+	}
+
+	return ep, nil
 }
 
 func (ep *EventProcessor) StartSync() error {
 	ep.lock.Lock()
 	defer ep.lock.Unlock()
 	if ep.daemonCtx != nil {
-		return fmt.Errorf("processor already started")
+		return fmt.Errorf("already started")
 	}
 
+	log.Debug().Msg("starting daemon...")
 	ctx, cls := context.WithCancel(context.Background())
 	ep.daemonCtx = ctx
 	ep.daemonCancel = cls
@@ -61,8 +78,8 @@ func (ep *EventProcessor) StartSync() error {
 	if err := ep.startDaemon(); err != nil {
 		return fmt.Errorf("background daemon failed starting: %s", err)
 	}
+	log.Info().Msg("started")
 
-	log.Info().Msg("syncer started")
 	return nil
 }
 
@@ -77,16 +94,18 @@ func (ep *EventProcessor) StopSync() {
 	ep.daemonCancel()
 	<-ep.daemonCanceled
 
+	// Cleanup to allow StartSync() to be called again.
 	ep.daemonCtx = nil
 	ep.daemonCancel = nil
 	ep.daemonCanceled = nil
+	ep.mExecutionRound.Store(0)
 
 	log.Debug().Msg("syncer stopped")
 }
 
 func (fp *EventProcessor) startDaemon() error {
-	log.Debug().Msg("starting daemon")
-
+	// We start by fetching the lastest processed height to start processing
+	// new events from that point forward.
 	ctx, cls := context.WithTimeout(fp.daemonCtx, time.Second*10)
 	defer cls()
 	b, err := fp.txnp.OpenBatch(ctx)
@@ -100,16 +119,21 @@ func (fp *EventProcessor) startDaemon() error {
 	if err := b.Close(ctx); err != nil {
 		return fmt.Errorf("closing batch: %s", err)
 	}
+	fp.mLastProcessedHeight.Store(fromHeight)
 
+	// We fire an EventFeed asking for new events from the last processing height.
+	// Notice that if the client calls StopSync(...) it will cancel fp.daemonCtx
+	// which will cleanly close the EventFeed, and `defer close(ch)` making the processor
+	// finish gracefully too.
 	ch := make(chan eventfeed.BlockEvents)
 	go func() {
 		defer close(ch)
 		if err := fp.qf.Start(fp.daemonCtx, int64(fromHeight), ch, []eventfeed.EventType{eventfeed.RunSQL}); err != nil {
 			log.Error().Err(err).Msg("query feed was closed unexpectedly")
-			fp.StopSync()
+			fp.StopSync() // We cleanup daemon ctx and allow the processor to StartSync() cleanly if needed.
 			return
 		}
-		log.Info().Msg("query feed gracefully closed")
+		log.Info().Msg("event feed gracefully closed")
 	}()
 
 	go func() {
@@ -118,7 +142,7 @@ func (fp *EventProcessor) startDaemon() error {
 			select {
 			case bqs, ok := <-ch:
 				if !ok {
-					log.Info().Msg("background daemon closed")
+					log.Info().Msg("processor gracefully closed")
 					return
 				}
 
@@ -132,10 +156,15 @@ func (fp *EventProcessor) startDaemon() error {
 				// we're continously retrying which must signal something is definitely wrong with
 				// our database, infrastructure, or there's a software bug.
 				for {
-					var attempt int
+					// fp.mExecutionRound is a value tracked by a metric that allows
+					// to monitor if the current block execution is stuck.
+					// Usually this value must be zero. Maybe 1 or 2 if
+					// the database is temporarily down. Higher values indicate that we're
+					// definitely stuck processing a block and definitely needs close attention.
+					fp.mExecutionRound.Store(0)
 					if err := fp.runBlockQueries(fp.daemonCtx, bqs); err != nil {
-						log.Error().Int("attempt", attempt).Err(err).Msg("executing block queries")
-						attempt++
+						log.Error().Int("attempt", int(fp.mExecutionRound.Load())).Err(err).Msg("executing block queries")
+						fp.mExecutionRound.Inc()
 						time.Sleep(fp.config.BlockFailedExecutionBackoff)
 						continue
 					}
@@ -149,6 +178,7 @@ func (fp *EventProcessor) startDaemon() error {
 }
 
 func (fp *EventProcessor) runBlockQueries(ctx context.Context, bqs eventfeed.BlockEvents) error {
+	start := time.Now()
 	b, err := fp.txnp.OpenBatch(ctx)
 	if err != nil {
 		return fmt.Errorf("opening batch: %s", err)
@@ -178,7 +208,7 @@ func (fp *EventProcessor) runBlockQueries(ctx context.Context, bqs eventfeed.Blo
 	}
 
 	// Update the last processed height.
-	log.Debug().Int64("lastProcessedHeieght", bqs.BlockNumber).Msg("new last processed height")
+	log.Debug().Int64("lastProcessedHeight", bqs.BlockNumber).Msg("new last processed height")
 	if err := b.SetLastProcessedHeight(ctx, bqs.BlockNumber); err != nil {
 		return fmt.Errorf("set new processed height %d: %s", bqs.BlockNumber, err)
 	}
@@ -187,13 +217,14 @@ func (fp *EventProcessor) runBlockQueries(ctx context.Context, bqs eventfeed.Blo
 		return fmt.Errorf("committing changes: %s", err)
 	}
 
-	// TODO(jsign): metric counter last processed commited height with error/no-error
-	// TODO(jsign): metric latency of block processing.
+	fp.mLastProcessedHeight.Store(bqs.BlockNumber)
+	fp.mBlockExecutionLatency.Record(ctx, time.Since(start).Milliseconds())
 
 	return nil
 }
 
 func (fp *EventProcessor) executeEvent(ctx context.Context, b txn.Batch, e interface{}) error {
+	start := time.Now()
 	switch e := e.(type) {
 	case *ethereum.ContractRunSQL:
 		log.Debug().Str("statement", e.Statement).Msgf("executing run-sql event")
@@ -215,6 +246,10 @@ func (fp *EventProcessor) executeEvent(ctx context.Context, b txn.Batch, e inter
 	default:
 		return fmt.Errorf("unkown event type %t", e)
 	}
+
+	attr := attribute.String("eventtype", fmt.Sprintf("%T", e))
+	fp.mEventExecutionCounter.Add(ctx, 1, attr)
+	fp.mEventExecutionLatency.Record(ctx, time.Since(start).Milliseconds(), attr)
 
 	return nil
 }
