@@ -56,5 +56,5 @@ test:
 # Lint
 
 lint:
-	go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.43.0 run
+	go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.45.2 run
 .PHONYY: lint

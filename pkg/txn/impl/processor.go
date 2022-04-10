@@ -181,17 +181,17 @@ func (b *batch) ExecWriteQueries(
 			}
 			cmdTag, err := tx.Exec(ctx, desugared)
 			if err != nil {
-				var pgErr *pgconn.PgError
-				if errors.As(err, &pgErr) {
-					log.Info().Str("pgxErrorCode", pgErr.Code).Msg("query execution soft-fail")
-					switch pgErr.Code {
-					case "22P02": // wrong type for column
-						return &txn.ErrQueryExecution{
-							Code: pgErr.Code,
-							Msg:  err.Error(),
-						}
+				// We detect here if the query execution failed because of possibly expected
+				// bad queries from users. If that's the case the call might want to accept the failure
+				// as an expected event in the flow.
+				if code, ok := isErrCausedByQuery(err); ok {
+					return &txn.ErrQueryExecution{
+						Code: code,
+						Msg:  err.Error(),
 					}
 				}
+				// If the error wasn't related tot he query (e.g: db timeout, disk corrupted, etc?)
+				// This isn't a txn.ErrQueryExecution and probably the caller will want to retry later.
 				return fmt.Errorf("exec query: %s", err)
 			}
 			if b.tp.maxTableRowCount > 0 && cmdTag.Insert() {
@@ -215,6 +215,27 @@ func (b *batch) ExecWriteQueries(
 	}
 
 	return nil
+}
+
+func isErrCausedByQuery(err error) (string, bool) {
+	// This array contains all the postgres errors that should be query related.
+	// e.g: inserting a column with the wrong type, some function call failing, etc.
+	// All these errors must be errors that will always happen if the query is retried.
+	// (e.g: a timeout error isn't the querys fault, but an infrastructure problem)
+	// The complete list of errors is found in: https://www.postgresql.org/docs/current/errcodes-appendix.html
+	// pgExecutionErrors is probably missing values, but we'll keep discovering and adding them.
+	pgExecutionErrors := []string{
+		"22P02", // Caused by a query trying to insert a wrong column type.
+	}
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		for _, ee := range pgExecutionErrors {
+			if pgErr.Code == ee {
+				return pgErr.Code, true
+			}
+		}
+	}
+	return "", false
 }
 
 func (b *batch) GetLastProcessedHeight(ctx context.Context) (int64, error) {
