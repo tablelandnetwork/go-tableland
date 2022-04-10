@@ -201,14 +201,29 @@ func (ep *EventProcessor) runBlockQueries(ctx context.Context, bqs eventfeed.Blo
 	}
 
 	for _, e := range bqs.Events {
-		// TODO(jsign): add more details about which kind of failure happened
-		if err := ep.executeEvent(ctx, b, e); err != nil {
+		start := time.Now()
+		failCause, err := ep.executeEvent(ctx, b, e)
+		if err != nil {
+			// Some retriable error happened, abort the block execution
+			// and retry later.
 			return fmt.Errorf("executing query: %s", err)
 		}
+		if failCause != "" {
+			// Some acceptable failure happened (e.g: invalid syntax, inserting
+			// a string in an integer column, etc). Just log it, and move on.
+			log.Info().Str("failCause", failCause).Msg("event execution failed")
+		}
+		attrs := []attribute.KeyValue{
+			attribute.String("eventtype", fmt.Sprintf("%T", e)),
+			attribute.String("failCause", failCause),
+		}
+		ep.mEventExecutionCounter.Add(ctx, 1, attrs...)
+		ep.mEventExecutionLatency.Record(ctx, time.Since(start).Milliseconds(), attrs...)
+
 	}
 
 	// Update the last processed height.
-	log.Debug().Int64("lastProcessedHeight", bqs.BlockNumber).Msg("new last processed height")
+	log.Debug().Int64("height", bqs.BlockNumber).Msg("new last processed height")
 	if err := b.SetLastProcessedHeight(ctx, bqs.BlockNumber); err != nil {
 		return fmt.Errorf("set new processed height %d: %s", bqs.BlockNumber, err)
 	}
@@ -223,35 +238,33 @@ func (ep *EventProcessor) runBlockQueries(ctx context.Context, bqs eventfeed.Blo
 	return nil
 }
 
-func (ep *EventProcessor) executeEvent(ctx context.Context, b txn.Batch, e interface{}) error {
-	start := time.Now()
+// executeEvent executes an event. If the event execution was successful, it returns "", nil.
+// If the event execution:
+// 1) Has an acceptable execution failure, it returns the failure cause in the first return parameter,
+//    and nil in the second one.
+// 2) Has an unkown event execution failure cause (e.g: db is unavailable, unexpected infrastructure error, etc),
+//    it returns ("", err) where err is the underlying error. Probably the caller will want to retry executing this
+//    event later when this problem is solved and retry the event.
+func (ep *EventProcessor) executeEvent(ctx context.Context, b txn.Batch, e interface{}) (string, error) {
 	switch e := e.(type) {
 	case *ethereum.ContractRunSQL:
 		log.Debug().Str("statement", e.Statement).Msgf("executing run-sql event")
 		readStmt, mutatingStmts, err := ep.parser.ValidateRunSQL(e.Statement)
 		if err != nil {
-			log.Info().Msg("detected an invalid syntax query, skipping")
-			return nil
+			return fmt.Sprintf("parsing query: %s", err), nil
 		}
 		if readStmt != nil {
-			log.Info().Msg("detected a read query, skipping")
-			return nil
+			return "this is a read query, skipping", nil
 		}
 		if err := b.ExecWriteQueries(ctx, mutatingStmts); err != nil {
 			var pgErr *txn.ErrQueryExecution
 			if errors.As(err, &pgErr) {
-				log.Info().Str("code", pgErr.Code).Str("msg", pgErr.Msg).Msg("query execution failure")
-				return nil
+				return fmt.Sprintf("db query execution failed (code: %s, msg: %s)", pgErr.Code, pgErr.Msg), nil
 			}
-			return fmt.Errorf("executing mutating-query: %s", err)
+			return "", fmt.Errorf("executing mutating-query: %s", err)
 		}
 	default:
-		return fmt.Errorf("unknown event type %t", e)
+		return "", fmt.Errorf("unknown event type %t", e)
 	}
-
-	attr := attribute.String("eventtype", fmt.Sprintf("%T", e))
-	ep.mEventExecutionCounter.Add(ctx, 1, attr)
-	ep.mEventExecutionLatency.Record(ctx, time.Since(start).Milliseconds(), attr)
-
-	return nil
+	return "", nil
 }
