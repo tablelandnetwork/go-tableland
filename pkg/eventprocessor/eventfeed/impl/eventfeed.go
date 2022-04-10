@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum"
@@ -14,16 +15,23 @@ import (
 	logger "github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	tbleth "github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric/instrument/syncint64"
 )
 
 var log = logger.With().Str("component", "eventfeed").Logger()
 
 type EventFeed struct {
-	ethClient   eventfeed.EthClient
-	scAddress   common.Address
-	contractAbi *abi.ABI
+	ethClient eventfeed.EthClient
+	scAddress common.Address
+	scABI     *abi.ABI
+	config    *eventfeed.Config
 
-	config *eventfeed.Config
+	// Sync metrics
+	mEventTypeCounter syncint64.Counter
+	// Async metrics
+	mLock          sync.Mutex
+	mCurrentHeight int64
 }
 
 func New(ethClient eventfeed.EthClient, scAddress common.Address, opts ...eventfeed.Option) (*EventFeed, error) {
@@ -33,25 +41,29 @@ func New(ethClient eventfeed.EthClient, scAddress common.Address, opts ...eventf
 			return nil, fmt.Errorf("applying provided option: %s", err)
 		}
 	}
-
-	contractAbi, err := tbleth.ContractMetaData.GetAbi()
+	scABI, err := tbleth.ContractMetaData.GetAbi()
 	if err != nil {
 		return nil, fmt.Errorf("get contract-abi: %s", err)
 	}
-	return &EventFeed{
-		ethClient:   ethClient,
-		scAddress:   scAddress,
-		contractAbi: contractAbi,
-		config:      config,
-	}, nil
+	ef := &EventFeed{
+		ethClient: ethClient,
+		scAddress: scAddress,
+		scABI:     scABI,
+		config:    config,
+	}
+	if err := ef.initMetrics(); err != nil {
+		return nil, fmt.Errorf("initializing metrics instruments: %s", err)
+	}
+
+	return ef, nil
 }
 
 func (ef *EventFeed) Start(ctx context.Context, fromHeight int64, ch chan<- eventfeed.BlockEvents, filterEventTypes []eventfeed.EventType) error {
 	log.Debug().Msg("starting...")
 	defer log.Debug().Msg("stopped")
+
 	// Spinup a background process that will post to chHeads when a new block is detected.
 	// This channel will be the heart-beat to pull new logs from the chain.
-	//
 	// We defer the ctx cancelation to be sure we always gracefully close this background go routine
 	// in any event that returns this function.
 	ctx, cls := context.WithCancel(ctx)
@@ -75,7 +87,6 @@ func (ef *EventFeed) Start(ctx context.Context, fromHeight int64, ch chan<- even
 				log.Info().Msg("new head channel was closed, closing gracefully")
 				return nil
 			}
-			// TODO(jsign): increase a counter metric
 			log.Debug().Int64("height", h.Number.Int64()).Msg("received new chain header")
 
 			// We do a for loop since we'll try to catch from fromHeight to the new reported
@@ -147,7 +158,9 @@ func (ef *EventFeed) Start(ctx context.Context, fromHeight int64, ch chan<- even
 
 				// Update our fromHeight to the latest processed height plus one.
 				fromHeight = toHeight + 1
-				// TODO(jsign): metric for "fromHeight"
+				ef.mLock.Lock()
+				ef.mCurrentHeight = fromHeight
+				ef.mLock.Unlock()
 			}
 		}
 	}
@@ -162,7 +175,7 @@ func (ef *EventFeed) Start(ctx context.Context, fromHeight int64, ch chan<- even
 func (ef *EventFeed) parseEvent(l types.Log) (interface{}, error) {
 	// We get an event descriptior from the common.Hash value that is always
 	// in Topic[0] in events. This is an ID for the kind of event.
-	eventDescr, err := ef.contractAbi.EventByID(l.Topics[0])
+	eventDescr, err := ef.scABI.EventByID(l.Topics[0])
 	if err != nil {
 		return nil, fmt.Errorf("detecting event type: %s", err)
 	}
@@ -179,7 +192,7 @@ func (ef *EventFeed) parseEvent(l types.Log) (interface{}, error) {
 	// First, we unmarshal the information contained in the `data` of the event, which
 	// are non-indexed fields of the event.
 	if len(l.Data) > 0 {
-		if err := ef.contractAbi.UnpackIntoInterface(i, eventDescr.Name, l.Data); err != nil {
+		if err := ef.scABI.UnpackIntoInterface(i, eventDescr.Name, l.Data); err != nil {
 			return nil, fmt.Errorf("unpacking into interface: %s", err)
 		}
 	}
@@ -198,7 +211,7 @@ func (ef *EventFeed) parseEvent(l types.Log) (interface{}, error) {
 	// This parsedEvent(...) function was coded in a generic way, so it will hardly
 	// ever change.
 
-	// TODO(jsign): add counter of parsed events per event type.
+	ef.mEventTypeCounter.Add(context.Background(), 1, attribute.String("name", eventDescr.Name))
 
 	return i, nil
 }
@@ -211,7 +224,7 @@ func (ef *EventFeed) getTopicsForEventTypes(ets []eventfeed.EventType) ([]common
 	}
 	topics := make([]common.Hash, len(ets))
 	for i, et := range ets {
-		e, ok := ef.contractAbi.Events[string(et)]
+		e, ok := ef.scABI.Events[string(et)]
 		if !ok {
 			return nil, fmt.Errorf("event type %s wasn't found in compiled contract", et)
 		}
