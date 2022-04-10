@@ -14,13 +14,11 @@ func (ef *EventFeed) initMetrics() error {
 	// Async instruments.
 	mHeight, err := meter.AsyncInt64().Gauge("tableland.eventfeed.height")
 	if err != nil {
-		return fmt.Errorf("creating height metric: %s", err)
+		return fmt.Errorf("creating height gauge: %s", err)
 	}
 	meter.RegisterCallback([]instrument.Asynchronous{mHeight},
 		func(ctx context.Context) {
-			ef.mLock.Lock()
-			defer ef.mLock.Unlock()
-			mHeight.Observe(ctx, ef.mCurrentHeight)
+			mHeight.Observe(ctx, ef.mCurrentHeight.Load())
 		})
 
 	// Sync instruments.
