@@ -53,16 +53,16 @@ func (acl *acl) CheckPrivileges(
 	tx pgx.Tx,
 	controller common.Address,
 	id tableland.TableID,
-	op tableland.Operation) error {
+	op tableland.Operation) (bool, error) {
 	aclRule, err := acl.store.WithTx(tx).GetACLOnTableByController(ctx, id, controller.String())
 	if err != nil {
-		return fmt.Errorf("privileges lookup: %s", err)
+		return false, fmt.Errorf("privileges lookup: %s", err)
 	}
 
-	isAllowed, missingPrivilege := aclRule.Privileges.CanExecute(op)
+	isAllowed, _ := aclRule.Privileges.CanExecute(op)
 	if !isAllowed {
-		return fmt.Errorf("cannot execute operation, missing privilege=%s", missingPrivilege.ToSQLString())
+		return false, nil
 	}
 
-	return nil
+	return true, nil
 }

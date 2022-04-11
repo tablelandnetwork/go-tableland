@@ -17,7 +17,7 @@ type ACL interface {
 	IsOwner(context.Context, common.Address, TableID) (bool, error)
 
 	// CheckPrivileges checks if an address can execute a specific operation on a table.
-	CheckPrivileges(context.Context, pgx.Tx, common.Address, TableID, Operation) error
+	CheckPrivileges(context.Context, pgx.Tx, common.Address, TableID, Operation) (bool, error)
 }
 
 // Privilege maps to SQL privilege and is the thing needed to execute an operation.

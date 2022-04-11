@@ -314,7 +314,7 @@ func TestOwnerRevokesItsPrivilegeInsideMultipleStatements(t *testing.T) {
 	_, err = tbld.RunSQL(ctx, grantReq)
 
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "cannot execute operation, missing privilege=update")
+	require.Contains(t, err.Error(), "ACL: not enough privileges")
 }
 
 func processCSV(t *testing.T, controller string, tbld tableland.Tableland, csvPath string) {
@@ -381,7 +381,7 @@ func (acl *aclHalfMock) CheckPrivileges(
 	tx pgx.Tx,
 	controller common.Address,
 	id tableland.TableID,
-	op tableland.Operation) error {
+	op tableland.Operation) (bool, error) {
 	aclImpl := NewACL(acl.sqlStore, nil)
 	return aclImpl.CheckPrivileges(ctx, tx, controller, id, op)
 }

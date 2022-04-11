@@ -359,8 +359,15 @@ func (b *batch) executeWriteStmt(
 	ws parsing.SugaredWriteStmt,
 	controller common.Address,
 	beforeRowCount int) error {
-	if err := b.tp.acl.CheckPrivileges(ctx, tx, controller, ws.GetTableID(), ws.Operation()); err != nil {
+	ok, err := b.tp.acl.CheckPrivileges(ctx, tx, controller, ws.GetTableID(), ws.Operation())
+	if err != nil {
 		return fmt.Errorf("error checking acl: %s", err)
+	}
+	if !ok {
+		return &txn.ErrQueryExecution{
+			Code: "ACL",
+			Msg:  "not enough privileges",
+		}
 	}
 
 	desugared, err := ws.GetDesugaredQuery()
@@ -371,7 +378,7 @@ func (b *batch) executeWriteStmt(
 	if err != nil {
 		if code, ok := isErrCausedByQuery(err); ok {
 			return &txn.ErrQueryExecution{
-				Code: code,
+				Code: "POSTGRES_" + code,
 				Msg:  err.Error(),
 			}
 		}
