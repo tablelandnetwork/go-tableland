@@ -431,8 +431,8 @@ func (acl *aclMock) CheckPrivileges(
 	tx pgx.Tx,
 	controller common.Address,
 	id tableland.TableID,
-	op tableland.Operation) error {
-	return nil
+	op tableland.Operation) (bool, error) {
+	return true, nil
 }
 
 func (acl *aclMock) CheckAuthorization(ctx context.Context, controller common.Address) error {
