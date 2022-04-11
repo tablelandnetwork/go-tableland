@@ -256,7 +256,7 @@ func (ep *EventProcessor) executeEvent(ctx context.Context, b txn.Batch, e inter
 		if readStmt != nil {
 			return "this is a read query, skipping", nil
 		}
-		if err := b.ExecWriteQueries(ctx, mutatingStmts); err != nil {
+		if err := b.ExecWriteQueries(ctx, e.Controller, mutatingStmts); err != nil {
 			var pgErr *txn.ErrQueryExecution
 			if errors.As(err, &pgErr) {
 				return fmt.Sprintf("db query execution failed (code: %s, msg: %s)", pgErr.Code, pgErr.Msg), nil
