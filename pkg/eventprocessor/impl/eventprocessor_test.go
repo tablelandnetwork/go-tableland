@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
@@ -101,7 +102,7 @@ func setup(t *testing.T) (contractRunSQLBlockSender, dbReader) {
 	require.NoError(t, err)
 	url, err := tests.PostgresURL()
 	require.NoError(t, err)
-	txnp, err := txnpimpl.NewTxnProcessor(url, 0)
+	txnp, err := txnpimpl.NewTxnProcessor(url, 0, &aclMock{})
 	require.NoError(t, err)
 	parser := parserimpl.New([]string{"system_", "registry"}, 0, 0)
 
@@ -152,4 +153,23 @@ func setup(t *testing.T) (contractRunSQLBlockSender, dbReader) {
 	t.Cleanup(func() { ep.Stop() })
 
 	return contractSendRunSQL, tableReader
+}
+
+type aclMock struct{}
+
+func (acl *aclMock) CheckPrivileges(
+	ctx context.Context,
+	tx pgx.Tx,
+	controller common.Address,
+	id tableland.TableID,
+	op tableland.Operation) error {
+	return nil
+}
+
+func (acl *aclMock) CheckAuthorization(ctx context.Context, controller common.Address) error {
+	return nil
+}
+
+func (acl *aclMock) IsOwner(ctx context.Context, controller common.Address, id tableland.TableID) (bool, error) {
+	return true, nil
 }

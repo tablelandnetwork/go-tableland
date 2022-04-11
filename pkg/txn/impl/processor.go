@@ -167,23 +167,11 @@ func (b *batch) ExecWriteQueries(
 			case parsing.SugaredGrantStmt:
 				err := b.executeGrantStmt(ctx, tx, stmt, controller)
 				if err != nil {
-					if code, ok := isErrCausedByQuery(err); ok {
-						return &txn.ErrQueryExecution{
-							Code: code,
-							Msg:  err.Error(),
-						}
-					}
 					return fmt.Errorf("executing grant stmt: %s", err)
 				}
 			case parsing.SugaredWriteStmt:
 				err := b.executeWriteStmt(ctx, tx, stmt, controller, beforeRowCount)
 				if err != nil {
-					if code, ok := isErrCausedByQuery(err); ok {
-						return &txn.ErrQueryExecution{
-							Code: code,
-							Msg:  err.Error(),
-						}
-					}
 					return fmt.Errorf("executing write stmt: %w", err)
 				}
 			default:
@@ -381,6 +369,12 @@ func (b *batch) executeWriteStmt(
 	}
 	cmdTag, err := tx.Exec(ctx, desugared)
 	if err != nil {
+		if code, ok := isErrCausedByQuery(err); ok {
+			return &txn.ErrQueryExecution{
+				Code: code,
+				Msg:  err.Error(),
+			}
+		}
 		return fmt.Errorf("exec query: %s", err)
 	}
 	if b.tp.maxTableRowCount > 0 && cmdTag.Insert() {
