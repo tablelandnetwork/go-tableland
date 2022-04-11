@@ -18,7 +18,7 @@ import (
 func TestStart(t *testing.T) {
 	t.Parallel()
 
-	backend, addr, sc, authOpts := testutil.Setup(t)
+	backend, addr, sc, authOpts, _ := testutil.Setup(t)
 	qf, err := New(backend, addr, eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
 
@@ -77,7 +77,7 @@ func TestStart(t *testing.T) {
 func TestStartForTwoEventTypes(t *testing.T) {
 	t.Parallel()
 
-	backend, addr, sc, authOpts := testutil.Setup(t)
+	backend, addr, sc, authOpts, _ := testutil.Setup(t)
 	qf, err := New(backend, addr, eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
 

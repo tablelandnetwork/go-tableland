@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
+	"github.com/textileio/go-tableland/pkg/wallet"
 )
 
 func TestIsOwner(t *testing.T) {
@@ -186,7 +187,7 @@ func setup(t *testing.T) (*backends.SimulatedBackend, *ecdsa.PrivateKey, *bind.T
 		t.Error("Expected a valid deployment address. Received empty address byte array instead")
 	}
 
-	client, err := NewClient(backend, address)
+	client, err := NewClient(backend, 4, address, &wallet.Wallet{})
 	require.NoError(t, err)
 
 	return backend, key, auth, contract, client

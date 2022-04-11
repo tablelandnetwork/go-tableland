@@ -38,7 +38,11 @@ type config struct {
 	}
 	Registry struct {
 		EthEndpoint     string `default:"eth_endpoint"`
+		ChainID         int64  `default:"1"`
 		ContractAddress string `default:"contract_address"`
+	}
+	Signer struct {
+		PrivateKey string `default:""`
 	}
 	Metrics struct {
 		Port string `default:"9090"`
