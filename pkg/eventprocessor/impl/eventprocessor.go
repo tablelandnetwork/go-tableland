@@ -241,9 +241,9 @@ func (ep *EventProcessor) runBlockQueries(ctx context.Context, bqs eventfeed.Blo
 // If the event execution:
 // 1) Has an acceptable execution failure, it returns the failure cause in the first return parameter,
 //    and nil in the second one.
-// 2) Has an unknows infrastructure error, etc),
-//    it returns ("", err) where err is the underlying error. Probably the caller will want to retry executing this
-//    event later when this problem is solved and retry the event.
+// 2) Has an unknown infrastructure error, then it returns ("", err) where err is the underlying error.
+//    Probably the caller will want to retry executing this event later when this problem is solved and
+//    retry the event.
 func (ep *EventProcessor) executeEvent(ctx context.Context, b txn.Batch, e interface{}) (string, error) {
 	switch e := e.(type) {
 	case *ethereum.ContractRunSQL:

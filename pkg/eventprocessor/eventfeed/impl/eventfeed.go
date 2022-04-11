@@ -134,7 +134,7 @@ func (ef *EventFeed) Start(
 				log.Debug().Msg("no filter logs")
 			} else {
 				// We received new events. We'll group/pack them by block number in
-				// BLockEvents structs, and send them to the `ch` channel provided
+				// BlockEvents structs, and send them to the `ch` channel provided
 				// by the caller.
 				bq := eventfeed.BlockEvents{
 					BlockNumber: int64(logs[0].BlockNumber),
