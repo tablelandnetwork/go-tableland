@@ -10,6 +10,7 @@ import (
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
+	"github.com/textileio/go-tableland/pkg/tableregistry"
 	"github.com/textileio/go-tableland/pkg/txn"
 )
 
@@ -17,10 +18,11 @@ var log = logger.With().Str("component", "mesa").Logger()
 
 // TablelandMesa is the main implementation of Tableland spec.
 type TablelandMesa struct {
-	store  sqlstore.SQLStore
-	txnp   txn.TxnProcessor
-	parser parsing.SQLValidator
-	acl    tableland.ACL
+	store    sqlstore.SQLStore
+	txnp     txn.TxnProcessor
+	parser   parsing.SQLValidator
+	acl      tableland.ACL
+	registry tableregistry.TableRegistry
 }
 
 // NewTablelandMesa creates a new TablelandMesa.
@@ -28,12 +30,14 @@ func NewTablelandMesa(
 	store sqlstore.SQLStore,
 	parser parsing.SQLValidator,
 	txnp txn.TxnProcessor,
-	acl tableland.ACL) tableland.Tableland {
+	acl tableland.ACL,
+	registry tableregistry.TableRegistry) tableland.Tableland {
 	return &TablelandMesa{
-		store:  store,
-		acl:    acl,
-		parser: parser,
-		txnp:   txnp,
+		store:    store,
+		acl:      acl,
+		parser:   parser,
+		txnp:     txnp,
+		registry: registry,
 	}
 }
 
@@ -128,10 +132,17 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.RunSQLRequest)
 		return tableland.RunSQLResponse{Result: queryResult}, nil
 	}
 
-	if err := t.runMutating(ctx, req.Controller, mutatingStmts); err != nil {
-		return tableland.RunSQLResponse{}, fmt.Errorf("running statement: %s", err)
+	// Mutating statements
+	tableID := mutatingStmts[0].GetTableID()
+	tx, err := t.registry.RunSQL(ctx, common.HexToAddress(req.Controller), tableID, req.Statement)
+	if err != nil {
+		return tableland.RunSQLResponse{}, fmt.Errorf("sending tx: %s", err)
 	}
-	return tableland.RunSQLResponse{}, nil
+
+	response := tableland.RunSQLResponse{}
+	response.Transaction.Hash = tx.Hash().String()
+	t.incrementRunSQLCount(ctx, req.Controller)
+	return response, nil
 }
 
 // Authorize is a convenience API giving the client something to call to trigger authorization.
@@ -139,32 +150,6 @@ func (t *TablelandMesa) Authorize(ctx context.Context, req tableland.AuthorizeRe
 	if err := t.acl.CheckAuthorization(ctx, common.HexToAddress(req.Controller)); err != nil {
 		return fmt.Errorf("checking address authorization: %s", err)
 	}
-	return nil
-}
-
-func (t *TablelandMesa) runMutating(
-	ctx context.Context,
-	controller string,
-	mss []parsing.SugaredMutatingStmt) error {
-	b, err := t.txnp.OpenBatch(ctx)
-	if err != nil {
-		return fmt.Errorf("opening batch: %s", err)
-	}
-	defer func() {
-		if err := b.Close(ctx); err != nil {
-			log.Error().Err(err).Msg("closing batch")
-		}
-	}()
-	if err := b.ExecWriteQueries(ctx, common.HexToAddress(controller), mss); err != nil {
-		return fmt.Errorf("executing mutating-query: %s", err)
-	}
-
-	if err := b.Commit(ctx); err != nil {
-		return fmt.Errorf("committing changes: %s", err)
-	}
-
-	t.incrementRunSQLCount(ctx, controller)
-
 	return nil
 }
 
