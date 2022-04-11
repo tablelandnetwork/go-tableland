@@ -18,6 +18,14 @@ type Registry struct {
 	Name        string
 }
 
+type SystemAcl struct {
+	TableID    pgtype.Numeric
+	Controller string
+	Privileges []string
+	CreatedAt  time.Time
+	UpdatedAt  sql.NullTime
+}
+
 type SystemAuth struct {
 	Address          string
 	CreatedAt        time.Time

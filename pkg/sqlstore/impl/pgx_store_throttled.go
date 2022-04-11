@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/jackc/pgx/v4"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
@@ -72,6 +73,14 @@ func (s *ThrottledSQLStorePGX) IncrementRunSQLCount(ctx context.Context, address
 	return s.store.IncrementRunSQLCount(ctx, address)
 }
 
+// GetACLOnTableByController increments the counter.
+func (s *ThrottledSQLStorePGX) GetACLOnTableByController(
+	ctx context.Context,
+	table tableland.TableID,
+	address string) (sqlstore.SystemACL, error) {
+	return s.store.GetACLOnTableByController(ctx, table, address)
+}
+
 // Read executes a read statement on the db.
 func (s *ThrottledSQLStorePGX) Read(ctx context.Context, stmt parsing.SugaredReadStmt) (interface{}, error) {
 	data, err := s.store.Read(ctx, stmt)
@@ -83,4 +92,9 @@ func (s *ThrottledSQLStorePGX) Read(ctx context.Context, stmt parsing.SugaredRea
 // Close closes the connection pool.
 func (s *ThrottledSQLStorePGX) Close() {
 	s.store.Close()
+}
+
+// WithTx returns a copy of the current ThrottledSQLStorePGX with a tx attached.
+func (s *ThrottledSQLStorePGX) WithTx(tx pgx.Tx) sqlstore.SystemStore {
+	return s.store.WithTx(tx)
 }

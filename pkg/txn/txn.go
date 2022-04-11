@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
 )
@@ -40,7 +41,7 @@ type Batch interface {
 		controller string,
 		description string,
 		createStmt parsing.CreateStmt) error
-	ExecWriteQueries(ctx context.Context, wquery []parsing.SugaredMutatingStmt) error
+	ExecWriteQueries(ctx context.Context, controller common.Address, wquery []parsing.SugaredMutatingStmt) error
 
 	Commit(context.Context) error
 	Close(context.Context) error

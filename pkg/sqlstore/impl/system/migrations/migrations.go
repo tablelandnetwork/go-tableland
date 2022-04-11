@@ -13,6 +13,8 @@
 // migrations/005_mul_changes.up.sql
 // migrations/006_rename_system_tables.down.sql
 // migrations/006_rename_system_tables.up.sql
+// migrations/007_acl.up.down.sql
+// migrations/007_acl.up.sql
 package migrations
 
 import (
@@ -304,7 +306,7 @@ func _006_rename_system_tablesDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "006_rename_system_tables.down.sql", size: 45, mode: os.FileMode(420), modTime: time.Unix(1645209600, 0)}
+	info := bindataFileInfo{name: "006_rename_system_tables.down.sql", size: 45, mode: os.FileMode(420), modTime: time.Unix(1645636858, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -324,7 +326,47 @@ func _006_rename_system_tablesUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "006_rename_system_tables.up.sql", size: 45, mode: os.FileMode(420), modTime: time.Unix(1645209586, 0)}
+	info := bindataFileInfo{name: "006_rename_system_tables.up.sql", size: 45, mode: os.FileMode(420), modTime: time.Unix(1645636858, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __007_aclUpDownSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\x09\xf2\x0f\x50\x08\x71\x74\xf2\x71\x55\x28\xae\x2c\x2e\x49\xcd\x8d\x4f\x4c\xce\xb1\x06\x04\x00\x00\xff\xff\xa9\xfc\x80\xcd\x16\x00\x00\x00")
+
+func _007_aclUpDownSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__007_aclUpDownSql,
+		"007_acl.up.down.sql",
+	)
+}
+
+func _007_aclUpDownSql() (*asset, error) {
+	bytes, err := _007_aclUpDownSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "007_acl.up.down.sql", size: 22, mode: os.FileMode(420), modTime: time.Unix(1646140687, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __007_aclUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x64\x90\x41\x4f\xc2\x40\x14\x84\xef\xfb\x2b\xe6\x46\x9b\xf4\xe0\xc9\x0b\xa7\xa5\xbe\xea\xc6\xee\x96\xec\x3e\x14\x62\x0c\xa9\x74\x43\x9a\x54\x21\xdb\x55\x43\x8c\xff\xdd\x00\x4a\x51\xcf\xf3\xcd\xbc\x37\x33\xa1\x6b\x65\xc6\x42\xe4\x96\x24\x13\x58\x4e\x4a\x82\x2a\x60\x2a\x06\xcd\x95\x63\x87\x7e\xd7\x47\xff\xbc\xac\x57\x1d\x12\x01\x00\xb1\x7e\xea\xfc\xb2\x6d\x60\x66\x9a\xac\xca\x93\xcb\x8b\x14\x96\x0a\xb2\x64\x72\x72\x08\x7e\xdd\xf6\x31\xec\x92\xb6\x49\xb3\x83\x63\xb5\x79\x89\x61\xd3\x75\x3e\x80\x69\xce\x87\x74\x33\x2b\xcb\xa3\xba\x0d\xed\x5b\xdb\xf9\xb5\xef\x71\x27\x6d\x7e\x23\xed\xc3\xe3\x1f\x64\x15\x7c\x1d\x7d\xb3\xac\x23\x58\x69\x72\x2c\xf5\xf4\x84\xe0\x8a\x0a\x39\x2b\xf7\xb1\xf7\xc9\xf7\xc5\xd7\x6d\xf3\xcf\x70\x54\xa6\x56\x69\x69\x17\xb8\xa5\x45\xf2\xd3\x24\x3b\xfb\x30\x15\xe9\x58\x08\x65\x1c\x59\x86\x32\x5c\xfd\x1a\x60\xe0\x32\x0c\xee\xa1\x41\x0a\x47\x25\xe5\x8c\x73\x70\x8f\x8c\x3e\xea\x0c\xef\x19\x9a\xcf\x11\x0a\x5b\xe9\xd3\x4a\xfb\xf1\x2b\xad\x15\x8f\xc5\x57\x00\x00\x00\xff\xff\x09\x7e\x83\x58\x8d\x01\x00\x00")
+
+func _007_aclUpSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__007_aclUpSql,
+		"007_acl.up.sql",
+	)
+}
+
+func _007_aclUpSql() (*asset, error) {
+	bytes, err := _007_aclUpSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "007_acl.up.sql", size: 397, mode: os.FileMode(420), modTime: time.Unix(1646751088, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -393,6 +435,8 @@ var _bindata = map[string]func() (*asset, error){
 	"005_mul_changes.up.sql":            _005_mul_changesUpSql,
 	"006_rename_system_tables.down.sql": _006_rename_system_tablesDownSql,
 	"006_rename_system_tables.up.sql":   _006_rename_system_tablesUpSql,
+	"007_acl.up.down.sql":               _007_aclUpDownSql,
+	"007_acl.up.sql":                    _007_aclUpSql,
 }
 
 // AssetDir returns the file names below a certain
@@ -448,6 +492,8 @@ var _bintree = &bintree{nil, map[string]*bintree{
 	"005_mul_changes.up.sql":            &bintree{_005_mul_changesUpSql, map[string]*bintree{}},
 	"006_rename_system_tables.down.sql": &bintree{_006_rename_system_tablesDownSql, map[string]*bintree{}},
 	"006_rename_system_tables.up.sql":   &bintree{_006_rename_system_tablesUpSql, map[string]*bintree{}},
+	"007_acl.up.down.sql":               &bintree{_007_aclUpDownSql, map[string]*bintree{}},
+	"007_acl.up.sql":                    &bintree{_007_aclUpSql, map[string]*bintree{}},
 }}
 
 // RestoreAsset restores an asset under the given directory

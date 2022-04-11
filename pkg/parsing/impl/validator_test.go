@@ -819,7 +819,7 @@ func TestGetGrantStatementRolesAndPrivileges(t *testing.T) {
 		name         string
 		query        string
 		roles        []common.Address
-		privileges   []string
+		privileges   tableland.Privileges
 		expectedStmt string
 	}
 	tests := []testCase{
@@ -827,7 +827,7 @@ func TestGetGrantStatementRolesAndPrivileges(t *testing.T) {
 			name:         "grant",
 			query:        "grant insert, UPDATE on a_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\";",
 			roles:        []common.Address{common.HexToAddress("0xd43c59d5694ec111eb9e986c233200b14249558d")},
-			privileges:   []string{"insert", "update"},
+			privileges:   []tableland.Privilege{tableland.PrivInsert, tableland.PrivUpdate},
 			expectedStmt: "GRANT insert, update ON _100 TO \"0xd43c59d5694ec111eb9e986c233200b14249558d\"",
 		},
 
@@ -838,7 +838,7 @@ func TestGetGrantStatementRolesAndPrivileges(t *testing.T) {
 				common.HexToAddress("0xd43c59d5694ec111eb9e986c233200b14249558d"),
 				common.HexToAddress("0x4afe8e30db4549384b0a05bb796468b130c7d6e0"),
 			},
-			privileges:   []string{"delete"},
+			privileges:   []tableland.Privilege{tableland.PrivDelete},
 			expectedStmt: "REVOKE delete ON _100 FROM \"0xd43c59d5694ec111eb9e986c233200b14249558d\", \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"", // nolint
 		},
 	}

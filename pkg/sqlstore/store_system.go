@@ -3,6 +3,7 @@ package sqlstore
 import (
 	"context"
 
+	"github.com/jackc/pgx/v4"
 	"github.com/textileio/go-tableland/internal/tableland"
 )
 
@@ -17,4 +18,6 @@ type SystemStore interface {
 	ListAuthorized(context.Context) ([]AuthorizationRecord, error)
 	IncrementCreateTableCount(context.Context, string) error
 	IncrementRunSQLCount(context.Context, string) error
+	GetACLOnTableByController(context.Context, tableland.TableID, string) (SystemACL, error)
+	WithTx(tx pgx.Tx) SystemStore
 }

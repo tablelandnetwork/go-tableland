@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/require"
@@ -15,6 +16,10 @@ import (
 	"github.com/textileio/go-tableland/pkg/txn"
 	"github.com/textileio/go-tableland/tests"
 )
+
+// Random address for testing. The value isn't important
+// because the ACL is mocked.
+var controller = common.HexToAddress("0x07dfFc57AA386D2b239CaBE8993358DF20BAFBE2")
 
 func TestRunSQL(t *testing.T) {
 	t.Parallel()
@@ -28,7 +33,7 @@ func TestRunSQL(t *testing.T) {
 		require.NoError(t, err)
 
 		wq1 := mustWriteStmt(t, `insert into foo_100 values ('one')`)
-		err = b.ExecWriteQueries(ctx, []parsing.SugaredMutatingStmt{wq1})
+		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1})
 		require.NoError(t, err)
 
 		require.NoError(t, b.Commit(ctx))
@@ -49,18 +54,18 @@ func TestRunSQL(t *testing.T) {
 
 		{
 			wq1 := mustWriteStmt(t, `insert into foo_100 values ('wq1one')`)
-			err = b.ExecWriteQueries(ctx, []parsing.SugaredMutatingStmt{wq1})
+			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1})
 			require.NoError(t, err)
 		}
 		{
 			wq1 := mustWriteStmt(t, `insert into foo_100 values ('wq1two')`)
 			wq2 := mustWriteStmt(t, `insert into foo_100 values ('wq2three')`)
-			err = b.ExecWriteQueries(ctx, []parsing.SugaredMutatingStmt{wq1, wq2})
+			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1, wq2})
 			require.NoError(t, err)
 		}
 		{
 			wq1 := mustWriteStmt(t, `insert into foo_100 values ('wq1four')`)
-			err = b.ExecWriteQueries(ctx, []parsing.SugaredMutatingStmt{wq1})
+			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1})
 			require.NoError(t, err)
 		}
 
@@ -82,18 +87,18 @@ func TestRunSQL(t *testing.T) {
 
 		{
 			wq1_1 := mustWriteStmt(t, `insert into foo_100 values ('onez')`)
-			err = b.ExecWriteQueries(ctx, []parsing.SugaredMutatingStmt{wq1_1})
+			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1_1})
 			require.NoError(t, err)
 		}
 		{
 			wq2_1 := mustWriteStmt(t, `insert into foo_100 values ('twoz')`)
 			wq2_2 := mustWriteStmt(t, `insert into foo_101 values ('threez')`)
-			err = b.ExecWriteQueries(ctx, []parsing.SugaredMutatingStmt{wq2_1, wq2_2})
+			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq2_1, wq2_2})
 			require.Error(t, err)
 		}
 		{
 			wq3_1 := mustWriteStmt(t, `insert into foo_100 values ('fourz')`)
-			err = b.ExecWriteQueries(ctx, []parsing.SugaredMutatingStmt{wq3_1})
+			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq3_1})
 			require.NoError(t, err)
 		}
 
@@ -122,13 +127,13 @@ func TestRunSQL(t *testing.T) {
 
 		{
 			wq1_1 := mustWriteStmt(t, `insert into foo_100 values ('one')`)
-			err = b.ExecWriteQueries(ctx, []parsing.SugaredMutatingStmt{wq1_1})
+			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1_1})
 			require.NoError(t, err)
 		}
 		{
 			wq2_1 := mustWriteStmt(t, `insert into foo_100 values ('two')`)
 			wq2_2 := mustWriteStmt(t, `insert into foo_100 values ('three')`)
-			err = b.ExecWriteQueries(ctx, []parsing.SugaredMutatingStmt{wq2_1, wq2_2})
+			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq2_1, wq2_2})
 			require.NoError(t, err)
 		}
 
@@ -140,6 +145,118 @@ func TestRunSQL(t *testing.T) {
 		// closed the whole store. This should rollback any ongoing
 		// opened batch and leave db state correctly.
 		require.Equal(t, 0, tableRowCountT100(t, pool))
+	})
+
+	t.Run("single-query grant", func(t *testing.T) {
+		t.Parallel()
+		ctx := context.Background()
+
+		txnp, pool := newTxnProcessorWithTable(t, 0)
+
+		b, err := txnp.OpenBatch(ctx)
+		require.NoError(t, err)
+
+		wq1 := mustGrantStmt(t, "grant insert, update, delete on foo_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\", \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"") //nolint
+		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1})
+		require.NoError(t, err)
+
+		require.NoError(t, b.Commit(ctx))
+		require.NoError(t, b.Close(ctx))
+		require.NoError(t, txnp.Close(ctx))
+
+		ss := wq1.(parsing.SugaredGrantStmt)
+		for _, role := range ss.GetRoles() {
+			// Check that an entry was inserted in the system_acl table for each row.
+			systemStore, err := system.New(pool)
+			require.NoError(t, err)
+			aclRow, err := systemStore.GetACLOnTableByController(ctx, ss.GetTableID(), role.String())
+			require.NoError(t, err)
+			require.Equal(t, wq1.GetTableID(), aclRow.TableID)
+			require.Equal(t, role.String(), aclRow.Controller)
+			require.Equal(t, ss.GetPrivileges(), aclRow.Privileges)
+		}
+	})
+
+	t.Run("grant upsert", func(t *testing.T) {
+		t.Parallel()
+		ctx := context.Background()
+
+		txnp, pool := newTxnProcessorWithTable(t, 0)
+
+		b, err := txnp.OpenBatch(ctx)
+		require.NoError(t, err)
+
+		wq1 := mustGrantStmt(t, "grant insert on foo_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\", \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"") //nolint
+		// add the update privilege for role 0xd43c59d5694ec111eb9e986c233200b14249558d
+		wq2 := mustGrantStmt(t, "grant update on foo_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\"")
+		// add the delete privilege (and mistakenly the insert) grant for role 0x4afe8e30db4549384b0a05bb796468b130c7d6e0
+		wq3 := mustGrantStmt(t, "grant insert, delete on foo_100 to \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"")
+		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1, wq2, wq3})
+		require.NoError(t, err)
+
+		require.NoError(t, b.Commit(ctx))
+		require.NoError(t, b.Close(ctx))
+		require.NoError(t, txnp.Close(ctx))
+
+		systemStore, err := system.New(pool)
+		require.NoError(t, err)
+
+		ss := wq1.(parsing.SugaredGrantStmt)
+		{
+			aclRow, err := systemStore.GetACLOnTableByController(
+				ctx,
+				ss.GetTableID(),
+				"0xD43C59d5694eC111Eb9e986C233200b14249558D")
+			require.NoError(t, err)
+			require.Equal(t, wq2.GetTableID(), aclRow.TableID)
+			require.Equal(t, "0xD43C59d5694eC111Eb9e986C233200b14249558D", aclRow.Controller)
+			require.Equal(t, tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate}, aclRow.Privileges)
+		}
+
+		{
+			aclRow, err := systemStore.GetACLOnTableByController(
+				ctx,
+				ss.GetTableID(),
+				"0x4afE8e30DB4549384b0a05bb796468B130c7D6E0")
+			require.NoError(t, err)
+			require.Equal(t, wq3.GetTableID(), aclRow.TableID)
+			require.Equal(t, "0x4afE8e30DB4549384b0a05bb796468B130c7D6E0", aclRow.Controller)
+			require.Equal(t, tableland.Privileges{tableland.PrivInsert, tableland.PrivDelete}, aclRow.Privileges)
+		}
+	})
+
+	t.Run("grant revoke", func(t *testing.T) {
+		t.Parallel()
+		ctx := context.Background()
+
+		txnp, pool := newTxnProcessorWithTable(t, 0)
+
+		b, err := txnp.OpenBatch(ctx)
+		require.NoError(t, err)
+
+		wq1 := mustGrantStmt(t, "grant insert, update, delete on foo_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\"")
+		wq2 := mustGrantStmt(t, "revoke insert, delete on foo_100 from \"0xd43c59d5694ec111eb9e986c233200b14249558d\"")
+		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1, wq2})
+		require.NoError(t, err)
+
+		require.NoError(t, b.Commit(ctx))
+		require.NoError(t, b.Close(ctx))
+		require.NoError(t, txnp.Close(ctx))
+
+		systemStore, err := system.New(pool)
+		require.NoError(t, err)
+
+		ss := wq1.(parsing.SugaredGrantStmt)
+		{
+			aclRow, err := systemStore.GetACLOnTableByController(
+				ctx,
+				ss.GetTableID(),
+				"0xD43C59d5694eC111Eb9e986C233200b14249558D")
+			require.NoError(t, err)
+			require.Equal(t, wq2.GetTableID(), aclRow.TableID)
+			require.Equal(t, "0xD43C59d5694eC111Eb9e986C233200b14249558D", aclRow.Controller)
+			require.Equal(t, tableland.Privileges{tableland.PrivUpdate}, aclRow.Privileges)
+		}
 	})
 }
 
@@ -197,7 +314,7 @@ func TestTableRowCountLimit(t *testing.T) {
 		require.NoError(t, err)
 
 		q := mustWriteStmt(t, `insert into foo_100 values ('one')`)
-		err = b.ExecWriteQueries(ctx, []parsing.SugaredMutatingStmt{q})
+		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{q})
 		if err == nil {
 			require.NoError(t, b.Commit(ctx))
 		}
@@ -254,7 +371,7 @@ func newTxnProcessor(t *testing.T, rowsLimit int) (*TblTxnProcessor, *pgxpool.Po
 	url, err := tests.PostgresURL()
 	require.NoError(t, err)
 
-	txnp, err := NewTxnProcessor(url, rowsLimit)
+	txnp, err := NewTxnProcessor(url, rowsLimit, &aclMock{})
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -296,4 +413,32 @@ func mustWriteStmt(t *testing.T, q string) parsing.SugaredMutatingStmt {
 	require.NoError(t, err)
 	require.Len(t, wss, 1)
 	return wss[0]
+}
+
+func mustGrantStmt(t *testing.T, q string) parsing.SugaredMutatingStmt {
+	t.Helper()
+	p := parserimpl.New([]string{"system_", "registry"}, 0, 0)
+	_, wss, err := p.ValidateRunSQL(q)
+	require.NoError(t, err)
+	require.Len(t, wss, 1)
+	return wss[0]
+}
+
+type aclMock struct{}
+
+func (acl *aclMock) CheckPrivileges(
+	ctx context.Context,
+	tx pgx.Tx,
+	controller common.Address,
+	id tableland.TableID,
+	op tableland.Operation) error {
+	return nil
+}
+
+func (acl *aclMock) CheckAuthorization(ctx context.Context, controller common.Address) error {
+	return nil
+}
+
+func (acl *aclMock) IsOwner(ctx context.Context, controller common.Address, id tableland.TableID) (bool, error) {
+	return true, nil
 }

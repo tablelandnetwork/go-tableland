@@ -15,6 +15,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/database/postgres" // triggers something?
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
 	"github.com/jackc/pgtype"
+	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
@@ -23,8 +24,11 @@ import (
 )
 
 // SystemStore provides a persistent layer for storage requests.
+// The methods implemented by this layer can be executed inside a given transaction or not.
+// For safety reasons, this layer has no access to the database object or the transaction object.
+// The access is made through the dbWithTx interface.
 type SystemStore struct {
-	db *db.Queries
+	db dbWithTx
 }
 
 // New returns a new SystemStore backed by `pgxpool.Pool`.
@@ -38,7 +42,7 @@ func New(pool *pgxpool.Pool) (*SystemStore, error) {
 		return nil, fmt.Errorf("initializing db connection: %s", err)
 	}
 
-	return &SystemStore{db: db.New(pool)}, nil
+	return &SystemStore{db: &dbWithTxImpl{db: db.New(pool)}}, nil
 }
 
 // GetTable fetchs a table from its UUID.
@@ -47,7 +51,7 @@ func (s *SystemStore) GetTable(ctx context.Context, id tableland.TableID) (sqlst
 	if err := dbID.Set(id.String()); err != nil {
 		return sqlstore.Table{}, fmt.Errorf("parsing id to numeric: %s", err)
 	}
-	table, err := s.db.GetTable(ctx, dbID)
+	table, err := s.db.queries().GetTable(ctx, dbID)
 	if err != nil {
 		return sqlstore.Table{}, fmt.Errorf("failed to get the table: %s", err)
 	}
@@ -59,7 +63,7 @@ func (s *SystemStore) GetTablesByController(ctx context.Context, controller stri
 	if err := sanitizeAddress(controller); err != nil {
 		return []sqlstore.Table{}, fmt.Errorf("sanitizing address: %s", err)
 	}
-	sqlcTables, err := s.db.GetTablesByController(ctx, controller)
+	sqlcTables, err := s.db.queries().GetTablesByController(ctx, controller)
 	if err != nil {
 		return []sqlstore.Table{}, fmt.Errorf("failed to get the table: %s", err)
 	}
@@ -80,7 +84,7 @@ func (s *SystemStore) Authorize(ctx context.Context, address string) error {
 	if err := sanitizeAddress(address); err != nil {
 		return fmt.Errorf("sanitizing address: %s", err)
 	}
-	if err := s.db.Authorize(ctx, address); err != nil {
+	if err := s.db.queries().Authorize(ctx, address); err != nil {
 		return fmt.Errorf("authorizating: %s", err)
 	}
 	return nil
@@ -91,7 +95,7 @@ func (s *SystemStore) Revoke(ctx context.Context, address string) error {
 	if err := sanitizeAddress(address); err != nil {
 		return fmt.Errorf("sanitizing address: %s", err)
 	}
-	if err := s.db.Revoke(ctx, address); err != nil {
+	if err := s.db.queries().Revoke(ctx, address); err != nil {
 		return fmt.Errorf("revoking: %s", err)
 	}
 	return nil
@@ -102,7 +106,7 @@ func (s *SystemStore) IsAuthorized(ctx context.Context, address string) (sqlstor
 	if err := sanitizeAddress(address); err != nil {
 		return sqlstore.IsAuthorizedResult{}, fmt.Errorf("sanitizing address: %s", err)
 	}
-	authorized, err := s.db.IsAuthorized(ctx, address)
+	authorized, err := s.db.queries().IsAuthorized(ctx, address)
 	if err != nil {
 		return sqlstore.IsAuthorizedResult{}, fmt.Errorf("checking authorization: %s", err)
 	}
@@ -117,7 +121,7 @@ func (s *SystemStore) GetAuthorizationRecord(
 	if err := sanitizeAddress(address); err != nil {
 		return sqlstore.AuthorizationRecord{}, fmt.Errorf("sanitizing address: %s", err)
 	}
-	res, err := s.db.GetAuthorized(ctx, address)
+	res, err := s.db.queries().GetAuthorized(ctx, address)
 	if err != nil {
 		return sqlstore.AuthorizationRecord{}, fmt.Errorf("getthing authorization record: %s", err)
 	}
@@ -139,7 +143,7 @@ func (s *SystemStore) GetAuthorizationRecord(
 
 // ListAuthorized returns a list of all authorization records.
 func (s *SystemStore) ListAuthorized(ctx context.Context) ([]sqlstore.AuthorizationRecord, error) {
-	res, err := s.db.ListAuthorized(ctx)
+	res, err := s.db.queries().ListAuthorized(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getthing authorization records: %s", err)
 	}
@@ -167,7 +171,7 @@ func (s *SystemStore) IncrementCreateTableCount(ctx context.Context, address str
 	if err := sanitizeAddress(address); err != nil {
 		return fmt.Errorf("sanitizing address: %s", err)
 	}
-	if err := s.db.IncrementCreateTableCount(ctx, address); err != nil {
+	if err := s.db.queries().IncrementCreateTableCount(ctx, address); err != nil {
 		return fmt.Errorf("incrementing create table count: %s", err)
 	}
 	return nil
@@ -178,10 +182,50 @@ func (s *SystemStore) IncrementRunSQLCount(ctx context.Context, address string) 
 	if err := sanitizeAddress(address); err != nil {
 		return fmt.Errorf("sanitizing address: %s", err)
 	}
-	if err := s.db.IncrementRunSQLCount(ctx, address); err != nil {
+	if err := s.db.queries().IncrementRunSQLCount(ctx, address); err != nil {
 		return fmt.Errorf("incrementing run sql count: %s", err)
 	}
 	return nil
+}
+
+// GetACLOnTableByController returns the privileges on table stored in the database for a given controller.
+func (s *SystemStore) GetACLOnTableByController(
+	ctx context.Context,
+	id tableland.TableID,
+	controller string) (sqlstore.SystemACL, error) {
+	dbID := pgtype.Numeric{}
+	if err := dbID.Set(id.String()); err != nil {
+		return sqlstore.SystemACL{}, fmt.Errorf("parsing table id to numeric: %s", err)
+	}
+
+	params := db.GetAclByTableAndControllerParams{
+		Controller: controller,
+		TableID:    dbID,
+	}
+
+	systemACL, err := s.db.queries().GetAclByTableAndController(ctx, params)
+	if err == pgx.ErrNoRows {
+		return sqlstore.SystemACL{
+			Controller: controller,
+			TableID:    id,
+		}, nil
+	}
+
+	if err != nil {
+		return sqlstore.SystemACL{}, fmt.Errorf("failed to get the acl info: %s", err)
+	}
+
+	return aclFromSQLtoDTO(systemACL)
+}
+
+// WithTx returns a copy of the current SystemStore with a tx attached.
+func (s *SystemStore) WithTx(tx pgx.Tx) sqlstore.SystemStore {
+	return &SystemStore{
+		&dbWithTxImpl{
+			db: s.db.queries(),
+			tx: tx,
+		},
+	}
 }
 
 // executeMigration run db migrations and return a ready to use connection to the Postgres database.
@@ -235,9 +279,59 @@ func tableFromSQLToDTO(table db.Registry) (sqlstore.Table, error) {
 	}, nil
 }
 
+func aclFromSQLtoDTO(acl db.SystemAcl) (sqlstore.SystemACL, error) {
+	br := &big.Rat{}
+	if err := acl.TableID.AssignTo(br); err != nil {
+		return sqlstore.SystemACL{}, fmt.Errorf("parsing numeric to bigrat: %s", err)
+	}
+	if !br.IsInt() {
+		return sqlstore.SystemACL{}, errors.New("parsed numeric isn't an integer")
+	}
+	id, err := tableland.NewTableID(br.Num().String())
+	if err != nil {
+		return sqlstore.SystemACL{}, fmt.Errorf("parsing id to string: %s", err)
+	}
+
+	privileges := make(tableland.Privileges, len(acl.Privileges))
+	for i, priv := range acl.Privileges {
+		privileges[i] = tableland.Privilege(priv)
+	}
+
+	systemACL := sqlstore.SystemACL{
+		TableID:    id,
+		Controller: acl.Controller,
+		Privileges: privileges,
+		CreatedAt:  acl.CreatedAt,
+	}
+
+	if acl.UpdatedAt.Valid {
+		systemACL.UpdatedAt = &acl.UpdatedAt.Time
+	}
+
+	return systemACL, nil
+}
+
 func sanitizeAddress(address string) error {
 	if strings.ContainsAny(address, "%_") {
 		return errors.New("address contains invalid characters")
 	}
 	return nil
+}
+
+// DBWithTx gives access to db.Queries with the possibility
+// of a tx attached, preventing direct access to the db and tx.
+type dbWithTx interface {
+	queries() *db.Queries
+}
+
+type dbWithTxImpl struct {
+	db *db.Queries
+	tx pgx.Tx
+}
+
+func (d *dbWithTxImpl) queries() *db.Queries {
+	if d.tx == nil {
+		return d.db
+	}
+	return d.db.WithTx(d.tx)
 }
