@@ -34,6 +34,6 @@ type SystemAuth struct {
 	RunSqlCount      int32
 }
 
-type TxnProcessor struct {
+type SystemTxnProcessor struct {
 	BlockNumber sql.NullInt64
 }
