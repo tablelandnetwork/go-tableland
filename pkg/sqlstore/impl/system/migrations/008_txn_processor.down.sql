@@ -1,1 +1,1 @@
-DROP TABLE txn_processor;
+DROP TABLE system_txn_processor;
