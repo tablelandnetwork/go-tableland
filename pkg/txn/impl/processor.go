@@ -215,7 +215,7 @@ func isErrCausedByQuery(err error) (string, bool) {
 func (b *batch) GetLastProcessedHeight(ctx context.Context) (int64, error) {
 	var blockNumber int64
 	f := func(tx pgx.Tx) error {
-		r := tx.QueryRow(ctx, "SELECT block_number FROM txn_processor LIMIT 1")
+		r := tx.QueryRow(ctx, "SELECT block_number FROM system_txn_processor LIMIT 1")
 		if err := r.Scan(&blockNumber); err != nil {
 			if err == pgx.ErrNoRows {
 				blockNumber = 0
@@ -233,7 +233,7 @@ func (b *batch) GetLastProcessedHeight(ctx context.Context) (int64, error) {
 
 func (b *batch) SetLastProcessedHeight(ctx context.Context, height int64) error {
 	f := func(tx pgx.Tx) error {
-		_, err := tx.Exec(ctx, "UPDATE txn_processor set block_number=$1", height)
+		_, err := tx.Exec(ctx, "UPDATE system_txn_processor set block_number=$1", height)
 		if err != nil {
 			return fmt.Errorf("set last block number query: %s", err)
 		}
