@@ -35,6 +35,6 @@ func WithBlockFailedExecutionBackoff(backoff time.Duration) Option {
 
 // EventProcessor processes events from a smart-contract.
 type EventProcessor interface {
-	StartSync() error
-	StopSync()
+	Start() error
+	Stop()
 }
