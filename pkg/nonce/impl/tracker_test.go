@@ -9,10 +9,9 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/pkg/nonce"
-	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
+	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/testutil"
 	"github.com/textileio/go-tableland/pkg/wallet"
@@ -105,12 +104,6 @@ func setup(ctx context.Context, t *testing.T) (
 	url, err := tests.PostgresURL()
 	require.NoError(t, err)
 
-	pool, err := pgxpool.Connect(ctx, url)
-	require.NoError(t, err)
-
-	systemStore, err := system.New(pool)
-	require.NoError(t, err)
-
 	backend, _, contract, txOpts, _ := testutil.Setup(t)
 
 	key, err := crypto.GenerateKey()
@@ -119,7 +112,17 @@ func setup(ctx context.Context, t *testing.T) (
 	wallet, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(key)))
 	require.NoError(t, err)
 
-	tracker, err := NewLocalTracker(ctx, wallet, systemStore, backend, 500*time.Millisecond, 0, 24*time.Hour)
+	sqlstore, err := sqlstoreimpl.New(ctx, url)
+	require.NoError(t, err)
+
+	tracker, err := NewLocalTracker(
+		ctx,
+		wallet,
+		&NonceStore{sqlstore},
+		NewEthClient(backend),
+		500*time.Millisecond,
+		0,
+		24*time.Hour)
 	require.NoError(t, err)
 
 	return tracker, backend, contract, txOpts, wallet

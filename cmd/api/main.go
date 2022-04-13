@@ -85,8 +85,8 @@ func main() {
 	tracker, err := nonceimpl.NewLocalTracker(
 		ctx,
 		wallet,
-		sqlstore,
-		conn,
+		nonceimpl.NewNonceStore(sqlstore),
+		nonceimpl.NewEthClient(conn),
 		checkInterval,
 		config.NonceTracker.MinBlockDepth,
 		stuckInterval,

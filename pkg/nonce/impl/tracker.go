@@ -7,61 +7,52 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	logger "github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/pkg/nonce"
-	"github.com/textileio/go-tableland/pkg/sqlstore"
+	noncepkg "github.com/textileio/go-tableland/pkg/nonce"
 	"github.com/textileio/go-tableland/pkg/wallet"
 )
 
 var log = logger.With().Str("component", "nonce").Logger()
 
-// Network type is a string that indicates the network.
-type Network string
-
-// EthereumNetwork is referes to Ethereum.
-const EthereumNetwork Network = "eth"
-
 // LocalTracker implements a nonce tracker that stores
 // nonce and pending txs locally.
 type LocalTracker struct {
 	currNonce  int64
-	network    Network
+	network    nonce.Network
+	pendingTxs []noncepkg.PendingTx
 	wallet     *wallet.Wallet
-	pendingTxs []pendingTx
-	sqlstore   sqlstore.SystemStore
-	backend    bind.ContractBackend
-	mu         sync.Mutex
-	quit       chan struct{}
 
+	// control attributes
+	mu   sync.Mutex
+	quit chan struct{}
+
+	// external dependencies
+	nonceStore  noncepkg.NonceStore
+	chainClient noncepkg.ChainClient
+
+	// configs
 	checkInterval      time.Duration
 	minBlockChainDepth int
 	stuckInterval      time.Duration
-}
-
-type pendingTx struct {
-	hash      common.Hash
-	nonce     int64
-	createdAt time.Time
 }
 
 // NewLocalTracker creates a new local tracker.
 func NewLocalTracker(
 	ctx context.Context,
 	w *wallet.Wallet,
-	sqlstore sqlstore.SystemStore,
-	backend bind.ContractBackend,
+	nonceStore nonce.NonceStore,
+	chainClient noncepkg.ChainClient,
 	checkInterval time.Duration,
 	minBlockChainDepth int,
 	stuckInterval time.Duration,
 ) (*LocalTracker, error) {
 	t := &LocalTracker{
-		wallet:   w,
-		network:  EthereumNetwork,
-		sqlstore: sqlstore,
-		backend:  backend,
+		wallet:      w,
+		network:     nonce.EthereumNetwork,
+		nonceStore:  nonceStore,
+		chainClient: chainClient,
 
 		checkInterval:      checkInterval,
 		minBlockChainDepth: minBlockChainDepth,
@@ -110,7 +101,7 @@ func (t *LocalTracker) GetNonce(ctx context.Context) (nonce.RegisterPendingTx, n
 	registerPendingTx := func(pendingHash common.Hash) {
 		defer t.mu.Unlock()
 
-		if err := t.sqlstore.UpsertNonce(ctx, string(t.network), t.wallet.Address(), nonce); err != nil {
+		if err := t.nonceStore.UpsertNonce(ctx, t.network, t.wallet.Address(), nonce); err != nil {
 			log.Error().
 				Err(err).
 				Int64("nonce", nonce).
@@ -118,14 +109,14 @@ func (t *LocalTracker) GetNonce(ctx context.Context) (nonce.RegisterPendingTx, n
 				Msg("failed to update nonce")
 		}
 
-		if err := t.sqlstore.InsertPendingTx(ctx, string(t.network), t.wallet.Address(), nonce, pendingHash); err != nil {
+		if err := t.nonceStore.InsertPendingTx(ctx, t.network, t.wallet.Address(), nonce, pendingHash); err != nil {
 			log.Error().
 				Err(err).
 				Int64("nonce", nonce).
 				Str("hash", pendingHash.Hex()).
 				Msg("failed to store pending tx")
 		}
-		t.pendingTxs = append(t.pendingTxs, pendingTx{hash: pendingHash, nonce: nonce})
+		t.pendingTxs = append(t.pendingTxs, noncepkg.PendingTx{Hash: pendingHash, Nonce: nonce})
 		t.currNonce = nonce + 1
 	}
 
@@ -149,40 +140,35 @@ func (t *LocalTracker) GetPendingCount(_ context.Context) int {
 
 func (t *LocalTracker) initialize(ctx context.Context) error {
 	// Get the nonce stored locally
-	nonce, err := t.sqlstore.GetNonce(ctx, string(t.network), t.wallet.Address())
+	nonce, err := t.nonceStore.GetNonce(ctx, t.network, t.wallet.Address())
 	if err != nil {
 		return fmt.Errorf("get nonce for tracker initialization: %s", err)
 	}
 
 	// Get pending txs for the address
-	pendingTxs, err := t.sqlstore.ListPendingTx(ctx, string(t.network), t.wallet.Address())
+	pendingTxs, err := t.nonceStore.ListPendingTx(ctx, t.network, t.wallet.Address())
 	if err != nil {
 		return fmt.Errorf("get nonce for tracker initialization: %s", err)
 	}
 
-	for _, tx := range pendingTxs {
-		t.pendingTxs = append(t.pendingTxs, pendingTx{
-			hash:      tx.Hash,
-			nonce:     tx.Nonce,
-			createdAt: tx.CreatedAt})
-	}
+	t.pendingTxs = pendingTxs
 
 	// If the local nonce is zero it may indicate that we have no register of the nonce locally
 	if nonce.Nonce == 0 {
 		// maybe this is not a fresh address, so we need to figured out the nonce
 		// by making a call to the network
-		networkNonce, err := t.backend.PendingNonceAt(ctx, t.wallet.Address())
+		networkNonce, err := t.chainClient.PendingNonceAt(ctx, t.wallet.Address())
 		if err != nil {
 			return fmt.Errorf("get pending nonce at: %s", err)
 		}
 
-		if err := t.sqlstore.UpsertNonce(ctx, string(t.network), t.wallet.Address(), int64(networkNonce)); err != nil {
+		if err := t.nonceStore.UpsertNonce(ctx, t.network, t.wallet.Address(), networkNonce); err != nil {
 			return fmt.Errorf("upsert nonce: %s", err)
 		}
 
-		nonce = sqlstore.Nonce{
-			Network: string(EthereumNetwork),
-			Nonce:   int64(networkNonce),
+		nonce = noncepkg.Nonce{
+			Network: noncepkg.EthereumNetwork,
+			Nonce:   networkNonce,
 			Address: t.wallet.Address(),
 		}
 	}
@@ -204,24 +190,24 @@ func (t *LocalTracker) checkIfPendingTxWasIncluded(ctx context.Context) error {
 	pendingTx := t.pendingTxs[0]
 
 	log.Debug().
-		Str("hash", pendingTx.hash.Hex()).
-		Int64("nonce", pendingTx.nonce).
+		Str("hash", pendingTx.Hash.Hex()).
+		Int64("nonce", pendingTx.Nonce).
 		Msg("checking pending tx...")
 
-	if time.Since(pendingTx.createdAt) > t.stuckInterval {
+	if time.Since(pendingTx.CreatedAt) > t.stuckInterval {
 		log.Error().
-			Str("hash", pendingTx.hash.Hex()).
-			Int64("nonce", pendingTx.nonce).
-			Time("createdAt", pendingTx.createdAt).
+			Str("hash", pendingTx.Hash.Hex()).
+			Int64("nonce", pendingTx.Nonce).
+			Time("createdAt", pendingTx.CreatedAt).
 			Msg("pending tx may be stuck")
 	}
 
-	txReceipt, err := t.backend.(ethereum.TransactionReader).TransactionReceipt(ctx, pendingTx.hash)
+	txReceipt, err := t.chainClient.TransactionReceipt(ctx, pendingTx.Hash)
 	if err != nil {
 		return fmt.Errorf("get transaction receipt: %s", err)
 	}
 
-	h, err := t.backend.(ethereum.ChainReader).HeaderByNumber(ctx, nil)
+	h, err := t.chainClient.HeadHeader(ctx)
 	if err != nil {
 		return fmt.Errorf("get chain tip header: %s", err)
 	}
@@ -229,8 +215,8 @@ func (t *LocalTracker) checkIfPendingTxWasIncluded(ctx context.Context) error {
 	blockDiff := h.Number.Int64() - txReceipt.BlockNumber.Int64()
 	if blockDiff < int64(t.minBlockChainDepth) {
 		log.Debug().
-			Str("hash", pendingTx.hash.Hex()).
-			Int64("nonce", pendingTx.nonce).
+			Str("hash", pendingTx.Hash.Hex()).
+			Int64("nonce", pendingTx.Nonce).
 			Int64("blockDiff", blockDiff).
 			Int64("headNumber", h.Number.Int64()).
 			Int64("blockNumber", txReceipt.BlockNumber.Int64()).
@@ -239,7 +225,7 @@ func (t *LocalTracker) checkIfPendingTxWasIncluded(ctx context.Context) error {
 		return errors.New("the block number is not old enough to be considered not pending")
 	}
 
-	if err := t.sqlstore.DeletePendingTxByHash(ctx, pendingTx.hash); err != nil {
+	if err := t.nonceStore.DeletePendingTxByHash(ctx, pendingTx.Hash); err != nil {
 		return fmt.Errorf("delete pending tx: %s", err)
 	}
 
