@@ -54,7 +54,7 @@ func (q *Queries) InsertPendingTx(ctx context.Context, arg InsertPendingTxParams
 }
 
 const listPendingTx = `-- name: ListPendingTx :many
-SELECT network, address, hash, nonce FROM system_pending_tx WHERE address = $1 AND network = $2
+SELECT network, address, hash, nonce, created_at FROM system_pending_tx WHERE address = $1 AND network = $2
 `
 
 type ListPendingTxParams struct {
@@ -76,6 +76,7 @@ func (q *Queries) ListPendingTx(ctx context.Context, arg ListPendingTxParams) ([
 			&i.Address,
 			&i.Hash,
 			&i.Nonce,
+			&i.CreatedAt,
 		); err != nil {
 			return nil, err
 		}

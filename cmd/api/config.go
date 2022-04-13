@@ -65,6 +65,7 @@ type config struct {
 	}
 	NonceTracker struct {
 		CheckInterval string `default:"10s"`
+		StuckInterval string `default:"24h"`
 		MinBlockDepth int    `default:"5"`
 	}
 }

@@ -458,7 +458,7 @@ func setup(ctx context.Context, t *testing.T) (tableland.Tableland, *backends.Si
 	wallet, err := wallet.NewWallet(sk)
 	require.NoError(t, err)
 
-	tracker, err := nonceimpl.NewLocalTracker(ctx, wallet, sqlstore, backend, 500*time.Millisecond, 0)
+	tracker, err := nonceimpl.NewLocalTracker(ctx, wallet, sqlstore, backend, 500*time.Millisecond, 0, 24*time.Hour)
 	require.NoError(t, err)
 
 	registry, err := ethereum.NewClient(

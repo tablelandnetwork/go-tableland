@@ -38,11 +38,13 @@ type LocalTracker struct {
 
 	checkInterval      time.Duration
 	minBlockChainDepth int
+	stuckInterval      time.Duration
 }
 
 type pendingTx struct {
-	hash  common.Hash
-	nonce int64
+	hash      common.Hash
+	nonce     int64
+	createdAt time.Time
 }
 
 // NewLocalTracker creates a new local tracker.
@@ -53,14 +55,17 @@ func NewLocalTracker(
 	backend bind.ContractBackend,
 	checkInterval time.Duration,
 	minBlockChainDepth int,
+	stuckInterval time.Duration,
 ) (*LocalTracker, error) {
 	t := &LocalTracker{
-		wallet:             w,
-		network:            EthereumNetwork,
-		sqlstore:           sqlstore,
-		backend:            backend,
+		wallet:   w,
+		network:  EthereumNetwork,
+		sqlstore: sqlstore,
+		backend:  backend,
+
 		checkInterval:      checkInterval,
 		minBlockChainDepth: minBlockChainDepth,
+		stuckInterval:      stuckInterval,
 	}
 	if err := t.initialize(ctx); err != nil {
 		return &LocalTracker{}, fmt.Errorf("tracker initialization: %s", err)
@@ -156,7 +161,10 @@ func (t *LocalTracker) initialize(ctx context.Context) error {
 	}
 
 	for _, tx := range pendingTxs {
-		t.pendingTxs = append(t.pendingTxs, pendingTx{hash: tx.Hash, nonce: tx.Nonce})
+		t.pendingTxs = append(t.pendingTxs, pendingTx{
+			hash:      tx.Hash,
+			nonce:     tx.Nonce,
+			createdAt: tx.CreatedAt})
 	}
 
 	// If the local nonce is zero it may indicate that we have no register of the nonce locally
@@ -199,6 +207,14 @@ func (t *LocalTracker) checkIfPendingTxWasIncluded(ctx context.Context) error {
 		Str("hash", pendingTx.hash.Hex()).
 		Int64("nonce", pendingTx.nonce).
 		Msg("checking pending tx...")
+
+	if time.Since(pendingTx.createdAt) > t.stuckInterval {
+		log.Error().
+			Str("hash", pendingTx.hash.Hex()).
+			Int64("nonce", pendingTx.nonce).
+			Time("createdAt", pendingTx.createdAt).
+			Msg("pending tx may be stuck")
+	}
 
 	txReceipt, err := t.backend.(ethereum.TransactionReader).TransactionReceipt(ctx, pendingTx.hash)
 	if err != nil {
