@@ -101,7 +101,8 @@ func (t *LocalTracker) GetNonce(ctx context.Context) (nonce.RegisterPendingTx, n
 	registerPendingTx := func(pendingHash common.Hash) {
 		defer t.mu.Unlock()
 
-		if err := t.nonceStore.UpsertNonce(ctx, t.network, t.wallet.Address(), nonce); err != nil {
+		incrementedNonce := nonce + 1
+		if err := t.nonceStore.UpsertNonce(ctx, t.network, t.wallet.Address(), incrementedNonce); err != nil {
 			log.Error().
 				Err(err).
 				Int64("nonce", nonce).
@@ -109,7 +110,12 @@ func (t *LocalTracker) GetNonce(ctx context.Context) (nonce.RegisterPendingTx, n
 				Msg("failed to update nonce")
 		}
 
-		if err := t.nonceStore.InsertPendingTx(ctx, t.network, t.wallet.Address(), nonce, pendingHash); err != nil {
+		if err := t.nonceStore.InsertPendingTx(
+			ctx,
+			t.network,
+			t.wallet.Address(),
+			incrementedNonce,
+			pendingHash); err != nil {
 			log.Error().
 				Err(err).
 				Int64("nonce", nonce).
@@ -117,7 +123,7 @@ func (t *LocalTracker) GetNonce(ctx context.Context) (nonce.RegisterPendingTx, n
 				Msg("failed to store pending tx")
 		}
 		t.pendingTxs = append(t.pendingTxs, noncepkg.PendingTx{Hash: pendingHash, Nonce: nonce})
-		t.currNonce = nonce + 1
+		t.currNonce = incrementedNonce
 	}
 
 	// this function frees the mutex without incrementing the nonce
