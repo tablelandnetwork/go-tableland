@@ -331,29 +331,6 @@ func TestOwnerRevokesItsPrivilegeInsideMultipleStatements(t *testing.T) {
 	require.Contains(t, err.Error(), "ACL: not enough privileges")
 }
 
-func TestSimpleEnd2End(t *testing.T) {
-	t.Parallel()
-
-	ctx := context.Background()
-	tbld, backend := setup(ctx, t)
-
-	req := tableland.CreateTableRequest{
-		ID:          "1337",
-		Description: "descrip-1",
-		Controller:  "0xd43c59d5694ec111eb9e986c233200b14249558d",
-		Statement: `CREATE TABLE todoapp (
-			complete BOOLEAN DEFAULT false,
-			name     VARCHAR DEFAULT '',
-			deleted  BOOLEAN DEFAULT false,
-			id       SERIAL
-		  );`,
-	}
-	_, err := tbld.CreateTable(ctx, req)
-	require.NoError(t, err)
-
-	processCSV(t, req.Controller, tbld, "testdata/todoapp_queries.csv", backend)
-}
-
 func processCSV(
 	t *testing.T,
 	controller string,
