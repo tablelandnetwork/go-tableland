@@ -19,6 +19,7 @@ import (
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/nonce"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system/internal/db"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system/migrations"
@@ -220,7 +221,7 @@ func (s *SystemStore) GetACLOnTableByController(
 }
 
 // GetNonce returns the nonce stored in the database by a given address.
-func (s *SystemStore) GetNonce(ctx context.Context, network string, addr common.Address) (sqlstore.Nonce, error) {
+func (s *SystemStore) GetNonce(ctx context.Context, network string, addr common.Address) (nonce.Nonce, error) {
 	params := db.GetNonceParams{
 		Address: addr.Hex(),
 		Network: network,
@@ -228,19 +229,19 @@ func (s *SystemStore) GetNonce(ctx context.Context, network string, addr common.
 
 	systemNonce, err := s.db.queries().GetNonce(ctx, params)
 	if err == pgx.ErrNoRows {
-		return sqlstore.Nonce{
+		return nonce.Nonce{
 			Address: common.HexToAddress(systemNonce.Address),
-			Network: systemNonce.Network,
+			Network: nonce.Network(systemNonce.Network),
 		}, nil
 	}
 
 	if err != nil {
-		return sqlstore.Nonce{}, fmt.Errorf("get nonce: %s", err)
+		return nonce.Nonce{}, fmt.Errorf("get nonce: %s", err)
 	}
 
-	return sqlstore.Nonce{
+	return nonce.Nonce{
 		Address: common.HexToAddress(systemNonce.Address),
-		Network: systemNonce.Network,
+		Network: nonce.Network(systemNonce.Network),
 		Nonce:   systemNonce.Nonce,
 	}, nil
 }
@@ -265,7 +266,7 @@ func (s *SystemStore) UpsertNonce(ctx context.Context, network string, addr comm
 func (s *SystemStore) ListPendingTx(
 	ctx context.Context,
 	network string,
-	addr common.Address) ([]sqlstore.PendingTx, error) {
+	addr common.Address) ([]nonce.PendingTx, error) {
 	params := db.ListPendingTxParams{
 		Address: addr.Hex(),
 		Network: network,
@@ -276,13 +277,13 @@ func (s *SystemStore) ListPendingTx(
 		return nil, fmt.Errorf("list pending tx: %s", err)
 	}
 
-	pendingTxs := make([]sqlstore.PendingTx, 0)
+	pendingTxs := make([]nonce.PendingTx, 0)
 	for _, r := range res {
-		tx := sqlstore.PendingTx{
+		tx := nonce.PendingTx{
 			Address:   common.HexToAddress(r.Address),
 			Nonce:     r.Nonce,
 			Hash:      common.HexToHash(r.Hash),
-			Network:   r.Network,
+			Network:   nonce.Network(r.Network),
 			CreatedAt: r.CreatedAt,
 		}
 

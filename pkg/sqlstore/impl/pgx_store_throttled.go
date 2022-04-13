@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/nonce"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 )
@@ -94,7 +95,7 @@ func (s *ThrottledSQLStorePGX) Read(ctx context.Context, stmt parsing.SugaredRea
 func (s *ThrottledSQLStorePGX) GetNonce(
 	ctx context.Context,
 	network string,
-	addr common.Address) (sqlstore.Nonce, error) {
+	addr common.Address) (nonce.Nonce, error) {
 	return s.store.GetNonce(ctx, network, addr)
 }
 
@@ -111,7 +112,7 @@ func (s *ThrottledSQLStorePGX) UpsertNonce(
 func (s *ThrottledSQLStorePGX) ListPendingTx(
 	ctx context.Context,
 	network string,
-	addr common.Address) ([]sqlstore.PendingTx, error) {
+	addr common.Address) ([]nonce.PendingTx, error) {
 	return s.store.ListPendingTx(ctx, network, addr)
 }
 

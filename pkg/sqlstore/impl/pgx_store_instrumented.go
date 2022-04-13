@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/nonce"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"go.opentelemetry.io/otel/attribute"
@@ -256,7 +257,7 @@ func (s *InstrumentedSQLStorePGX) Read(ctx context.Context, stmt parsing.Sugared
 func (s *InstrumentedSQLStorePGX) GetNonce(
 	ctx context.Context,
 	network string,
-	addr common.Address) (sqlstore.Nonce, error) {
+	addr common.Address) (nonce.Nonce, error) {
 	return s.store.GetNonce(ctx, network, addr)
 }
 
@@ -273,7 +274,7 @@ func (s *InstrumentedSQLStorePGX) UpsertNonce(
 func (s *InstrumentedSQLStorePGX) ListPendingTx(
 	ctx context.Context,
 	network string,
-	addr common.Address) ([]sqlstore.PendingTx, error) {
+	addr common.Address) ([]nonce.PendingTx, error) {
 	return s.store.ListPendingTx(ctx, network, addr)
 }
 
