@@ -279,10 +279,11 @@ func (s *SystemStore) ListPendingTx(
 	pendingTxs := make([]sqlstore.PendingTx, 0)
 	for _, r := range res {
 		tx := sqlstore.PendingTx{
-			Address: common.HexToAddress(r.Address),
-			Nonce:   r.Nonce,
-			Hash:    common.HexToHash(r.Hash),
-			Network: r.Network,
+			Address:   common.HexToAddress(r.Address),
+			Nonce:     r.Nonce,
+			Hash:      common.HexToHash(r.Hash),
+			Network:   r.Network,
+			CreatedAt: r.CreatedAt,
 		}
 
 		pendingTxs = append(pendingTxs, tx)

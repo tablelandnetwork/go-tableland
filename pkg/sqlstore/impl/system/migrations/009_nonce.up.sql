@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS system_pending_tx (
     network varchar not null,
     address varchar not null,
     hash varchar not null, 
-    nonce bigint not null
+    nonce bigint not null,
+    created_at timestamp default now() not null
 );
 

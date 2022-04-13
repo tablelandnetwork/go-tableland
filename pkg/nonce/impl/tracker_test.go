@@ -119,7 +119,7 @@ func setup(ctx context.Context, t *testing.T) (
 	wallet, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(key)))
 	require.NoError(t, err)
 
-	tracker, err := NewLocalTracker(ctx, wallet, systemStore, backend, 500*time.Millisecond, 0)
+	tracker, err := NewLocalTracker(ctx, wallet, systemStore, backend, 500*time.Millisecond, 0, 24*time.Hour)
 	require.NoError(t, err)
 
 	return tracker, backend, contract, txOpts, wallet

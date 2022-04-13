@@ -77,6 +77,11 @@ func main() {
 		log.Fatal().Err(err).Msg("parsing nonce tracker check interval duration")
 	}
 
+	stuckInterval, err := time.ParseDuration(config.NonceTracker.StuckInterval)
+	if err != nil {
+		log.Fatal().Err(err).Msg("parsing nonce tracker check interval duration")
+	}
+
 	tracker, err := nonceimpl.NewLocalTracker(
 		ctx,
 		wallet,
@@ -84,6 +89,7 @@ func main() {
 		conn,
 		checkInterval,
 		config.NonceTracker.MinBlockDepth,
+		stuckInterval,
 	)
 	if err != nil {
 		log.Fatal().

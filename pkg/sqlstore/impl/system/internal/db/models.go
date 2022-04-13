@@ -41,10 +41,11 @@ type SystemNonce struct {
 }
 
 type SystemPendingTx struct {
-	Network string
-	Address string
-	Hash    string
-	Nonce   int64
+	Network   string
+	Address   string
+	Hash      string
+	Nonce     int64
+	CreatedAt time.Time
 }
 
 type SystemTxnProcessor struct {
