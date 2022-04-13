@@ -3,6 +3,7 @@ package ethereum
 import (
 	"context"
 	"crypto/ecdsa"
+	"encoding/hex"
 	"math"
 	"math/big"
 	"strings"
@@ -16,6 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
+	nonceimpl "github.com/textileio/go-tableland/pkg/nonce/impl"
 	"github.com/textileio/go-tableland/pkg/wallet"
 )
 
@@ -187,7 +189,10 @@ func setup(t *testing.T) (*backends.SimulatedBackend, *ecdsa.PrivateKey, *bind.T
 		t.Error("Expected a valid deployment address. Received empty address byte array instead")
 	}
 
-	client, err := NewClient(backend, 4, address, &wallet.Wallet{})
+	w, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(key)))
+	require.NoError(t, err)
+
+	client, err := NewClient(backend, 4, address, w, nonceimpl.NewSimpleTracker(w, backend))
 	require.NoError(t, err)
 
 	return backend, key, auth, contract, client

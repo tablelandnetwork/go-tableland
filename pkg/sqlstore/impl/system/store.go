@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog/log"
 
 	"strings"
@@ -216,6 +217,109 @@ func (s *SystemStore) GetACLOnTableByController(
 	}
 
 	return aclFromSQLtoDTO(systemACL)
+}
+
+// GetNonce returns the nonce stored in the database by a given address.
+func (s *SystemStore) GetNonce(ctx context.Context, network string, addr common.Address) (sqlstore.Nonce, error) {
+	params := db.GetNonceParams{
+		Address: addr.Hex(),
+		Network: network,
+	}
+
+	systemNonce, err := s.db.queries().GetNonce(ctx, params)
+	if err == pgx.ErrNoRows {
+		return sqlstore.Nonce{
+			Address: common.HexToAddress(systemNonce.Address),
+			Network: systemNonce.Network,
+		}, nil
+	}
+
+	if err != nil {
+		return sqlstore.Nonce{}, fmt.Errorf("get nonce: %s", err)
+	}
+
+	return sqlstore.Nonce{
+		Address: common.HexToAddress(systemNonce.Address),
+		Network: systemNonce.Network,
+		Nonce:   systemNonce.Nonce,
+	}, nil
+}
+
+// UpsertNonce updates a nonce.
+func (s *SystemStore) UpsertNonce(ctx context.Context, network string, addr common.Address, nonce int64) error {
+	params := db.UpsertNonceParams{
+		Address: addr.Hex(),
+		Network: network,
+		Nonce:   nonce,
+	}
+
+	err := s.db.queries().UpsertNonce(ctx, params)
+	if err != nil {
+		return fmt.Errorf("upsert nonce: %s", err)
+	}
+
+	return nil
+}
+
+// ListPendingTx lists all pendings txs.
+func (s *SystemStore) ListPendingTx(
+	ctx context.Context,
+	network string,
+	addr common.Address) ([]sqlstore.PendingTx, error) {
+	params := db.ListPendingTxParams{
+		Address: addr.Hex(),
+		Network: network,
+	}
+
+	res, err := s.db.queries().ListPendingTx(ctx, params)
+	if err != nil {
+		return nil, fmt.Errorf("list pending tx: %s", err)
+	}
+
+	pendingTxs := make([]sqlstore.PendingTx, 0)
+	for _, r := range res {
+		tx := sqlstore.PendingTx{
+			Address: common.HexToAddress(r.Address),
+			Nonce:   r.Nonce,
+			Hash:    common.HexToHash(r.Hash),
+			Network: r.Network,
+		}
+
+		pendingTxs = append(pendingTxs, tx)
+	}
+
+	return pendingTxs, nil
+}
+
+// InsertPendingTx insert a new pending tx.
+func (s *SystemStore) InsertPendingTx(
+	ctx context.Context,
+	network string,
+	addr common.Address,
+	nonce int64, hash common.Hash) error {
+	params := db.InsertPendingTxParams{
+		Address: addr.Hex(),
+		Network: network,
+		Nonce:   nonce,
+		Hash:    hash.Hex(),
+	}
+
+	err := s.db.queries().InsertPendingTx(ctx, params)
+	if err != nil {
+		return fmt.Errorf("insert pending tx: %s", err)
+	}
+
+	return nil
+}
+
+// DeletePendingTxByHash deletes a pending tx.
+func (s *SystemStore) DeletePendingTxByHash(ctx context.Context, hash common.Hash) error {
+	err := s.db.queries().DeletePendingTxByHash(ctx, hash.Hex())
+	if err != nil {
+		return fmt.Errorf("delete pending tx: %s", err)
+	}
+
+	return nil
 }
 
 // WithTx returns a copy of the current SystemStore with a tx attached.
