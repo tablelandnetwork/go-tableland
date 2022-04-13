@@ -63,6 +63,10 @@ type config struct {
 	EventProcessor struct {
 		BlockFailedExecutionBackoff string `default:"10s"`
 	}
+	NonceTracker struct {
+		CheckInterval string `default:"10s"`
+		MinBlockDepth int    `default:"5"`
+	}
 }
 
 func setupConfig() *config {

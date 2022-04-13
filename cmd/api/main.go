@@ -72,7 +72,19 @@ func main() {
 			Msg("failed to create wallet")
 	}
 
-	tracker, err := nonceimpl.NewLocalTracker(ctx, wallet, sqlstore, conn)
+	checkInterval, err := time.ParseDuration(config.NonceTracker.CheckInterval)
+	if err != nil {
+		log.Fatal().Err(err).Msg("parsing nonce tracker check interval duration")
+	}
+
+	tracker, err := nonceimpl.NewLocalTracker(
+		ctx,
+		wallet,
+		sqlstore,
+		conn,
+		checkInterval,
+		config.NonceTracker.MinBlockDepth,
+	)
 	if err != nil {
 		log.Fatal().
 			Err(err).
