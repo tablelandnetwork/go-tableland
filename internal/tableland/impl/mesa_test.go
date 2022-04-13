@@ -19,6 +19,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
 	epimpl "github.com/textileio/go-tableland/pkg/eventprocessor/impl"
+	nonceimpl "github.com/textileio/go-tableland/pkg/nonce/impl"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
@@ -457,11 +458,15 @@ func setup(ctx context.Context, t *testing.T) (tableland.Tableland, *backends.Si
 	wallet, err := wallet.NewWallet(sk)
 	require.NoError(t, err)
 
+	tracker, err := nonceimpl.NewLocalTracker(ctx, wallet, sqlstore, backend)
+	require.NoError(t, err)
+
 	registry, err := ethereum.NewClient(
 		backend,
 		1337,
 		addr,
 		wallet,
+		tracker,
 	)
 	require.NoError(t, err)
 	tbld := NewTablelandMesa(sqlstore, parser, txnp, &aclHalfMock{sqlstore}, registry)

@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/nonce"
 	"github.com/textileio/go-tableland/pkg/tableregistry"
 	"github.com/textileio/go-tableland/pkg/wallet"
 )
@@ -19,6 +20,7 @@ type Client struct {
 	backend  bind.ContractBackend
 	wallet   *wallet.Wallet
 	chainID  int64
+	tracker  nonce.NonceTracker
 }
 
 // NewClient creates a new Client.
@@ -26,7 +28,8 @@ func NewClient(
 	backend bind.ContractBackend,
 	chainID int64,
 	contractAddr common.Address,
-	wallet *wallet.Wallet) (*Client, error) {
+	wallet *wallet.Wallet,
+	tracker nonce.NonceTracker) (*Client, error) {
 	contract, err := NewContract(contractAddr, backend)
 	if err != nil {
 		return nil, fmt.Errorf("creating contract: %v", err)
@@ -36,6 +39,7 @@ func NewClient(
 		backend:  backend,
 		wallet:   wallet,
 		chainID:  chainID,
+		tracker:  tracker,
 	}, nil
 }
 
@@ -55,11 +59,6 @@ func (c *Client) RunSQL(
 	addr common.Address,
 	table tableland.TableID,
 	statement string) (tableregistry.Transaction, error) {
-	nonce, err := c.backend.PendingNonceAt(ctx, c.wallet.Address())
-	if err != nil {
-		return nil, fmt.Errorf("getting nonce at: %s", err)
-	}
-
 	gasPrice, err := c.backend.SuggestGasPrice(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("suggest gas price: %s", err)
@@ -70,18 +69,21 @@ func (c *Client) RunSQL(
 		return nil, fmt.Errorf("creating keyed transactor: %s", err)
 	}
 
+	registerPendingTx, unlock, nonce := c.tracker.GetNonce(ctx)
 	opts := &bind.TransactOpts{
 		Context:  ctx,
 		Signer:   auth.Signer,
 		From:     auth.From,
-		Nonce:    big.NewInt(0).SetUint64(nonce),
+		Nonce:    big.NewInt(0).SetInt64(nonce),
 		GasPrice: gasPrice,
 	}
 
 	tx, err := c.contract.RunSQL(opts, table.String(), addr, statement)
 	if err != nil {
+		defer unlock()
 		return nil, fmt.Errorf("calling RunSQL: %v", err)
 	}
+	registerPendingTx(tx.Hash())
 
 	return tx, nil
 }

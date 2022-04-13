@@ -23,6 +23,7 @@ import (
 	epimpl "github.com/textileio/go-tableland/pkg/eventprocessor/impl"
 	"github.com/textileio/go-tableland/pkg/logging"
 	"github.com/textileio/go-tableland/pkg/metrics"
+	nonceimpl "github.com/textileio/go-tableland/pkg/nonce/impl"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
@@ -70,12 +71,21 @@ func main() {
 			Err(err).
 			Msg("failed to create wallet")
 	}
+
+	tracker, err := nonceimpl.NewLocalTracker(ctx, wallet, sqlstore, conn)
+	if err != nil {
+		log.Fatal().
+			Err(err).
+			Msg("failed to create new tracker")
+	}
+
 	scAddress := common.HexToAddress(config.Registry.ContractAddress)
 	registry, err := ethereum.NewClient(
 		conn,
 		config.Registry.ChainID,
 		scAddress,
 		wallet,
+		tracker,
 	)
 
 	if err != nil {

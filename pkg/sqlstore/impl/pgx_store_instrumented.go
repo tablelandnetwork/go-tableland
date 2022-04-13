@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
@@ -249,6 +250,46 @@ func (s *InstrumentedSQLStorePGX) Read(ctx context.Context, stmt parsing.Sugared
 	s.latencyHistogram.Record(ctx, latency, attributes...)
 
 	return data, err
+}
+
+// GetNonce returns the nonce stored in the database by a given address.
+func (s *InstrumentedSQLStorePGX) GetNonce(
+	ctx context.Context,
+	network string,
+	addr common.Address) (sqlstore.Nonce, error) {
+	return s.store.GetNonce(ctx, network, addr)
+}
+
+// UpsertNonce updates a nonce.
+func (s *InstrumentedSQLStorePGX) UpsertNonce(
+	ctx context.Context,
+	network string,
+	addr common.Address,
+	nonce int64) error {
+	return s.store.UpsertNonce(ctx, network, addr, nonce)
+}
+
+// ListPendingTx lists all pendings txs.
+func (s *InstrumentedSQLStorePGX) ListPendingTx(
+	ctx context.Context,
+	network string,
+	addr common.Address) ([]sqlstore.PendingTx, error) {
+	return s.store.ListPendingTx(ctx, network, addr)
+}
+
+// InsertPendingTx insert a new pending tx.
+func (s *InstrumentedSQLStorePGX) InsertPendingTx(
+	ctx context.Context,
+	network string,
+	addr common.Address,
+	nonce int64,
+	hash common.Hash) error {
+	return s.store.InsertPendingTx(ctx, network, addr, nonce, hash)
+}
+
+// DeletePendingTxByHash deletes a pending tx.
+func (s *InstrumentedSQLStorePGX) DeletePendingTxByHash(ctx context.Context, hash common.Hash) error {
+	return s.store.DeletePendingTxByHash(ctx, hash)
 }
 
 // Close closes the connection pool.
