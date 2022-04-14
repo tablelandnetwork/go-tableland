@@ -2,6 +2,7 @@ package nonce
 
 import (
 	"context"
+	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -39,9 +40,8 @@ type UnlockTracker func()
 // NonceTracker manages nonce by keeping track of pendings Tx.
 type NonceTracker interface {
 	// GetNonce returns the nonce to be used in the next transaction.
-	// The call is blocked until the client calls either one of the returning functions (registerPendingTx or unlock).
-	// The client should call registerPendingTx if it managed to submit a transaction sucessuflly.
-	// Otherwise, it should call unlock.
+	// The call is blocked until the client calls unlock.
+	// The client should also call registerPendingTx if it managed to submit a transaction sucessuflly.
 	GetNonce(context.Context) (RegisterPendingTx, UnlockTracker, int64)
 
 	// GetPendingCount returns the number of pendings txs.
@@ -50,9 +50,9 @@ type NonceTracker interface {
 
 // ChainClient provides the basic api the a chain needs to provide for an NonceTracker.
 type ChainClient interface {
-	PendingNonceAt(ctx context.Context, account common.Address) (int64, error)
+	PendingNonceAt(ctx context.Context, account common.Address) (uint64, error)
 	TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
-	HeadHeader(ctx context.Context) (*types.Header, error)
+	HeaderByNumber(ctx context.Context, n *big.Int) (*types.Header, error)
 }
 
 // NonceStore provides the api for managing the storage of nonce and pending txs.
@@ -60,6 +60,6 @@ type NonceStore interface {
 	GetNonce(context.Context, Network, common.Address) (Nonce, error)
 	UpsertNonce(context.Context, Network, common.Address, int64) error
 	ListPendingTx(context.Context, Network, common.Address) ([]PendingTx, error)
-	InsertPendingTx(context.Context, Network, common.Address, int64, common.Hash) error
+	InsertPendingTxAndUpsertNonce(context.Context, Network, common.Address, int64, common.Hash) error
 	DeletePendingTxByHash(context.Context, common.Hash) error
 }

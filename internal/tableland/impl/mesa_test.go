@@ -439,7 +439,7 @@ func setup(ctx context.Context, t *testing.T) (tableland.Tableland, *backends.Si
 		ctx,
 		wallet,
 		nonceimpl.NewNonceStore(sqlstore),
-		nonceimpl.NewEthClient(backend),
+		backend,
 		500*time.Millisecond,
 		0,
 		24*time.Hour)

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	logger "github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/pkg/nonce"
 	noncepkg "github.com/textileio/go-tableland/pkg/nonce"
@@ -15,6 +16,9 @@ import (
 )
 
 var log = logger.With().Str("component", "nonce").Logger()
+
+// ErrBlockDiffNotEnough indicates that the pending block is not old enough.
+var ErrBlockDiffNotEnough = errors.New("the block number is not old enough to be considered not pending")
 
 // LocalTracker implements a nonce tracker that stores
 // nonce and pending txs locally.
@@ -25,8 +29,9 @@ type LocalTracker struct {
 	wallet     *wallet.Wallet
 
 	// control attributes
-	mu   sync.Mutex
-	quit chan struct{}
+	mu       sync.Mutex
+	quit     chan struct{}
+	isClosed bool
 
 	// external dependencies
 	nonceStore  noncepkg.NonceStore
@@ -54,12 +59,14 @@ func NewLocalTracker(
 		nonceStore:  nonceStore,
 		chainClient: chainClient,
 
+		isClosed: false,
+
 		checkInterval:      checkInterval,
 		minBlockChainDepth: minBlockChainDepth,
 		stuckInterval:      stuckInterval,
 	}
 	if err := t.initialize(ctx); err != nil {
-		return &LocalTracker{}, fmt.Errorf("tracker initialization: %s", err)
+		return nil, fmt.Errorf("tracker initialization: %s", err)
 	}
 
 	ticker := time.NewTicker(t.checkInterval)
@@ -69,8 +76,19 @@ func NewLocalTracker(
 		for {
 			select {
 			case <-ticker.C:
-				if err := t.checkIfPendingTxWasIncluded(ctx); err != nil {
-					log.Error().Err(err).Msg("check if pending tx was included")
+				h, err := t.chainClient.HeaderByNumber(ctx, nil)
+				if err != nil {
+					log.Error().Err(err).Msg("get chain tip header")
+					continue
+				}
+
+				for _, pendingTx := range t.pendingTxs {
+					if err := t.checkIfPendingTxWasIncluded(ctx, pendingTx, h); err != nil {
+						log.Error().Err(err).Msg("check if pending tx was included")
+						if err == ErrBlockDiffNotEnough {
+							break
+						}
+					}
 				}
 			case <-t.quit:
 				ticker.Stop()
@@ -79,8 +97,7 @@ func NewLocalTracker(
 		}
 	}()
 
-	log.
-		Info().
+	log.Info().
 		Str("wallet", t.wallet.Address().Hex()).
 		Int64("currentNonce", t.currNonce).
 		Msg("initializing tracker")
@@ -89,9 +106,8 @@ func NewLocalTracker(
 }
 
 // GetNonce returns the nonce to be used in the next transaction.
-// The call is blocked until the client calls either one of the returning functions (registerPendingTx or unlock).
-// The client should call registerPendingTx if it managed to submit a transaction sucessuflly.
-// Otherwise, it should call unlock.
+// The call is blocked until the client calls unlock.
+// The client should also call registerPendingTx if it managed to submit a transaction sucessuflly.
 func (t *LocalTracker) GetNonce(ctx context.Context) (nonce.RegisterPendingTx, nonce.UnlockTracker, int64) {
 	t.mu.Lock()
 
@@ -99,18 +115,9 @@ func (t *LocalTracker) GetNonce(ctx context.Context) (nonce.RegisterPendingTx, n
 
 	// this function frees the mutex, add a pending transaction to its list, and updates the nonce
 	registerPendingTx := func(pendingHash common.Hash) {
-		defer t.mu.Unlock()
-
 		incrementedNonce := nonce + 1
-		if err := t.nonceStore.UpsertNonce(ctx, t.network, t.wallet.Address(), incrementedNonce); err != nil {
-			log.Error().
-				Err(err).
-				Int64("nonce", nonce).
-				Str("hash", pendingHash.Hex()).
-				Msg("failed to update nonce")
-		}
 
-		if err := t.nonceStore.InsertPendingTx(
+		if err := t.nonceStore.InsertPendingTxAndUpsertNonce(
 			ctx,
 			t.network,
 			t.wallet.Address(),
@@ -122,6 +129,7 @@ func (t *LocalTracker) GetNonce(ctx context.Context) (nonce.RegisterPendingTx, n
 				Str("hash", pendingHash.Hex()).
 				Msg("failed to store pending tx")
 		}
+
 		t.pendingTxs = append(t.pendingTxs, noncepkg.PendingTx{Hash: pendingHash, Nonce: nonce})
 		t.currNonce = incrementedNonce
 	}
@@ -136,11 +144,17 @@ func (t *LocalTracker) GetNonce(ctx context.Context) (nonce.RegisterPendingTx, n
 
 // Close closes the background goroutine.
 func (t *LocalTracker) Close() {
+	if t.isClosed {
+		return
+	}
 	close(t.quit)
+	t.isClosed = true
 }
 
 // GetPendingCount returns the number of pendings txs.
 func (t *LocalTracker) GetPendingCount(_ context.Context) int {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	return len(t.pendingTxs)
 }
 
@@ -168,13 +182,13 @@ func (t *LocalTracker) initialize(ctx context.Context) error {
 			return fmt.Errorf("get pending nonce at: %s", err)
 		}
 
-		if err := t.nonceStore.UpsertNonce(ctx, t.network, t.wallet.Address(), networkNonce); err != nil {
+		if err := t.nonceStore.UpsertNonce(ctx, t.network, t.wallet.Address(), int64(networkNonce)); err != nil {
 			return fmt.Errorf("upsert nonce: %s", err)
 		}
 
 		nonce = noncepkg.Nonce{
 			Network: noncepkg.EthereumNetwork,
-			Nonce:   networkNonce,
+			Nonce:   int64(networkNonce),
 			Address: t.wallet.Address(),
 		}
 	}
@@ -183,7 +197,10 @@ func (t *LocalTracker) initialize(ctx context.Context) error {
 	return nil
 }
 
-func (t *LocalTracker) checkIfPendingTxWasIncluded(ctx context.Context) error {
+func (t *LocalTracker) checkIfPendingTxWasIncluded(
+	ctx context.Context,
+	pendingTx noncepkg.PendingTx,
+	h *types.Header) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -192,30 +209,14 @@ func (t *LocalTracker) checkIfPendingTxWasIncluded(ctx context.Context) error {
 		return nil
 	}
 
-	// We have to process in FIFO order
-	pendingTx := t.pendingTxs[0]
-
 	log.Debug().
 		Str("hash", pendingTx.Hash.Hex()).
 		Int64("nonce", pendingTx.Nonce).
 		Msg("checking pending tx...")
 
-	if time.Since(pendingTx.CreatedAt) > t.stuckInterval {
-		log.Error().
-			Str("hash", pendingTx.Hash.Hex()).
-			Int64("nonce", pendingTx.Nonce).
-			Time("createdAt", pendingTx.CreatedAt).
-			Msg("pending tx may be stuck")
-	}
-
 	txReceipt, err := t.chainClient.TransactionReceipt(ctx, pendingTx.Hash)
 	if err != nil {
 		return fmt.Errorf("get transaction receipt: %s", err)
-	}
-
-	h, err := t.chainClient.HeadHeader(ctx)
-	if err != nil {
-		return fmt.Errorf("get chain tip header: %s", err)
 	}
 
 	blockDiff := h.Number.Int64() - txReceipt.BlockNumber.Int64()
@@ -228,7 +229,7 @@ func (t *LocalTracker) checkIfPendingTxWasIncluded(ctx context.Context) error {
 			Int64("blockNumber", txReceipt.BlockNumber.Int64()).
 			Msg("block difference is not enough")
 
-		return errors.New("the block number is not old enough to be considered not pending")
+		return ErrBlockDiffNotEnough
 	}
 
 	if err := t.nonceStore.DeletePendingTxByHash(ctx, pendingTx.Hash); err != nil {
@@ -236,5 +237,14 @@ func (t *LocalTracker) checkIfPendingTxWasIncluded(ctx context.Context) error {
 	}
 
 	t.pendingTxs = t.pendingTxs[1:]
+
+	if time.Since(pendingTx.CreatedAt) > t.stuckInterval {
+		log.Error().
+			Str("hash", pendingTx.Hash.Hex()).
+			Int64("nonce", pendingTx.Nonce).
+			Time("createdAt", pendingTx.CreatedAt).
+			Msg("pending tx may be stuck")
+	}
+
 	return nil
 }

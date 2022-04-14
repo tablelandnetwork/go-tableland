@@ -30,7 +30,8 @@ import (
 // For safety reasons, this layer has no access to the database object or the transaction object.
 // The access is made through the dbWithTx interface.
 type SystemStore struct {
-	db dbWithTx
+	db   dbWithTx
+	pool *pgxpool.Pool
 }
 
 // New returns a new SystemStore backed by `pgxpool.Pool`.
@@ -44,7 +45,10 @@ func New(pool *pgxpool.Pool) (*SystemStore, error) {
 		return nil, fmt.Errorf("initializing db connection: %s", err)
 	}
 
-	return &SystemStore{db: &dbWithTxImpl{db: db.New(pool)}}, nil
+	return &SystemStore{
+		db:   &dbWithTxImpl{db: db.New(pool)},
+		pool: pool,
+	}, nil
 }
 
 // GetTable fetchs a table from its UUID.
@@ -331,7 +335,13 @@ func (s *SystemStore) WithTx(tx pgx.Tx) sqlstore.SystemStore {
 			db: s.db.queries(),
 			tx: tx,
 		},
+		s.pool,
 	}
+}
+
+// Begin returns a new tx.
+func (s *SystemStore) Begin(ctx context.Context) (pgx.Tx, error) {
+	return s.pool.Begin(ctx)
 }
 
 // executeMigration run db migrations and return a ready to use connection to the Postgres database.

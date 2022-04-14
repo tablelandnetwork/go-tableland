@@ -140,3 +140,8 @@ func (s *ThrottledSQLStorePGX) Close() {
 func (s *ThrottledSQLStorePGX) WithTx(tx pgx.Tx) sqlstore.SystemStore {
 	return s.store.WithTx(tx)
 }
+
+// Begin returns a new tx.
+func (s *ThrottledSQLStorePGX) Begin(ctx context.Context) (pgx.Tx, error) {
+	return s.store.Begin(ctx)
+}
