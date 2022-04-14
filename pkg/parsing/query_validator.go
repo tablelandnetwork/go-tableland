@@ -139,6 +139,8 @@ var (
 		pgtype.UUIDOID: {Oid: pgtype.UUIDOID, GoType: pgtype.UUID{}, Names: []string{"uuid"}},
 
 		pgtype.JSONOID: {Oid: pgtype.JSONOID, GoType: pgtype.JSON{}, Names: []string{"json"}},
+
+		pgtype.VarcharArrayOID: {Oid: pgtype.VarcharArrayOID, GoType: pgtype.VarcharArray{}, Names: []string{"varchar[]"}},
 	}
 	// TODO: the above list is tentative and incomplete; the accepted types are still not well defined at the spec level.
 

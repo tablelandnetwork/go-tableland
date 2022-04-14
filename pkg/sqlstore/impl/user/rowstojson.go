@@ -120,6 +120,16 @@ func getValueFromScanArg(arg interface{}) (interface{}, error) {
 			buf, _ = val.EncodeText(pgtype.NewConnInfo(), buf)
 			return string(buf), nil
 		}
+
+		if val, ok := (arg).(*pgtype.VarcharArray); ok {
+			if val.Status == pgtype.Null {
+				return nil, nil
+			}
+
+			buf := make([]byte, 0)
+			buf, _ = val.EncodeText(pgtype.NewConnInfo(), buf)
+			return string(buf), nil
+		}
 	}
 
 	return arg, nil
