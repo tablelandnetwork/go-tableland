@@ -70,6 +70,8 @@ func (c *Client) RunSQL(
 	}
 
 	registerPendingTx, unlock, nonce := c.tracker.GetNonce(ctx)
+	defer unlock()
+
 	opts := &bind.TransactOpts{
 		Context:  ctx,
 		Signer:   auth.Signer,
@@ -80,7 +82,6 @@ func (c *Client) RunSQL(
 
 	tx, err := c.contract.RunSQL(opts, table.String(), addr, statement)
 	if err != nil {
-		defer unlock()
 		return nil, fmt.Errorf("calling RunSQL: %v", err)
 	}
 	registerPendingTx(tx.Hash())

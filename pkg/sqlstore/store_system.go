@@ -27,4 +27,5 @@ type SystemStore interface {
 	InsertPendingTx(context.Context, string, common.Address, int64, common.Hash) error
 	DeletePendingTxByHash(context.Context, common.Hash) error
 	WithTx(tx pgx.Tx) SystemStore
+	Begin(context.Context) (pgx.Tx, error)
 }

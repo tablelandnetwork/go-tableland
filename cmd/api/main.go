@@ -67,9 +67,7 @@ func main() {
 
 	wallet, err := wallet.NewWallet(config.Signer.PrivateKey)
 	if err != nil {
-		log.Fatal().
-			Err(err).
-			Msg("failed to create wallet")
+		log.Fatal().Err(err).Msg("failed to create wallet")
 	}
 
 	checkInterval, err := time.ParseDuration(config.NonceTracker.CheckInterval)
@@ -79,22 +77,20 @@ func main() {
 
 	stuckInterval, err := time.ParseDuration(config.NonceTracker.StuckInterval)
 	if err != nil {
-		log.Fatal().Err(err).Msg("parsing nonce tracker check interval duration")
+		log.Fatal().Err(err).Msg("parsing nonce tracker stuck interval duration")
 	}
 
 	tracker, err := nonceimpl.NewLocalTracker(
 		ctx,
 		wallet,
 		nonceimpl.NewNonceStore(sqlstore),
-		nonceimpl.NewEthClient(conn),
+		conn,
 		checkInterval,
 		config.NonceTracker.MinBlockDepth,
 		stuckInterval,
 	)
 	if err != nil {
-		log.Fatal().
-			Err(err).
-			Msg("failed to create new tracker")
+		log.Fatal().Err(err).Msg("failed to create new tracker")
 	}
 
 	scAddress := common.HexToAddress(config.Registry.ContractAddress)

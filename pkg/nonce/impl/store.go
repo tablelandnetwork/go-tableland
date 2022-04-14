@@ -23,10 +23,7 @@ func NewNonceStore(systemStore sqlstore.SQLStore) nonce.NonceStore {
 func (s *NonceStore) GetNonce(ctx context.Context, network nonce.Network, addr common.Address) (nonce.Nonce, error) {
 	n, err := s.systemStore.GetNonce(ctx, string(network), addr)
 	if err != nil {
-		return nonce.Nonce{
-			Network: network,
-			Address: addr,
-		}, fmt.Errorf("nonce store get nonce: %s", err)
+		return nonce.Nonce{}, fmt.Errorf("nonce store get nonce: %s", err)
 	}
 
 	return n, nil
@@ -52,20 +49,32 @@ func (s *NonceStore) ListPendingTx(
 		return []nonce.PendingTx{}, fmt.Errorf("nonce store list pending tx: %s", err)
 	}
 
-	return txs, err
+	return txs, nil
 }
 
-// InsertPendingTx insert a new pending tx.
-func (s *NonceStore) InsertPendingTx(
+// InsertPendingTxAndUpsertNonce insert a new pending tx.
+func (s *NonceStore) InsertPendingTxAndUpsertNonce(
 	ctx context.Context,
 	network nonce.Network,
 	addr common.Address,
 	nonce int64, hash common.Hash) error {
-	err := s.systemStore.InsertPendingTx(ctx, string(network), addr, nonce, hash)
+	tx, err := s.systemStore.Begin(ctx)
 	if err != nil {
+		return fmt.Errorf("opening tx: %s", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if err := s.systemStore.WithTx(tx).UpsertNonce(ctx, string(network), addr, nonce); err != nil {
+		return fmt.Errorf("nonce store upsert nonce: %s", err)
+	}
+
+	if err := s.systemStore.WithTx(tx).InsertPendingTx(ctx, string(network), addr, nonce, hash); err != nil {
 		return fmt.Errorf("nonce store insert pending tx: %s", err)
 	}
 
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("committing changes: %s", err)
+	}
 	return nil
 }
 
