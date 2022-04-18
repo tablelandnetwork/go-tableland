@@ -25,9 +25,9 @@ type LocalTracker struct {
 	wallet     *wallet.Wallet
 
 	// control attributes
-	mu       sync.Mutex
-	quit     chan struct{}
-	isClosed bool
+	mu        sync.Mutex
+	close     chan struct{}
+	closeOnce sync.Once
 
 	// external dependencies
 	nonceStore  noncepkg.NonceStore
@@ -55,8 +55,6 @@ func NewLocalTracker(
 		nonceStore:  nonceStore,
 		chainClient: chainClient,
 
-		isClosed: false,
-
 		checkInterval:      checkInterval,
 		minBlockChainDepth: minBlockChainDepth,
 		stuckInterval:      stuckInterval,
@@ -66,7 +64,7 @@ func NewLocalTracker(
 	}
 
 	ticker := time.NewTicker(t.checkInterval)
-	t.quit = make(chan struct{})
+	t.close = make(chan struct{})
 
 	go func() {
 		for {
@@ -96,7 +94,7 @@ func NewLocalTracker(
 						}
 					}
 				}
-			case <-t.quit:
+			case <-t.close:
 				ticker.Stop()
 				return
 			}
@@ -150,11 +148,9 @@ func (t *LocalTracker) GetNonce(ctx context.Context) (nonce.RegisterPendingTx, n
 
 // Close closes the background goroutine.
 func (t *LocalTracker) Close() {
-	if t.isClosed {
-		return
-	}
-	close(t.quit)
-	t.isClosed = true
+	t.closeOnce.Do(func() {
+		close(t.close)
+	})
 }
 
 // GetPendingCount returns the number of pendings txs.
