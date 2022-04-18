@@ -82,7 +82,13 @@ func NewLocalTracker(
 					continue
 				}
 
-				for _, pendingTx := range t.pendingTxs {
+				t.mu.Lock()
+				//copy to avoid data race
+				pendingTxs := make([]noncepkg.PendingTx, len(t.pendingTxs))
+				copy(pendingTxs, t.pendingTxs)
+				t.mu.Unlock()
+
+				for _, pendingTx := range pendingTxs {
 					if err := t.checkIfPendingTxWasIncluded(ctx, pendingTx, h); err != nil {
 						log.Error().Err(err).Msg("check if pending tx was included")
 						if err == ErrBlockDiffNotEnough {
