@@ -442,7 +442,7 @@ func setup(ctx context.Context, t *testing.T) (tableland.Tableland, *backends.Si
 		backend,
 		500*time.Millisecond,
 		0,
-		24*time.Hour)
+		10*time.Minute)
 	require.NoError(t, err)
 
 	registry, err := ethereum.NewClient(
