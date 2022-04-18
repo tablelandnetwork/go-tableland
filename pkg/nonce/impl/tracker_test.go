@@ -3,11 +3,14 @@ package impl
 import (
 	"context"
 	"encoding/hex"
+	"math/big"
 	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/pkg/nonce"
@@ -133,4 +136,97 @@ func setup(ctx context.Context, t *testing.T) (
 	require.NoError(t, err)
 
 	return tracker, backend, contract, txOpts, wallet
+}
+
+func TestInitialization(t *testing.T) {
+	ctx := context.Background()
+	url, err := tests.PostgresURL()
+	require.NoError(t, err)
+
+	key, err := crypto.GenerateKey()
+	require.NoError(t, err)
+
+	wallet, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(key)))
+	require.NoError(t, err)
+
+	sqlstore, err := sqlstoreimpl.New(ctx, url)
+	require.NoError(t, err)
+
+	// Tests the case of a non-fresh wallet that has already submitted some txs
+	// and we are not aware of (simulated by PendingNonceAt() returning 10).
+	{
+		tracker := &LocalTracker{
+			wallet:      wallet,
+			network:     nonce.EthereumNetwork,
+			nonceStore:  &NonceStore{sqlstore},
+			chainClient: &ChainMockInitializationTest{},
+		}
+
+		err = tracker.initialize(ctx)
+		require.NoError(t, err)
+
+		nonce, err := tracker.nonceStore.GetNonce(ctx, nonce.EthereumNetwork, wallet.Address())
+		require.NoError(t, err)
+
+		require.Equal(t, int64(10), nonce.Nonce)
+		require.Equal(t, 0, tracker.GetPendingCount(ctx))
+	}
+
+	// Tests the case of a non-fresh wallet that has already submitted some txs
+	// and we are aware of (simulated by GetNonce() returning 10) and has some pending tx.
+	{
+		testAddress := wallet.Address()
+
+		// insert two pending txs (nonce 0 and nonce 1)
+		nonceStore := &NonceStore{sqlstore}
+		err := nonceStore.InsertPendingTxAndUpsertNonce(
+			ctx,
+			nonce.EthereumNetwork,
+			testAddress,
+			0,
+			common.HexToHash("0x119f50bf7f1ff2daa4712119af9dbd429ab727690565f93193f63650b020bc30"),
+		)
+		require.NoError(t, err)
+
+		err = nonceStore.InsertPendingTxAndUpsertNonce(
+			ctx,
+			nonce.EthereumNetwork,
+			testAddress,
+			1,
+			common.HexToHash("0x7a0edee97ea3543c279a7329665cc851a9ea53a39ad5bbce55338052808a23a9"),
+		)
+		require.NoError(t, err)
+
+		tracker := &LocalTracker{
+			wallet:      wallet,
+			network:     nonce.EthereumNetwork,
+			nonceStore:  &NonceStore{sqlstore},
+			chainClient: nil,
+		}
+
+		err = tracker.initialize(ctx)
+		require.NoError(t, err)
+
+		nonce, err := tracker.nonceStore.GetNonce(ctx, nonce.EthereumNetwork, testAddress)
+		require.NoError(t, err)
+
+		require.Equal(t, int64(1), nonce.Nonce)
+		require.Equal(t, 2, tracker.GetPendingCount(ctx))
+	}
+}
+
+type ChainMockInitializationTest struct{}
+
+func (m *ChainMockInitializationTest) PendingNonceAt(
+	ctx context.Context,
+	account common.Address) (uint64, error) {
+	return 10, nil
+}
+func (m *ChainMockInitializationTest) TransactionReceipt(
+	ctx context.Context,
+	txHash common.Hash) (*types.Receipt, error) {
+	return nil, nil
+}
+func (m *ChainMockInitializationTest) HeaderByNumber(ctx context.Context, n *big.Int) (*types.Header, error) {
+	return nil, nil
 }
