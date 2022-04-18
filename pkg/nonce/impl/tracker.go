@@ -86,7 +86,11 @@ func NewLocalTracker(
 
 				for _, pendingTx := range pendingTxs {
 					if err := t.checkIfPendingTxWasIncluded(ctx, pendingTx, h); err != nil {
-						log.Error().Err(err).Msg("check if pending tx was included")
+						log.Error().
+							Str("hash", pendingTx.Hash.Hex()).
+							Int64("nonce", pendingTx.Nonce).
+							Err(err).
+							Msg("check if pending tx was included")
 						if err == noncepkg.ErrBlockDiffNotEnough {
 							break
 						}
