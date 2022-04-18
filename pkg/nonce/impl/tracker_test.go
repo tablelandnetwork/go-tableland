@@ -3,6 +3,7 @@ package impl
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"math/big"
 	"testing"
 	"time"
@@ -13,7 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/go-tableland/pkg/nonce"
+	noncepkg "github.com/textileio/go-tableland/pkg/nonce"
 	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/testutil"
@@ -106,7 +107,7 @@ func TestTrackerPendingTxGotStuck(t *testing.T) {
 }
 
 func setup(ctx context.Context, t *testing.T) (
-	nonce.NonceTracker,
+	noncepkg.NonceTracker,
 	*backends.SimulatedBackend,
 	*ethereum.Contract,
 	*bind.TransactOpts,
@@ -157,15 +158,15 @@ func TestInitialization(t *testing.T) {
 	{
 		tracker := &LocalTracker{
 			wallet:      wallet,
-			network:     nonce.EthereumNetwork,
+			network:     noncepkg.EthereumNetwork,
 			nonceStore:  &NonceStore{sqlstore},
-			chainClient: &ChainMockInitializationTest{},
+			chainClient: &ChainMock{},
 		}
 
 		err = tracker.initialize(ctx)
 		require.NoError(t, err)
 
-		nonce, err := tracker.nonceStore.GetNonce(ctx, nonce.EthereumNetwork, wallet.Address())
+		nonce, err := tracker.nonceStore.GetNonce(ctx, noncepkg.EthereumNetwork, wallet.Address())
 		require.NoError(t, err)
 
 		require.Equal(t, int64(10), nonce.Nonce)
@@ -181,7 +182,7 @@ func TestInitialization(t *testing.T) {
 		nonceStore := &NonceStore{sqlstore}
 		err := nonceStore.InsertPendingTxAndUpsertNonce(
 			ctx,
-			nonce.EthereumNetwork,
+			noncepkg.EthereumNetwork,
 			testAddress,
 			0,
 			common.HexToHash("0x119f50bf7f1ff2daa4712119af9dbd429ab727690565f93193f63650b020bc30"),
@@ -190,7 +191,7 @@ func TestInitialization(t *testing.T) {
 
 		err = nonceStore.InsertPendingTxAndUpsertNonce(
 			ctx,
-			nonce.EthereumNetwork,
+			noncepkg.EthereumNetwork,
 			testAddress,
 			1,
 			common.HexToHash("0x7a0edee97ea3543c279a7329665cc851a9ea53a39ad5bbce55338052808a23a9"),
@@ -199,7 +200,7 @@ func TestInitialization(t *testing.T) {
 
 		tracker := &LocalTracker{
 			wallet:      wallet,
-			network:     nonce.EthereumNetwork,
+			network:     noncepkg.EthereumNetwork,
 			nonceStore:  &NonceStore{sqlstore},
 			chainClient: nil,
 		}
@@ -207,7 +208,7 @@ func TestInitialization(t *testing.T) {
 		err = tracker.initialize(ctx)
 		require.NoError(t, err)
 
-		nonce, err := tracker.nonceStore.GetNonce(ctx, nonce.EthereumNetwork, testAddress)
+		nonce, err := tracker.nonceStore.GetNonce(ctx, noncepkg.EthereumNetwork, testAddress)
 		require.NoError(t, err)
 
 		require.Equal(t, int64(1), nonce.Nonce)
@@ -215,18 +216,179 @@ func TestInitialization(t *testing.T) {
 	}
 }
 
-type ChainMockInitializationTest struct{}
+func TestMinBlockDepth(t *testing.T) {
+	ctx := context.Background()
+	url, err := tests.PostgresURL()
+	require.NoError(t, err)
 
-func (m *ChainMockInitializationTest) PendingNonceAt(
-	ctx context.Context,
-	account common.Address) (uint64, error) {
+	key, err := crypto.GenerateKey()
+	require.NoError(t, err)
+
+	wallet, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(key)))
+	require.NoError(t, err)
+
+	sqlstore, err := sqlstoreimpl.New(ctx, url)
+	require.NoError(t, err)
+
+	testAddress := wallet.Address()
+
+	// insert two pending txs (nonce 0 and nonce 1)
+	nonceStore := &NonceStore{sqlstore}
+	err = nonceStore.InsertPendingTxAndUpsertNonce(
+		ctx,
+		noncepkg.EthereumNetwork,
+		testAddress,
+		0,
+		common.HexToHash("0x119f50bf7f1ff2daa4712119af9dbd429ab727690565f93193f63650b020bc30"),
+	)
+	require.NoError(t, err)
+
+	err = nonceStore.InsertPendingTxAndUpsertNonce(
+		ctx,
+		noncepkg.EthereumNetwork,
+		testAddress,
+		1,
+		common.HexToHash("0x7a0edee97ea3543c279a7329665cc851a9ea53a39ad5bbce55338052808a23a9"),
+	)
+	require.NoError(t, err)
+
+	tracker := &LocalTracker{
+		wallet:      wallet,
+		network:     noncepkg.EthereumNetwork,
+		nonceStore:  &NonceStore{sqlstore},
+		chainClient: &ChainMock{},
+
+		pendingTxs: []noncepkg.PendingTx{{
+			Nonce:     0,
+			Hash:      common.HexToHash("0x119f50bf7f1ff2daa4712119af9dbd429ab727690565f93193f63650b020bc30"),
+			Network:   noncepkg.EthereumNetwork,
+			Address:   testAddress,
+			CreatedAt: time.Now(),
+		}, {
+			Nonce:     1,
+			Hash:      common.HexToHash("0x7a0edee97ea3543c279a7329665cc851a9ea53a39ad5bbce55338052808a23a9"),
+			Network:   noncepkg.EthereumNetwork,
+			Address:   testAddress,
+			CreatedAt: time.Now(),
+		}},
+
+		minBlockChainDepth: 5,
+	}
+
+	err = tracker.initialize(ctx)
+	require.NoError(t, err)
+
+	// For the first pending Tx, the head number is 10 and block number 1
+	// The pending tx will be considered confirmed, and it will be deleted
+	h := &types.Header{Number: big.NewInt(10)}
+	err = tracker.checkIfPendingTxWasIncluded(ctx, tracker.pendingTxs[0], h)
+	require.NoError(t, err)
+	require.Equal(t, 1, tracker.GetPendingCount(ctx))
+	txs, err := nonceStore.ListPendingTx(ctx, noncepkg.EthereumNetwork, testAddress)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(txs))
+
+	// For the second pending Tx, the head number is 10 and block number 6
+	// The pending tx will not be considered confirmed, and it will not be deleted
+	err = tracker.checkIfPendingTxWasIncluded(ctx, tracker.pendingTxs[0], h)
+	require.Equal(t, noncepkg.ErrBlockDiffNotEnough, err)
+	require.Equal(t, 1, tracker.GetPendingCount(ctx))
+	txs, err = nonceStore.ListPendingTx(ctx, noncepkg.EthereumNetwork, testAddress)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(txs))
+
+	// We advance the head to 11
+	h = &types.Header{Number: big.NewInt(11)}
+	err = tracker.checkIfPendingTxWasIncluded(ctx, tracker.pendingTxs[0], h)
+	require.NoError(t, err)
+	require.Equal(t, 0, tracker.GetPendingCount(ctx))
+	txs, err = nonceStore.ListPendingTx(ctx, noncepkg.EthereumNetwork, testAddress)
+	require.NoError(t, err)
+	require.Equal(t, 0, len(txs))
+}
+
+func TestCheckIfPendingTxIsStuck(t *testing.T) {
+	ctx := context.Background()
+	url, err := tests.PostgresURL()
+	require.NoError(t, err)
+
+	key, err := crypto.GenerateKey()
+	require.NoError(t, err)
+
+	wallet, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(key)))
+	require.NoError(t, err)
+
+	sqlstore, err := sqlstoreimpl.New(ctx, url)
+	require.NoError(t, err)
+
+	testAddress := wallet.Address()
+
+	// insert two pending txs (nonce 0 and nonce 1)
+	nonceStore := &NonceStore{sqlstore}
+	err = nonceStore.InsertPendingTxAndUpsertNonce(
+		ctx,
+		noncepkg.EthereumNetwork,
+		testAddress,
+		0,
+		common.HexToHash("0xda3601329d295f03dc75bf42569f476f22995c456334c9a39a05e7cb7877dc41"),
+	)
+	require.NoError(t, err)
+
+	tracker := &LocalTracker{
+		wallet:      wallet,
+		network:     noncepkg.EthereumNetwork,
+		nonceStore:  &NonceStore{sqlstore},
+		chainClient: &ChainMock{},
+
+		pendingTxs: []noncepkg.PendingTx{{
+			Nonce:     0,
+			Hash:      common.HexToHash("0xda3601329d295f03dc75bf42569f476f22995c456334c9a39a05e7cb7877dc41"),
+			Network:   noncepkg.EthereumNetwork,
+			Address:   testAddress,
+			CreatedAt: time.Now(),
+		}},
+
+		minBlockChainDepth: 5,
+		// very small duration just to catch the ErrPendingTxMayBeStuck error
+		stuckInterval: time.Duration(1000),
+	}
+
+	err = tracker.initialize(ctx)
+	require.NoError(t, err)
+
+	h := &types.Header{Number: big.NewInt(10)}
+	err = tracker.checkIfPendingTxWasIncluded(ctx, tracker.pendingTxs[0], h)
+	require.Equal(t, noncepkg.ErrPendingTxMayBeStuck, err)
+	require.Equal(t, 1, tracker.GetPendingCount(ctx))
+	txs, err := nonceStore.ListPendingTx(ctx, noncepkg.EthereumNetwork, testAddress)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(txs))
+}
+
+type ChainMock struct{}
+
+// Using this for TestInitialization.
+func (m *ChainMock) PendingNonceAt(ctx context.Context, account common.Address) (uint64, error) {
 	return 10, nil
 }
-func (m *ChainMockInitializationTest) TransactionReceipt(
-	ctx context.Context,
-	txHash common.Hash) (*types.Receipt, error) {
-	return nil, nil
+
+// Using this for test TestMinBlockDepth and TestCheckIfPendingTxIsStuck.
+func (m *ChainMock) TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
+	if txHash.Hex() == "0x119f50bf7f1ff2daa4712119af9dbd429ab727690565f93193f63650b020bc30" {
+		r := &types.Receipt{BlockNumber: big.NewInt(1)}
+		return r, nil
+	}
+
+	if txHash.Hex() == "0x7a0edee97ea3543c279a7329665cc851a9ea53a39ad5bbce55338052808a23a9" {
+		r := &types.Receipt{BlockNumber: big.NewInt(6)}
+		return r, nil
+	}
+
+	// this is used for TestCheckIfPendingTxIsStuck
+	return nil, errors.New("not found")
 }
-func (m *ChainMockInitializationTest) HeaderByNumber(ctx context.Context, n *big.Int) (*types.Header, error) {
+
+// this is not used by any test.
+func (m *ChainMock) HeaderByNumber(ctx context.Context, n *big.Int) (*types.Header, error) {
 	return nil, nil
 }

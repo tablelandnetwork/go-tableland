@@ -2,7 +2,6 @@ package impl
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -16,9 +15,6 @@ import (
 )
 
 var log = logger.With().Str("component", "nonce").Logger()
-
-// ErrBlockDiffNotEnough indicates that the pending block is not old enough.
-var ErrBlockDiffNotEnough = errors.New("the block number is not old enough to be considered not pending")
 
 // LocalTracker implements a nonce tracker that stores
 // nonce and pending txs locally.
@@ -82,8 +78,8 @@ func NewLocalTracker(
 					continue
 				}
 
-				t.mu.Lock()
 				//copy to avoid data race
+				t.mu.Lock()
 				pendingTxs := make([]noncepkg.PendingTx, len(t.pendingTxs))
 				copy(pendingTxs, t.pendingTxs)
 				t.mu.Unlock()
@@ -91,7 +87,7 @@ func NewLocalTracker(
 				for _, pendingTx := range pendingTxs {
 					if err := t.checkIfPendingTxWasIncluded(ctx, pendingTx, h); err != nil {
 						log.Error().Err(err).Msg("check if pending tx was included")
-						if err == ErrBlockDiffNotEnough {
+						if err == noncepkg.ErrBlockDiffNotEnough {
 							break
 						}
 					}
@@ -210,11 +206,6 @@ func (t *LocalTracker) checkIfPendingTxWasIncluded(
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	// There is nothing to check
-	if len(t.pendingTxs) == 0 {
-		return nil
-	}
-
 	log.Debug().
 		Str("hash", pendingTx.Hash.Hex()).
 		Int64("nonce", pendingTx.Nonce).
@@ -222,6 +213,16 @@ func (t *LocalTracker) checkIfPendingTxWasIncluded(
 
 	txReceipt, err := t.chainClient.TransactionReceipt(ctx, pendingTx.Hash)
 	if err != nil {
+		if time.Since(pendingTx.CreatedAt) > t.stuckInterval {
+			log.Error().
+				Str("hash", pendingTx.Hash.Hex()).
+				Int64("nonce", pendingTx.Nonce).
+				Time("createdAt", pendingTx.CreatedAt).
+				Msg("pending tx may be stuck")
+
+			return nonce.ErrPendingTxMayBeStuck
+		}
+
 		return fmt.Errorf("get transaction receipt: %s", err)
 	}
 
@@ -235,22 +236,28 @@ func (t *LocalTracker) checkIfPendingTxWasIncluded(
 			Int64("blockNumber", txReceipt.BlockNumber.Int64()).
 			Msg("block difference is not enough")
 
-		return ErrBlockDiffNotEnough
+		return noncepkg.ErrBlockDiffNotEnough
 	}
 
-	if err := t.nonceStore.DeletePendingTxByHash(ctx, pendingTx.Hash); err != nil {
+	if err := t.deletePendingTxByHash(ctx, pendingTx.Hash); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (t *LocalTracker) deletePendingTxByHash(ctx context.Context, hash common.Hash) error {
+	if err := t.nonceStore.DeletePendingTxByHash(ctx, hash); err != nil {
 		return fmt.Errorf("delete pending tx: %s", err)
 	}
 
-	t.pendingTxs = t.pendingTxs[1:]
-
-	if time.Since(pendingTx.CreatedAt) > t.stuckInterval {
-		log.Error().
-			Str("hash", pendingTx.Hash.Hex()).
-			Int64("nonce", pendingTx.Nonce).
-			Time("createdAt", pendingTx.CreatedAt).
-			Msg("pending tx may be stuck")
+	var deleteIndex int
+	for i, pTx := range t.pendingTxs {
+		if pTx.Hash.Hex() == hash.Hex() {
+			deleteIndex = i
+		}
 	}
+	t.pendingTxs = append(t.pendingTxs[:deleteIndex], t.pendingTxs[deleteIndex+1:]...)
 
 	return nil
 }
