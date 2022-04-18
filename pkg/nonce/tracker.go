@@ -2,6 +2,7 @@ package nonce
 
 import (
 	"context"
+	"errors"
 	"math/big"
 	"time"
 
@@ -30,6 +31,12 @@ type PendingTx struct {
 	Address   common.Address
 	CreatedAt time.Time
 }
+
+// ErrBlockDiffNotEnough indicates that the pending block is not old enough.
+var ErrBlockDiffNotEnough = errors.New("the block number is not old enough to be considered not pending")
+
+// ErrPendingTxMayBeStuck indicates that the pending tx may be stuck.
+var ErrPendingTxMayBeStuck = errors.New("pending tx may be stuck")
 
 // RegisterPendingTx registers a pending tx in the nonce tracker.
 type RegisterPendingTx func(common.Hash)
