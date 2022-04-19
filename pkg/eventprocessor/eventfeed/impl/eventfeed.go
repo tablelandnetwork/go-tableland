@@ -247,8 +247,9 @@ func (ef *EventFeed) notifyNewHeads(ctx context.Context, ch chan *types.Header) 
 		return fmt.Errorf("subscribing to new heads: %s", err)
 	}
 	go func() {
-		defer subHeader.Unsubscribe()
 		defer close(ch)
+		defer subHeader.Unsubscribe()
+
 		for {
 			select {
 			case <-ctx.Done():
