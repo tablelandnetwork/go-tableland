@@ -18,6 +18,7 @@ require (
 	github.com/pganalyze/pg_query_go/v2 v2.1.0
 	github.com/rs/zerolog v1.26.1
 	github.com/sethvargo/go-limiter v0.7.2
+	github.com/spruceid/siwe-go v0.1.0
 	github.com/stretchr/testify v1.7.1
 	github.com/textileio/cli v1.0.2
 	github.com/textileio/go-log/v2 v2.1.3-gke-2
@@ -43,6 +44,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/containerd/continuity v0.1.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/dchest/uniuri v0.0.0-20200228104902-7aecb25e1fe5 // indirect
 	github.com/deckarep/golang-set v1.8.0 // indirect
 	github.com/docker/cli v20.10.11+incompatible // indirect
 	github.com/docker/docker v20.10.9+incompatible // indirect
@@ -94,6 +96,7 @@ require (
 	github.com/prometheus/common v0.32.1 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/prometheus/tsdb v0.7.1 // indirect
+	github.com/relvacode/iso8601 v1.1.0 // indirect
 	github.com/rjeczalik/notify v0.9.1 // indirect
 	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
