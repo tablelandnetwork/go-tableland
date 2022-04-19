@@ -11,8 +11,7 @@ import (
 )
 
 func TestLastSeen(t *testing.T) {
-	url, err := tests.PostgresURL()
-	require.NoError(t, err)
+	url := tests.PostgresURL(t)
 
 	ctx := context.Background()
 	pool, err := pgxpool.Connect(ctx, url)
