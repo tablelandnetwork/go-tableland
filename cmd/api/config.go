@@ -38,7 +38,11 @@ type config struct {
 	}
 	Registry struct {
 		EthEndpoint     string `default:"eth_endpoint"`
+		ChainID         int64  `default:"1"`
 		ContractAddress string `default:"contract_address"`
+	}
+	Signer struct {
+		PrivateKey string `default:""`
 	}
 	Metrics struct {
 		Port string `default:"9090"`
@@ -58,6 +62,11 @@ type config struct {
 	}
 	EventProcessor struct {
 		BlockFailedExecutionBackoff string `default:"10s"`
+	}
+	NonceTracker struct {
+		CheckInterval string `default:"10s"`
+		StuckInterval string `default:"10m"`
+		MinBlockDepth int    `default:"5"`
 	}
 }
 

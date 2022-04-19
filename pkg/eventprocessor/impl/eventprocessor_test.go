@@ -94,7 +94,7 @@ func setup(t *testing.T) (contractRunSQLBlockSender, dbReader) {
 	t.Helper()
 
 	// Spin up the EVM chain with the contract.
-	backend, addr, sc, authOpts := testutil.Setup(t)
+	backend, addr, sc, authOpts, _ := testutil.Setup(t)
 
 	// Spin up dependencies needed for the EventProcessor.
 	// i.e: TxnProcessor, Parser, and EventFeed (connected to the EVM chain)

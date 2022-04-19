@@ -34,6 +34,20 @@ type SystemAuth struct {
 	RunSqlCount      int32
 }
 
+type SystemNonce struct {
+	Network string
+	Address string
+	Nonce   int64
+}
+
+type SystemPendingTx struct {
+	Network   string
+	Address   string
+	Hash      string
+	Nonce     int64
+	CreatedAt time.Time
+}
+
 type SystemTxnProcessor struct {
 	BlockNumber sql.NullInt64
 }

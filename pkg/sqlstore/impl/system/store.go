@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog/log"
 
 	"strings"
@@ -18,6 +19,7 @@ import (
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/nonce"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system/internal/db"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system/migrations"
@@ -28,7 +30,8 @@ import (
 // For safety reasons, this layer has no access to the database object or the transaction object.
 // The access is made through the dbWithTx interface.
 type SystemStore struct {
-	db dbWithTx
+	db   dbWithTx
+	pool *pgxpool.Pool
 }
 
 // New returns a new SystemStore backed by `pgxpool.Pool`.
@@ -42,7 +45,10 @@ func New(pool *pgxpool.Pool) (*SystemStore, error) {
 		return nil, fmt.Errorf("initializing db connection: %s", err)
 	}
 
-	return &SystemStore{db: &dbWithTxImpl{db: db.New(pool)}}, nil
+	return &SystemStore{
+		db:   &dbWithTxImpl{db: db.New(pool)},
+		pool: pool,
+	}, nil
 }
 
 // GetTable fetchs a table from its UUID.
@@ -218,6 +224,110 @@ func (s *SystemStore) GetACLOnTableByController(
 	return aclFromSQLtoDTO(systemACL)
 }
 
+// GetNonce returns the nonce stored in the database by a given address.
+func (s *SystemStore) GetNonce(ctx context.Context, network string, addr common.Address) (nonce.Nonce, error) {
+	params := db.GetNonceParams{
+		Address: addr.Hex(),
+		Network: network,
+	}
+
+	systemNonce, err := s.db.queries().GetNonce(ctx, params)
+	if err == pgx.ErrNoRows {
+		return nonce.Nonce{
+			Address: common.HexToAddress(systemNonce.Address),
+			Network: nonce.Network(systemNonce.Network),
+		}, nil
+	}
+
+	if err != nil {
+		return nonce.Nonce{}, fmt.Errorf("get nonce: %s", err)
+	}
+
+	return nonce.Nonce{
+		Address: common.HexToAddress(systemNonce.Address),
+		Network: nonce.Network(systemNonce.Network),
+		Nonce:   systemNonce.Nonce,
+	}, nil
+}
+
+// UpsertNonce updates a nonce.
+func (s *SystemStore) UpsertNonce(ctx context.Context, network string, addr common.Address, nonce int64) error {
+	params := db.UpsertNonceParams{
+		Address: addr.Hex(),
+		Network: network,
+		Nonce:   nonce,
+	}
+
+	err := s.db.queries().UpsertNonce(ctx, params)
+	if err != nil {
+		return fmt.Errorf("upsert nonce: %s", err)
+	}
+
+	return nil
+}
+
+// ListPendingTx lists all pendings txs.
+func (s *SystemStore) ListPendingTx(
+	ctx context.Context,
+	network string,
+	addr common.Address) ([]nonce.PendingTx, error) {
+	params := db.ListPendingTxParams{
+		Address: addr.Hex(),
+		Network: network,
+	}
+
+	res, err := s.db.queries().ListPendingTx(ctx, params)
+	if err != nil {
+		return nil, fmt.Errorf("list pending tx: %s", err)
+	}
+
+	pendingTxs := make([]nonce.PendingTx, 0)
+	for _, r := range res {
+		tx := nonce.PendingTx{
+			Address:   common.HexToAddress(r.Address),
+			Nonce:     r.Nonce,
+			Hash:      common.HexToHash(r.Hash),
+			Network:   nonce.Network(r.Network),
+			CreatedAt: r.CreatedAt,
+		}
+
+		pendingTxs = append(pendingTxs, tx)
+	}
+
+	return pendingTxs, nil
+}
+
+// InsertPendingTx insert a new pending tx.
+func (s *SystemStore) InsertPendingTx(
+	ctx context.Context,
+	network string,
+	addr common.Address,
+	nonce int64, hash common.Hash) error {
+	params := db.InsertPendingTxParams{
+		Address: addr.Hex(),
+		Network: network,
+		Nonce:   nonce,
+		Hash:    hash.Hex(),
+	}
+
+	err := s.db.queries().InsertPendingTx(ctx, params)
+	if err != nil {
+		return fmt.Errorf("insert pending tx: %s", err)
+	}
+
+	return nil
+}
+
+// DeletePendingTxByHash deletes a pending tx.
+func (s *SystemStore) DeletePendingTxByHash(ctx context.Context, hash common.Hash) error {
+	err := s.db.queries().DeletePendingTxByHash(ctx, hash.Hex())
+	if err != nil {
+		return fmt.Errorf("delete pending tx: %s", err)
+	}
+
+	return nil
+}
+
 // WithTx returns a copy of the current SystemStore with a tx attached.
 func (s *SystemStore) WithTx(tx pgx.Tx) sqlstore.SystemStore {
 	return &SystemStore{
@@ -225,7 +335,13 @@ func (s *SystemStore) WithTx(tx pgx.Tx) sqlstore.SystemStore {
 			db: s.db.queries(),
 			tx: tx,
 		},
+		s.pool,
 	}
+}
+
+// Begin returns a new tx.
+func (s *SystemStore) Begin(ctx context.Context) (pgx.Tx, error) {
+	return s.pool.Begin(ctx)
 }
 
 // executeMigration run db migrations and return a ready to use connection to the Postgres database.

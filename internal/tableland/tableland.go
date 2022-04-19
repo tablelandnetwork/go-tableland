@@ -30,7 +30,10 @@ type RunSQLRequest struct {
 
 // RunSQLResponse is a RunSQL response.
 type RunSQLResponse struct {
-	Result interface{} `json:"data"`
+	Result      interface{} `json:"data"`
+	Transaction struct {
+		Hash string `json:"hash"`
+	} `json:"tx"`
 }
 
 // CalculateTableHashRequest is a CreateTableHash request.

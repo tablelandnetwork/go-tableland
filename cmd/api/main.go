@@ -23,13 +23,16 @@ import (
 	epimpl "github.com/textileio/go-tableland/pkg/eventprocessor/impl"
 	"github.com/textileio/go-tableland/pkg/logging"
 	"github.com/textileio/go-tableland/pkg/metrics"
+	nonceimpl "github.com/textileio/go-tableland/pkg/nonce/impl"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
+	"github.com/textileio/go-tableland/pkg/tableregistry"
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/txn"
 	txnimpl "github.com/textileio/go-tableland/pkg/txn/impl"
+	"github.com/textileio/go-tableland/pkg/wallet"
 )
 
 func main() {
@@ -62,8 +65,43 @@ func main() {
 	}
 	defer conn.Close()
 
+	wallet, err := wallet.NewWallet(config.Signer.PrivateKey)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to create wallet")
+	}
+
+	checkInterval, err := time.ParseDuration(config.NonceTracker.CheckInterval)
+	if err != nil {
+		log.Fatal().Err(err).Msg("parsing nonce tracker check interval duration")
+	}
+
+	stuckInterval, err := time.ParseDuration(config.NonceTracker.StuckInterval)
+	if err != nil {
+		log.Fatal().Err(err).Msg("parsing nonce tracker stuck interval duration")
+	}
+
+	tracker, err := nonceimpl.NewLocalTracker(
+		ctx,
+		wallet,
+		nonceimpl.NewNonceStore(sqlstore),
+		conn,
+		checkInterval,
+		config.NonceTracker.MinBlockDepth,
+		stuckInterval,
+	)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to create new tracker")
+	}
+
 	scAddress := common.HexToAddress(config.Registry.ContractAddress)
-	registry, err := ethereum.NewClient(conn, scAddress)
+	registry, err := ethereum.NewClient(
+		conn,
+		config.Registry.ChainID,
+		scAddress,
+		wallet,
+		tracker,
+	)
+
 	if err != nil {
 		log.Fatal().
 			Err(err).
@@ -125,7 +163,8 @@ func main() {
 		log.Fatal().Err(err).Msg("starting event processor")
 	}
 
-	svc := getTablelandService(config, sqlstore, acl, parser, txnp) // TODO(S3): txnp argument should go away soon.
+	// TODO(S3): txnp argument should go away soon.
+	svc := getTablelandService(config, sqlstore, acl, parser, txnp, registry)
 	if err := server.RegisterName("tableland", svc); err != nil {
 		log.Fatal().Err(err).Msg("failed to register a json-rpc service")
 	}
@@ -217,10 +256,11 @@ func getTablelandService(
 	acl tableland.ACL,
 	parser parsing.SQLValidator,
 	txnp txn.TxnProcessor,
+	registry tableregistry.TableRegistry,
 ) tableland.Tableland {
 	switch conf.Impl {
 	case "mesa":
-		mesa := impl.NewTablelandMesa(store, parser, txnp, acl)
+		mesa := impl.NewTablelandMesa(store, parser, txnp, acl, registry)
 		instrumentedMesa, err := impl.NewInstrumentedTablelandMesa(mesa)
 		if err != nil {
 			log.Fatal().Err(err).Msg("instrumenting mesa")

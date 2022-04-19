@@ -4,8 +4,10 @@ import (
 	"context"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/nonce"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 )
@@ -89,6 +91,46 @@ func (s *ThrottledSQLStorePGX) Read(ctx context.Context, stmt parsing.SugaredRea
 	return data, err
 }
 
+// GetNonce returns the nonce stored in the database by a given address.
+func (s *ThrottledSQLStorePGX) GetNonce(
+	ctx context.Context,
+	network string,
+	addr common.Address) (nonce.Nonce, error) {
+	return s.store.GetNonce(ctx, network, addr)
+}
+
+// UpsertNonce updates a nonce.
+func (s *ThrottledSQLStorePGX) UpsertNonce(
+	ctx context.Context,
+	network string,
+	addr common.Address,
+	nonce int64) error {
+	return s.store.UpsertNonce(ctx, network, addr, nonce)
+}
+
+// ListPendingTx lists all pendings txs.
+func (s *ThrottledSQLStorePGX) ListPendingTx(
+	ctx context.Context,
+	network string,
+	addr common.Address) ([]nonce.PendingTx, error) {
+	return s.store.ListPendingTx(ctx, network, addr)
+}
+
+// InsertPendingTx insert a new pending tx.
+func (s *ThrottledSQLStorePGX) InsertPendingTx(
+	ctx context.Context,
+	network string,
+	addr common.Address,
+	nonce int64,
+	hash common.Hash) error {
+	return s.store.InsertPendingTx(ctx, network, addr, nonce, hash)
+}
+
+// DeletePendingTxByHash deletes a pending tx.
+func (s *ThrottledSQLStorePGX) DeletePendingTxByHash(ctx context.Context, hash common.Hash) error {
+	return s.store.DeletePendingTxByHash(ctx, hash)
+}
+
 // Close closes the connection pool.
 func (s *ThrottledSQLStorePGX) Close() {
 	s.store.Close()
@@ -97,4 +139,9 @@ func (s *ThrottledSQLStorePGX) Close() {
 // WithTx returns a copy of the current ThrottledSQLStorePGX with a tx attached.
 func (s *ThrottledSQLStorePGX) WithTx(tx pgx.Tx) sqlstore.SystemStore {
 	return s.store.WithTx(tx)
+}
+
+// Begin returns a new tx.
+func (s *ThrottledSQLStorePGX) Begin(ctx context.Context) (pgx.Tx, error) {
+	return s.store.Begin(ctx)
 }

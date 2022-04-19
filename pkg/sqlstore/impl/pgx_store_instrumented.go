@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/nonce"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"go.opentelemetry.io/otel/attribute"
@@ -251,6 +253,106 @@ func (s *InstrumentedSQLStorePGX) Read(ctx context.Context, stmt parsing.Sugared
 	return data, err
 }
 
+// GetNonce returns the nonce stored in the database by a given address.
+func (s *InstrumentedSQLStorePGX) GetNonce(
+	ctx context.Context,
+	network string,
+	addr common.Address) (nonce.Nonce, error) {
+	start := time.Now()
+	data, err := s.store.GetNonce(ctx, network, addr)
+	latency := time.Since(start).Milliseconds()
+
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("GetNonce")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return data, err
+}
+
+// UpsertNonce updates a nonce.
+func (s *InstrumentedSQLStorePGX) UpsertNonce(
+	ctx context.Context,
+	network string,
+	addr common.Address,
+	nonce int64) error {
+	start := time.Now()
+	err := s.store.UpsertNonce(ctx, network, addr, nonce)
+	latency := time.Since(start).Milliseconds()
+
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("UpsertNonce")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return err
+}
+
+// ListPendingTx lists all pendings txs.
+func (s *InstrumentedSQLStorePGX) ListPendingTx(
+	ctx context.Context,
+	network string,
+	addr common.Address) ([]nonce.PendingTx, error) {
+	start := time.Now()
+	data, err := s.store.ListPendingTx(ctx, network, addr)
+	latency := time.Since(start).Milliseconds()
+
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("ListPendingTx")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return data, err
+}
+
+// InsertPendingTx insert a new pending tx.
+func (s *InstrumentedSQLStorePGX) InsertPendingTx(
+	ctx context.Context,
+	network string,
+	addr common.Address,
+	nonce int64,
+	hash common.Hash) error {
+	start := time.Now()
+	err := s.store.InsertPendingTx(ctx, network, addr, nonce, hash)
+	latency := time.Since(start).Milliseconds()
+
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("InsertPendingTx")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return err
+}
+
+// DeletePendingTxByHash deletes a pending tx.
+func (s *InstrumentedSQLStorePGX) DeletePendingTxByHash(ctx context.Context, hash common.Hash) error {
+	start := time.Now()
+	err := s.store.DeletePendingTxByHash(ctx, hash)
+	latency := time.Since(start).Milliseconds()
+
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("DeletePendingTxByHash")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return err
+}
+
 // Close closes the connection pool.
 func (s *InstrumentedSQLStorePGX) Close() {
 	s.store.Close()
@@ -259,4 +361,9 @@ func (s *InstrumentedSQLStorePGX) Close() {
 // WithTx returns a copy of the current InstrumentedSQLStorePGX with a tx attached.
 func (s *InstrumentedSQLStorePGX) WithTx(tx pgx.Tx) sqlstore.SystemStore {
 	return s.store.WithTx(tx)
+}
+
+// Begin returns a new tx.
+func (s *InstrumentedSQLStorePGX) Begin(ctx context.Context) (pgx.Tx, error) {
+	return s.store.Begin(ctx)
 }
