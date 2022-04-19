@@ -3,11 +3,9 @@ package tests
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"net/url"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -33,20 +31,12 @@ func PostgresURL(t *testing.T) string {
 	require.NoError(t, err, "connecting to postgres")
 	defer conn.Close()
 
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	var dbName string
-	for i := 0; i < 10; i++ {
-		dbName = fmt.Sprintf("db%d", r.Uint64())
-		_, err = conn.Exec(ctx, "CREATE DATABASE "+dbName+";")
-		if err == nil {
-			break
-		}
-	}
+	_, err = conn.Exec(ctx, "CREATE DATABASE db1;")
 	require.NoError(t, err, "creating database")
 
 	u, err := url.Parse(pgURL)
 	require.NoError(t, err, "parsing postgres url")
-	u.Path = dbName
+	u.Path = "db1"
 
 	return u.String()
 }
