@@ -39,7 +39,6 @@ func Authentication(next http.Handler) http.Handler {
 			w.WriteHeader(http.StatusBadRequest)
 			_ = json.NewEncoder(w).Encode(errors.ServiceError{Message: fmt.Sprintf("parsing authorization: %v", err)})
 			return
-
 		}
 
 		r = r.WithContext(context.WithValue(r.Context(), ContextKeyAddress, issuer))

@@ -140,8 +140,7 @@ func setup(ctx context.Context, t *testing.T) (
 
 func TestInitialization(t *testing.T) {
 	ctx := context.Background()
-	url, err := tests.PostgresURL()
-	require.NoError(t, err)
+	url := tests.PostgresURL(t)
 
 	key, err := crypto.GenerateKey()
 	require.NoError(t, err)
@@ -217,8 +216,7 @@ func TestInitialization(t *testing.T) {
 
 func TestMinBlockDepth(t *testing.T) {
 	ctx := context.Background()
-	url, err := tests.PostgresURL()
-	require.NoError(t, err)
+	url := tests.PostgresURL(t)
 
 	key, err := crypto.GenerateKey()
 	require.NoError(t, err)
@@ -308,8 +306,7 @@ func TestMinBlockDepth(t *testing.T) {
 
 func TestCheckIfPendingTxIsStuck(t *testing.T) {
 	ctx := context.Background()
-	url, err := tests.PostgresURL()
-	require.NoError(t, err)
+	url := tests.PostgresURL(t)
 
 	key, err := crypto.GenerateKey()
 	require.NoError(t, err)
