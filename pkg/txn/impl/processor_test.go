@@ -368,8 +368,7 @@ func existsTableWithName(t *testing.T, pool *pgxpool.Pool, tableName string) boo
 func newTxnProcessor(t *testing.T, rowsLimit int) (*TblTxnProcessor, *pgxpool.Pool) {
 	t.Helper()
 
-	url, err := tests.PostgresURL()
-	require.NoError(t, err)
+	url := tests.PostgresURL(t)
 
 	txnp, err := NewTxnProcessor(url, rowsLimit, &aclMock{})
 	require.NoError(t, err)

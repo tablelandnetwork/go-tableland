@@ -112,8 +112,7 @@ func setup(ctx context.Context, t *testing.T) (
 	*ethereum.Contract,
 	*bind.TransactOpts,
 	*wallet.Wallet) {
-	url, err := tests.PostgresURL()
-	require.NoError(t, err)
+	url := tests.PostgresURL(t)
 
 	backend, _, contract, txOpts, _ := testutil.Setup(t)
 
