@@ -510,8 +510,7 @@ func readCsvFile(t *testing.T, filePath string) [][]string {
 
 func newTablelandMesa(t *testing.T) tableland.Tableland {
 	t.Helper()
-	url, err := tests.PostgresURL()
-	require.NoError(t, err)
+	url := tests.PostgresURL(t)
 
 	ctx := context.Background()
 	sqlstore, err := sqlstoreimpl.New(ctx, url)
@@ -528,8 +527,7 @@ func newTablelandMesa(t *testing.T) tableland.Tableland {
 func setup(ctx context.Context, t *testing.T) (tableland.Tableland, *backends.SimulatedBackend) {
 	t.Helper()
 
-	url, err := tests.PostgresURL()
-	require.NoError(t, err)
+	url := tests.PostgresURL(t)
 
 	sqlstore, err := sqlstoreimpl.New(ctx, url)
 	require.NoError(t, err)

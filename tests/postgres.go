@@ -6,39 +6,31 @@ import (
 	"math/rand"
 	"net/url"
 	"os"
-	"sync"
-	"sync/atomic"
+	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/ory/dockertest/v3"
+	"github.com/stretchr/testify/require"
 	logger "github.com/textileio/go-log/v2"
 )
 
 var (
-	log               = logger.Logger("tests")
-	storedPGURL       atomic.Value // string
-	startPostgresOnce sync.Once
+	log = logger.Logger("tests")
 )
 
 // PostgresURL gets a Postgres database URL for test. It always creates a new
 // database on the server so tests won't clash with each other. It connects to
 // the server specified by PG_URL envvar if present, or starts a new Postgres
 // docker container which stops automatically after 10 minutes.
-func PostgresURL() (string, error) {
+func PostgresURL(t *testing.T) string {
 	ctx := context.Background()
-	if storedPGURL.Load() == nil {
-		if err := initURL(); err != nil {
-			return "", fmt.Errorf("initialize postgres: %w", err)
-		}
-	}
+	pgURL := initURL(t)
+
 	// use pgxpool to allow concurrent access.
-	pgURL := storedPGURL.Load().(string)
 	conn, err := pgxpool.Connect(ctx, pgURL)
-	if err != nil {
-		return "", fmt.Errorf("connect postgres: %w", err)
-	}
+	require.NoError(t, err, "connecting to postgres")
 	defer conn.Close()
 
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -50,54 +42,47 @@ func PostgresURL() (string, error) {
 			break
 		}
 	}
-	if err != nil {
-		return "", fmt.Errorf("create database: %w", err)
-	}
+	require.NoError(t, err, "creating database")
 
 	u, err := url.Parse(pgURL)
-	if err != nil {
-		return "", err
-	}
+	require.NoError(t, err, "parsing postgres url")
 	u.Path = dbName
-	return u.String(), nil
+
+	return u.String()
 }
 
-func initURL() (err error) {
-	startPostgresOnce.Do(func() {
-		pgURL := os.Getenv("PG_URL")
-		if pgURL != "" {
-			storedPGURL.Store(pgURL)
-			return
-		}
-		var pool *dockertest.Pool
-		var container *dockertest.Resource
-		pool, err = dockertest.NewPool("")
-		if err != nil {
-			return
-		}
-		container, err = pool.Run("postgres", "14.1", []string{"POSTGRES_USER=test", "POSTGRES_PASSWORD=test"})
-		if err != nil {
-			log.Errorf("failed to start postgres docker container: %w", err)
-			return
-		}
-		if err = container.Expire(600); err != nil {
-			log.Warnf("failed to expire postgres docker container, continuing: %w", err)
-		}
+func initURL(t *testing.T) string {
+	pgURL := os.Getenv("PG_URL")
+	if pgURL != "" {
+		return pgURL
+	}
+	var pool *dockertest.Pool
+	var container *dockertest.Resource
+	pool, err := dockertest.NewPool("")
+	require.NoError(t, err, "creating dockertest pool")
 
-		pgURL = fmt.Sprintf("postgres://test:test@localhost:%s?sslmode=disable&timezone=UTC", container.GetPort("5432/tcp"))
-		err = pool.Retry(func() error {
-			ctx := context.Background()
-			conn, err := pgx.Connect(ctx, pgURL)
-			if err != nil {
-				log.Warnf("postgres container is not up yet: %w", err)
-				return err
-			}
-			_ = conn.Close(ctx)
-			return nil
-		})
-		if err == nil {
-			storedPGURL.Store(pgURL)
+	container, err = pool.Run("postgres", "14.1", []string{"POSTGRES_USER=test", "POSTGRES_PASSWORD=test"})
+	require.NoError(t, err, err, "failed to start postgres docker container")
+	if err = container.Expire(600); err != nil {
+		log.Warnf("failed to expire postgres docker container, continuing: %w", err)
+	}
+
+	pgURL = fmt.Sprintf("postgres://test:test@localhost:%s?sslmode=disable&timezone=UTC", container.GetPort("5432/tcp"))
+	err = pool.Retry(func() error {
+		ctx := context.Background()
+		conn, err := pgx.Connect(ctx, pgURL)
+		if err != nil {
+			log.Warnf("postgres container is not up yet: %w", err)
+			return fmt.Errorf("connecting to the database: %s", err)
 		}
+		_ = conn.Close(ctx)
+		return nil
 	})
-	return
+	require.NoError(t, err, "starting postgres")
+
+	t.Cleanup(func() {
+		_ = pool.Purge(container)
+	})
+
+	return pgURL
 }

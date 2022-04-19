@@ -15,8 +15,7 @@ import (
 )
 
 func TestSystemSQLStoreService(t *testing.T) {
-	url, err := tests.PostgresURL()
-	require.NoError(t, err)
+	url := tests.PostgresURL(t)
 
 	ctx := context.Background()
 	store, err := impl.New(ctx, url)
