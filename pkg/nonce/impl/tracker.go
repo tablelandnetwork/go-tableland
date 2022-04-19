@@ -9,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	logger "github.com/rs/zerolog/log"
-	"github.com/textileio/go-tableland/pkg/nonce"
 	noncepkg "github.com/textileio/go-tableland/pkg/nonce"
 	"github.com/textileio/go-tableland/pkg/wallet"
 )
@@ -20,7 +19,7 @@ var log = logger.With().Str("component", "nonce").Logger()
 // nonce and pending txs locally.
 type LocalTracker struct {
 	currNonce  int64
-	network    nonce.Network
+	network    noncepkg.Network
 	pendingTxs []noncepkg.PendingTx
 	wallet     *wallet.Wallet
 
@@ -43,7 +42,7 @@ type LocalTracker struct {
 func NewLocalTracker(
 	ctx context.Context,
 	w *wallet.Wallet,
-	nonceStore nonce.NonceStore,
+	nonceStore noncepkg.NonceStore,
 	chainClient noncepkg.ChainClient,
 	checkInterval time.Duration,
 	minBlockChainDepth int,
@@ -51,7 +50,7 @@ func NewLocalTracker(
 ) (*LocalTracker, error) {
 	t := &LocalTracker{
 		wallet:      w,
-		network:     nonce.EthereumNetwork,
+		network:     noncepkg.EthereumNetwork,
 		nonceStore:  nonceStore,
 		chainClient: chainClient,
 
@@ -84,14 +83,15 @@ func NewLocalTracker(
 
 				for _, pendingTx := range pendingTxs {
 					if err := t.checkIfPendingTxWasIncluded(ctx, pendingTx, h); err != nil {
+						if err == noncepkg.ErrBlockDiffNotEnough {
+							break
+						}
+
 						log.Error().
 							Str("hash", pendingTx.Hash.Hex()).
 							Int64("nonce", pendingTx.Nonce).
 							Err(err).
 							Msg("check if pending tx was included")
-						if err == noncepkg.ErrBlockDiffNotEnough {
-							break
-						}
 					}
 				}
 			case <-t.close:
@@ -112,12 +112,12 @@ func NewLocalTracker(
 // GetNonce returns the nonce to be used in the next transaction.
 // The call is blocked until the client calls unlock.
 // The client should also call registerPendingTx if it managed to submit a transaction sucessuflly.
-func (t *LocalTracker) GetNonce(ctx context.Context) (nonce.RegisterPendingTx, nonce.UnlockTracker, int64) {
+func (t *LocalTracker) GetNonce(ctx context.Context) (noncepkg.RegisterPendingTx, noncepkg.UnlockTracker, int64) {
 	t.mu.Lock()
 
 	nonce := t.currNonce
 
-	// this function frees the mutex, add a pending transaction to its list, and updates the nonce
+	// this function adds a pending transaction to its list and updates the nonce
 	registerPendingTx := func(pendingHash common.Hash) {
 		incrementedNonce := nonce + 1
 
@@ -138,7 +138,7 @@ func (t *LocalTracker) GetNonce(ctx context.Context) (nonce.RegisterPendingTx, n
 		t.currNonce = incrementedNonce
 	}
 
-	// this function frees the mutex without incrementing the nonce
+	// this function frees the mutex
 	unlock := func() {
 		t.mu.Unlock()
 	}
@@ -220,7 +220,7 @@ func (t *LocalTracker) checkIfPendingTxWasIncluded(
 				Time("createdAt", pendingTx.CreatedAt).
 				Msg("pending tx may be stuck")
 
-			return nonce.ErrPendingTxMayBeStuck
+			return noncepkg.ErrPendingTxMayBeStuck
 		}
 
 		return fmt.Errorf("get transaction receipt: %s", err)
