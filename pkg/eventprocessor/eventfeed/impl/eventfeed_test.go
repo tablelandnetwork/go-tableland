@@ -100,7 +100,10 @@ func TestStartForTwoEventTypes(t *testing.T) {
 	// Make two calls to different functions emitting different events
 	_, err = sc.RunSQL(authOpts, "tbl-2", ctrl, "stmt-2")
 	require.NoError(t, err)
-	_, err = sc.SafeMint(authOpts, common.HexToAddress("0xB0Cf943Cf94E7B6A2657D15af41c5E06c2BFEA3E"))
+	_, err = sc.CreateTable(
+		authOpts,
+		common.HexToAddress("0xB0Cf943Cf94E7B6A2657D15af41c5E06c2BFEA3E"),
+		"CREATE TABLE foo (bar int)")
 	require.NoError(t, err)
 	backend.Commit()
 
