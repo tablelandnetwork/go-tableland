@@ -98,7 +98,6 @@ func (b *batch) InsertTable(
 	ctx context.Context,
 	id tableland.TableID,
 	controller string,
-	description string,
 	createStmt parsing.CreateStmt) error {
 	f := func(tx pgx.Tx) error {
 		dbID := pgtype.Numeric{}
@@ -107,13 +106,12 @@ func (b *batch) InsertTable(
 		}
 
 		if _, err := tx.Exec(ctx,
-			`INSERT INTO registry ("id","controller","name", "structure","description") 
-			 VALUES ($1,$2,$3,$4,$5);`,
+			`INSERT INTO registry ("id","controller","name", "structure") 
+			 VALUES ($1,$2,$3,$4);`,
 			dbID,
 			controller,
 			createStmt.GetNamePrefix(),
-			createStmt.GetStructureHash(),
-			description); err != nil {
+			createStmt.GetStructureHash()); err != nil {
 			return fmt.Errorf("inserting new table in system-wide registry: %s", err)
 		}
 

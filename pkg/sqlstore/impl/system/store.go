@@ -431,12 +431,11 @@ func tableFromSQLToDTO(table db.Registry) (sqlstore.Table, error) {
 		return sqlstore.Table{}, fmt.Errorf("parsing id to string: %s", err)
 	}
 	return sqlstore.Table{
-		ID:          id,
-		Controller:  table.Controller,
-		Name:        table.Name,
-		Description: table.Description,
-		Structure:   table.Structure,
-		CreatedAt:   table.CreatedAt,
+		ID:         id,
+		Controller: table.Controller,
+		Name:       table.Name,
+		Structure:  table.Structure,
+		CreatedAt:  table.CreatedAt,
 	}, nil
 }
 

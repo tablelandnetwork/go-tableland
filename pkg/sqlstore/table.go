@@ -8,18 +8,16 @@ import (
 
 // Table represents a system-wide table stored in Tableland.
 type Table struct {
-	ID          tableland.TableID `json:"id"`         // table id
-	Controller  string            `json:"controller"` // controller address
-	Name        string            `json:"name"`
-	Description string            `json:"description"`
-	Structure   string            `json:"structure"`
-	CreatedAt   time.Time         `json:"created_at"`
+	ID         tableland.TableID `json:"id"`         // table id
+	Controller string            `json:"controller"` // controller address
+	Name       string            `json:"name"`
+	Structure  string            `json:"structure"`
+	CreatedAt  time.Time         `json:"created_at"`
 }
 
 // TableMetadata represents table metadata (OpenSea standard).
 type TableMetadata struct {
 	Name        string                   `json:"name"`
-	Description string                   `json:"description"`
 	ExternalURL string                   `json:"external_url"`
 	Image       string                   `json:"image"`
 	Attributes  []TableMetadataAttribute `json:"attributes"`
