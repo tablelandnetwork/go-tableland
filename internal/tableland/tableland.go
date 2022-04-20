@@ -8,17 +8,11 @@ import (
 
 // CreateTableRequest is a user CreateTable request.
 type CreateTableRequest struct {
-	ID          string `json:"id"`
-	Controller  string `json:"controller"`
-	Statement   string `json:"statement"`
-	Description string `json:"description"`
-
-	DryRun bool `json:"dryrun"`
+	Statement string `json:"statement"`
 }
 
 // CreateTableResponse is a CreateTable response.
 type CreateTableResponse struct {
-	Name          string `json:"name"`
 	StructureHash string `json:"structure_hash"`
 }
 

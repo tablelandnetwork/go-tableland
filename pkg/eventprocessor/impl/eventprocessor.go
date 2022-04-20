@@ -8,6 +8,7 @@ import (
 	"time"
 
 	logger "github.com/rs/zerolog/log"
+	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	"github.com/textileio/go-tableland/pkg/parsing"
@@ -274,6 +275,44 @@ func (ep *EventProcessor) executeEvent(
 	default:
 		return eventprocessor.Receipt{}, fmt.Errorf("unknown event type %t", e)
 	}
+}
+
+func (ep *EventProcessor) executeCreateTableEvent(
+	ctx context.Context,
+	b txn.Batch,
+	blockNumber int64,
+	be eventfeed.BlockEvent,
+	e *ethereum.ContractCreateTable) (eventprocessor.Receipt, error) {
+	receipt := eventprocessor.Receipt{
+		ChainID:     ep.chainID,
+		BlockNumber: blockNumber,
+		TxnHash:     be.TxnHash.String(),
+	}
+	createStmt, err := ep.parser.ValidateCreateTable(e.Statement)
+	if err != nil {
+		err := fmt.Sprintf("query validation: %s", err)
+		receipt.Error = &err
+		return receipt, nil
+	}
+
+	if e.TokenId == nil {
+		err := "token id is empty"
+		receipt.Error = &err
+		return receipt, nil
+	}
+	tableID := tableland.TableID(*e.TokenId)
+
+	if err := b.InsertTable(ctx, tableID, e.Caller.Hex(), createStmt); err != nil {
+		var pgErr *txn.ErrQueryExecution
+		if errors.As(err, &pgErr) {
+			err := fmt.Sprintf("table creation execution failed (code: %s, msg: %s)", pgErr.Code, pgErr.Msg)
+			receipt.Error = &err
+			return receipt, nil
+		}
+		return eventprocessor.Receipt{}, fmt.Errorf("executing table creation: %s", err)
+	}
+
+	return receipt, nil
 }
 
 func (ep *EventProcessor) executeRunSQLEvent(
