@@ -57,36 +57,40 @@ func (db *UserStore) Read(ctx context.Context, rq parsing.SugaredReadStmt) (inte
 	return ret, nil
 }
 
-func (db *UserStore) GetTxnReceipt(
+// GetReceipt returns a event receipt by transaction hash.
+func (db *UserStore) GetReceipt(
 	ctx context.Context,
 	chainID int64,
-	txnHash string) (eventprocessor.TblReceipt, bool, error) {
+	txnHash string) (eventprocessor.Receipt, bool, error) {
 	var dbError sql.NullString
 	var dbTableID pgtype.Numeric
-	row := db.pool.QueryRow(ctx, "SELECT error, table_id FROM system_txn_receipts WHERE chain_id=$1 AND txn_hash=$2", chainID, txnHash)
+	row := db.pool.QueryRow(
+		ctx,
+		"SELECT error, table_id FROM system_txn_receipts WHERE chain_id=$1 AND txn_hash=$2",
+		chainID, txnHash)
 	err := row.Scan(&dbError, &dbTableID)
 	if err == pgx.ErrNoRows {
-		return eventprocessor.TblReceipt{}, false, nil
+		return eventprocessor.Receipt{}, false, nil
 	}
 	if err != nil {
-		return eventprocessor.TblReceipt{}, false, fmt.Errorf("get txn receipt: %s", err)
+		return eventprocessor.Receipt{}, false, fmt.Errorf("get txn receipt: %s", err)
 	}
 
-	receipt := eventprocessor.TblReceipt{
+	receipt := eventprocessor.Receipt{
 		ChainID: chainID,
 		TxnHash: txnHash,
 	}
 	if dbTableID.Status == pgtype.Present {
 		br := &big.Rat{}
 		if err := dbTableID.AssignTo(br); err != nil {
-			return eventprocessor.TblReceipt{}, false, fmt.Errorf("parsing numeric to bigrat: %s", err)
+			return eventprocessor.Receipt{}, false, fmt.Errorf("parsing numeric to bigrat: %s", err)
 		}
 		if !br.IsInt() {
-			return eventprocessor.TblReceipt{}, false, errors.New("parsed numeric isn't an integer")
+			return eventprocessor.Receipt{}, false, errors.New("parsed numeric isn't an integer")
 		}
 		id, err := tableland.NewTableID(br.Num().String())
 		if err != nil {
-			return eventprocessor.TblReceipt{}, false, fmt.Errorf("parsing id to string: %s", err)
+			return eventprocessor.Receipt{}, false, fmt.Errorf("parsing id to string: %s", err)
 		}
 		receipt.TableID = &id
 	}

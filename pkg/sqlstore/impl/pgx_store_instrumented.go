@@ -369,9 +369,10 @@ func (s *InstrumentedSQLStorePGX) Begin(ctx context.Context) (pgx.Tx, error) {
 	return s.store.Begin(ctx)
 }
 
-func (s *InstrumentedSQLStorePGX) GetTxnReceipt(
+// GetReceipt returns the receipt of a processed event by txn hash.
+func (s *InstrumentedSQLStorePGX) GetReceipt(
 	ctx context.Context,
 	chainID int64,
-	txnHash string) (eventprocessor.TblReceipt, bool, error) {
-	return s.store.GetTxnReceipt(ctx, chainID, txnHash)
+	txnHash string) (eventprocessor.Receipt, bool, error) {
+	return s.store.GetReceipt(ctx, chainID, txnHash)
 }

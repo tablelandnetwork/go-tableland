@@ -36,10 +36,12 @@ type RunSQLResponse struct {
 	} `json:"tx"`
 }
 
-type GetTxnReceiptRequest struct {
+// GetReceiptRequest is a GetTxnReceipt request.
+type GetReceiptRequest struct {
 	TxnHash string `json:"txn_hash"`
 }
 
+// TxnReceipt is a Tableland event processing receipt.
 type TxnReceipt struct {
 	ChainID     int64    `json:"chain_id"`
 	TxnHash     string   `json:"txn_hash"`
@@ -47,7 +49,9 @@ type TxnReceipt struct {
 	Error       *string  `json:"error,omitempty"`
 	TableID     *TableID `json:"table_id,omitempty"`
 }
-type GetTxnReceiptResponse struct {
+
+// GetReceiptResponse is a GetTxnReceipt response.
+type GetReceiptResponse struct {
 	Ok      bool        `json:"ok"`
 	Receipt *TxnReceipt `json:"receipt,omitempty"`
 }

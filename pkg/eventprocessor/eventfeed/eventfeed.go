@@ -31,6 +31,7 @@ type BlockEvents struct {
 	Events      []BlockEvent
 }
 
+// BlockEvent is an event in a block.
 type BlockEvent struct {
 	TxnHash common.Hash
 	Event   interface{}

@@ -246,7 +246,7 @@ func (b *batch) SetLastProcessedHeight(ctx context.Context, height int64) error 
 	return nil
 }
 
-func (b *batch) SaveTxnReceipts(ctx context.Context, rs []eventprocessor.TblReceipt) error {
+func (b *batch) SaveTxnReceipts(ctx context.Context, rs []eventprocessor.Receipt) error {
 	f := func(tx pgx.Tx) error {
 		for _, r := range rs {
 			dbID := pgtype.Numeric{Status: pgtype.Null}
