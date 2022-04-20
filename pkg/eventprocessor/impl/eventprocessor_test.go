@@ -61,7 +61,7 @@ func TestBlockProcessing(t *testing.T) {
 		require.Eventually(t, checkReceipts(t, expReceipt), time.Second*5, time.Millisecond*100)
 
 		expectedRows := []int{1001}
-		require.Eventually(t, cond(dbReader, expectedRows), time.Second*5, time.Millisecond*100)
+		require.Eventually(t, cond(dbReader, expectedRows), time.Second, time.Millisecond*100)
 	})
 	t.Run("failure", func(t *testing.T) {
 		t.Parallel()
@@ -79,7 +79,7 @@ func TestBlockProcessing(t *testing.T) {
 		require.Eventually(t, checkReceipts(t, expReceipt), time.Second*5, time.Millisecond*100)
 
 		notExpectedRows := []int{1001}
-		require.Never(t, cond(dbReader, notExpectedRows), time.Second*5, time.Millisecond*100)
+		require.Never(t, cond(dbReader, notExpectedRows), time.Second, time.Millisecond*100)
 	})
 	t.Run("success-success", func(t *testing.T) {
 		t.Parallel()
@@ -99,7 +99,7 @@ func TestBlockProcessing(t *testing.T) {
 		require.Eventually(t, checkReceipts(t, expReceipts...), time.Second*5, time.Millisecond*100)
 
 		expectedRows := []int{1001, 1002}
-		require.Eventually(t, cond(dbReader, expectedRows), time.Second*5, time.Millisecond*100)
+		require.Eventually(t, cond(dbReader, expectedRows), time.Second, time.Millisecond*100)
 	})
 	t.Run("failure-success", func(t *testing.T) {
 		t.Parallel()
@@ -123,7 +123,7 @@ func TestBlockProcessing(t *testing.T) {
 		require.Eventually(t, checkReceipts(t, expReceipts...), time.Second*5, time.Millisecond*100)
 
 		expectedRows := []int{1002}
-		require.Eventually(t, cond(dbReader, expectedRows), time.Second*5, time.Millisecond*100)
+		require.Eventually(t, cond(dbReader, expectedRows), time.Second, time.Millisecond*100)
 	})
 	t.Run("success-failure", func(t *testing.T) {
 		t.Parallel()
@@ -147,7 +147,7 @@ func TestBlockProcessing(t *testing.T) {
 		require.Eventually(t, checkReceipts(t, expReceipts...), time.Second*5, time.Millisecond*100)
 
 		expectedRows := []int{1001}
-		require.Eventually(t, cond(dbReader, expectedRows), time.Second*5, time.Millisecond*100)
+		require.Eventually(t, cond(dbReader, expectedRows), time.Second, time.Millisecond*100)
 	})
 }
 
