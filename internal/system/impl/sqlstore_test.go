@@ -32,7 +32,7 @@ func TestSystemSQLStoreService(t *testing.T) {
 	createStmt, err := parser.ValidateCreateTable("create table foo (bar int)")
 	require.NoError(t, err)
 
-	err = b.InsertTable(ctx, id, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", "descrp-1", createStmt)
+	err = b.InsertTable(ctx, id, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", createStmt)
 	require.NoError(t, err)
 	require.NoError(t, b.Commit(ctx))
 	require.NoError(t, b.Close(ctx))
@@ -43,7 +43,6 @@ func TestSystemSQLStoreService(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, "foo_42", metadata.Name)
-	require.Equal(t, "descrp-1", metadata.Description)
 	require.Equal(t, fmt.Sprintf("https://tableland.network/tables/%s", id), metadata.ExternalURL)
 	require.Equal(t, "https://bafkreifhuhrjhzbj4onqgbrmhpysk2mop2jimvdvfut6taiyzt2yqzt43a.ipfs.dweb.link", metadata.Image) //nolint
 	require.Equal(t, "date", metadata.Attributes[0].DisplayType)
@@ -58,7 +57,6 @@ func TestSystemSQLStoreService(t *testing.T) {
 	require.Equal(t, id, tables[0].ID)
 	require.Equal(t, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", tables[0].Controller)
 	require.Equal(t, "foo", tables[0].Name)
-	require.Equal(t, "descrp-1", tables[0].Description)
 	// sha256(bar:int4) = 60b0e90a94273211e4836dc11d8eebd96e8020ce3408dd112ba9c42e762fe3cc
 	require.Equal(t, "60b0e90a94273211e4836dc11d8eebd96e8020ce3408dd112ba9c42e762fe3cc", tables[0].Structure)
 	require.Equal(t, metadata.Attributes[0].Value, tables[0].CreatedAt.Unix())

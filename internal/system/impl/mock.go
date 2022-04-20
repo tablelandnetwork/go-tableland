@@ -23,7 +23,6 @@ func NewSystemMockService() system.SystemService {
 func (*SystemMockService) GetTableMetadata(ctx context.Context, id tableland.TableID) (sqlstore.TableMetadata, error) {
 	return sqlstore.TableMetadata{
 		Name:        "name-1",
-		Description: "description-1",
 		ExternalURL: fmt.Sprintf("https://tableland.network/tables/%s", id),
 		Image:       "https://bafkreifhuhrjhzbj4onqgbrmhpysk2mop2jimvdvfut6taiyzt2yqzt43a.ipfs.dweb.link", //nolint
 		Attributes: []sqlstore.TableMetadataAttribute{

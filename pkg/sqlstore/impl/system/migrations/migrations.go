@@ -21,6 +21,8 @@
 // migrations/009_nonce.up.sql
 // migrations/010_receipt.down.sql
 // migrations/010_receipt.up.sql
+// migrations/011_new_create_table_flow.down.sql
+// migrations/011_new_create_table_flow.up.sql
 package migrations
 
 import (
@@ -492,7 +494,51 @@ func _010_receiptUpSql() (*asset, error) {
 		return nil, err
 	}
 
+<<<<<<< HEAD
 	info := bindataFileInfo{name: "010_receipt.up.sql", size: 228, mode: os.FileMode(436), modTime: time.Unix(1650547027, 0)}
+=======
+	info := bindataFileInfo{name: "010_receipt.up.sql", size: 210, mode: os.FileMode(436), modTime: time.Unix(1650489655, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __011_new_create_table_flowDownSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\xf4\x09\x71\x0d\x52\x08\x71\x74\xf2\x71\x55\x28\x4a\x4d\xcf\x2c\x2e\x29\xaa\x54\x70\x74\x71\x51\x70\xf6\xf7\x09\xf5\xf5\x53\x48\x49\x2d\x4e\x2e\xca\x2c\x28\xc9\xcc\xcf\x53\x08\x73\x0c\x72\xf6\x70\x0c\xd2\x30\x34\x30\xd0\x54\xf0\xf3\x0f\x51\xf0\x0b\xf5\xf1\xb1\x06\x04\x00\x00\xff\xff\x72\x48\x33\x0c\x42\x00\x00\x00")
+
+func _011_new_create_table_flowDownSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__011_new_create_table_flowDownSql,
+		"011_new_create_table_flow.down.sql",
+	)
+}
+
+func _011_new_create_table_flowDownSql() (*asset, error) {
+	bytes, err := _011_new_create_table_flowDownSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "011_new_create_table_flow.down.sql", size: 66, mode: os.FileMode(436), modTime: time.Unix(1650490728, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __011_new_create_table_flowUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\xf4\x09\x71\x0d\x52\x08\x71\x74\xf2\x71\x55\x28\x4a\x4d\xcf\x2c\x2e\x29\xaa\x54\x70\x09\xf2\x0f\x50\x70\xf6\xf7\x09\xf5\xf5\x53\x48\x49\x2d\x4e\x2e\xca\x2c\x28\xc9\xcc\xcf\xb3\xe6\x02\x04\x00\x00\xff\xff\x99\x32\xaa\x13\x2e\x00\x00\x00")
+
+func _011_new_create_table_flowUpSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__011_new_create_table_flowUpSql,
+		"011_new_create_table_flow.up.sql",
+	)
+}
+
+func _011_new_create_table_flowUpSql() (*asset, error) {
+	bytes, err := _011_new_create_table_flowUpSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "011_new_create_table_flow.up.sql", size: 46, mode: os.FileMode(436), modTime: time.Unix(1650490679, 0)}
+>>>>>>> 4f29d9c... remove Description field in tables
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -549,26 +595,28 @@ func AssetNames() []string {
 
 // _bindata is a table, holding each asset generator, mapped to its name.
 var _bindata = map[string]func() (*asset, error){
-	"001_init.down.sql":                 _001_initDownSql,
-	"001_init.up.sql":                   _001_initUpSql,
-	"002_add_type_column.down.sql":      _002_add_type_columnDownSql,
-	"002_add_type_column.up.sql":        _002_add_type_columnUpSql,
-	"003_auth.down.sql":                 _003_authDownSql,
-	"003_auth.up.sql":                   _003_authUpSql,
-	"004_add_last_seen.down.sql":        _004_add_last_seenDownSql,
-	"004_add_last_seen.up.sql":          _004_add_last_seenUpSql,
-	"005_mul_changes.down.sql":          _005_mul_changesDownSql,
-	"005_mul_changes.up.sql":            _005_mul_changesUpSql,
-	"006_rename_system_tables.down.sql": _006_rename_system_tablesDownSql,
-	"006_rename_system_tables.up.sql":   _006_rename_system_tablesUpSql,
-	"007_acl.down.sql":                  _007_aclDownSql,
-	"007_acl.up.sql":                    _007_aclUpSql,
-	"008_txn_processor.down.sql":        _008_txn_processorDownSql,
-	"008_txn_processor.up.sql":          _008_txn_processorUpSql,
-	"009_nonce.down.sql":                _009_nonceDownSql,
-	"009_nonce.up.sql":                  _009_nonceUpSql,
-	"010_receipt.down.sql":              _010_receiptDownSql,
-	"010_receipt.up.sql":                _010_receiptUpSql,
+	"001_init.down.sql":                  _001_initDownSql,
+	"001_init.up.sql":                    _001_initUpSql,
+	"002_add_type_column.down.sql":       _002_add_type_columnDownSql,
+	"002_add_type_column.up.sql":         _002_add_type_columnUpSql,
+	"003_auth.down.sql":                  _003_authDownSql,
+	"003_auth.up.sql":                    _003_authUpSql,
+	"004_add_last_seen.down.sql":         _004_add_last_seenDownSql,
+	"004_add_last_seen.up.sql":           _004_add_last_seenUpSql,
+	"005_mul_changes.down.sql":           _005_mul_changesDownSql,
+	"005_mul_changes.up.sql":             _005_mul_changesUpSql,
+	"006_rename_system_tables.down.sql":  _006_rename_system_tablesDownSql,
+	"006_rename_system_tables.up.sql":    _006_rename_system_tablesUpSql,
+	"007_acl.down.sql":                   _007_aclDownSql,
+	"007_acl.up.sql":                     _007_aclUpSql,
+	"008_txn_processor.down.sql":         _008_txn_processorDownSql,
+	"008_txn_processor.up.sql":           _008_txn_processorUpSql,
+	"009_nonce.down.sql":                 _009_nonceDownSql,
+	"009_nonce.up.sql":                   _009_nonceUpSql,
+	"010_receipt.down.sql":               _010_receiptDownSql,
+	"010_receipt.up.sql":                 _010_receiptUpSql,
+	"011_new_create_table_flow.down.sql": _011_new_create_table_flowDownSql,
+	"011_new_create_table_flow.up.sql":   _011_new_create_table_flowUpSql,
 }
 
 // AssetDir returns the file names below a certain
@@ -612,26 +660,28 @@ type bintree struct {
 }
 
 var _bintree = &bintree{nil, map[string]*bintree{
-	"001_init.down.sql":                 &bintree{_001_initDownSql, map[string]*bintree{}},
-	"001_init.up.sql":                   &bintree{_001_initUpSql, map[string]*bintree{}},
-	"002_add_type_column.down.sql":      &bintree{_002_add_type_columnDownSql, map[string]*bintree{}},
-	"002_add_type_column.up.sql":        &bintree{_002_add_type_columnUpSql, map[string]*bintree{}},
-	"003_auth.down.sql":                 &bintree{_003_authDownSql, map[string]*bintree{}},
-	"003_auth.up.sql":                   &bintree{_003_authUpSql, map[string]*bintree{}},
-	"004_add_last_seen.down.sql":        &bintree{_004_add_last_seenDownSql, map[string]*bintree{}},
-	"004_add_last_seen.up.sql":          &bintree{_004_add_last_seenUpSql, map[string]*bintree{}},
-	"005_mul_changes.down.sql":          &bintree{_005_mul_changesDownSql, map[string]*bintree{}},
-	"005_mul_changes.up.sql":            &bintree{_005_mul_changesUpSql, map[string]*bintree{}},
-	"006_rename_system_tables.down.sql": &bintree{_006_rename_system_tablesDownSql, map[string]*bintree{}},
-	"006_rename_system_tables.up.sql":   &bintree{_006_rename_system_tablesUpSql, map[string]*bintree{}},
-	"007_acl.down.sql":                  &bintree{_007_aclDownSql, map[string]*bintree{}},
-	"007_acl.up.sql":                    &bintree{_007_aclUpSql, map[string]*bintree{}},
-	"008_txn_processor.down.sql":        &bintree{_008_txn_processorDownSql, map[string]*bintree{}},
-	"008_txn_processor.up.sql":          &bintree{_008_txn_processorUpSql, map[string]*bintree{}},
-	"009_nonce.down.sql":                &bintree{_009_nonceDownSql, map[string]*bintree{}},
-	"009_nonce.up.sql":                  &bintree{_009_nonceUpSql, map[string]*bintree{}},
-	"010_receipt.down.sql":              &bintree{_010_receiptDownSql, map[string]*bintree{}},
-	"010_receipt.up.sql":                &bintree{_010_receiptUpSql, map[string]*bintree{}},
+	"001_init.down.sql":                  &bintree{_001_initDownSql, map[string]*bintree{}},
+	"001_init.up.sql":                    &bintree{_001_initUpSql, map[string]*bintree{}},
+	"002_add_type_column.down.sql":       &bintree{_002_add_type_columnDownSql, map[string]*bintree{}},
+	"002_add_type_column.up.sql":         &bintree{_002_add_type_columnUpSql, map[string]*bintree{}},
+	"003_auth.down.sql":                  &bintree{_003_authDownSql, map[string]*bintree{}},
+	"003_auth.up.sql":                    &bintree{_003_authUpSql, map[string]*bintree{}},
+	"004_add_last_seen.down.sql":         &bintree{_004_add_last_seenDownSql, map[string]*bintree{}},
+	"004_add_last_seen.up.sql":           &bintree{_004_add_last_seenUpSql, map[string]*bintree{}},
+	"005_mul_changes.down.sql":           &bintree{_005_mul_changesDownSql, map[string]*bintree{}},
+	"005_mul_changes.up.sql":             &bintree{_005_mul_changesUpSql, map[string]*bintree{}},
+	"006_rename_system_tables.down.sql":  &bintree{_006_rename_system_tablesDownSql, map[string]*bintree{}},
+	"006_rename_system_tables.up.sql":    &bintree{_006_rename_system_tablesUpSql, map[string]*bintree{}},
+	"007_acl.down.sql":                   &bintree{_007_aclDownSql, map[string]*bintree{}},
+	"007_acl.up.sql":                     &bintree{_007_aclUpSql, map[string]*bintree{}},
+	"008_txn_processor.down.sql":         &bintree{_008_txn_processorDownSql, map[string]*bintree{}},
+	"008_txn_processor.up.sql":           &bintree{_008_txn_processorUpSql, map[string]*bintree{}},
+	"009_nonce.down.sql":                 &bintree{_009_nonceDownSql, map[string]*bintree{}},
+	"009_nonce.up.sql":                   &bintree{_009_nonceUpSql, map[string]*bintree{}},
+	"010_receipt.down.sql":               &bintree{_010_receiptDownSql, map[string]*bintree{}},
+	"010_receipt.up.sql":                 &bintree{_010_receiptUpSql, map[string]*bintree{}},
+	"011_new_create_table_flow.down.sql": &bintree{_011_new_create_table_flowDownSql, map[string]*bintree{}},
+	"011_new_create_table_flow.up.sql":   &bintree{_011_new_create_table_flowUpSql, map[string]*bintree{}},
 }}
 
 // RestoreAsset restores an asset under the given directory
