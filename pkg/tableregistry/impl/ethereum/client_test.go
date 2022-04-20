@@ -92,7 +92,7 @@ func requireMint(
 	txOpts *bind.TransactOpts,
 	to common.Address,
 ) *big.Int {
-	txn, err := contract.SafeMint(txOpts, to)
+	txn, err := contract.CreateTable(txOpts, to, "CREATE TABLE foo (bar int)")
 	require.NoError(t, err)
 
 	backend.Commit()
@@ -101,8 +101,8 @@ func requireMint(
 	require.NoError(t, err)
 	require.NotNil(t, receipt)
 
-	require.Len(t, receipt.Logs, 1)
-	require.Len(t, receipt.Logs[0].Topics, 4)
+	require.Len(t, receipt.Logs, 2)
+	require.Len(t, receipt.Logs[1].Topics, 1)
 
 	idBytes := receipt.Logs[0].Topics[3].Bytes()
 	id := (&big.Int{}).SetBytes(idBytes)
@@ -161,7 +161,8 @@ func requireAuthGas(t *testing.T, backend *backends.SimulatedBackend, auth *bind
 func requireNewAuth(t *testing.T) (*ecdsa.PrivateKey, *bind.TransactOpts) {
 	key, err := crypto.GenerateKey()
 	require.NoError(t, err)
-	auth := bind.NewKeyedTransactor(key) //nolint
+	auth, err := bind.NewKeyedTransactorWithChainID(key, big.NewInt(1337)) //nolint
+	require.NoError(t, err)
 	return key, auth
 }
 
