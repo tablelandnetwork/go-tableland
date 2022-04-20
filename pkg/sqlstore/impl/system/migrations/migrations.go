@@ -19,6 +19,8 @@
 // migrations/008_txn_processor.up.sql
 // migrations/009_nonce.down.sql
 // migrations/009_nonce.up.sql
+// migrations/010_receipt.down.sql
+// migrations/010_receipt.up.sql
 package migrations
 
 import (
@@ -110,7 +112,7 @@ func _001_initDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "001_init.down.sql", size: 25, mode: os.FileMode(420), modTime: time.Unix(1639484913, 0)}
+	info := bindataFileInfo{name: "001_init.down.sql", size: 25, mode: os.FileMode(436), modTime: time.Unix(1639565921, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -130,7 +132,7 @@ func _001_initUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "001_init.up.sql", size: 155, mode: os.FileMode(420), modTime: time.Unix(1639484913, 0)}
+	info := bindataFileInfo{name: "001_init.up.sql", size: 155, mode: os.FileMode(436), modTime: time.Unix(1639565921, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -150,7 +152,7 @@ func _002_add_type_columnDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_add_type_column.down.sql", size: 43, mode: os.FileMode(420), modTime: time.Unix(1642424618, 0)}
+	info := bindataFileInfo{name: "002_add_type_column.down.sql", size: 43, mode: os.FileMode(436), modTime: time.Unix(1642447553, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -170,7 +172,7 @@ func _002_add_type_columnUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_add_type_column.up.sql", size: 65, mode: os.FileMode(420), modTime: time.Unix(1642424618, 0)}
+	info := bindataFileInfo{name: "002_add_type_column.up.sql", size: 65, mode: os.FileMode(436), modTime: time.Unix(1642447553, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -190,7 +192,7 @@ func _003_authDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "003_auth.down.sql", size: 23, mode: os.FileMode(420), modTime: time.Unix(1643380989, 0)}
+	info := bindataFileInfo{name: "003_auth.down.sql", size: 23, mode: os.FileMode(436), modTime: time.Unix(1643658422, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -210,7 +212,7 @@ func _003_authUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "003_auth.up.sql", size: 122, mode: os.FileMode(420), modTime: time.Unix(1643380989, 0)}
+	info := bindataFileInfo{name: "003_auth.up.sql", size: 122, mode: os.FileMode(436), modTime: time.Unix(1643658422, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -230,7 +232,7 @@ func _004_add_last_seenDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "004_add_last_seen.down.sql", size: 106, mode: os.FileMode(420), modTime: time.Unix(1643807505, 0)}
+	info := bindataFileInfo{name: "004_add_last_seen.down.sql", size: 106, mode: os.FileMode(436), modTime: time.Unix(1643747041, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -250,7 +252,7 @@ func _004_add_last_seenUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "004_add_last_seen.up.sql", size: 179, mode: os.FileMode(420), modTime: time.Unix(1643807505, 0)}
+	info := bindataFileInfo{name: "004_add_last_seen.up.sql", size: 179, mode: os.FileMode(436), modTime: time.Unix(1643747041, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -270,7 +272,7 @@ func _005_mul_changesDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "005_mul_changes.down.sql", size: 311, mode: os.FileMode(420), modTime: time.Unix(1644351777, 0)}
+	info := bindataFileInfo{name: "005_mul_changes.down.sql", size: 311, mode: os.FileMode(436), modTime: time.Unix(1644364111, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -290,7 +292,7 @@ func _005_mul_changesUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "005_mul_changes.up.sql", size: 495, mode: os.FileMode(420), modTime: time.Unix(1644351777, 0)}
+	info := bindataFileInfo{name: "005_mul_changes.up.sql", size: 495, mode: os.FileMode(436), modTime: time.Unix(1644364111, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -310,7 +312,7 @@ func _006_rename_system_tablesDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "006_rename_system_tables.down.sql", size: 45, mode: os.FileMode(420), modTime: time.Unix(1645636858, 0)}
+	info := bindataFileInfo{name: "006_rename_system_tables.down.sql", size: 45, mode: os.FileMode(436), modTime: time.Unix(1645722059, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -330,7 +332,7 @@ func _006_rename_system_tablesUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "006_rename_system_tables.up.sql", size: 45, mode: os.FileMode(420), modTime: time.Unix(1645636858, 0)}
+	info := bindataFileInfo{name: "006_rename_system_tables.up.sql", size: 45, mode: os.FileMode(436), modTime: time.Unix(1645722059, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -350,7 +352,7 @@ func _007_aclDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "007_acl.down.sql", size: 22, mode: os.FileMode(420), modTime: time.Unix(1649686607, 0)}
+	info := bindataFileInfo{name: "007_acl.down.sql", size: 22, mode: os.FileMode(436), modTime: time.Unix(1649682178, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -370,7 +372,7 @@ func _007_aclUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "007_acl.up.sql", size: 397, mode: os.FileMode(420), modTime: time.Unix(1649686607, 0)}
+	info := bindataFileInfo{name: "007_acl.up.sql", size: 397, mode: os.FileMode(436), modTime: time.Unix(1649682178, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -390,7 +392,7 @@ func _008_txn_processorDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "008_txn_processor.down.sql", size: 33, mode: os.FileMode(420), modTime: time.Unix(1649780323, 0)}
+	info := bindataFileInfo{name: "008_txn_processor.down.sql", size: 33, mode: os.FileMode(436), modTime: time.Unix(1649945592, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -410,7 +412,7 @@ func _008_txn_processorUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "008_txn_processor.up.sql", size: 77, mode: os.FileMode(420), modTime: time.Unix(1649780323, 0)}
+	info := bindataFileInfo{name: "008_txn_processor.up.sql", size: 77, mode: os.FileMode(436), modTime: time.Unix(1649945592, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -430,7 +432,7 @@ func _009_nonceDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "009_nonce.down.sql", size: 25, mode: os.FileMode(420), modTime: time.Unix(1649870079, 0)}
+	info := bindataFileInfo{name: "009_nonce.down.sql", size: 25, mode: os.FileMode(436), modTime: time.Unix(1649945592, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -450,7 +452,47 @@ func _009_nonceUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "009_nonce.up.sql", size: 425, mode: os.FileMode(420), modTime: time.Unix(1649970887, 0)}
+	info := bindataFileInfo{name: "009_nonce.up.sql", size: 425, mode: os.FileMode(436), modTime: time.Unix(1649983384, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __010_receiptDownSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\x09\xf2\x0f\x50\x08\x71\x74\xf2\x71\x55\x28\xae\x2c\x2e\x49\xcd\x8d\x2f\xa9\xc8\x8b\x2f\x4a\x4d\x4e\xcd\x2c\x28\x29\xb6\xe6\x02\x04\x00\x00\xff\xff\xc2\x3e\x1b\x5e\x20\x00\x00\x00")
+
+func _010_receiptDownSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__010_receiptDownSql,
+		"010_receipt.down.sql",
+	)
+}
+
+func _010_receiptDownSql() (*asset, error) {
+	bytes, err := _010_receiptDownSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "010_receipt.down.sql", size: 32, mode: os.FileMode(436), modTime: time.Unix(1650059141, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __010_receiptUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x6c\xcd\x31\x6b\x85\x30\x14\xc5\xf1\x3d\x9f\xe2\x8c\x0a\x1d\x3a\x75\xe9\xf4\xfa\xb8\x0f\x84\x62\x41\x33\x74\x0b\x26\x5e\xf4\xd2\x18\xcb\x4d\x04\xfd\xf6\x45\xe9\x54\x3a\xff\xfe\x9c\x73\xef\xe8\x66\x09\xf6\xf6\xf6\x4e\x68\x1e\x68\x3f\x2c\xe8\xb3\xe9\x6d\x8f\x7c\xe4\xc2\x8b\x2b\x7b\x72\xca\x81\xe5\xbb\x64\x54\x06\x00\xc2\x3c\x48\x72\x32\xc2\xcb\x24\xa9\x20\xad\x05\x69\x8b\xf1\xe9\x52\x1f\xd7\xf0\xe5\xd2\xb6\x78\xd6\xff\x8b\x73\x72\x1e\xf2\x8c\xc2\xfb\x5f\x63\xd5\x55\x2f\xf8\x6d\x07\x1f\xf9\xfc\x4a\xdb\xc2\x2a\xa1\x7a\x79\xae\xd1\xd1\x83\x3a\x6a\xef\xd4\x43\x79\x92\x5c\xf4\xa8\x64\xac\x4d\xfd\x6a\xcc\x4f\x00\x00\x00\xff\xff\xaa\x11\xb2\x0a\xd2\x00\x00\x00")
+
+func _010_receiptUpSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__010_receiptUpSql,
+		"010_receipt.up.sql",
+	)
+}
+
+func _010_receiptUpSql() (*asset, error) {
+	bytes, err := _010_receiptUpSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "010_receipt.up.sql", size: 210, mode: os.FileMode(436), modTime: time.Unix(1650076849, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -525,6 +567,8 @@ var _bindata = map[string]func() (*asset, error){
 	"008_txn_processor.up.sql":          _008_txn_processorUpSql,
 	"009_nonce.down.sql":                _009_nonceDownSql,
 	"009_nonce.up.sql":                  _009_nonceUpSql,
+	"010_receipt.down.sql":              _010_receiptDownSql,
+	"010_receipt.up.sql":                _010_receiptUpSql,
 }
 
 // AssetDir returns the file names below a certain
@@ -586,6 +630,8 @@ var _bintree = &bintree{nil, map[string]*bintree{
 	"008_txn_processor.up.sql":          &bintree{_008_txn_processorUpSql, map[string]*bintree{}},
 	"009_nonce.down.sql":                &bintree{_009_nonceDownSql, map[string]*bintree{}},
 	"009_nonce.up.sql":                  &bintree{_009_nonceUpSql, map[string]*bintree{}},
+	"010_receipt.down.sql":              &bintree{_010_receiptDownSql, map[string]*bintree{}},
+	"010_receipt.up.sql":                &bintree{_010_receiptUpSql, map[string]*bintree{}},
 }}
 
 // RestoreAsset restores an asset under the given directory

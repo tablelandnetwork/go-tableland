@@ -22,10 +22,11 @@ var log = logger.With().Str("component", "eventprocessor").Logger()
 
 // EventProcessor processes new events detected by an event feed.
 type EventProcessor struct {
-	parser parsing.SQLValidator
-	txnp   txn.TxnProcessor
-	ef     eventfeed.EventFeed
-	config *eventprocessor.Config
+	parser  parsing.SQLValidator
+	txnp    txn.TxnProcessor
+	ef      eventfeed.EventFeed
+	config  *eventprocessor.Config
+	chainID int64
 
 	lock           sync.Mutex
 	daemonCtx      context.Context
@@ -44,6 +45,7 @@ type EventProcessor struct {
 func New(parser parsing.SQLValidator,
 	txnp txn.TxnProcessor,
 	ef eventfeed.EventFeed,
+	chainID int64,
 	opts ...eventprocessor.Option) (*EventProcessor, error) {
 	config := eventprocessor.DefaultConfig()
 	for _, op := range opts {
@@ -53,10 +55,11 @@ func New(parser parsing.SQLValidator,
 	}
 
 	ep := &EventProcessor{
-		parser: parser,
-		txnp:   txnp,
-		ef:     ef,
-		config: config,
+		parser:  parser,
+		txnp:    txnp,
+		ef:      ef,
+		chainID: chainID,
+		config:  config,
 	}
 	if err := ep.initMetrics(); err != nil {
 		return nil, fmt.Errorf("initializing metric instruments: %s", err)
@@ -157,6 +160,9 @@ func (ep *EventProcessor) startDaemon() error {
 			// we're continuously retrying which must signal something is definitely wrong with
 			// our database, infrastructure, or there's a software bug.
 			for {
+				if ep.daemonCtx.Err() != nil {
+					break
+				}
 				// fp.mExecutionRound is a value tracked by a metric that allows
 				// to monitor if the current block execution is stuck.
 				// Usually this value must be zero. Maybe 1 or 2 if
@@ -200,29 +206,36 @@ func (ep *EventProcessor) runBlockQueries(ctx context.Context, bqs eventfeed.Blo
 		return fmt.Errorf("last processed height %d isn't smaller than new height %d", lastHeight, bqs.BlockNumber)
 	}
 
-	for _, e := range bqs.Events {
+	receipts := make([]eventprocessor.TblReceipt, len(bqs.Events))
+	for i, e := range bqs.Events {
 		start := time.Now()
-		failCause, err := ep.executeEvent(ctx, b, e)
+		receipt, err := ep.executeEvent(ctx, b, bqs.BlockNumber, e)
 		if err != nil {
 			// Some retriable error happened, abort the block execution
 			// and retry later.
 			return fmt.Errorf("executing query: %s", err)
 		}
-		if failCause != "" {
-			// Some acceptable failure happened (e.g: invalid syntax, inserting
-			// a string in an integer column, etc). Just log it, and move on.
-			log.Info().Str("failCause", failCause).Msg("event execution failed")
-		}
+		receipts[i] = receipt
 		attrs := []attribute.KeyValue{
 			attribute.String("eventtype", fmt.Sprintf("%T", e)),
-			attribute.String("failCause", failCause),
 		}
+		if receipt.Error != nil {
+			// Some acceptable failure happened (e.g: invalid syntax, inserting
+			// a string in an integer column, etc). Just log it, and move on.
+			log.Info().Str("failCause", *receipt.Error).Msg("event execution failed")
+			attrs = append(attrs, attribute.String("failCause", *receipt.Error))
+		}
+
 		ep.mEventExecutionCounter.Add(ctx, 1, attrs...)
 		ep.mEventExecutionLatency.Record(ctx, time.Since(start).Milliseconds(), attrs...)
 	}
+	// Save receipts.
+	if err := b.SaveTxnReceipts(ctx, receipts); err != nil {
+		return fmt.Errorf("saving txn receipts: %s", err)
+	}
+	log.Debug().Int64("height", bqs.BlockNumber).Int("receipts", len(receipts)).Msg("saved receipts")
 
 	// Update the last processed height.
-	log.Debug().Int64("height", bqs.BlockNumber).Msg("new last processed height")
 	if err := b.SetLastProcessedHeight(ctx, bqs.BlockNumber); err != nil {
 		return fmt.Errorf("set new processed height %d: %s", bqs.BlockNumber, err)
 	}
@@ -230,6 +243,7 @@ func (ep *EventProcessor) runBlockQueries(ctx context.Context, bqs eventfeed.Blo
 	if err := b.Commit(ctx); err != nil {
 		return fmt.Errorf("committing changes: %s", err)
 	}
+	log.Debug().Int64("height", bqs.BlockNumber).Msg("new last processed height")
 
 	ep.mLastProcessedHeight.Store(bqs.BlockNumber)
 	ep.mBlockExecutionLatency.Record(ctx, time.Since(start).Milliseconds())
@@ -244,26 +258,39 @@ func (ep *EventProcessor) runBlockQueries(ctx context.Context, bqs eventfeed.Blo
 // 2) Has an unknown infrastructure error, then it returns ("", err) where err is the underlying error.
 //    Probably the caller will want to retry executing this event later when this problem is solved and
 //    retry the event.
-func (ep *EventProcessor) executeEvent(ctx context.Context, b txn.Batch, e interface{}) (string, error) {
-	switch e := e.(type) {
+func (ep *EventProcessor) executeEvent(ctx context.Context, b txn.Batch, bn int64, be eventfeed.BlockEvent) (eventprocessor.TblReceipt, error) {
+	switch e := be.Event.(type) {
 	case *ethereum.ContractRunSQL:
+		receipt := eventprocessor.TblReceipt{
+			ChainID:     ep.chainID,
+			BlockNumber: bn,
+			TxnHash:     be.TxnHash.String(),
+		}
 		log.Debug().Str("statement", e.Statement).Msgf("executing run-sql event")
 		readStmt, mutatingStmts, err := ep.parser.ValidateRunSQL(e.Statement)
 		if err != nil {
-			return fmt.Sprintf("parsing query: %s", err), nil
+			err := fmt.Sprintf("parsing query: %s", err)
+			receipt.Error = &err
+			return receipt, nil
 		}
 		if readStmt != nil {
-			return "this is a read query, skipping", nil
+			err := "this is a read query, skipping"
+			receipt.Error = &err
+			return receipt, nil
 		}
 		if err := b.ExecWriteQueries(ctx, e.Controller, mutatingStmts); err != nil {
 			var pgErr *txn.ErrQueryExecution
 			if errors.As(err, &pgErr) {
-				return fmt.Sprintf("db query execution failed (code: %s, msg: %s)", pgErr.Code, pgErr.Msg), nil
+				err := fmt.Sprintf("db query execution failed (code: %s, msg: %s)", pgErr.Code, pgErr.Msg)
+				receipt.Error = &err
+				return receipt, nil
 			}
-			return "", fmt.Errorf("executing mutating-query: %s", err)
+			return eventprocessor.TblReceipt{}, fmt.Errorf("executing mutating-query: %s", err)
 		}
+		tblID := mutatingStmts[0].GetTableID()
+		receipt.TableID = &tblID
+		return receipt, nil
 	default:
-		return "", fmt.Errorf("unknown event type %t", e)
+		return eventprocessor.TblReceipt{}, fmt.Errorf("unknown event type %t", e)
 	}
-	return "", nil
 }

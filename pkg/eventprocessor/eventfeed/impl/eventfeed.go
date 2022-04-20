@@ -171,17 +171,17 @@ func (ef *EventFeed) Start(
 // Every possible type in the interface{} is an auto-generated struct by
 // `make ethereum` named `Contract*` (e.g: ContractRunSQL, ContractTransfer, etc).
 // See this mapping in the `supportedEvents` map global variable in this file.
-func (ef *EventFeed) parseEvent(l types.Log) (interface{}, error) {
+func (ef *EventFeed) parseEvent(l types.Log) (eventfeed.BlockEvent, error) {
 	// We get an event descriptior from the common.Hash value that is always
 	// in Topic[0] in events. This is an ID for the kind of event.
 	eventDescr, err := ef.scABI.EventByID(l.Topics[0])
 	if err != nil {
-		return nil, fmt.Errorf("detecting event type: %s", err)
+		return eventfeed.BlockEvent{}, fmt.Errorf("detecting event type: %s", err)
 	}
 
 	se, ok := eventfeed.SupportedEvents[eventfeed.EventType(eventDescr.Name)]
 	if !ok {
-		return nil, fmt.Errorf("unknown event type %s", eventDescr.Name)
+		return eventfeed.BlockEvent{}, fmt.Errorf("unknown event type %s", eventDescr.Name)
 	}
 	// Create a new *ContractXXXX struct that corresponds to this event.
 	// e.g: *ContractRunSQL if this event was one fired by runSQL(..) SC function.
@@ -192,7 +192,7 @@ func (ef *EventFeed) parseEvent(l types.Log) (interface{}, error) {
 	// are non-indexed fields of the event.
 	if len(l.Data) > 0 {
 		if err := ef.scABI.UnpackIntoInterface(i, eventDescr.Name, l.Data); err != nil {
-			return nil, fmt.Errorf("unpacking into interface: %s", err)
+			return eventfeed.BlockEvent{}, fmt.Errorf("unpacking into interface: %s", err)
 		}
 	}
 	// Second, we unmarshal indexed fields which aren't in data but in Topics[:1].
@@ -203,7 +203,7 @@ func (ef *EventFeed) parseEvent(l types.Log) (interface{}, error) {
 		}
 	}
 	if err := abi.ParseTopics(i, indexed, l.Topics[1:]); err != nil {
-		return nil, fmt.Errorf("unpacking indexed topics: %s", err)
+		return eventfeed.BlockEvent{}, fmt.Errorf("unpacking indexed topics: %s", err)
 	}
 	// Note that the above two steps of unmarshalling isn't something particular
 	// to us, it's just how Ethereum works.
@@ -212,7 +212,7 @@ func (ef *EventFeed) parseEvent(l types.Log) (interface{}, error) {
 
 	ef.mEventTypeCounter.Add(context.Background(), 1, attribute.String("name", eventDescr.Name))
 
-	return i, nil
+	return eventfeed.BlockEvent{TxnHash: l.TxHash, Event: i}, nil
 }
 
 func (ef *EventFeed) getTopicsForEventTypes(ets []eventfeed.EventType) ([]common.Hash, error) {
