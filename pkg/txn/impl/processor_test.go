@@ -275,7 +275,7 @@ func TestRegisterTable(t *testing.T) {
 		require.NoError(t, err)
 		createStmt, err := parser.ValidateCreateTable("create table bar (zar text)")
 		require.NoError(t, err)
-		err = b.InsertTable(ctx, id, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", "descrip", createStmt)
+		err = b.InsertTable(ctx, id, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", createStmt)
 		require.NoError(t, err)
 
 		require.NoError(t, b.Commit(ctx))
@@ -289,7 +289,6 @@ func TestRegisterTable(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, id, table.ID)
 		require.Equal(t, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", table.Controller)
-		require.Equal(t, "descrip", table.Description)
 		// sha256(zar:text) = 926b64e777db62e4d9e9007dc51e3974fce37c50f456177bec98cd797bc819f8
 		require.Equal(t, "926b64e777db62e4d9e9007dc51e3974fce37c50f456177bec98cd797bc819f8", table.Structure)
 		require.Equal(t, "bar", table.Name)
@@ -396,7 +395,7 @@ func newTxnProcessorWithTable(t *testing.T, rowsLimit int) (*TblTxnProcessor, *p
 	parser := parserimpl.New([]string{}, 0, 0)
 	createStmt, err := parser.ValidateCreateTable("create table foo (zar text)")
 	require.NoError(t, err)
-	err = b.InsertTable(ctx, id, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", "descrip", createStmt)
+	err = b.InsertTable(ctx, id, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", createStmt)
 	require.NoError(t, err)
 
 	require.NoError(t, b.Commit(ctx))

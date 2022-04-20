@@ -10,12 +10,11 @@ import (
 )
 
 type Registry struct {
-	CreatedAt   time.Time
-	ID          pgtype.Numeric
-	Structure   string
-	Controller  string
-	Description string
-	Name        string
+	CreatedAt  time.Time
+	ID         pgtype.Numeric
+	Structure  string
+	Controller string
+	Name       string
 }
 
 type SystemAcl struct {

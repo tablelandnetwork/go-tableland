@@ -10,7 +10,7 @@ import (
 )
 
 const getTable = `-- name: GetTable :one
-SELECT created_at, id, structure, controller, description, name FROM registry WHERE id = $1
+SELECT created_at, id, structure, controller, name FROM registry WHERE id = $1
 `
 
 func (q *Queries) GetTable(ctx context.Context, id pgtype.Numeric) (Registry, error) {
@@ -21,14 +21,13 @@ func (q *Queries) GetTable(ctx context.Context, id pgtype.Numeric) (Registry, er
 		&i.ID,
 		&i.Structure,
 		&i.Controller,
-		&i.Description,
 		&i.Name,
 	)
 	return i, err
 }
 
 const getTablesByController = `-- name: GetTablesByController :many
-SELECT created_at, id, structure, controller, description, name FROM registry WHERE controller ILIKE $1
+SELECT created_at, id, structure, controller, name FROM registry WHERE controller ILIKE $1
 `
 
 func (q *Queries) GetTablesByController(ctx context.Context, controller string) ([]Registry, error) {
@@ -45,7 +44,6 @@ func (q *Queries) GetTablesByController(ctx context.Context, controller string) 
 			&i.ID,
 			&i.Structure,
 			&i.Controller,
-			&i.Description,
 			&i.Name,
 		); err != nil {
 			return nil, err

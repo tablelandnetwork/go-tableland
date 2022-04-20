@@ -226,7 +226,7 @@ func setup(t *testing.T) (contractRunSQLBlockSender, checkReceipts, dbReader) {
 
 	createStmt, err := parser.ValidateCreateTable("CREATE TABLE test (foo int)")
 	require.NoError(t, err)
-	err = b.InsertTable(ctx, tableland.TableID(*big.NewInt(1)), "ctrl-1", "descrp-1", createStmt)
+	err = b.InsertTable(ctx, tableland.TableID(*big.NewInt(1)), "ctrl-1", createStmt)
 	require.NoError(t, err)
 	err = b.Commit(ctx)
 	require.NoError(t, err)
