@@ -34,3 +34,10 @@ func (t *TablelandMock) RunSQL(
 func (t *TablelandMock) Authorize(ctx context.Context, req tableland.AuthorizeRequest) error {
 	return nil
 }
+
+// GetReceipt implements GetRrceipt.
+func (t *TablelandMock) GetReceipt(
+	ctx context.Context,
+	req tableland.GetReceiptRequest) (tableland.GetReceiptResponse, error) {
+	return tableland.GetReceiptResponse{Ok: false}, nil
+}

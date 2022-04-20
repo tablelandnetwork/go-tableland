@@ -2,16 +2,10 @@ package user
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"fmt"
-	"math/big"
 
-	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/textileio/go-tableland/internal/tableland"
-	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	txnimpl "github.com/textileio/go-tableland/pkg/txn/impl"
 )
@@ -55,50 +49,6 @@ func (db *UserStore) Read(ctx context.Context, rq parsing.SugaredReadStmt) (inte
 		return nil, fmt.Errorf("running nested txn: %s", err)
 	}
 	return ret, nil
-}
-
-// GetReceipt returns a event receipt by transaction hash.
-func (db *UserStore) GetReceipt(
-	ctx context.Context,
-	chainID int64,
-	txnHash string) (eventprocessor.Receipt, bool, error) {
-	var dbError sql.NullString
-	var dbTableID pgtype.Numeric
-	row := db.pool.QueryRow(
-		ctx,
-		"SELECT error, table_id FROM system_txn_receipts WHERE chain_id=$1 AND txn_hash=$2",
-		chainID, txnHash)
-	err := row.Scan(&dbError, &dbTableID)
-	if err == pgx.ErrNoRows {
-		return eventprocessor.Receipt{}, false, nil
-	}
-	if err != nil {
-		return eventprocessor.Receipt{}, false, fmt.Errorf("get txn receipt: %s", err)
-	}
-
-	receipt := eventprocessor.Receipt{
-		ChainID: chainID,
-		TxnHash: txnHash,
-	}
-	if dbTableID.Status == pgtype.Present {
-		br := &big.Rat{}
-		if err := dbTableID.AssignTo(br); err != nil {
-			return eventprocessor.Receipt{}, false, fmt.Errorf("parsing numeric to bigrat: %s", err)
-		}
-		if !br.IsInt() {
-			return eventprocessor.Receipt{}, false, errors.New("parsed numeric isn't an integer")
-		}
-		id, err := tableland.NewTableID(br.Num().String())
-		if err != nil {
-			return eventprocessor.Receipt{}, false, fmt.Errorf("parsing id to string: %s", err)
-		}
-		receipt.TableID = &id
-	}
-	if dbError.Valid {
-		receipt.Error = &dbError.String
-	}
-
-	return receipt, true, nil
 }
 
 func execReadQuery(ctx context.Context, tx pgx.Tx, q string) (interface{}, error) {

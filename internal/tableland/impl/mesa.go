@@ -155,7 +155,7 @@ func (t *TablelandMesa) GetReceipt(
 
 	// TODO(jsign): when working in multi-chain, change "1" for a ctx-based value received in SIWE.
 	//              For some days, just leaving this fixed value.
-	receipt, ok, err := t.store.GetReceipt(ctx, 1, req.TxnHash)
+	receipt, ok, err := t.store.GetReceipt(ctx, 1337, req.TxnHash)
 	if err != nil {
 		return tableland.GetReceiptResponse{}, fmt.Errorf("get txn receipt: %s", err)
 	}

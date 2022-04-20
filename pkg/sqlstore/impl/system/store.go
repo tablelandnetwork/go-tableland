@@ -19,6 +19,7 @@ import (
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/nonce"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system/internal/db"
@@ -342,6 +343,50 @@ func (s *SystemStore) WithTx(tx pgx.Tx) sqlstore.SystemStore {
 // Begin returns a new tx.
 func (s *SystemStore) Begin(ctx context.Context) (pgx.Tx, error) {
 	return s.pool.Begin(ctx)
+}
+
+// GetReceipt returns a event receipt by transaction hash.
+func (s *SystemStore) GetReceipt(
+	ctx context.Context,
+	chainID int64,
+	txnHash string) (eventprocessor.Receipt, bool, error) {
+	params := db.GetReceiptParams{
+		ChainID: chainID,
+		TxnHash: txnHash,
+	}
+
+	res, err := s.db.queries().GetReceipt(ctx, params)
+	if err == pgx.ErrNoRows {
+		return eventprocessor.Receipt{}, false, nil
+	}
+	if err != nil {
+		return eventprocessor.Receipt{}, false, fmt.Errorf("get receipt: %s", err)
+	}
+
+	receipt := eventprocessor.Receipt{
+		ChainID:     chainID,
+		BlockNumber: res.BlockNumber,
+		TxnHash:     txnHash,
+	}
+	if res.Error.Valid {
+		receipt.Error = &res.Error.String
+	}
+	if res.TableID.Status == pgtype.Present {
+		br := &big.Rat{}
+		if err := res.TableID.AssignTo(br); err != nil {
+			return eventprocessor.Receipt{}, false, fmt.Errorf("parsing numeric to bigrat: %s", err)
+		}
+		if !br.IsInt() {
+			return eventprocessor.Receipt{}, false, errors.New("parsed numeric isn't an integer")
+		}
+		id, err := tableland.NewTableID(br.Num().String())
+		if err != nil {
+			return eventprocessor.Receipt{}, false, fmt.Errorf("parsing id to string: %s", err)
+		}
+		receipt.TableID = &id
+	}
+
+	return receipt, true, nil
 }
 
 // executeMigration run db migrations and return a ready to use connection to the Postgres database.
