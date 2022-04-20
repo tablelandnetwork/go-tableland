@@ -10,6 +10,7 @@ import (
 
 // ACL is the API for access control rules check.
 type ACL interface {
+	// TODO(jsign): waiting for decision to deprecate/delete.
 	// CheckAuthorization checks if an address is authorized to use Tableland's gateway.
 	CheckAuthorization(context.Context, common.Address) error
 

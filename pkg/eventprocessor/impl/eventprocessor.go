@@ -261,40 +261,54 @@ func (ep *EventProcessor) runBlockQueries(ctx context.Context, bqs eventfeed.Blo
 func (ep *EventProcessor) executeEvent(
 	ctx context.Context,
 	b txn.Batch,
-	bn int64,
+	blockNumber int64,
 	be eventfeed.BlockEvent) (eventprocessor.Receipt, error) {
 	switch e := be.Event.(type) {
 	case *ethereum.ContractRunSQL:
-		receipt := eventprocessor.Receipt{
-			ChainID:     ep.chainID,
-			BlockNumber: bn,
-			TxnHash:     be.TxnHash.String(),
-		}
 		log.Debug().Str("statement", e.Statement).Msgf("executing run-sql event")
-		readStmt, mutatingStmts, err := ep.parser.ValidateRunSQL(e.Statement)
+		receipt, err := ep.executeRunSQLEvent(ctx, b, blockNumber, be, e)
 		if err != nil {
-			err := fmt.Sprintf("parsing query: %s", err)
-			receipt.Error = &err
-			return receipt, nil
+			return eventprocessor.Receipt{}, fmt.Errorf("executing runsql event: %s", err)
 		}
-		if readStmt != nil {
-			err := "this is a read query, skipping"
-			receipt.Error = &err
-			return receipt, nil
-		}
-		if err := b.ExecWriteQueries(ctx, e.Caller, mutatingStmts); err != nil {
-			var pgErr *txn.ErrQueryExecution
-			if errors.As(err, &pgErr) {
-				err := fmt.Sprintf("db query execution failed (code: %s, msg: %s)", pgErr.Code, pgErr.Msg)
-				receipt.Error = &err
-				return receipt, nil
-			}
-			return eventprocessor.Receipt{}, fmt.Errorf("executing mutating-query: %s", err)
-		}
-		tblID := mutatingStmts[0].GetTableID()
-		receipt.TableID = &tblID
 		return receipt, nil
 	default:
 		return eventprocessor.Receipt{}, fmt.Errorf("unknown event type %t", e)
 	}
+}
+
+func (ep *EventProcessor) executeRunSQLEvent(
+	ctx context.Context,
+	b txn.Batch,
+	blockNumber int64,
+	be eventfeed.BlockEvent,
+	e *ethereum.ContractRunSQL) (eventprocessor.Receipt, error) {
+	receipt := eventprocessor.Receipt{
+		ChainID:     ep.chainID,
+		BlockNumber: blockNumber,
+		TxnHash:     be.TxnHash.String(),
+	}
+	readStmt, mutatingStmts, err := ep.parser.ValidateRunSQL(e.Statement)
+	if err != nil {
+		err := fmt.Sprintf("parsing query: %s", err)
+		receipt.Error = &err
+		return receipt, nil
+	}
+	if readStmt != nil {
+		err := "this is a read query, skipping"
+		receipt.Error = &err
+		return receipt, nil
+	}
+	if err := b.ExecWriteQueries(ctx, e.Caller, mutatingStmts); err != nil {
+		var pgErr *txn.ErrQueryExecution
+		if errors.As(err, &pgErr) {
+			err := fmt.Sprintf("db query execution failed (code: %s, msg: %s)", pgErr.Code, pgErr.Msg)
+			receipt.Error = &err
+			return receipt, nil
+		}
+		return eventprocessor.Receipt{}, fmt.Errorf("executing mutating-query: %s", err)
+	}
+	tblID := mutatingStmts[0].GetTableID()
+	receipt.TableID = &tblID
+
+	return receipt, nil
 }

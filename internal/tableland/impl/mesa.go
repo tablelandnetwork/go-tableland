@@ -175,6 +175,7 @@ func (t *TablelandMesa) GetReceipt(
 	}, nil
 }
 
+// TODO(jsign): waiting for decision to deprecate/delete.
 // Authorize is a convenience API giving the client something to call to trigger authorization.
 func (t *TablelandMesa) Authorize(ctx context.Context, req tableland.AuthorizeRequest) error {
 	if err := t.acl.CheckAuthorization(ctx, common.HexToAddress(req.Controller)); err != nil {
