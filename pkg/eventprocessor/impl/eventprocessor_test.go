@@ -207,11 +207,15 @@ func setup(t *testing.T) (contractRunSQLBlockSender, checkReceipts, dbReader) {
 		return func() bool {
 			for _, expReceipt := range rs {
 				gotReceipt, found, err := sqlstr.GetReceipt(context.Background(), chainID, expReceipt.TxnHash)
-				require.NoError(t, err)
 				if !found {
 					return false
 				}
-				require.Equal(t, expReceipt, gotReceipt)
+				require.NoError(t, err)
+				require.Equal(t, expReceipt.ChainID, gotReceipt.ChainID)
+				require.NotZero(t, gotReceipt.BlockNumber)
+				require.Equal(t, expReceipt.TxnHash, gotReceipt.TxnHash)
+				require.Equal(t, expReceipt.Error, gotReceipt.Error)
+				require.Equal(t, expReceipt.TableID, gotReceipt.TableID)
 			}
 			return true
 		}
