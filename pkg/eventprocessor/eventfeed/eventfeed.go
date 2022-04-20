@@ -43,8 +43,8 @@ type EventType string
 const (
 	// RunSQL is a RunSQL event fired by the SC.
 	RunSQL EventType = "RunSQL"
-	// Transfer is a Transfer event fired by the SC.
-	Transfer = "Transfer"
+	// CreateTable is a CreateTable event fired by the SC.
+	CreateTable = "CreateTable"
 )
 
 var (
@@ -57,8 +57,8 @@ var (
 	// IMPORTANT: we should *always* have a mapping for all EventType
 	// values.
 	SupportedEvents = map[EventType]reflect.Type{
-		RunSQL:   reflect.TypeOf(tbleth.ContractRunSQL{}),
-		Transfer: reflect.TypeOf(tbleth.ContractTransfer{}),
+		RunSQL:      reflect.TypeOf(tbleth.ContractRunSQL{}),
+		CreateTable: reflect.TypeOf(tbleth.ContractCreateTable{}),
 	}
 )
 
