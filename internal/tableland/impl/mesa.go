@@ -2,7 +2,6 @@ package impl
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -48,61 +47,11 @@ func NewTablelandMesa(
 func (t *TablelandMesa) CreateTable(
 	ctx context.Context,
 	req tableland.CreateTableRequest) (tableland.CreateTableResponse, error) {
-	controller := common.HexToAddress(req.Controller)
-
-	if err := t.acl.CheckAuthorization(ctx, controller); err != nil {
-		return tableland.CreateTableResponse{}, fmt.Errorf("checking address authorization: %s", err)
-	}
-	tableID, err := tableland.NewTableID(req.ID)
-	if err != nil {
-		return tableland.CreateTableResponse{}, fmt.Errorf("parsing table id: %s", err)
-	}
-	if len(req.Description) > 100 {
-		return tableland.CreateTableResponse{}, fmt.Errorf("description length should be at most 100")
-	}
-
 	createStmt, err := t.parser.ValidateCreateTable(req.Statement)
 	if err != nil {
 		return tableland.CreateTableResponse{}, fmt.Errorf("query validation: %s", err)
 	}
-
-	fullTableName := fmt.Sprintf("%s_%s", createStmt.GetNamePrefix(), req.ID)
-	if req.DryRun {
-		return tableland.CreateTableResponse{Name: fullTableName}, nil
-	}
-
-	isOwner, err := t.acl.IsOwner(ctx, controller, tableID)
-	if err != nil {
-		return tableland.CreateTableResponse{}, fmt.Errorf("failed to check owner: %s", err)
-	}
-	if !isOwner {
-		return tableland.CreateTableResponse{}, errors.New("you aren't the owner of the provided token")
-	}
-
-	b, err := t.txnp.OpenBatch(ctx)
-	if err != nil {
-		return tableland.CreateTableResponse{}, fmt.Errorf("opening batch: %s", err)
-	}
-	defer func() {
-		if err := b.Close(ctx); err != nil {
-			log.Error().Err(err).Msg("closing batch")
-		}
-	}()
-	if err := b.InsertTable(ctx, tableID, controller.Hex(), req.Description, createStmt); err != nil {
-		return tableland.CreateTableResponse{}, fmt.Errorf("processing table registration: %s", err)
-	}
-	if err := b.Commit(ctx); err != nil {
-		return tableland.CreateTableResponse{}, fmt.Errorf("committing changes: %s", err)
-	}
-
-	if err := t.store.IncrementCreateTableCount(ctx, controller.Hex()); err != nil {
-		log.Error().Err(err).Msg("incrementing create table count")
-	}
-
-	return tableland.CreateTableResponse{
-		Name:          fullTableName,
-		StructureHash: createStmt.GetStructureHash(),
-	}, nil
+	return tableland.CreateTableResponse{StructureHash: createStmt.GetStructureHash()}, nil
 }
 
 // CalculateTableHash allows to calculate the structure hash for a CREATE TABLE statement.
