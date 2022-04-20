@@ -86,15 +86,15 @@
     "inputs": [
       {
         "indexed": false,
-        "internalType": "uint256",
-        "name": "tokenId",
-        "type": "uint256"
+        "internalType": "address",
+        "name": "caller",
+        "type": "address"
       },
       {
         "indexed": false,
-        "internalType": "address",
-        "name": "controller",
-        "type": "address"
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
       },
       {
         "indexed": false,
@@ -212,7 +212,7 @@
       {
         "indexed": false,
         "internalType": "address",
-        "name": "controller",
+        "name": "caller",
         "type": "address"
       },
       {
@@ -547,6 +547,19 @@
         "internalType": "bool",
         "name": "",
         "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "proxiableUUID",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
       }
     ],
     "stateMutability": "view",

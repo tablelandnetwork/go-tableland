@@ -73,15 +73,15 @@ func requireRunSQL(
 	contractAbi, err := abi.JSON(strings.NewReader(ContractMetaData.ABI))
 	require.NoError(t, err)
 	event := struct {
-		Table      string
-		Controller common.Address
-		Statement  string
+		Table     string
+		Caller    common.Address
+		Statement string
 	}{}
 
 	err = contractAbi.UnpackIntoInterface(&event, "RunSQL", receipt.Logs[0].Data)
 	require.NoError(t, err)
 	require.Equal(t, table, event.Table)
-	require.Equal(t, controller, event.Controller)
+	require.Equal(t, controller, event.Caller)
 	require.Equal(t, statement, event.Statement)
 }
 

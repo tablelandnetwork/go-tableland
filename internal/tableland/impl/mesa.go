@@ -44,7 +44,7 @@ func NewTablelandMesa(
 	}
 }
 
-// CreateTable allows the user to create a table.
+// CreateTable allows the user to validate a CREATE TABLE query.
 func (t *TablelandMesa) CreateTable(
 	ctx context.Context,
 	req tableland.CreateTableRequest) (tableland.CreateTableResponse, error) {

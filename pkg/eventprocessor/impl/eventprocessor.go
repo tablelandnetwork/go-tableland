@@ -282,7 +282,7 @@ func (ep *EventProcessor) executeEvent(
 			receipt.Error = &err
 			return receipt, nil
 		}
-		if err := b.ExecWriteQueries(ctx, e.Controller, mutatingStmts); err != nil {
+		if err := b.ExecWriteQueries(ctx, e.Caller, mutatingStmts); err != nil {
 			var pgErr *txn.ErrQueryExecution
 			if errors.As(err, &pgErr) {
 				err := fmt.Sprintf("db query execution failed (code: %s, msg: %s)", pgErr.Code, pgErr.Msg)
