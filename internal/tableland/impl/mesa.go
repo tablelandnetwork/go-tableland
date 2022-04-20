@@ -145,21 +145,24 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.RunSQLRequest)
 	return response, nil
 }
 
-func (t *TablelandMesa) GetTxnReceipt(ctx context.Context, req tableland.GetTxnReceiptRequest) (tableland.GetTxnReceiptResponse, error) {
+// GetReceipt returns the receipt of a processed event by txn hash.
+func (t *TablelandMesa) GetReceipt(
+	ctx context.Context,
+	req tableland.GetReceiptRequest) (tableland.GetReceiptResponse, error) {
 	if err := (&common.Hash{}).UnmarshalText([]byte(req.TxnHash)); err != nil {
-		return tableland.GetTxnReceiptResponse{}, fmt.Errorf("invalid txn hash: %s", err)
+		return tableland.GetReceiptResponse{}, fmt.Errorf("invalid txn hash: %s", err)
 	}
 
 	// TODO(jsign): when working in multi-chain, change "1" for a ctx-based value received in SIWE.
 	//              For some days, just leaving this fixed value.
-	receipt, ok, err := t.store.GetTxnReceipt(ctx, 1, req.TxnHash)
+	receipt, ok, err := t.store.GetReceipt(ctx, 1, req.TxnHash)
 	if err != nil {
-		return tableland.GetTxnReceiptResponse{}, fmt.Errorf("get txn receipt: %s", err)
+		return tableland.GetReceiptResponse{}, fmt.Errorf("get txn receipt: %s", err)
 	}
 	if !ok {
-		return tableland.GetTxnReceiptResponse{Ok: false}, nil
+		return tableland.GetReceiptResponse{Ok: false}, nil
 	}
-	return tableland.GetTxnReceiptResponse{
+	return tableland.GetReceiptResponse{
 		Ok: ok,
 		Receipt: &tableland.TxnReceipt{
 			ChainID:     receipt.ChainID,

@@ -40,7 +40,9 @@ type EventProcessor interface {
 	Start() error
 	Stop()
 }
-type TblReceipt struct {
+
+// Receipt is an event receipt.
+type Receipt struct {
 	ChainID     int64
 	BlockNumber int64
 	TxnHash     string

@@ -52,7 +52,7 @@ func TestBlockProcessing(t *testing.T) {
 		queries := []string{"insert into test_1 values (1001)"}
 		txnHashes := contractSendRunSQL(queries)
 
-		expReceipt := eventprocessor.TblReceipt{
+		expReceipt := eventprocessor.Receipt{
 			ChainID: chainID,
 			TxnHash: txnHashes[0].String(),
 			Error:   nil,
@@ -70,7 +70,7 @@ func TestBlockProcessing(t *testing.T) {
 		queries := []string{"insert into test_1 values ('abc')"}
 		txnHashes := contractSendRunSQL(queries)
 
-		expReceipt := eventprocessor.TblReceipt{
+		expReceipt := eventprocessor.Receipt{
 			ChainID: chainID,
 			TxnHash: txnHashes[0].String(),
 			Error:   &expWrongTypeErr,
@@ -87,9 +87,9 @@ func TestBlockProcessing(t *testing.T) {
 		queries := []string{"insert into test_1 values (1001)", "insert into test_1 values (1002)"}
 		txnHashes := contractSendRunSQL(queries)
 
-		expReceipts := make([]eventprocessor.TblReceipt, len(txnHashes))
+		expReceipts := make([]eventprocessor.Receipt, len(txnHashes))
 		for i, th := range txnHashes {
-			expReceipts[i] = eventprocessor.TblReceipt{
+			expReceipts[i] = eventprocessor.Receipt{
 				ChainID: chainID,
 				TxnHash: th.String(),
 				Error:   nil,
@@ -107,14 +107,14 @@ func TestBlockProcessing(t *testing.T) {
 		queries := []string{"insert into test_1 values ('abc')", "insert into test_1 values (1002)"}
 		txnHashes := contractSendRunSQL(queries)
 
-		expReceipts := make([]eventprocessor.TblReceipt, len(txnHashes))
-		expReceipts[0] = eventprocessor.TblReceipt{
+		expReceipts := make([]eventprocessor.Receipt, len(txnHashes))
+		expReceipts[0] = eventprocessor.Receipt{
 			ChainID: chainID,
 			TxnHash: txnHashes[0].String(),
 			Error:   &expWrongTypeErr,
 			TableID: nil,
 		}
-		expReceipts[1] = eventprocessor.TblReceipt{
+		expReceipts[1] = eventprocessor.Receipt{
 			ChainID: chainID,
 			TxnHash: txnHashes[1].String(),
 			Error:   nil,
@@ -131,14 +131,14 @@ func TestBlockProcessing(t *testing.T) {
 		queries := []string{"insert into test_1 values (1001)", "insert into test_1 values ('abc')"}
 		txnHashes := contractSendRunSQL(queries)
 
-		expReceipts := make([]eventprocessor.TblReceipt, len(txnHashes))
-		expReceipts[0] = eventprocessor.TblReceipt{
+		expReceipts := make([]eventprocessor.Receipt, len(txnHashes))
+		expReceipts[0] = eventprocessor.Receipt{
 			ChainID: chainID,
 			TxnHash: txnHashes[0].String(),
 			Error:   nil,
 			TableID: &tableID,
 		}
-		expReceipts[1] = eventprocessor.TblReceipt{
+		expReceipts[1] = eventprocessor.Receipt{
 			ChainID: chainID,
 			TxnHash: txnHashes[1].String(),
 			Error:   &expWrongTypeErr,
@@ -153,7 +153,7 @@ func TestBlockProcessing(t *testing.T) {
 
 type dbReader func(string) []int
 type contractRunSQLBlockSender func([]string) []common.Hash
-type checkReceipts func(*testing.T, ...eventprocessor.TblReceipt) func() bool
+type checkReceipts func(*testing.T, ...eventprocessor.Receipt) func() bool
 
 func setup(t *testing.T) (contractRunSQLBlockSender, checkReceipts, dbReader) {
 	t.Helper()
@@ -203,10 +203,10 @@ func setup(t *testing.T) (contractRunSQLBlockSender, checkReceipts, dbReader) {
 		return ret
 	}
 
-	checkReceipts := func(t *testing.T, rs ...eventprocessor.TblReceipt) func() bool {
+	checkReceipts := func(t *testing.T, rs ...eventprocessor.Receipt) func() bool {
 		return func() bool {
 			for _, expReceipt := range rs {
-				gotReceipt, found, err := sqlstr.GetTxnReceipt(context.Background(), chainID, expReceipt.TxnHash)
+				gotReceipt, found, err := sqlstr.GetReceipt(context.Background(), chainID, expReceipt.TxnHash)
 				require.NoError(t, err)
 				if !found {
 					return false

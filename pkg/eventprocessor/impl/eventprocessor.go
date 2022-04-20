@@ -206,7 +206,7 @@ func (ep *EventProcessor) runBlockQueries(ctx context.Context, bqs eventfeed.Blo
 		return fmt.Errorf("last processed height %d isn't smaller than new height %d", lastHeight, bqs.BlockNumber)
 	}
 
-	receipts := make([]eventprocessor.TblReceipt, len(bqs.Events))
+	receipts := make([]eventprocessor.Receipt, len(bqs.Events))
 	for i, e := range bqs.Events {
 		start := time.Now()
 		receipt, err := ep.executeEvent(ctx, b, bqs.BlockNumber, e)
@@ -258,10 +258,14 @@ func (ep *EventProcessor) runBlockQueries(ctx context.Context, bqs eventfeed.Blo
 // 2) Has an unknown infrastructure error, then it returns ("", err) where err is the underlying error.
 //    Probably the caller will want to retry executing this event later when this problem is solved and
 //    retry the event.
-func (ep *EventProcessor) executeEvent(ctx context.Context, b txn.Batch, bn int64, be eventfeed.BlockEvent) (eventprocessor.TblReceipt, error) {
+func (ep *EventProcessor) executeEvent(
+	ctx context.Context,
+	b txn.Batch,
+	bn int64,
+	be eventfeed.BlockEvent) (eventprocessor.Receipt, error) {
 	switch e := be.Event.(type) {
 	case *ethereum.ContractRunSQL:
-		receipt := eventprocessor.TblReceipt{
+		receipt := eventprocessor.Receipt{
 			ChainID:     ep.chainID,
 			BlockNumber: bn,
 			TxnHash:     be.TxnHash.String(),
@@ -285,12 +289,12 @@ func (ep *EventProcessor) executeEvent(ctx context.Context, b txn.Batch, bn int6
 				receipt.Error = &err
 				return receipt, nil
 			}
-			return eventprocessor.TblReceipt{}, fmt.Errorf("executing mutating-query: %s", err)
+			return eventprocessor.Receipt{}, fmt.Errorf("executing mutating-query: %s", err)
 		}
 		tblID := mutatingStmts[0].GetTableID()
 		receipt.TableID = &tblID
 		return receipt, nil
 	default:
-		return eventprocessor.TblReceipt{}, fmt.Errorf("unknown event type %t", e)
+		return eventprocessor.Receipt{}, fmt.Errorf("unknown event type %t", e)
 	}
 }
