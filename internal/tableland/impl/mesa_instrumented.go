@@ -87,6 +87,7 @@ func (t *InstrumentedTablelandMesa) Authorize(ctx context.Context, req tableland
 	return err
 }
 
+// GetReceipt returns the receipt for a txn hash.
 func (t *InstrumentedTablelandMesa) GetReceipt(
 	ctx context.Context,
 	req tableland.GetReceiptRequest) (tableland.GetReceiptResponse, error) {
@@ -96,7 +97,6 @@ func (t *InstrumentedTablelandMesa) GetReceipt(
 
 	t.record(ctx, recordData{"GetReceipt", "", "", err == nil, latency})
 	return resp, err
-
 }
 
 func (t *InstrumentedTablelandMesa) record(ctx context.Context, data recordData) {
