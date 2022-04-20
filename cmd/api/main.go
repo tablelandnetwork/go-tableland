@@ -254,18 +254,12 @@ func getTablelandService(
 	parser parsing.SQLValidator,
 	registry tableregistry.TableRegistry,
 ) tableland.Tableland {
-	switch conf.Impl {
-	case "mesa":
-		mesa := impl.NewTablelandMesa(store, parser, registry, conf.Registry.ChainID)
-		instrumentedMesa, err := impl.NewInstrumentedTablelandMesa(mesa)
-		if err != nil {
-			log.Fatal().Err(err).Msg("instrumenting mesa")
-		}
-		return instrumentedMesa
-	case "mock":
-		return new(impl.TablelandMock)
+	mesa := impl.NewTablelandMesa(store, parser, registry, conf.Registry.ChainID)
+	instrumentedMesa, err := impl.NewInstrumentedTablelandMesa(mesa)
+	if err != nil {
+		log.Fatal().Err(err).Msg("instrumenting mesa")
 	}
-	return new(impl.TablelandMock)
+	return instrumentedMesa
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
