@@ -6,16 +6,6 @@ import (
 	"math/big"
 )
 
-// CreateTableRequest is a user CreateTable request.
-type CreateTableRequest struct {
-	Statement string `json:"statement"`
-}
-
-// CreateTableResponse is a CreateTable response.
-type CreateTableResponse struct {
-	StructureHash string `json:"structure_hash"`
-}
-
 // RunSQLRequest is a user RunSQL request.
 type RunSQLRequest struct {
 	Controller string `json:"controller"`
@@ -50,13 +40,13 @@ type GetReceiptResponse struct {
 	Receipt *TxnReceipt `json:"receipt,omitempty"`
 }
 
-// CalculateTableHashRequest is a CreateTableHash request.
-type CalculateTableHashRequest struct {
+// ValidateCreateTableRequest is a CreateTableHash request.
+type ValidateCreateTableRequest struct {
 	CreateStatement string `json:"create_statement"`
 }
 
-// CalculateTableHashResponse is a CreateTableHash response.
-type CalculateTableHashResponse struct {
+// ValidateCreateTableResponse is a CreateTableHash response.
+type ValidateCreateTableResponse struct {
 	StructureHash string `json:"structure_hash"`
 }
 
@@ -73,8 +63,7 @@ type SQLRunner interface {
 // Tableland defines the interface of Tableland.
 type Tableland interface {
 	SQLRunner
-	CreateTable(context.Context, CreateTableRequest) (CreateTableResponse, error)
-	CalculateTableHash(context.Context, CalculateTableHashRequest) (CalculateTableHashResponse, error)
+	ValidateCreateTable(context.Context, ValidateCreateTableRequest) (ValidateCreateTableResponse, error)
 	Authorize(context.Context, AuthorizeRequest) error
 	GetReceipt(context.Context, GetReceiptRequest) (GetReceiptResponse, error)
 }
