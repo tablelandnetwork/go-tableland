@@ -36,6 +36,22 @@ type RunSQLResponse struct {
 	} `json:"tx"`
 }
 
+type GetTxnReceiptRequest struct {
+	TxnHash string `json:"txn_hash"`
+}
+
+type TxnReceipt struct {
+	ChainID     int64    `json:"chain_id"`
+	TxnHash     string   `json:"txn_hash"`
+	BlockNumber int64    `json:"block_number"`
+	Error       *string  `json:"error,omitempty"`
+	TableID     *TableID `json:"table_id,omitempty"`
+}
+type GetTxnReceiptResponse struct {
+	Ok      bool        `json:"ok"`
+	Receipt *TxnReceipt `json:"receipt,omitempty"`
+}
+
 // CalculateTableHashRequest is a CreateTableHash request.
 type CalculateTableHashRequest struct {
 	CreateStatement string `json:"create_statement"`
