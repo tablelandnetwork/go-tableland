@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
@@ -20,9 +21,15 @@ import (
 	"github.com/textileio/go-tableland/tests"
 )
 
+const chainID = 1337
+
 func TestBlockProcessing(t *testing.T) {
 	t.Parallel()
 
+	tableID, err := tableland.NewTableID("1")
+	require.NoError(t, err)
+
+	expWrongTypeErr := "db query execution failed (code: POSTGRES_22P02, msg: ERROR: invalid input syntax for type integer: \"abc\" (SQLSTATE 22P02))" //nolint
 	cond := func(dr dbReader, exp []int) func() bool {
 		return func() bool {
 			got := dr("select * from test_1")
@@ -41,9 +48,17 @@ func TestBlockProcessing(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		contractSendRunSQL, dbReader := setup(t)
+		contractSendRunSQL, checkReceipts, dbReader := setup(t)
 		queries := []string{"insert into test_1 values (1001)"}
-		contractSendRunSQL(queries)
+		txnHashes := contractSendRunSQL(queries)
+
+		expReceipt := eventprocessor.TblReceipt{
+			ChainID: chainID,
+			TxnHash: txnHashes[0].String(),
+			Error:   nil,
+			TableID: &tableID,
+		}
+		require.Eventually(t, checkReceipts(t, expReceipt), time.Second*5, time.Millisecond*100)
 
 		expectedRows := []int{1001}
 		require.Eventually(t, cond(dbReader, expectedRows), time.Second*5, time.Millisecond*100)
@@ -51,36 +66,85 @@ func TestBlockProcessing(t *testing.T) {
 	t.Run("failure", func(t *testing.T) {
 		t.Parallel()
 
-		contractSendRunSQL, dbReader := setup(t)
-		queries := []string{"insert into test_1 values ('wrongtype1001')"}
-		contractSendRunSQL(queries)
+		contractSendRunSQL, checkReceipts, dbReader := setup(t)
+		queries := []string{"insert into test_1 values ('abc')"}
+		txnHashes := contractSendRunSQL(queries)
+
+		expReceipt := eventprocessor.TblReceipt{
+			ChainID: chainID,
+			TxnHash: txnHashes[0].String(),
+			Error:   &expWrongTypeErr,
+			TableID: nil,
+		}
+		require.Eventually(t, checkReceipts(t, expReceipt), time.Second*5, time.Millisecond*100)
 
 		notExpectedRows := []int{1001}
 		require.Never(t, cond(dbReader, notExpectedRows), time.Second*5, time.Millisecond*100)
 	})
 	t.Run("success-success", func(t *testing.T) {
 		t.Parallel()
-		contractSendRunSQL, dbReader := setup(t)
+		contractSendRunSQL, checkReceipts, dbReader := setup(t)
 		queries := []string{"insert into test_1 values (1001)", "insert into test_1 values (1002)"}
-		contractSendRunSQL(queries)
+		txnHashes := contractSendRunSQL(queries)
+
+		expReceipts := make([]eventprocessor.TblReceipt, len(txnHashes))
+		for i, th := range txnHashes {
+			expReceipts[i] = eventprocessor.TblReceipt{
+				ChainID: chainID,
+				TxnHash: th.String(),
+				Error:   nil,
+				TableID: &tableID,
+			}
+		}
+		require.Eventually(t, checkReceipts(t, expReceipts...), time.Second*5, time.Millisecond*100)
 
 		expectedRows := []int{1001, 1002}
 		require.Eventually(t, cond(dbReader, expectedRows), time.Second*5, time.Millisecond*100)
 	})
 	t.Run("failure-success", func(t *testing.T) {
 		t.Parallel()
-		contractSendRunSQL, dbReader := setup(t)
+		contractSendRunSQL, checkReceipts, dbReader := setup(t)
 		queries := []string{"insert into test_1 values ('abc')", "insert into test_1 values (1002)"}
-		contractSendRunSQL(queries)
+		txnHashes := contractSendRunSQL(queries)
+
+		expReceipts := make([]eventprocessor.TblReceipt, len(txnHashes))
+		expReceipts[0] = eventprocessor.TblReceipt{
+			ChainID: chainID,
+			TxnHash: txnHashes[0].String(),
+			Error:   &expWrongTypeErr,
+			TableID: nil,
+		}
+		expReceipts[1] = eventprocessor.TblReceipt{
+			ChainID: chainID,
+			TxnHash: txnHashes[1].String(),
+			Error:   nil,
+			TableID: &tableID,
+		}
+		require.Eventually(t, checkReceipts(t, expReceipts...), time.Second*5, time.Millisecond*100)
 
 		expectedRows := []int{1002}
 		require.Eventually(t, cond(dbReader, expectedRows), time.Second*5, time.Millisecond*100)
 	})
 	t.Run("success-failure", func(t *testing.T) {
 		t.Parallel()
-		contractSendRunSQL, dbReader := setup(t)
+		contractSendRunSQL, checkReceipts, dbReader := setup(t)
 		queries := []string{"insert into test_1 values (1001)", "insert into test_1 values ('abc')"}
-		contractSendRunSQL(queries)
+		txnHashes := contractSendRunSQL(queries)
+
+		expReceipts := make([]eventprocessor.TblReceipt, len(txnHashes))
+		expReceipts[0] = eventprocessor.TblReceipt{
+			ChainID: chainID,
+			TxnHash: txnHashes[0].String(),
+			Error:   nil,
+			TableID: &tableID,
+		}
+		expReceipts[1] = eventprocessor.TblReceipt{
+			ChainID: chainID,
+			TxnHash: txnHashes[1].String(),
+			Error:   &expWrongTypeErr,
+			TableID: nil,
+		}
+		require.Eventually(t, checkReceipts(t, expReceipts...), time.Second*5, time.Millisecond*100)
 
 		expectedRows := []int{1001}
 		require.Eventually(t, cond(dbReader, expectedRows), time.Second*5, time.Millisecond*100)
@@ -88,9 +152,10 @@ func TestBlockProcessing(t *testing.T) {
 }
 
 type dbReader func(string) []int
-type contractRunSQLBlockSender func([]string)
+type contractRunSQLBlockSender func([]string) []common.Hash
+type checkReceipts func(*testing.T, ...eventprocessor.TblReceipt) func() bool
 
-func setup(t *testing.T) (contractRunSQLBlockSender, dbReader) {
+func setup(t *testing.T) (contractRunSQLBlockSender, checkReceipts, dbReader) {
 	t.Helper()
 
 	// Spin up the EVM chain with the contract.
@@ -106,16 +171,19 @@ func setup(t *testing.T) (contractRunSQLBlockSender, dbReader) {
 	parser := parserimpl.New([]string{"system_", "registry"}, 0, 0)
 
 	// Create EventProcessor for our test.
-	ep, err := New(parser, txnp, ef)
+	ep, err := New(parser, txnp, ef, chainID)
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	contractSendRunSQL := func(queries []string) {
-		for _, q := range queries {
-			_, err := sc.RunSQL(authOpts, "1", common.HexToAddress("0xdeadbeef"), q)
+	contractSendRunSQL := func(queries []string) []common.Hash {
+		txnHashes := make([]common.Hash, len(queries))
+		for i, q := range queries {
+			txn, err := sc.RunSQL(authOpts, "1", common.HexToAddress("0xdeadbeef"), q)
 			require.NoError(t, err)
+			txnHashes[i] = txn.Hash()
 		}
 		backend.Commit()
+		return txnHashes
 	}
 
 	sqlstr, err := sqlstoreimpl.New(ctx, url)
@@ -135,6 +203,20 @@ func setup(t *testing.T) (contractRunSQLBlockSender, dbReader) {
 		return ret
 	}
 
+	checkReceipts := func(t *testing.T, rs ...eventprocessor.TblReceipt) func() bool {
+		return func() bool {
+			for _, expReceipt := range rs {
+				gotReceipt, found, err := sqlstr.GetTxnReceipt(context.Background(), chainID, expReceipt.TxnHash)
+				require.NoError(t, err)
+				if !found {
+					return false
+				}
+				require.Equal(t, expReceipt, gotReceipt)
+			}
+			return true
+		}
+	}
+
 	b, err := txnp.OpenBatch(ctx)
 	require.NoError(t, err)
 
@@ -151,7 +233,7 @@ func setup(t *testing.T) (contractRunSQLBlockSender, dbReader) {
 	require.NoError(t, err)
 	t.Cleanup(func() { ep.Stop() })
 
-	return contractSendRunSQL, tableReader
+	return contractSendRunSQL, checkReceipts, tableReader
 }
 
 type aclMock struct{}

@@ -51,3 +51,11 @@ type SystemPendingTx struct {
 type SystemTxnProcessor struct {
 	BlockNumber sql.NullInt64
 }
+
+type SystemTxnReceipt struct {
+	ChainID     int64
+	BlockNumber int64
+	TxnHash     string
+	Error       sql.NullString
+	TableID     pgtype.Numeric
+}

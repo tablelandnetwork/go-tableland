@@ -6,6 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/parsing"
 )
 
@@ -45,6 +46,7 @@ type Batch interface {
 
 	GetLastProcessedHeight(ctx context.Context) (int64, error)
 	SetLastProcessedHeight(ctx context.Context, height int64) error
+	SaveTxnReceipts(ctx context.Context, rs []eventprocessor.TblReceipt) error
 
 	Commit(context.Context) error
 	Close(context.Context) error

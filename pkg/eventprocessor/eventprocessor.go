@@ -3,6 +3,8 @@ package eventprocessor
 import (
 	"fmt"
 	"time"
+
+	"github.com/textileio/go-tableland/internal/tableland"
 )
 
 // Config contains configuration attributes for an event processor.
@@ -37,4 +39,12 @@ func WithBlockFailedExecutionBackoff(backoff time.Duration) Option {
 type EventProcessor interface {
 	Start() error
 	Stop()
+}
+type TblReceipt struct {
+	ChainID     int64
+	BlockNumber int64
+	TxnHash     string
+
+	Error   *string
+	TableID *tableland.TableID
 }
