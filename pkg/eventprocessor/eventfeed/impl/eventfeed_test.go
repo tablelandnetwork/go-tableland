@@ -17,7 +17,7 @@ import (
 
 var emptyHash = common.HexToHash("0x0")
 
-func TestStart(t *testing.T) {
+func TestRunSQLEvents(t *testing.T) {
 	t.Parallel()
 
 	backend, addr, sc, authOpts, _ := testutil.Setup(t)
@@ -79,7 +79,7 @@ func TestStart(t *testing.T) {
 	}
 }
 
-func TestStartForTwoEventTypes(t *testing.T) {
+func TestCreateTableAndRunSQLEvents(t *testing.T) {
 	t.Parallel()
 
 	backend, addr, sc, authOpts, _ := testutil.Setup(t)
@@ -91,7 +91,7 @@ func TestStartForTwoEventTypes(t *testing.T) {
 	chFeedClosed := make(chan struct{})
 	ch := make(chan eventfeed.BlockEvents)
 	go func() {
-		err := qf.Start(ctx, 0, ch, []eventfeed.EventType{eventfeed.RunSQL, eventfeed.Transfer})
+		err := qf.Start(ctx, 0, ch, []eventfeed.EventType{eventfeed.RunSQL, eventfeed.CreateTable})
 		require.NoError(t, err)
 		close(chFeedClosed)
 	}()
@@ -113,7 +113,7 @@ func TestStartForTwoEventTypes(t *testing.T) {
 		require.NotEqual(t, emptyHash, bes.Events[0].TxnHash)
 		require.NotEqual(t, emptyHash, bes.Events[1].TxnHash)
 		require.IsType(t, &ethereum.ContractRunSQL{}, bes.Events[0].Event)
-		require.IsType(t, &ethereum.ContractTransfer{}, bes.Events[1].Event)
+		require.IsType(t, &ethereum.ContractCreateTable{}, bes.Events[1].Event)
 	case <-time.After(time.Second):
 		t.Fatalf("didn't receive expected log")
 	}
@@ -125,6 +125,7 @@ func TestStartForTwoEventTypes(t *testing.T) {
 
 func TestInfura(t *testing.T) {
 	t.Parallel()
+	t.SkipNow()
 
 	infuraAPI := os.Getenv("INFURA_API")
 	if infuraAPI == "" {
@@ -147,7 +148,7 @@ func TestInfura(t *testing.T) {
 			int64(contractDeploymentBlockNumber),
 			ch,
 			[]eventfeed.EventType{eventfeed.RunSQL,
-				eventfeed.Transfer})
+				eventfeed.CreateTable})
 		require.NoError(t, err)
 		close(chFeedClosed)
 	}()
