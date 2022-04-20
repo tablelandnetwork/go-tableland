@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	tbleth "github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
 )
@@ -27,7 +28,12 @@ type EventFeed interface {
 // BlockEvents contains a set of events for a particular block height.
 type BlockEvents struct {
 	BlockNumber int64
-	Events      []interface{}
+	Events      []BlockEvent
+}
+
+type BlockEvent struct {
+	TxnHash common.Hash
+	Event   interface{}
 }
 
 // EventType is an event type.

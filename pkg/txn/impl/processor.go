@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 	logger "github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/txn"
 )
@@ -235,12 +236,37 @@ func (b *batch) SetLastProcessedHeight(ctx context.Context, height int64) error 
 	f := func(tx pgx.Tx) error {
 		_, err := tx.Exec(ctx, "UPDATE system_txn_processor set block_number=$1", height)
 		if err != nil {
-			return fmt.Errorf("set last block number query: %s", err)
+			return fmt.Errorf("update last processed block number: %s", err)
 		}
 		return nil
 	}
 	if err := b.txn.BeginFunc(ctx, f); err != nil {
-		return fmt.Errorf("processing register table: %s", err)
+		return fmt.Errorf("set last processed height: %s", err)
+	}
+	return nil
+}
+
+func (b *batch) SaveTxnReceipts(ctx context.Context, rs []eventprocessor.TblReceipt) error {
+	f := func(tx pgx.Tx) error {
+		for _, r := range rs {
+			dbID := pgtype.Numeric{Status: pgtype.Null}
+			if r.TableID != nil {
+				if err := dbID.Set(r.TableID.String()); err != nil {
+					return fmt.Errorf("parsing table id to numeric: %s", err)
+				}
+			}
+			if _, err := tx.Exec(
+				ctx,
+				`INSERT INTO system_txn_receipts (chain_id, txn_hash, error, table_id, block_number) 
+				 VALUES ($1, $2, $3, $4, $5)`,
+				r.ChainID, r.TxnHash, r.Error, dbID, r.BlockNumber); err != nil {
+				return fmt.Errorf("insert txn receipt: %s", err)
+			}
+		}
+		return nil
+	}
+	if err := b.txn.BeginFunc(ctx, f); err != nil {
+		return fmt.Errorf("saving txn receipt: %s", err)
 	}
 	return nil
 }

@@ -15,6 +15,8 @@ import (
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/testutil"
 )
 
+var emptyHash = common.HexToHash("0x0")
+
 func TestStart(t *testing.T) {
 	t.Parallel()
 
@@ -53,7 +55,8 @@ func TestStart(t *testing.T) {
 	select {
 	case bes := <-ch:
 		require.Len(t, bes.Events, 1)
-		require.IsType(t, &ethereum.ContractRunSQL{}, bes.Events[0])
+		require.NotEqual(t, emptyHash, bes.Events[0].TxnHash)
+		require.IsType(t, &ethereum.ContractRunSQL{}, bes.Events[0].Event)
 	case <-time.After(time.Second):
 		t.Fatalf("didn't receive expected log")
 	}
@@ -67,8 +70,10 @@ func TestStart(t *testing.T) {
 	select {
 	case bes := <-ch:
 		require.Len(t, bes.Events, 2)
-		require.IsType(t, &ethereum.ContractRunSQL{}, bes.Events[0])
-		require.IsType(t, &ethereum.ContractRunSQL{}, bes.Events[1])
+		require.NotEqual(t, emptyHash, bes.Events[0].TxnHash)
+		require.NotEqual(t, emptyHash, bes.Events[1].TxnHash)
+		require.IsType(t, &ethereum.ContractRunSQL{}, bes.Events[0].Event)
+		require.IsType(t, &ethereum.ContractRunSQL{}, bes.Events[1].Event)
 	case <-time.After(time.Second):
 		t.Fatalf("didn't receive expected log")
 	}
@@ -102,8 +107,10 @@ func TestStartForTwoEventTypes(t *testing.T) {
 	select {
 	case bes := <-ch:
 		require.Len(t, bes.Events, 2)
-		require.IsType(t, &ethereum.ContractRunSQL{}, bes.Events[0])
-		require.IsType(t, &ethereum.ContractTransfer{}, bes.Events[1])
+		require.NotEqual(t, emptyHash, bes.Events[0].TxnHash)
+		require.NotEqual(t, emptyHash, bes.Events[1].TxnHash)
+		require.IsType(t, &ethereum.ContractRunSQL{}, bes.Events[0].Event)
+		require.IsType(t, &ethereum.ContractTransfer{}, bes.Events[1].Event)
 	case <-time.After(time.Second):
 		t.Fatalf("didn't receive expected log")
 	}
@@ -146,7 +153,7 @@ func TestInfura(t *testing.T) {
 	for {
 		select {
 		case e := <-ch:
-			ct := e.Events[0].(*ethereum.ContractTransfer)
+			ct := e.Events[0].Event.(*ethereum.ContractTransfer)
 			fmt.Printf("blocknumber %d, %d events. (tokenId %d -> %s)\n", e.BlockNumber, len(e.Events), ct.TokenId, ct.To)
 			num++
 			if num > 40 {

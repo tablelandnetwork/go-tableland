@@ -155,7 +155,7 @@ func main() {
 	epOpts := []eventprocessor.Option{
 		eventprocessor.WithBlockFailedExecutionBackoff(blockFailedExecutionBackoff),
 	}
-	ep, err := epimpl.New(parser, txnp, ef, epOpts...)
+	ep, err := epimpl.New(parser, txnp, ef, config.Registry.ChainID, epOpts...)
 	if err != nil {
 		log.Fatal().Err(err).Msg("creating event processor")
 	}

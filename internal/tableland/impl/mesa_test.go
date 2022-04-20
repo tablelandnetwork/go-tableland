@@ -567,7 +567,7 @@ func setup(ctx context.Context, t *testing.T) (tableland.Tableland, *backends.Si
 	require.NoError(t, err)
 
 	// Create EventProcessor for our test.
-	ep, err := epimpl.New(parser, txnp, ef)
+	ep, err := epimpl.New(parser, txnp, ef, 1337)
 	require.NoError(t, err)
 
 	err = ep.Start()

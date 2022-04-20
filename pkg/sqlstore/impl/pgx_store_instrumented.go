@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/nonce"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
@@ -366,4 +367,11 @@ func (s *InstrumentedSQLStorePGX) WithTx(tx pgx.Tx) sqlstore.SystemStore {
 // Begin returns a new tx.
 func (s *InstrumentedSQLStorePGX) Begin(ctx context.Context) (pgx.Tx, error) {
 	return s.store.Begin(ctx)
+}
+
+func (s *InstrumentedSQLStorePGX) GetTxnReceipt(
+	ctx context.Context,
+	chainID int64,
+	txnHash string) (eventprocessor.TblReceipt, bool, error) {
+	return s.store.GetTxnReceipt(ctx, chainID, txnHash)
 }
