@@ -544,7 +544,7 @@ func newTablelandMesa(t *testing.T) tableland.Tableland {
 	txnp, err := txnpimpl.NewTxnProcessor(url, 0, &aclHalfMock{sqlstore})
 	require.NoError(t, err)
 
-	return NewTablelandMesa(sqlstore, parser, txnp, &aclHalfMock{sqlstore}, nil)
+	return NewTablelandMesa(sqlstore, parser, txnp, &aclHalfMock{sqlstore}, nil, 1337)
 }
 
 func setup(ctx context.Context, t *testing.T) (tableland.Tableland, *backends.SimulatedBackend) {
@@ -582,7 +582,7 @@ func setup(ctx context.Context, t *testing.T) (tableland.Tableland, *backends.Si
 		tracker,
 	)
 	require.NoError(t, err)
-	tbld := NewTablelandMesa(sqlstore, parser, txnp, &aclHalfMock{sqlstore}, registry)
+	tbld := NewTablelandMesa(sqlstore, parser, txnp, &aclHalfMock{sqlstore}, registry, 1337)
 
 	// Spin up dependencies needed for the EventProcessor.
 	// i.e: TxnProcessor, Parser, and EventFeed (connected to the EVM chain)

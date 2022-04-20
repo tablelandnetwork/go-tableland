@@ -23,6 +23,7 @@ type TablelandMesa struct {
 	parser   parsing.SQLValidator
 	acl      tableland.ACL
 	registry tableregistry.TableRegistry
+	chainID  int64
 }
 
 // NewTablelandMesa creates a new TablelandMesa.
@@ -31,13 +32,15 @@ func NewTablelandMesa(
 	parser parsing.SQLValidator,
 	txnp txn.TxnProcessor,
 	acl tableland.ACL,
-	registry tableregistry.TableRegistry) tableland.Tableland {
+	registry tableregistry.TableRegistry,
+	chainID int64) tableland.Tableland {
 	return &TablelandMesa{
 		store:    store,
 		acl:      acl,
 		parser:   parser,
 		txnp:     txnp,
 		registry: registry,
+		chainID:  chainID,
 	}
 }
 
@@ -155,7 +158,7 @@ func (t *TablelandMesa) GetReceipt(
 
 	// TODO(jsign): when working in multi-chain, change "1" for a ctx-based value received in SIWE.
 	//              For some days, just leaving this fixed value.
-	receipt, ok, err := t.store.GetReceipt(ctx, 1337, req.TxnHash)
+	receipt, ok, err := t.store.GetReceipt(ctx, t.chainID, req.TxnHash)
 	if err != nil {
 		return tableland.GetReceiptResponse{}, fmt.Errorf("get txn receipt: %s", err)
 	}
