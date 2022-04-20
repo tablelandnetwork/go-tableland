@@ -87,6 +87,18 @@ func (t *InstrumentedTablelandMesa) Authorize(ctx context.Context, req tableland
 	return err
 }
 
+func (t *InstrumentedTablelandMesa) GetReceipt(
+	ctx context.Context,
+	req tableland.GetReceiptRequest) (tableland.GetReceiptResponse, error) {
+	start := time.Now()
+	resp, err := t.tableland.GetReceipt(ctx, req)
+	latency := time.Since(start).Milliseconds()
+
+	t.record(ctx, recordData{"GetReceipt", "", "", err == nil, latency})
+	return resp, err
+
+}
+
 func (t *InstrumentedTablelandMesa) record(ctx context.Context, data recordData) {
 	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
 	attributes := []attribute.KeyValue{

@@ -82,6 +82,7 @@ type Tableland interface {
 	CreateTable(context.Context, CreateTableRequest) (CreateTableResponse, error)
 	CalculateTableHash(context.Context, CalculateTableHashRequest) (CalculateTableHashResponse, error)
 	Authorize(context.Context, AuthorizeRequest) error
+	GetReceipt(context.Context, GetReceiptRequest) (GetReceiptResponse, error)
 }
 
 // TableID is the ID of a Table.

@@ -78,11 +78,13 @@ func TestInsertOnConflict(t *testing.T) {
 			Controller: "0xd43c59d5694ec111eb9e986c233200b14249558d",
 		}
 		req := baseReq
+		var txnHashes []string
 		for i := 0; i < 10; i++ {
 			req.Statement = `INSERT INTO _1337 VALUES ('bar', 0) ON CONFLICT (name) DO UPDATE SET count=_1337.count+1`
-			_, err := tbld.RunSQL(ctx, req)
+			r, err := tbld.RunSQL(ctx, req)
 			require.NoError(t, err)
 			backend.Commit()
+			txnHashes = append(txnHashes, r.Transaction.Hash)
 		}
 
 		req.Statement = "SELECT count FROM _1337"
@@ -92,6 +94,7 @@ func TestInsertOnConflict(t *testing.T) {
 			time.Second*5,
 			time.Millisecond*100,
 		)
+		requireReceipts(t, tbld, txnHashes, true)
 	}
 }
 
@@ -119,7 +122,7 @@ func TestMultiStatement(t *testing.T) {
 			Controller: "0xd43c59d5694ec111eb9e986c233200b14249558d",
 			Statement:  `INSERT INTO foo_1 values ('bar'); UPDATE foo_1 SET name='zoo'`,
 		}
-		_, err := tbld.RunSQL(ctx, req)
+		r, err := tbld.RunSQL(ctx, req)
 		require.NoError(t, err)
 		backend.Commit()
 
@@ -130,6 +133,7 @@ func TestMultiStatement(t *testing.T) {
 			time.Second*5,
 			time.Millisecond*100,
 		)
+		requireReceipts(t, tbld, []string{r.Transaction.Hash}, true)
 	}
 }
 
@@ -209,6 +213,7 @@ func TestCheckInsertPrivileges(t *testing.T) {
 			}
 			_, err := tbld.CreateTable(ctx, createReq)
 			require.NoError(t, err)
+			var successfulTxnHashes []string
 
 			if len(test.privileges) > 0 {
 				privileges := make([]string, len(test.privileges))
@@ -218,20 +223,25 @@ func TestCheckInsertPrivileges(t *testing.T) {
 
 				// execute grant statement according to test case
 				grantQuery := fmt.Sprintf("GRANT %s ON foo_%s TO \"%s\"", strings.Join(privileges, ","), testCase, grantee)
-				_, err = runSQL(t, tbld, grantQuery, granter)
+				r, err := runSQL(t, tbld, grantQuery, granter)
 				require.NoError(t, err)
 				backend.Commit()
+				successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
 			}
 
-			_, err = runSQL(t, tbld, fmt.Sprintf(test.query, testCase), grantee)
+			r, err := runSQL(t, tbld, fmt.Sprintf(test.query, testCase), grantee)
 			require.NoError(t, err)
 			backend.Commit()
 
 			testQuery := fmt.Sprintf("SELECT * FROM foo_%s WHERE bar ='Hello';", testCase)
 			if test.isAllowed {
 				require.Eventually(t, runSQLCountEq(t, tbld, testQuery, grantee, 1), 5*time.Second, 100*time.Millisecond)
+				successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
+				requireReceipts(t, tbld, successfulTxnHashes, true)
 			} else {
 				require.Never(t, runSQLCountEq(t, tbld, testQuery, grantee, 1), 5*time.Second, 100*time.Millisecond)
+				requireReceipts(t, tbld, successfulTxnHashes, true)
+				requireReceipts(t, tbld, []string{r.Transaction.Hash}, false)
 			}
 		})
 	}
@@ -274,11 +284,13 @@ func TestCheckUpdatePrivileges(t *testing.T) {
 			}
 			_, err := tbld.CreateTable(ctx, createReq)
 			require.NoError(t, err)
+			var successfulTxnHashes []string
 
 			// we initilize the table with a row to be updated
-			_, err = runSQL(t, tbld, fmt.Sprintf("INSERT INTO foo_%s (bar) VALUES ('Hello')", testCase), granter)
+			r, err := runSQL(t, tbld, fmt.Sprintf("INSERT INTO foo_%s (bar) VALUES ('Hello')", testCase), granter)
 			require.NoError(t, err)
 			backend.Commit()
+			successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
 
 			if len(test.privileges) > 0 {
 				privileges := make([]string, len(test.privileges))
@@ -288,20 +300,25 @@ func TestCheckUpdatePrivileges(t *testing.T) {
 
 				// execute grant statement according to test case
 				grantQuery := fmt.Sprintf("GRANT %s ON foo_%s TO \"%s\"", strings.Join(privileges, ","), testCase, grantee)
-				_, err = runSQL(t, tbld, grantQuery, granter)
+				r, err := runSQL(t, tbld, grantQuery, granter)
 				require.NoError(t, err)
 				backend.Commit()
+				successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
 			}
 
-			_, err = runSQL(t, tbld, fmt.Sprintf(test.query, testCase), grantee)
+			r, err = runSQL(t, tbld, fmt.Sprintf(test.query, testCase), grantee)
 			require.NoError(t, err)
 			backend.Commit()
 
 			testQuery := fmt.Sprintf("SELECT * FROM foo_%s WHERE bar ='Hello 2';", testCase)
 			if test.isAllowed {
 				require.Eventually(t, runSQLCountEq(t, tbld, testQuery, grantee, 1), 5*time.Second, 100*time.Millisecond)
+				successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
+				requireReceipts(t, tbld, successfulTxnHashes, true)
 			} else {
 				require.Never(t, runSQLCountEq(t, tbld, testQuery, grantee, 1), 5*time.Second, 100*time.Millisecond)
+				requireReceipts(t, tbld, successfulTxnHashes, true)
+				requireReceipts(t, tbld, []string{r.Transaction.Hash}, false)
 			}
 		})
 	}
@@ -344,6 +361,7 @@ func TestCheckDeletePrivileges(t *testing.T) {
 			}
 			_, err := tbld.CreateTable(ctx, createReq)
 			require.NoError(t, err)
+			var successfulTxnHashes []string
 
 			// we initilize the table with a row to be delete
 			_, err = runSQL(t, tbld, fmt.Sprintf("INSERT INTO foo_%s (bar) VALUES ('Hello')", testCase), granter)
@@ -358,20 +376,24 @@ func TestCheckDeletePrivileges(t *testing.T) {
 
 				// execute grant statement according to test case
 				grantQuery := fmt.Sprintf("GRANT %s ON foo_%s TO \"%s\"", strings.Join(privileges, ","), testCase, grantee)
-				_, err = runSQL(t, tbld, grantQuery, granter)
+				r, err := runSQL(t, tbld, grantQuery, granter)
 				require.NoError(t, err)
 				backend.Commit()
+				successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
 			}
 
-			_, err = runSQL(t, tbld, fmt.Sprintf(test.query, testCase), grantee)
+			r, err := runSQL(t, tbld, fmt.Sprintf(test.query, testCase), grantee)
 			require.NoError(t, err)
 			backend.Commit()
 
 			testQuery := fmt.Sprintf("SELECT * FROM foo_%s", testCase)
 			if test.isAllowed {
 				require.Eventually(t, runSQLCountEq(t, tbld, testQuery, grantee, 0), 5*time.Second, 100*time.Millisecond)
+				successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
+				requireReceipts(t, tbld, successfulTxnHashes, true)
 			} else {
 				require.Never(t, runSQLCountEq(t, tbld, testQuery, grantee, 0), 5*time.Second, 100*time.Millisecond)
+				requireReceipts(t, tbld, []string{r.Transaction.Hash}, false)
 			}
 		})
 	}
@@ -398,13 +420,14 @@ func TestOwnerRevokesItsPrivilegeInsideMultipleStatements(t *testing.T) {
 		REVOKE update ON foo_1337 FROM "0xd43c59d5694ec111eb9e986c233200b14249558d";
 		UPDATE foo_1337 SET bar = 'Hello 3';
 	`
-	_, err = runSQL(t, tbld, multiStatements, "0xd43c59d5694ec111eb9e986c233200b14249558d")
+	r, err := runSQL(t, tbld, multiStatements, "0xd43c59d5694ec111eb9e986c233200b14249558d")
 	require.NoError(t, err)
 	backend.Commit()
 
 	testQuery := "SELECT * FROM foo_1337;"
 	cond := runSQLCountEq(t, tbld, testQuery, "0xd43c59d5694ec111eb9e986c233200b14249558d", 1)
 	require.Never(t, cond, 5*time.Second, 100*time.Millisecond)
+	requireReceipts(t, tbld, []string{r.Transaction.Hash}, false)
 }
 
 func processCSV(
@@ -597,4 +620,29 @@ func (acl *aclHalfMock) CheckAuthorization(ctx context.Context, controller commo
 
 func (acl *aclHalfMock) IsOwner(ctx context.Context, controller common.Address, id tableland.TableID) (bool, error) {
 	return true, nil
+}
+
+func requireReceipts(t *testing.T, tbld tableland.Tableland, txnHashes []string, ok bool) {
+	t.Helper()
+
+	for _, txnHash := range txnHashes {
+		r, err := tbld.GetReceipt(context.Background(), tableland.GetReceiptRequest{
+			TxnHash: txnHash,
+		})
+		require.NoError(t, err)
+		require.True(t, r.Ok)
+		require.NotNil(t, r.Receipt)
+		require.Equal(t, int64(1337), r.Receipt.ChainID)
+		require.Equal(t, txnHash, txnHash)
+		require.NotZero(t, r.Receipt.BlockNumber)
+		if ok {
+			require.Nil(t, r.Receipt.Error)
+			require.NotNil(t, r.Receipt.TableID)
+			require.NotZero(t, r.Receipt.TableID)
+		} else {
+			require.NotNil(t, r.Receipt.Error)
+			require.NotEmpty(t, *r.Receipt.Error)
+			require.Nil(t, r.Receipt.TableID)
+		}
+	}
 }
