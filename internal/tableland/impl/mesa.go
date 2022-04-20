@@ -145,6 +145,32 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.RunSQLRequest)
 	return response, nil
 }
 
+func (t *TablelandMesa) GetTxnReceipt(ctx context.Context, req tableland.GetTxnReceiptRequest) (tableland.GetTxnReceiptResponse, error) {
+	if err := (&common.Hash{}).UnmarshalText([]byte(req.TxnHash)); err != nil {
+		return tableland.GetTxnReceiptResponse{}, fmt.Errorf("invalid txn hash: %s", err)
+	}
+
+	// TODO(jsign): when working in multi-chain, change "1" for a ctx-based value received in SIWE.
+	//              For some days, just leaving this fixed value.
+	receipt, ok, err := t.store.GetTxnReceipt(ctx, 1, req.TxnHash)
+	if err != nil {
+		return tableland.GetTxnReceiptResponse{}, fmt.Errorf("get txn receipt: %s", err)
+	}
+	if !ok {
+		return tableland.GetTxnReceiptResponse{Ok: false}, nil
+	}
+	return tableland.GetTxnReceiptResponse{
+		Ok: ok,
+		Receipt: &tableland.TxnReceipt{
+			ChainID:     receipt.ChainID,
+			TxnHash:     receipt.TxnHash,
+			BlockNumber: receipt.BlockNumber,
+			Error:       receipt.Error,
+			TableID:     receipt.TableID,
+		},
+	}, nil
+}
+
 // Authorize is a convenience API giving the client something to call to trigger authorization.
 func (t *TablelandMesa) Authorize(ctx context.Context, req tableland.AuthorizeRequest) error {
 	if err := t.acl.CheckAuthorization(ctx, common.HexToAddress(req.Controller)); err != nil {
