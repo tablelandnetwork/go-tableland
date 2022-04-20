@@ -40,7 +40,6 @@ type Batch interface {
 		ctx context.Context,
 		id tableland.TableID,
 		controller string,
-		description string,
 		createStmt parsing.CreateStmt) error
 	ExecWriteQueries(ctx context.Context, controller common.Address, wquery []parsing.SugaredMutatingStmt) error
 
