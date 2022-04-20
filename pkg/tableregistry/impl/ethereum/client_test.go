@@ -39,27 +39,18 @@ func TestIsOwner(t *testing.T) {
 }
 
 func TestRunSQL(t *testing.T) {
-	backend, key, fromAuth, contract, _ := setup(t)
+	backend, key, fromAuth, _, _ := setup(t)
 	_, toAuth := requireNewAuth(t)
 	requireAuthGas(t, backend, toAuth)
 	requireTxn(t, backend, key, fromAuth.From, toAuth.From, big.NewInt(1000000000000000000))
 
-	addr := common.HexToAddress("0xB0Cf943Cf94E7B6A2657D15af41c5E06c2BFEA3D")
-	requireRunSQL(t, backend, contract, fromAuth, tableland.TableID(*big.NewInt(1)), addr, "insert into XXX values (1,2,3)") //nolint
-}
+	backend, _, txOpts, _, client := setup(t)
 
-func requireRunSQL(
-	t *testing.T,
-	backend *backends.SimulatedBackend,
-	contract *Contract,
-	txOpts *bind.TransactOpts,
-	tableID tableland.TableID,
-	controller common.Address,
-	statement string,
-) {
-	txn, err := contract.RunSQL(txOpts, tableID.ToBigInt(), controller, statement)
+	tableID := tableland.TableID(*big.NewInt(1))
+	statement := "insert into XXX values (1,2,3)"
+
+	txn, err := client.RunSQL(context.Background(), txOpts.From, tableID, statement)
 	require.NoError(t, err)
-
 	backend.Commit()
 
 	receipt, err := backend.TransactionReceipt(context.Background(), txn.Hash())
@@ -71,13 +62,54 @@ func requireRunSQL(
 
 	contractAbi, err := abi.JSON(strings.NewReader(ContractMetaData.ABI))
 	require.NoError(t, err)
-	var event ContractRunSQL
 
-	err = contractAbi.UnpackIntoInterface(&event, "RunSQL", receipt.Logs[0].Data)
+	event := &ContractRunSQL{}
+	err = contractAbi.UnpackIntoInterface(event, "RunSQL", receipt.Logs[0].Data)
+
 	require.NoError(t, err)
 	require.Equal(t, tableID.ToBigInt().Int64(), event.TableId.Int64())
-	require.Equal(t, controller, event.Caller)
+	require.True(t, event.Policy.AllowDelete)
+	require.True(t, event.Policy.AllowInsert)
+	require.True(t, event.Policy.AllowUpdate)
+	require.Equal(t, "", event.Policy.UpdateWhere)
+	require.Equal(t, []string{""}, event.Policy.UpdateColumns)
 	require.Equal(t, statement, event.Statement)
+}
+
+func TestSetController(t *testing.T) {
+	backend, _, txOpts, contract, client := setup(t)
+
+	// You have to be the owner of the token to set the controller
+	tokenID := requireMint(t, backend, contract, txOpts, txOpts.From)
+
+	table, err := tableland.NewTableID(tokenID.String())
+	require.NoError(t, err)
+
+	// Use the high-level Ethereum client to make the call.
+	controller := common.HexToAddress("0x848D5C7d4bB9E4613B6bd2C421f88Db0D7F46C58")
+	tx, err := client.SetController(context.Background(), txOpts.From, table, controller)
+	require.NoError(t, err)
+	backend.Commit()
+
+	// With the tx hash check if the call did the right thing
+	// by checking the event emitted.
+	receipt, err := backend.TransactionReceipt(context.Background(), tx.Hash())
+	require.NoError(t, err)
+	require.NotNil(t, receipt)
+
+	require.Len(t, receipt.Logs, 1)
+	require.Len(t, receipt.Logs[0].Topics, 1)
+
+	contractAbi, err := abi.JSON(strings.NewReader(ContractMetaData.ABI))
+	require.NoError(t, err)
+
+	var event ContractSetController
+	err = contractAbi.UnpackIntoInterface(&event, "SetController", receipt.Logs[0].Data)
+
+	require.NoError(t, err)
+
+	require.Equal(t, tokenID.Int64(), event.TokenId.Int64())
+	require.Equal(t, controller, event.Controller)
 }
 
 func requireMint(
@@ -156,7 +188,8 @@ func requireAuthGas(t *testing.T, backend *backends.SimulatedBackend, auth *bind
 func requireNewAuth(t *testing.T) (*ecdsa.PrivateKey, *bind.TransactOpts) {
 	key, err := crypto.GenerateKey()
 	require.NoError(t, err)
-	auth, err := bind.NewKeyedTransactorWithChainID(key, big.NewInt(1337)) //nolint
+	auth, err := bind.NewKeyedTransactorWithChainID(key, big.NewInt(1337))
+
 	require.NoError(t, err)
 	return key, auth
 }
@@ -188,7 +221,7 @@ func setup(t *testing.T) (*backends.SimulatedBackend, *ecdsa.PrivateKey, *bind.T
 	w, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(key)))
 	require.NoError(t, err)
 
-	client, err := NewClient(backend, 4, address, w, nonceimpl.NewSimpleTracker(w, backend))
+	client, err := NewClient(backend, 1337, address, w, nonceimpl.NewSimpleTracker(w, backend))
 	require.NoError(t, err)
 
 	return backend, key, auth, contract, client

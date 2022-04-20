@@ -80,9 +80,45 @@ func (c *Client) RunSQL(
 		GasPrice: gasPrice,
 	}
 
-	tx, err := c.contract.RunSQL(opts, table.ToBigInt(), addr, statement)
+	tx, err := c.contract.RunSQL(opts, addr, table.ToBigInt(), statement)
 	if err != nil {
 		return nil, fmt.Errorf("calling RunSQL: %v", err)
+	}
+	registerPendingTx(tx.Hash())
+
+	return tx, nil
+}
+
+// SetController sends a transaction that sets the controller for a token id in Smart Contract.
+func (c *Client) SetController(
+	ctx context.Context,
+	caller common.Address,
+	table tableland.TableID,
+	controller common.Address) (tableregistry.Transaction, error) {
+	gasPrice, err := c.backend.SuggestGasPrice(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("suggest gas price: %s", err)
+	}
+
+	auth, err := bind.NewKeyedTransactorWithChainID(c.wallet.PrivateKey(), big.NewInt(c.chainID))
+	if err != nil {
+		return nil, fmt.Errorf("creating keyed transactor: %s", err)
+	}
+
+	registerPendingTx, unlock, nonce := c.tracker.GetNonce(ctx)
+	defer unlock()
+
+	opts := &bind.TransactOpts{
+		Context:  ctx,
+		Signer:   auth.Signer,
+		From:     auth.From,
+		Nonce:    big.NewInt(0).SetInt64(nonce),
+		GasPrice: gasPrice,
+	}
+
+	tx, err := c.contract.SetController(opts, caller, table.ToBigInt(), controller)
+	if err != nil {
+		return nil, fmt.Errorf("calling SetController: %v", err)
 	}
 	registerPendingTx(tx.Hash())
 

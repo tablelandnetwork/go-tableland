@@ -19,4 +19,7 @@ type TableRegistry interface {
 
 	// RunSQL sends a transaction with a SQL statement to the Tabeland Smart Contract.
 	RunSQL(context.Context, common.Address, tableland.TableID, string) (Transaction, error)
+
+	// SetController sends a transaction that sets the controller for a token id in Smart Contract.
+	SetController(context.Context, common.Address, tableland.TableID, common.Address) (Transaction, error)
 }
