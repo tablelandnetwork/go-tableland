@@ -41,23 +41,13 @@ func NewInstrumentedTablelandMesa(t tableland.Tableland) (tableland.Tableland, e
 	return &InstrumentedTablelandMesa{t, callCount, latencyHistogram}, nil
 }
 
-// CreateTable allows the user to create a table.
-func (t *InstrumentedTablelandMesa) CreateTable(ctx context.Context,
-	req tableland.CreateTableRequest) (tableland.CreateTableResponse, error) {
+// ValidateCreateTable validates a CREATE TABLE statement and returns its structure hash.
+func (t *InstrumentedTablelandMesa) ValidateCreateTable(ctx context.Context,
+	req tableland.ValidateCreateTableRequest) (tableland.ValidateCreateTableResponse, error) {
 	start := time.Now()
-	resp, err := t.tableland.CreateTable(ctx, req)
+	resp, err := t.tableland.ValidateCreateTable(ctx, req)
 	latency := time.Since(start).Milliseconds()
-	t.record(ctx, recordData{"CreateTable", req.Controller, req.ID, err == nil, latency})
-	return resp, err
-}
-
-// CalculateTableHash allows the user to calculate a table hash.
-func (t *InstrumentedTablelandMesa) CalculateTableHash(ctx context.Context,
-	req tableland.CalculateTableHashRequest) (tableland.CalculateTableHashResponse, error) {
-	start := time.Now()
-	resp, err := t.tableland.CalculateTableHash(ctx, req)
-	latency := time.Since(start).Milliseconds()
-	t.record(ctx, recordData{"CalculateTableHash", "", "", err == nil, latency})
+	t.record(ctx, recordData{"ValidateCreateTable", "", "", err == nil, latency})
 	return resp, err
 }
 

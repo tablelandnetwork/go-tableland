@@ -9,18 +9,11 @@ import (
 // TablelandMock is a dummy implementation of Tableland.
 type TablelandMock struct{}
 
-// CreateTable implements CreateTable.
-func (t *TablelandMock) CreateTable(
+// ValidateCreateTable implements ValidateCreateTable.
+func (t *TablelandMock) ValidateCreateTable(
 	ctx context.Context,
-	req tableland.CreateTableRequest) (tableland.CreateTableResponse, error) {
-	return tableland.CreateTableResponse{}, nil
-}
-
-// CalculateTableHash implements CalculateTableHash.
-func (t *TablelandMock) CalculateTableHash(
-	ctx context.Context,
-	req tableland.CalculateTableHashRequest) (tableland.CalculateTableHashResponse, error) {
-	return tableland.CalculateTableHashResponse{}, nil
+	req tableland.ValidateCreateTableRequest) (tableland.ValidateCreateTableResponse, error) {
+	return tableland.ValidateCreateTableResponse{}, nil
 }
 
 // RunSQL implements RunSQL.

@@ -43,29 +43,16 @@ func NewTablelandMesa(
 	}
 }
 
-// CreateTable allows the user to validate a CREATE TABLE query.
-func (t *TablelandMesa) CreateTable(
-	ctx context.Context,
-	req tableland.CreateTableRequest) (tableland.CreateTableResponse, error) {
-	createStmt, err := t.parser.ValidateCreateTable(req.Statement)
-	if err != nil {
-		return tableland.CreateTableResponse{}, fmt.Errorf("query validation: %s", err)
-	}
-	return tableland.CreateTableResponse{StructureHash: createStmt.GetStructureHash()}, nil
-}
-
-// CalculateTableHash allows to calculate the structure hash for a CREATE TABLE statement.
+// ValidateCreateTable allows to validate a CREATE TABLE statement and also return the structure hash of it.
 // This RPC method is stateless.
-func (t *TablelandMesa) CalculateTableHash(
+func (t *TablelandMesa) ValidateCreateTable(
 	ctx context.Context,
-	req tableland.CalculateTableHashRequest) (tableland.CalculateTableHashResponse, error) {
+	req tableland.ValidateCreateTableRequest) (tableland.ValidateCreateTableResponse, error) {
 	createStmt, err := t.parser.ValidateCreateTable(req.CreateStatement)
 	if err != nil {
-		return tableland.CalculateTableHashResponse{}, fmt.Errorf("create stmt validation: %s", err)
+		return tableland.ValidateCreateTableResponse{}, fmt.Errorf("parsing create table statement: %s", err)
 	}
-	return tableland.CalculateTableHashResponse{
-		StructureHash: createStmt.GetStructureHash(),
-	}, nil
+	return tableland.ValidateCreateTableResponse{StructureHash: createStmt.GetStructureHash()}, nil
 }
 
 // RunSQL allows the user to run SQL.
