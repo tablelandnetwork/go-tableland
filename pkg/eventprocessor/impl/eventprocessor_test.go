@@ -197,7 +197,7 @@ func setup(t *testing.T) (contractRunSQLBlockSender, checkReceipts, dbReader) {
 	contractSendRunSQL := func(queries []string) []common.Hash {
 		txnHashes := make([]common.Hash, len(queries))
 		for i, q := range queries {
-			txn, err := sc.RunSQL(authOpts, "1", common.HexToAddress("0xdeadbeef"), q)
+			txn, err := sc.RunSQL(authOpts, big.NewInt(1), common.HexToAddress("0xdeadbeef"), q)
 			require.NoError(t, err)
 			txnHashes[i] = txn.Hash()
 		}

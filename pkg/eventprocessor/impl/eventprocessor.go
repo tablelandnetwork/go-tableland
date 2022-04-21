@@ -354,9 +354,9 @@ func (ep *EventProcessor) executeRunSQLEvent(
 		receipt.Error = &err
 		return receipt, nil
 	}
-	tableID, _ := tableland.NewTableID(e.Table)
+	tableID := tableland.TableID(*e.TableId)
 	targetedTableID := mutatingStmts[0].GetTableID()
-	if targetedTableID.String() != tableID.String() {
+	if targetedTableID.ToBigInt().Cmp(tableID.ToBigInt()) != 0 {
 		err := fmt.Sprintf("query targets table id %s and not %s", targetedTableID, tableID)
 		receipt.Error = &err
 		return receipt, nil
