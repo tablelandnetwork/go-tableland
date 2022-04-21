@@ -512,7 +512,7 @@ func setup(
 		impl.NewSimpleTracker(wallet, backend),
 	)
 	require.NoError(t, err)
-	tbld := NewTablelandMesa(sqlstore, parser, txnp, &aclHalfMock{sqlstore}, registry, 1337)
+	tbld := NewTablelandMesa(sqlstore, parser, registry, 1337)
 
 	// Spin up dependencies needed for the EventProcessor.
 	// i.e: TxnProcessor, Parser, and EventFeed (connected to the EVM chain)
@@ -542,10 +542,6 @@ func (acl *aclHalfMock) CheckPrivileges(
 	op tableland.Operation) (bool, error) {
 	aclImpl := NewACL(acl.sqlStore, nil)
 	return aclImpl.CheckPrivileges(ctx, tx, controller, id, op)
-}
-
-func (acl *aclHalfMock) CheckAuthorization(ctx context.Context, controller common.Address) error {
-	return nil
 }
 
 func (acl *aclHalfMock) IsOwner(ctx context.Context, controller common.Address, id tableland.TableID) (bool, error) {

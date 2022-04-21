@@ -270,10 +270,6 @@ func (acl *aclMock) CheckPrivileges(
 	return true, nil
 }
 
-func (acl *aclMock) CheckAuthorization(ctx context.Context, controller common.Address) error {
-	return nil
-}
-
 func (acl *aclMock) IsOwner(ctx context.Context, controller common.Address, id tableland.TableID) (bool, error) {
 	return true, nil
 }

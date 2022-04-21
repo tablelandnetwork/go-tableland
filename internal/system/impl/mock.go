@@ -40,11 +40,6 @@ func (s *SystemMockService) GetTablesByController(ctx context.Context, controlle
 	return []sqlstore.Table{}, nil
 }
 
-// Authorize authorizes an address in the SQLStore.
-func (s *SystemMockService) Authorize(ctx context.Context, address string) error {
-	return nil
-}
-
 // Revoke removes an address' access in the SQLStore.
 func (s *SystemMockService) Revoke(ctx context.Context, address string) error {
 	return nil
@@ -87,11 +82,6 @@ func (*SystemMockErrService) GetTableMetadata(
 // GetTablesByController returns table's fetched from SQLStore by controller address.
 func (s *SystemMockErrService) GetTablesByController(ctx context.Context, controller string) ([]sqlstore.Table, error) {
 	return []sqlstore.Table{}, errors.New("no table found")
-}
-
-// Authorize authorizes an address in the SQLStore.
-func (s *SystemMockErrService) Authorize(ctx context.Context, address string) error {
-	return errors.New("error authorizing")
 }
 
 // Revoke removes an address' access in the SQLStore.
