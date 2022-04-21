@@ -29,7 +29,10 @@ func NewSimpleTracker(w *wallet.Wallet, backend bind.ContractBackend) nonce.Nonc
 func (t *SimpleTracker) GetNonce(ctx context.Context) (nonce.RegisterPendingTx, nonce.UnlockTracker, int64) {
 	t.mu.Lock()
 
-	nonce, _ := t.backend.PendingNonceAt(ctx, t.wallet.Address())
+	nonce, err := t.backend.PendingNonceAt(ctx, t.wallet.Address())
+	if err != nil {
+		panic(err)
+	}
 	return func(pendingHash common.Hash) {
 			// noop
 		}, func() {
