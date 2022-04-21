@@ -33,6 +33,7 @@ type SugaredStmt interface {
 // (update, insert, delete).
 type SugaredWriteStmt interface {
 	SugaredStmt
+	AddWhereClause(string) error
 }
 
 // SugaredGrantStmt is an already parsed grant statement that satisfies all

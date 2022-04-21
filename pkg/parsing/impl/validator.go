@@ -177,7 +177,7 @@ func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.SugaredReadStmt,
 			if stmt.GetDeleteStmt() != nil {
 				s.operation = tableland.OpDelete
 			}
-			ret[i] = parsing.SugaredWriteStmt(s)
+			ret[i] = &sugaredWriteStmt{s}
 		case isGrant(stmt):
 			if stmt.GetGrantStmt().IsGrant {
 				s.operation = tableland.OpGrant
@@ -185,7 +185,7 @@ func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.SugaredReadStmt,
 				s.operation = tableland.OpRevoke
 			}
 
-			ret[i] = parsing.SugaredGrantStmt(&sugaredGrantStmt{s})
+			ret[i] = &sugaredGrantStmt{s}
 		default:
 			return nil, nil, &parsing.ErrStatementIsNotSupported{}
 		}
@@ -264,6 +264,37 @@ func (s *sugaredStmt) GetTableID() tableland.TableID {
 
 func (s *sugaredStmt) Operation() tableland.Operation {
 	return s.operation
+}
+
+type sugaredWriteStmt struct {
+	*sugaredStmt
+}
+
+func (ws *sugaredWriteStmt) AddWhereClause(whereClauses string) error {
+	dummy, err := pg_query.Parse("UPDATE dummy SET foo = 'bar' WHERE " + whereClauses)
+	if err != nil {
+		return fmt.Errorf("parsing where clauses: %s", err)
+	}
+
+	updateStmt := ws.node.GetUpdateStmt()
+	var whereClauseWithPolicy *pg_query.Node
+	if updateStmt.GetWhereClause() != nil {
+		boolExpr := &pg_query.BoolExpr{
+			Boolop: 1,
+			Args: []*pg_query.Node{
+				updateStmt.GetWhereClause(),
+				dummy.Stmts[0].GetStmt().GetUpdateStmt().GetWhereClause(),
+			},
+		}
+
+		whereClauseWithPolicy = &pg_query.Node{Node: &pg_query.Node_BoolExpr{BoolExpr: boolExpr}}
+	} else {
+		whereClauseWithPolicy = dummy.Stmts[0].GetStmt().GetUpdateStmt().GetWhereClause()
+	}
+
+	updateStmt.WhereClause = whereClauseWithPolicy
+
+	return nil
 }
 
 type sugaredGrantStmt struct {
