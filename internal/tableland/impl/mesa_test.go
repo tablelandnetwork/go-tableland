@@ -15,7 +15,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
@@ -31,10 +30,6 @@ import (
 	"github.com/textileio/go-tableland/pkg/wallet"
 	"github.com/textileio/go-tableland/tests"
 )
-
-func init() {
-	log = log.Level(zerolog.ErrorLevel)
-}
 
 func TestTodoAppWorkflow(t *testing.T) {
 	t.Parallel()

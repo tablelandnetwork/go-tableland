@@ -354,6 +354,13 @@ func (ep *EventProcessor) executeRunSQLEvent(
 		receipt.Error = &err
 		return receipt, nil
 	}
+	tableID, _ := tableland.NewTableID(e.Table)
+	targetedTableID := mutatingStmts[0].GetTableID()
+	if targetedTableID.String() != tableID.String() {
+		err := fmt.Sprintf("query targets table id %s and not %s", targetedTableID, tableID)
+		receipt.Error = &err
+		return receipt, nil
+	}
 	if err := b.ExecWriteQueries(ctx, e.Caller, mutatingStmts); err != nil {
 		var pgErr *txn.ErrQueryExecution
 		if errors.As(err, &pgErr) {
