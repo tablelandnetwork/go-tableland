@@ -200,7 +200,13 @@ func isErrCausedByQuery(err error) (string, bool) {
 	// The complete list of errors is found in: https://www.postgresql.org/docs/current/errcodes-appendix.html
 	// pgExecutionErrors is probably missing values, but we'll keep discovering and adding them.
 	pgExecutionErrors := []string{
-		"22P02", // Caused by a query trying to insert a wrong column type.
+		// Class 22 — Data Exception
+		"22P02", // invalid_text_representation (Caused by a query trying to insert a wrong column type.)
+
+		// Class 23 — Integrity Constraint Violation
+		"23502", // not_null_violation
+		"23505", // unique_violation
+		"23514", // check_violation
 	}
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
