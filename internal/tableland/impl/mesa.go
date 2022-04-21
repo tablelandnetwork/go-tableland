@@ -10,7 +10,6 @@ import (
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/tableregistry"
-	"github.com/textileio/go-tableland/pkg/txn"
 )
 
 var log = logger.With().Str("component", "mesa").Logger()
@@ -18,9 +17,7 @@ var log = logger.With().Str("component", "mesa").Logger()
 // TablelandMesa is the main implementation of Tableland spec.
 type TablelandMesa struct {
 	store    sqlstore.SQLStore
-	txnp     txn.TxnProcessor
 	parser   parsing.SQLValidator
-	acl      tableland.ACL
 	registry tableregistry.TableRegistry
 	chainID  int64
 }
@@ -29,15 +26,11 @@ type TablelandMesa struct {
 func NewTablelandMesa(
 	store sqlstore.SQLStore,
 	parser parsing.SQLValidator,
-	txnp txn.TxnProcessor,
-	acl tableland.ACL,
 	registry tableregistry.TableRegistry,
 	chainID int64) tableland.Tableland {
 	return &TablelandMesa{
 		store:    store,
-		acl:      acl,
 		parser:   parser,
-		txnp:     txnp,
 		registry: registry,
 		chainID:  chainID,
 	}
@@ -109,15 +102,6 @@ func (t *TablelandMesa) GetReceipt(
 			TableID:     receipt.TableID,
 		},
 	}, nil
-}
-
-// TODO(jsign): waiting for decision to deprecate/delete.
-// Authorize is a convenience API giving the client something to call to trigger authorization.
-func (t *TablelandMesa) Authorize(ctx context.Context, req tableland.AuthorizeRequest) error {
-	if err := t.acl.CheckAuthorization(ctx, common.HexToAddress(req.Controller)); err != nil {
-		return fmt.Errorf("checking address authorization: %s", err)
-	}
-	return nil
 }
 
 func (t *TablelandMesa) runSelect(ctx context.Context, ctrl string, stmt parsing.SugaredReadStmt) (interface{}, error) {

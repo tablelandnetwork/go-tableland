@@ -24,20 +24,6 @@ func NewACL(store sqlstore.SQLStore, registry tableregistry.TableRegistry) table
 	}
 }
 
-// CheckAuthorization checks if an address is authorized to use Tableland's gateway.
-func (acl *acl) CheckAuthorization(ctx context.Context, controller common.Address) error {
-	res, err := acl.store.IsAuthorized(ctx, controller.String())
-	if err != nil {
-		return fmt.Errorf("failed to check if address is authorized: %s", err)
-	}
-
-	if !res.IsAuthorized {
-		return fmt.Errorf("address not authorized")
-	}
-
-	return nil
-}
-
 // IsOwner checks if an address is the owner of a table by making a contract call.
 func (acl *acl) IsOwner(ctx context.Context, controller common.Address, id tableland.TableID) (bool, error) {
 	isOwner, err := acl.registry.IsOwner(ctx, controller, id.ToBigInt())

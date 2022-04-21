@@ -50,11 +50,6 @@ type ValidateCreateTableResponse struct {
 	StructureHash string `json:"structure_hash"`
 }
 
-// AuthorizeRequest is a user Authorize request.
-type AuthorizeRequest struct {
-	Controller string `json:"controller"`
-}
-
 // SQLRunner defines the run SQL interface of Tableland.
 type SQLRunner interface {
 	RunSQL(context.Context, RunSQLRequest) (RunSQLResponse, error)
@@ -64,7 +59,6 @@ type SQLRunner interface {
 type Tableland interface {
 	SQLRunner
 	ValidateCreateTable(context.Context, ValidateCreateTableRequest) (ValidateCreateTableResponse, error)
-	Authorize(context.Context, AuthorizeRequest) error
 	GetReceipt(context.Context, GetReceiptRequest) (GetReceiptResponse, error)
 }
 

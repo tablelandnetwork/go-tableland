@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog/log"
@@ -84,93 +83,6 @@ func (s *SystemStore) GetTablesByController(ctx context.Context, controller stri
 	}
 
 	return tables, nil
-}
-
-// Authorize grants the provided address permission to use the system.
-func (s *SystemStore) Authorize(ctx context.Context, address string) error {
-	if err := sanitizeAddress(address); err != nil {
-		return fmt.Errorf("sanitizing address: %s", err)
-	}
-	if err := s.db.queries().Authorize(ctx, address); err != nil {
-		return fmt.Errorf("authorizating: %s", err)
-	}
-	return nil
-}
-
-// Revoke removes permission to use the system from the provided address.
-func (s *SystemStore) Revoke(ctx context.Context, address string) error {
-	if err := sanitizeAddress(address); err != nil {
-		return fmt.Errorf("sanitizing address: %s", err)
-	}
-	if err := s.db.queries().Revoke(ctx, address); err != nil {
-		return fmt.Errorf("revoking: %s", err)
-	}
-	return nil
-}
-
-// IsAuthorized checks if the provided address has permission to use the system.
-func (s *SystemStore) IsAuthorized(ctx context.Context, address string) (sqlstore.IsAuthorizedResult, error) {
-	if err := sanitizeAddress(address); err != nil {
-		return sqlstore.IsAuthorizedResult{}, fmt.Errorf("sanitizing address: %s", err)
-	}
-	authorized, err := s.db.queries().IsAuthorized(ctx, address)
-	if err != nil {
-		return sqlstore.IsAuthorizedResult{}, fmt.Errorf("checking authorization: %s", err)
-	}
-	return sqlstore.IsAuthorizedResult{IsAuthorized: authorized}, nil
-}
-
-// GetAuthorizationRecord gets the authorization record for the provided address.
-func (s *SystemStore) GetAuthorizationRecord(
-	ctx context.Context,
-	address string,
-) (sqlstore.AuthorizationRecord, error) {
-	if err := sanitizeAddress(address); err != nil {
-		return sqlstore.AuthorizationRecord{}, fmt.Errorf("sanitizing address: %s", err)
-	}
-	res, err := s.db.queries().GetAuthorized(ctx, address)
-	if err != nil {
-		return sqlstore.AuthorizationRecord{}, fmt.Errorf("getthing authorization record: %s", err)
-	}
-	if res.Address == "" {
-		return sqlstore.AuthorizationRecord{}, fmt.Errorf("address not authorized")
-	}
-	var lastSeen *time.Time
-	if res.LastSeen.Valid {
-		lastSeen = &res.LastSeen.Time
-	}
-	return sqlstore.AuthorizationRecord{
-		Address:          res.Address,
-		CreatedAt:        res.CreatedAt,
-		LastSeen:         lastSeen,
-		CreateTableCount: res.CreateTableCount,
-		RunSQLCount:      res.RunSqlCount,
-	}, nil
-}
-
-// ListAuthorized returns a list of all authorization records.
-func (s *SystemStore) ListAuthorized(ctx context.Context) ([]sqlstore.AuthorizationRecord, error) {
-	res, err := s.db.queries().ListAuthorized(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("getthing authorization records: %s", err)
-	}
-
-	records := make([]sqlstore.AuthorizationRecord, 0)
-	for _, r := range res {
-		rec := sqlstore.AuthorizationRecord{
-			Address:          r.Address,
-			CreatedAt:        r.CreatedAt,
-			CreateTableCount: r.CreateTableCount,
-			RunSQLCount:      r.RunSqlCount,
-		}
-		if r.LastSeen.Valid {
-			lastSeen := r.LastSeen.Time
-			rec.LastSeen = &lastSeen
-		}
-		records = append(records, rec)
-	}
-
-	return records, nil
 }
 
 // IncrementCreateTableCount increments the counter.

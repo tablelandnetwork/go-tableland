@@ -163,8 +163,7 @@ func main() {
 		log.Fatal().Err(err).Msg("starting event processor")
 	}
 
-	// TODO(S3): txnp argument should go away soon.
-	svc := getTablelandService(config, sqlstore, acl, parser, txnp, registry)
+	svc := getTablelandService(config, sqlstore, parser, registry)
 	if err := server.RegisterName("tableland", svc); err != nil {
 		log.Fatal().Err(err).Msg("failed to register a json-rpc service")
 	}
@@ -211,12 +210,6 @@ func main() {
 		log.Warn().
 			Msg("no admin api password set")
 	}
-	basicAuth := middlewares.BasicAuth(config.AdminAPI.Username, config.AdminAPI.Password)
-	router.Post("/authorized-addresses", systemController.Authorize, basicAuth, middlewares.OtelHTTP("Authorize"))
-	router.Get("/authorized-addresses/{address}", systemController.IsAuthorized, basicAuth, middlewares.OtelHTTP("IsAuthorized")) //nolint
-	router.Delete("/authorized-addresses/{address}", systemController.Revoke, basicAuth, middlewares.OtelHTTP("Revoke"))
-	router.Get("/authorized-addresses/{address}/record", systemController.GetAuthorizationRecord, basicAuth, middlewares.OtelHTTP("GetAuthorizationRecord")) //nolint
-	router.Get("/authorized-addresses", systemController.ListAuthorized, basicAuth, middlewares.OtelHTTP("ListAuthorized"))
 
 	// Validator instrumentation configuration.
 	if err := metrics.SetupInstrumentation(":" + config.Metrics.Port); err != nil {
@@ -253,14 +246,16 @@ func main() {
 func getTablelandService(
 	conf *config,
 	store sqlstore.SQLStore,
-	acl tableland.ACL,
 	parser parsing.SQLValidator,
-	txnp txn.TxnProcessor,
 	registry tableregistry.TableRegistry,
 ) tableland.Tableland {
 	switch conf.Impl {
 	case "mesa":
+<<<<<<< HEAD
 		mesa := impl.NewTablelandMesa(store, parser, txnp, acl, registry, conf.Registry.ChainID)
+=======
+		mesa := impl.NewTablelandMesa(store, parser, registry, 4)
+>>>>>>> ac94667... remove whitelist authorization
 		instrumentedMesa, err := impl.NewInstrumentedTablelandMesa(mesa)
 		if err != nil {
 			log.Fatal().Err(err).Msg("instrumenting mesa")
