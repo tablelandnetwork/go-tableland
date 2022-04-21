@@ -41,7 +41,11 @@ type Batch interface {
 		id tableland.TableID,
 		controller string,
 		createStmt parsing.CreateStmt) error
-	ExecWriteQueries(ctx context.Context, controller common.Address, wquery []parsing.SugaredMutatingStmt) error
+	ExecWriteQueries(
+		ctx context.Context,
+		controller common.Address,
+		query []parsing.SugaredMutatingStmt,
+		policy tableland.Policy) error
 
 	GetLastProcessedHeight(ctx context.Context) (int64, error)
 	SetLastProcessedHeight(ctx context.Context, height int64) error

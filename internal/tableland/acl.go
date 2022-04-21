@@ -131,3 +131,39 @@ func (p Privileges) CanExecute(operation Operation) (bool, Privilege) {
 	}
 	return false, privilegeNeededForOperation
 }
+
+// Policy represents the kinds of restrictions that can be imposed on a statement execution.
+type Policy interface {
+	// IsInsertAllowed rejects insert statement execution.
+	IsInsertAllowed() bool
+
+	// IsUpdateAllowed rejects update statement execution.
+	IsUpdateAllowed() bool
+
+	// IsDeleteAllowed rejects delete statement execution.
+	IsDeleteAllowed() bool
+
+	// UpdateWhere is SQL where clauses that restricts update execution.
+	UpdateWhere() string
+
+	// UpdateColumns imposes restrictions on what columns can be updated.
+	UpdateColumns() []string
+}
+
+// DefaultPolicy is a policy that imposes no restrictions on execution of statements.
+type DefaultPolicy struct{}
+
+// IsInsertAllowed rejects insert statement execution.
+func (p DefaultPolicy) IsInsertAllowed() bool { return true }
+
+// IsUpdateAllowed rejects update statement execution.
+func (p DefaultPolicy) IsUpdateAllowed() bool { return true }
+
+// IsDeleteAllowed rejects delete statement execution.
+func (p DefaultPolicy) IsDeleteAllowed() bool { return true }
+
+// UpdateWhere is SQL where clauses that restricts update execution.
+func (p DefaultPolicy) UpdateWhere() string { return "" }
+
+// UpdateColumns imposes restrictions on what columns can be updated.
+func (p DefaultPolicy) UpdateColumns() []string { return []string{} }

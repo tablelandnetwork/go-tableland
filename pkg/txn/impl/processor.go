@@ -144,7 +144,8 @@ func (b *batch) InsertTable(
 func (b *batch) ExecWriteQueries(
 	ctx context.Context,
 	controller common.Address,
-	mqueries []parsing.SugaredMutatingStmt) error {
+	mqueries []parsing.SugaredMutatingStmt,
+	policy tableland.Policy) error {
 	f := func(tx pgx.Tx) error {
 		if len(mqueries) == 0 {
 			log.Warn().Msg("no mutating-queries to execute in a batch")
@@ -169,8 +170,11 @@ func (b *batch) ExecWriteQueries(
 					return fmt.Errorf("executing grant stmt: %s", err)
 				}
 			case parsing.SugaredWriteStmt:
-				err := b.executeWriteStmt(ctx, tx, stmt, controller, beforeRowCount)
-				if err != nil {
+				if err := b.applyPolicy(stmt, policy); err != nil {
+					return fmt.Errorf("not allowed to execute stmt: %s", err)
+				}
+
+				if err := b.executeWriteStmt(ctx, tx, stmt, controller, beforeRowCount); err != nil {
 					return fmt.Errorf("executing write stmt: %w", err)
 				}
 			default:
@@ -427,6 +431,35 @@ func (b *batch) executeWriteStmt(
 				BeforeRowCount: beforeRowCount,
 				AfterRowCount:  afterRowCount,
 			}
+		}
+	}
+
+	return nil
+}
+
+func (b *batch) applyPolicy(ws parsing.SugaredWriteStmt, policy tableland.Policy) error {
+	if ws.Operation() == tableland.OpInsert && !policy.IsInsertAllowed() {
+		return errors.New("insert is not allowed")
+	}
+
+	if ws.Operation() == tableland.OpUpdate && !policy.IsUpdateAllowed() {
+		return errors.New("updated is not allowed")
+	}
+
+	if ws.Operation() == tableland.OpDelete && !policy.IsDeleteAllowed() {
+		return errors.New("delete is not allowed")
+	}
+
+	// apply the WHERE clauses
+	if ws.Operation() == tableland.OpUpdate {
+		// check columns
+
+		if policy.UpdateWhere() != "" {
+			if err := ws.AddWhereClause(policy.UpdateWhere()); err != nil {
+				return fmt.Errorf("adding where clause: %s", err)
+			}
+
+			return nil
 		}
 	}
 
