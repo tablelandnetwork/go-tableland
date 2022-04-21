@@ -494,10 +494,7 @@ func _010_receiptUpSql() (*asset, error) {
 		return nil, err
 	}
 
-<<<<<<< HEAD
-	info := bindataFileInfo{name: "010_receipt.up.sql", size: 228, mode: os.FileMode(436), modTime: time.Unix(1650547027, 0)}
-=======
-	info := bindataFileInfo{name: "010_receipt.up.sql", size: 210, mode: os.FileMode(436), modTime: time.Unix(1650489655, 0)}
+	info := bindataFileInfo{name: "010_receipt.up.sql", size: 228, mode: os.FileMode(436), modTime: time.Unix(1650549778, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -517,7 +514,7 @@ func _011_new_create_table_flowDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "011_new_create_table_flow.down.sql", size: 66, mode: os.FileMode(436), modTime: time.Unix(1650490728, 0)}
+	info := bindataFileInfo{name: "011_new_create_table_flow.down.sql", size: 66, mode: os.FileMode(436), modTime: time.Unix(1650549778, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -537,8 +534,7 @@ func _011_new_create_table_flowUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "011_new_create_table_flow.up.sql", size: 46, mode: os.FileMode(436), modTime: time.Unix(1650490679, 0)}
->>>>>>> 4f29d9c... remove Description field in tables
+	info := bindataFileInfo{name: "011_new_create_table_flow.up.sql", size: 46, mode: os.FileMode(436), modTime: time.Unix(1650549778, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }

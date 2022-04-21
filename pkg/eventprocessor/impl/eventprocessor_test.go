@@ -151,6 +151,25 @@ func TestBlockProcessing(t *testing.T) {
 	})
 }
 
+func TestQueryWithWrongTableTarget(t *testing.T) {
+	t.Parallel()
+
+	contractSendRunSQL, checkReceipts, _ := setup(t)
+	// Note that we make a query for table 9999 instead of 1 which was
+	// provided in the SC runSQL call.
+	queries := []string{"insert into test_9999 values (1001)"}
+	txnHashes := contractSendRunSQL(queries)
+
+	expErr := "query targets table id 9999 and not 1"
+	expReceipt := eventprocessor.Receipt{
+		ChainID: chainID,
+		TxnHash: txnHashes[0].String(),
+		Error:   &expErr,
+		TableID: nil,
+	}
+	require.Eventually(t, checkReceipts(t, expReceipt), time.Second*5, time.Millisecond*100)
+}
+
 type dbReader func(string) []int
 type contractRunSQLBlockSender func([]string) []common.Hash
 type checkReceipts func(*testing.T, ...eventprocessor.Receipt) func() bool
