@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/csv"
 	"encoding/json"
+	"fmt"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -13,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
@@ -29,6 +32,10 @@ import (
 	"github.com/textileio/go-tableland/tests"
 )
 
+func init() {
+	log = log.Level(zerolog.ErrorLevel)
+}
+
 func TestTodoAppWorkflow(t *testing.T) {
 	t.Parallel()
 
@@ -36,8 +43,7 @@ func TestTodoAppWorkflow(t *testing.T) {
 	tbld, backend, sc, auth := setup(ctx, t)
 
 	caller := common.HexToAddress("0xd43c59d5694ec111eb9e986c233200b14249558d")
-	_, err := sc.CreateTable(auth,
-		caller,
+	_, err := sc.CreateTable(auth, caller,
 		`CREATE TABLE todoapp (
 			complete BOOLEAN DEFAULT false,
 			name     VARCHAR DEFAULT '',
@@ -49,104 +55,82 @@ func TestTodoAppWorkflow(t *testing.T) {
 	processCSV(t, caller.String(), tbld, "testdata/todoapp_queries.csv", backend)
 }
 
-/*
 func TestInsertOnConflict(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	tbld, backend := setup(ctx, t)
+	tbld, backend, sc, auth := setup(ctx, t)
+	caller := common.HexToAddress("0xd43c59d5694ec111eb9e986c233200b14249558d")
 
-	{
-		req := tableland.CreateTableRequest{
-			ID:          "1337",
-			Description: "descrip-1",
-			Controller:  "0xd43c59d5694ec111eb9e986c233200b14249558d",
-			Statement: `CREATE TABLE foo (
+	_, err := sc.CreateTable(auth, caller,
+		`CREATE TABLE foo (
 			name text unique,
-			count int
-		);`,
-		}
-		_, err := tbld.CreateTable(ctx, req)
+			count int);`)
+	require.NoError(t, err)
+	backend.Commit()
+
+	baseReq := tableland.RunSQLRequest{
+		Controller: "0xd43c59d5694ec111eb9e986c233200b14249558d",
+	}
+	req := baseReq
+	var txnHashes []string
+	for i := 0; i < 10; i++ {
+		req.Statement = `INSERT INTO _0 VALUES ('bar', 0) ON CONFLICT (name) DO UPDATE SET count=_0.count+1`
+		r, err := tbld.RunSQL(ctx, req)
 		require.NoError(t, err)
+		backend.Commit()
+		txnHashes = append(txnHashes, r.Transaction.Hash)
 	}
 
-	{
-		baseReq := tableland.RunSQLRequest{
-			Controller: "0xd43c59d5694ec111eb9e986c233200b14249558d",
-		}
-		req := baseReq
-		var txnHashes []string
-		for i := 0; i < 10; i++ {
-			req.Statement = `INSERT INTO _1337 VALUES ('bar', 0) ON CONFLICT (name) DO UPDATE SET count=_1337.count+1`
-			r, err := tbld.RunSQL(ctx, req)
-			require.NoError(t, err)
-			backend.Commit()
-			txnHashes = append(txnHashes, r.Transaction.Hash)
-		}
-
-		req.Statement = "SELECT count FROM _1337"
-		require.Eventually(
-			t,
-			jsonEq(t, tbld, req, `{"columns":[{"name":"count"}],"rows":[[9]]}`),
-			time.Second*5,
-			time.Millisecond*100,
-		)
-		requireReceipts(t, tbld, txnHashes, true)
-	}
+	req.Statement = "SELECT count FROM _0"
+	require.Eventually(
+		t,
+		jsonEq(t, tbld, req, `{"columns":[{"name":"count"}],"rows":[[9]]}`),
+		time.Second*5,
+		time.Millisecond*100,
+	)
+	requireReceipts(t, tbld, txnHashes, true)
 }
 
 func TestMultiStatement(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	tbld, backend := setup(ctx, t)
+	tbld, backend, sc, auth := setup(ctx, t)
+	caller := common.HexToAddress("0xd43c59d5694ec111eb9e986c233200b14249558d")
 
-	{
-		req := tableland.CreateTableRequest{
-			ID:          "1",
-			Description: "descrp-1",
-			Controller:  "0xd43c59d5694ec111eb9e986c233200b14249558d",
-			Statement: `CREATE TABLE foo (
+	_, err := sc.CreateTable(auth, caller,
+		`CREATE TABLE foo (
 			name text unique
-		);`,
-		}
-		_, err := tbld.CreateTable(ctx, req)
-		require.NoError(t, err)
-	}
+		);`)
+	require.NoError(t, err)
 
-	{
-		req := tableland.RunSQLRequest{
-			Controller: "0xd43c59d5694ec111eb9e986c233200b14249558d",
-			Statement:  `INSERT INTO foo_1 values ('bar'); UPDATE foo_1 SET name='zoo'`,
-		}
-		r, err := tbld.RunSQL(ctx, req)
-		require.NoError(t, err)
-		backend.Commit()
-
-		req.Statement = "SELECT name from _1"
-		require.Eventually(
-			t,
-			jsonEq(t, tbld, req, `{"columns":[{"name":"name"}],"rows":[["zoo"]]}`),
-			time.Second*5,
-			time.Millisecond*100,
-		)
-		requireReceipts(t, tbld, []string{r.Transaction.Hash}, true)
+	req := tableland.RunSQLRequest{
+		Controller: "0xd43c59d5694ec111eb9e986c233200b14249558d",
+		Statement:  `INSERT INTO foo_0 values ('bar'); UPDATE foo_0 SET name='zoo'`,
 	}
+	r, err := tbld.RunSQL(ctx, req)
+	require.NoError(t, err)
+	backend.Commit()
+
+	req.Statement = "SELECT name from _0"
+	require.Eventually(
+		t,
+		jsonEq(t, tbld, req, `{"columns":[{"name":"name"}],"rows":[["zoo"]]}`),
+		time.Second*5,
+		time.Millisecond*100,
+	)
+	requireReceipts(t, tbld, []string{r.Transaction.Hash}, true)
 }
 
 func TestReadSystemTable(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	tbld := newTablelandMesa(t)
+	tbld, _, sc, auth := setup(ctx, t)
+	caller := common.HexToAddress("0xd43c59d5694ec111eb9e986c233200b14249558d")
 
-	req := tableland.CreateTableRequest{
-		ID:          "1337",
-		Description: "descrp-1",
-		Controller:  "0xd43c59d5694ec111eb9e986c233200b14249558d",
-		Statement:   `CREATE TABLE foo (myjson JSON);`,
-	}
-	_, err := tbld.CreateTable(ctx, req)
+	_, err := sc.CreateTable(auth, caller, `CREATE TABLE foo (myjson JSON);`)
 	require.NoError(t, err)
 
 	res, err := runSQL(t, tbld, "select * from registry", "0xd43c59d5694ec111eb9e986c233200b14249558d")
@@ -159,18 +143,13 @@ func TestJSON(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	tbld, backend := setup(ctx, t)
+	tbld, backend, sc, auth := setup(ctx, t)
+	caller := common.HexToAddress("0xd43c59d5694ec111eb9e986c233200b14249558d")
 
-	req := tableland.CreateTableRequest{
-		ID:          "1337",
-		Description: "descrp-1",
-		Controller:  "0xd43c59d5694ec111eb9e986c233200b14249558d",
-		Statement:   `CREATE TABLE foo (myjson JSON);`,
-	}
-	_, err := tbld.CreateTable(ctx, req)
+	_, err := sc.CreateTable(auth, caller, `CREATE TABLE foo (myjson JSON);`)
 	require.NoError(t, err)
 
-	processCSV(t, req.Controller, tbld, "testdata/json_queries.csv", backend)
+	processCSV(t, caller.Hex(), tbld, "testdata/json_queries.csv", backend)
 }
 
 func TestCheckInsertPrivileges(t *testing.T) {
@@ -179,7 +158,8 @@ func TestCheckInsertPrivileges(t *testing.T) {
 	grantee := "0x4afe8e30db4549384b0a05bb796468b130c7d6e0" // nolint
 
 	ctx := context.Background()
-	tbld, backend := setup(ctx, t)
+	tbld, backend, sc, auth := setup(ctx, t)
+	caller := common.HexToAddress("0xd43c59d5694ec111eb9e986c233200b14249558d")
 
 	type testCase struct { // nolint
 		query      string
@@ -201,17 +181,11 @@ func TestCheckInsertPrivileges(t *testing.T) {
 	for i, test := range tests {
 		testCase := fmt.Sprint(i)
 		t.Run(testCase, func(t *testing.T) {
-			t.Parallel()
-			createReq := tableland.CreateTableRequest{
-				ID:          testCase,
-				Description: "descrp-1",
-				Controller:  granter,
-				Statement:   `CREATE TABLE foo (bar text);`,
-			}
-			_, err := tbld.CreateTable(ctx, createReq)
+			_, err := sc.CreateTable(auth, caller, `CREATE TABLE foo (bar text);`)
 			require.NoError(t, err)
-			var successfulTxnHashes []string
+			backend.Commit()
 
+			var successfulTxnHashes []string
 			if len(test.privileges) > 0 {
 				privileges := make([]string, len(test.privileges))
 				for i, priv := range test.privileges {
@@ -250,7 +224,8 @@ func TestCheckUpdatePrivileges(t *testing.T) {
 	grantee := "0x4afe8e30db4549384b0a05bb796468b130c7d6e0"
 
 	ctx := context.Background()
-	tbld, backend := setup(ctx, t)
+	tbld, backend, sc, auth := setup(ctx, t)
+	caller := common.HexToAddress("0xd43c59d5694ec111eb9e986c233200b14249558d")
 
 	type testCase struct { // nolint
 		query      string
@@ -272,15 +247,9 @@ func TestCheckUpdatePrivileges(t *testing.T) {
 	for i, test := range tests {
 		testCase := fmt.Sprint(i)
 		t.Run(testCase, func(t *testing.T) {
-			t.Parallel()
-			createReq := tableland.CreateTableRequest{
-				ID:          testCase,
-				Description: "descrp-1",
-				Controller:  granter,
-				Statement:   `CREATE TABLE foo (bar text);`,
-			}
-			_, err := tbld.CreateTable(ctx, createReq)
+			_, err := sc.CreateTable(auth, caller, `CREATE TABLE foo (bar text);`)
 			require.NoError(t, err)
+			backend.Commit()
 			var successfulTxnHashes []string
 
 			// we initilize the table with a row to be updated
@@ -327,7 +296,8 @@ func TestCheckDeletePrivileges(t *testing.T) {
 	grantee := "0x4afe8e30db4549384b0a05bb796468b130c7d6e0"
 
 	ctx := context.Background()
-	tbld, backend := setup(ctx, t)
+	tbld, backend, sc, auth := setup(ctx, t)
+	caller := common.HexToAddress("0xd43c59d5694ec111eb9e986c233200b14249558d")
 
 	type testCase struct { // nolint
 		query      string
@@ -349,14 +319,7 @@ func TestCheckDeletePrivileges(t *testing.T) {
 	for i, test := range tests {
 		testCase := fmt.Sprint(i)
 		t.Run(testCase, func(t *testing.T) {
-			t.Parallel()
-			createReq := tableland.CreateTableRequest{
-				ID:          testCase,
-				Description: "descrp-1",
-				Controller:  granter,
-				Statement:   `CREATE TABLE foo (bar text);`,
-			}
-			_, err := tbld.CreateTable(ctx, createReq)
+			_, err := sc.CreateTable(auth, caller, `CREATE TABLE foo (bar text);`)
 			require.NoError(t, err)
 			var successfulTxnHashes []string
 
@@ -400,33 +363,28 @@ func TestOwnerRevokesItsPrivilegeInsideMultipleStatements(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	tbld, backend := setup(ctx, t)
+	tbld, backend, sc, auth := setup(ctx, t)
+	caller := common.HexToAddress("0xd43c59d5694ec111eb9e986c233200b14249558d")
 
-	req := tableland.CreateTableRequest{
-		ID:          "1337",
-		Description: "descrp-1",
-		Controller:  "0xd43c59d5694ec111eb9e986c233200b14249558d",
-		Statement:   `CREATE TABLE foo (bar text);`,
-	}
-	_, err := tbld.CreateTable(ctx, req)
+	_, err := sc.CreateTable(auth, caller, `CREATE TABLE foo (bar text);`)
 	require.NoError(t, err)
 
 	multiStatements := `
-		INSERT INTO foo_1337 (bar) VALUES ('Hello');
-		UPDATE foo_1337 SET bar = 'Hello 2';
-		REVOKE update ON foo_1337 FROM "0xd43c59d5694ec111eb9e986c233200b14249558d";
-		UPDATE foo_1337 SET bar = 'Hello 3';
+		INSERT INTO foo_0 (bar) VALUES ('Hello');
+		UPDATE foo_0 SET bar = 'Hello 2';
+		REVOKE update ON foo_0 FROM "0xd43c59d5694ec111eb9e986c233200b14249558d";
+		UPDATE foo_0 SET bar = 'Hello 3';
 	`
 	r, err := runSQL(t, tbld, multiStatements, "0xd43c59d5694ec111eb9e986c233200b14249558d")
 	require.NoError(t, err)
 	backend.Commit()
 
-	testQuery := "SELECT * FROM foo_1337;"
+	testQuery := "SELECT * FROM foo_0;"
 	cond := runSQLCountEq(t, tbld, testQuery, "0xd43c59d5694ec111eb9e986c233200b14249558d", 1)
 	require.Never(t, cond, 5*time.Second, 100*time.Millisecond)
 	requireReceipts(t, tbld, []string{r.Transaction.Hash}, false)
 }
-*/
+
 func processCSV(
 	t *testing.T,
 	controller string,
@@ -529,22 +487,6 @@ func readCsvFile(t *testing.T, filePath string) [][]string {
 	return records
 }
 
-func newTablelandMesa(t *testing.T) tableland.Tableland {
-	t.Helper()
-	url := tests.PostgresURL(t)
-
-	ctx := context.Background()
-	sqlstore, err := sqlstoreimpl.New(ctx, url)
-	require.NoError(t, err)
-	err = sqlstore.Authorize(ctx, "0xd43c59d5694ec111eb9e986c233200b14249558d")
-	require.NoError(t, err)
-	parser := parserimpl.New([]string{"system_", "registry"}, 0, 0)
-	txnp, err := txnpimpl.NewTxnProcessor(url, 0, &aclHalfMock{sqlstore})
-	require.NoError(t, err)
-
-	return NewTablelandMesa(sqlstore, parser, txnp, &aclHalfMock{sqlstore}, nil, 1337)
-}
-
 func setup(
 	ctx context.Context,
 	t *testing.T) (tableland.Tableland,
@@ -567,13 +509,12 @@ func setup(
 	wallet, err := wallet.NewWallet(sk)
 	require.NoError(t, err)
 
-	simpleTracker := impl.NewSimpleTracker(wallet, backend)
 	registry, err := ethereum.NewClient(
 		backend,
 		1337,
 		addr,
 		wallet,
-		simpleTracker,
+		impl.NewSimpleTracker(wallet, backend),
 	)
 	require.NoError(t, err)
 	tbld := NewTablelandMesa(sqlstore, parser, txnp, &aclHalfMock{sqlstore}, registry, 1337)
