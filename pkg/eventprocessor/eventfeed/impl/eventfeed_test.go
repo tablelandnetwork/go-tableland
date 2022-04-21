@@ -3,6 +3,7 @@ package impl
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"os"
 	"testing"
 	"time"
@@ -26,7 +27,7 @@ func TestRunSQLEvents(t *testing.T) {
 
 	ctrl := common.HexToAddress("0xB0Cf943Cf94E7B6A2657D15af41c5E06c2BFEA3D")
 	// Make one call before start listening.
-	_, err = sc.RunSQL(authOpts, "tbl-1", ctrl, "stmt-1")
+	_, err = sc.RunSQL(authOpts, big.NewInt(1), ctrl, "stmt-1")
 	require.NoError(t, err)
 	backend.Commit()
 
@@ -49,7 +50,7 @@ func TestRunSQLEvents(t *testing.T) {
 	}
 
 	// Make a second call, that should be detected as a new event next.
-	_, err = sc.RunSQL(authOpts, "tbl-2", ctrl, "stmt-2")
+	_, err = sc.RunSQL(authOpts, big.NewInt(2), ctrl, "stmt-2")
 	require.NoError(t, err)
 	backend.Commit()
 	select {
@@ -62,9 +63,9 @@ func TestRunSQLEvents(t *testing.T) {
 	}
 
 	// Try making two calls in a single block now, and assert we receive things correctly.
-	_, err = sc.RunSQL(authOpts, "tbl-3", ctrl, "stmt-3")
+	_, err = sc.RunSQL(authOpts, big.NewInt(3), ctrl, "stmt-3")
 	require.NoError(t, err)
-	_, err = sc.RunSQL(authOpts, "tbl-4", ctrl, "stmt-4")
+	_, err = sc.RunSQL(authOpts, big.NewInt(4), ctrl, "stmt-4")
 	require.NoError(t, err)
 	backend.Commit()
 	select {
@@ -98,7 +99,7 @@ func TestCreateTableAndRunSQLEvents(t *testing.T) {
 
 	ctrl := common.HexToAddress("0xB0Cf943Cf94E7B6A2657D15af41c5E06c2BFEA3D")
 	// Make two calls to different functions emitting different events
-	_, err = sc.RunSQL(authOpts, "tbl-2", ctrl, "stmt-2")
+	_, err = sc.RunSQL(authOpts, big.NewInt(2), ctrl, "stmt-2")
 	require.NoError(t, err)
 	_, err = sc.CreateTable(
 		authOpts,

@@ -17,6 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
+	"github.com/textileio/go-tableland/internal/tableland"
 	nonceimpl "github.com/textileio/go-tableland/pkg/nonce/impl"
 	"github.com/textileio/go-tableland/pkg/wallet"
 )
@@ -44,7 +45,7 @@ func TestRunSQL(t *testing.T) {
 	requireTxn(t, backend, key, fromAuth.From, toAuth.From, big.NewInt(1000000000000000000))
 
 	addr := common.HexToAddress("0xB0Cf943Cf94E7B6A2657D15af41c5E06c2BFEA3D")
-	requireRunSQL(t, backend, contract, fromAuth, "1", addr, "insert into XXX values (1,2,3)")
+	requireRunSQL(t, backend, contract, fromAuth, tableland.TableID(*big.NewInt(1)), addr, "insert into XXX values (1,2,3)")
 }
 
 func requireRunSQL(
@@ -52,11 +53,11 @@ func requireRunSQL(
 	backend *backends.SimulatedBackend,
 	contract *Contract,
 	txOpts *bind.TransactOpts,
-	table string,
+	tableID tableland.TableID,
 	controller common.Address,
 	statement string,
 ) {
-	txn, err := contract.RunSQL(txOpts, table, controller, statement)
+	txn, err := contract.RunSQL(txOpts, tableID.ToBigInt(), controller, statement)
 	require.NoError(t, err)
 
 	backend.Commit()
@@ -66,21 +67,15 @@ func requireRunSQL(
 	require.NotNil(t, receipt)
 
 	require.Len(t, receipt.Logs, 1)
-	require.Len(t, receipt.Logs[0].Topics, 2)
-
-	require.Equal(t, crypto.Keccak256Hash([]byte(table)).Bytes(), receipt.Logs[0].Topics[1].Bytes())
+	require.Len(t, receipt.Logs[0].Topics, 1)
 
 	contractAbi, err := abi.JSON(strings.NewReader(ContractMetaData.ABI))
 	require.NoError(t, err)
-	event := struct {
-		Table     string
-		Caller    common.Address
-		Statement string
-	}{}
+	var event ContractRunSQL
 
 	err = contractAbi.UnpackIntoInterface(&event, "RunSQL", receipt.Logs[0].Data)
 	require.NoError(t, err)
-	require.Equal(t, table, event.Table)
+	require.Equal(t, tableID.ToBigInt().Int64(), event.TableId.Int64())
 	require.Equal(t, controller, event.Caller)
 	require.Equal(t, statement, event.Statement)
 }
