@@ -45,7 +45,7 @@ func TestRunSQL(t *testing.T) {
 	requireTxn(t, backend, key, fromAuth.From, toAuth.From, big.NewInt(1000000000000000000))
 
 	addr := common.HexToAddress("0xB0Cf943Cf94E7B6A2657D15af41c5E06c2BFEA3D")
-	requireRunSQL(t, backend, contract, fromAuth, tableland.TableID(*big.NewInt(1)), addr, "insert into XXX values (1,2,3)")
+	requireRunSQL(t, backend, contract, fromAuth, tableland.TableID(*big.NewInt(1)), addr, "insert into XXX values (1,2,3)") //nolint
 }
 
 func requireRunSQL(
