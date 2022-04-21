@@ -12,30 +12,29 @@ import (
 
 // SimpleTracker is a nonce tracker for testing purposes.
 type SimpleTracker struct {
-	wallet *wallet.Wallet
-	nonce  int64
-	mu     sync.Mutex
+	wallet  *wallet.Wallet
+	backend bind.ContractBackend
+	mu      sync.Mutex
 }
 
 // NewSimpleTracker returns a Simpler Tracker.
 func NewSimpleTracker(w *wallet.Wallet, backend bind.ContractBackend) nonce.NonceTracker {
 	return &SimpleTracker{
-		wallet: w,
-		nonce:  0,
+		wallet:  w,
+		backend: backend,
 	}
 }
 
-// GetNonce returne the nonce to be used in the next transaction.
+// GetNonce returns the nonce to be used in the next transaction.
 func (t *SimpleTracker) GetNonce(ctx context.Context) (nonce.RegisterPendingTx, nonce.UnlockTracker, int64) {
 	t.mu.Lock()
 
-	nonce := t.nonce
+	nonce, _ := t.backend.PendingNonceAt(ctx, t.wallet.Address())
 	return func(pendingHash common.Hash) {
-			t.nonce = t.nonce + 1
-			t.mu.Unlock()
+			// noop
 		}, func() {
 			t.mu.Unlock()
-		}, nonce
+		}, int64(nonce)
 }
 
 // GetPendingCount returns the number of pendings txs.
