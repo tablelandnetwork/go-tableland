@@ -80,7 +80,7 @@ func (c *Client) RunSQL(
 		GasPrice: gasPrice,
 	}
 
-	tx, err := c.contract.RunSQL(opts, table.String(), addr, statement)
+	tx, err := c.contract.RunSQL(opts, table.ToBigInt(), addr, statement)
 	if err != nil {
 		return nil, fmt.Errorf("calling RunSQL: %v", err)
 	}
