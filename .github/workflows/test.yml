@@ -14,9 +14,7 @@ jobs:
   test:
     strategy:
       matrix:
-        go-version: [1.16.x, v1.17.x]
-        # TODO (@sander): Re-enable windows when https://github.com/libp2p/go-sockaddr/issues/19 is resolved.
-        # os: [ubuntu-latest, macos-latest, windows-latest]
+        go-version: [1.17.x, v1.18.x]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
