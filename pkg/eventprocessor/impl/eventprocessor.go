@@ -19,7 +19,13 @@ import (
 	"go.uber.org/atomic"
 )
 
-var log = logger.With().Str("component", "eventprocessor").Logger()
+var (
+	log = logger.With().Str("component", "eventprocessor").Logger()
+
+	// eventTypes are the event types that the event processor is interested to process
+	// and thus have execution logic for them.
+	eventTypes = []eventfeed.EventType{eventfeed.RunSQL, eventfeed.CreateTable}
+)
 
 // EventProcessor processes new events detected by an event feed.
 type EventProcessor struct {
@@ -137,7 +143,7 @@ func (ep *EventProcessor) startDaemon() error {
 	ch := make(chan eventfeed.BlockEvents)
 	go func() {
 		defer close(ch)
-		if err := ep.ef.Start(ep.daemonCtx, fromHeight, ch, []eventfeed.EventType{eventfeed.RunSQL}); err != nil {
+		if err := ep.ef.Start(ep.daemonCtx, fromHeight, ch, eventTypes); err != nil {
 			log.Error().Err(err).Msg("query feed was closed unexpectedly")
 			ep.Stop() // We cleanup daemon ctx and allow the processor to StartSync() cleanly if needed.
 			return
@@ -270,6 +276,17 @@ func (ep *EventProcessor) executeEvent(
 		receipt, err := ep.executeRunSQLEvent(ctx, b, blockNumber, be, e)
 		if err != nil {
 			return eventprocessor.Receipt{}, fmt.Errorf("executing runsql event: %s", err)
+		}
+		return receipt, nil
+	case *ethereum.ContractCreateTable:
+		log.Debug().
+			Str("caller", e.Caller.Hex()).
+			Str("tokenId", e.TokenId.String()).
+			Str("statement", e.Statement).
+			Msgf("executing create-table event")
+		receipt, err := ep.executeCreateTableEvent(ctx, b, blockNumber, be, e)
+		if err != nil {
+			return eventprocessor.Receipt{}, fmt.Errorf("executing create-table event: %s", err)
 		}
 		return receipt, nil
 	default:
