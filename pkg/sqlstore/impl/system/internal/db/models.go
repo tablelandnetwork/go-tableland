@@ -53,6 +53,7 @@ type SystemTxnProcessor struct {
 }
 
 type SystemTxnReceipt struct {
+	ID          sql.NullInt64
 	ChainID     int64
 	BlockNumber int64
 	TxnHash     string

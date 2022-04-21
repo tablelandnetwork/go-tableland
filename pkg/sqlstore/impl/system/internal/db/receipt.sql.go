@@ -8,7 +8,7 @@ import (
 )
 
 const getReceipt = `-- name: GetReceipt :one
-SELECT chain_id, block_number, txn_hash, error, table_id from system_txn_receipts WHERE chain_id=$1 and txn_hash=$2
+SELECT id, chain_id, block_number, txn_hash, error, table_id from system_txn_receipts WHERE chain_id=$1 and txn_hash=$2
 `
 
 type GetReceiptParams struct {
@@ -20,6 +20,7 @@ func (q *Queries) GetReceipt(ctx context.Context, arg GetReceiptParams) (SystemT
 	row := q.db.QueryRow(ctx, getReceipt, arg.ChainID, arg.TxnHash)
 	var i SystemTxnReceipt
 	err := row.Scan(
+		&i.ID,
 		&i.ChainID,
 		&i.BlockNumber,
 		&i.TxnHash,
