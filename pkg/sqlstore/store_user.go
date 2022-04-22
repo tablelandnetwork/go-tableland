@@ -3,7 +3,6 @@ package sqlstore
 import (
 	"context"
 
-	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/parsing"
 )
 
@@ -21,5 +20,4 @@ type UserRows struct {
 // UserStore defines the methods for interacting with user data.
 type UserStore interface {
 	Read(context.Context, parsing.SugaredReadStmt) (interface{}, error)
-	GetReceipt(context.Context, int64, string) (eventprocessor.Receipt, bool, error)
 }
