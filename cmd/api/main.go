@@ -251,11 +251,7 @@ func getTablelandService(
 ) tableland.Tableland {
 	switch conf.Impl {
 	case "mesa":
-<<<<<<< HEAD
-		mesa := impl.NewTablelandMesa(store, parser, txnp, acl, registry, conf.Registry.ChainID)
-=======
-		mesa := impl.NewTablelandMesa(store, parser, registry, 4)
->>>>>>> ac94667... remove whitelist authorization
+		mesa := impl.NewTablelandMesa(store, parser, registry, conf.Registry.ChainID)
 		instrumentedMesa, err := impl.NewInstrumentedTablelandMesa(mesa)
 		if err != nil {
 			log.Fatal().Err(err).Msg("instrumenting mesa")
