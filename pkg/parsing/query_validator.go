@@ -33,7 +33,12 @@ type SugaredStmt interface {
 // (update, insert, delete).
 type SugaredWriteStmt interface {
 	SugaredStmt
+
+	// AddWhereClause adds where clauses to update statement.
 	AddWhereClause(string) error
+
+	// CheckColumns checks if a column that is not allowed is being touched on update.
+	CheckColumns([]string) error
 }
 
 // SugaredGrantStmt is an already parsed grant statement that satisfies all

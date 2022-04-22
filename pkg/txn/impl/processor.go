@@ -443,7 +443,7 @@ func (b *batch) applyPolicy(ws parsing.SugaredWriteStmt, policy tableland.Policy
 	}
 
 	if ws.Operation() == tableland.OpUpdate && !policy.IsUpdateAllowed() {
-		return errors.New("updated is not allowed")
+		return errors.New("update is not allowed")
 	}
 
 	if ws.Operation() == tableland.OpDelete && !policy.IsDeleteAllowed() {
@@ -451,8 +451,13 @@ func (b *batch) applyPolicy(ws parsing.SugaredWriteStmt, policy tableland.Policy
 	}
 
 	if ws.Operation() == tableland.OpUpdate {
-		// check columns
-		// columnsAllowed := policy.UpdateColumns()
+		// check allowed columns
+		columnsAllowed := policy.UpdateColumns()
+		if len(columnsAllowed) > 0 {
+			if err := ws.CheckColumns(columnsAllowed); err != nil {
+				return fmt.Errorf("checking columns: %s", err)
+			}
+		}
 
 		// apply the WHERE clauses
 		if policy.UpdateWhere() != "" {

@@ -303,6 +303,32 @@ func (ws *sugaredWriteStmt) AddWhereClause(whereClauses string) error {
 	return nil
 }
 
+func (ws *sugaredWriteStmt) CheckColumns(allowedColumns []string) error {
+	if ws.Operation() != tableland.OpUpdate {
+		return nil
+	}
+
+	allowedColumnsMap := make(map[string]struct{})
+	for _, allowedColumn := range allowedColumns {
+		allowedColumnsMap[allowedColumn] = struct{}{}
+	}
+
+	updateStmt := ws.node.GetUpdateStmt()
+
+	for _, target := range updateStmt.TargetList {
+		resTarget := target.GetResTarget()
+		if resTarget == nil {
+			continue
+		}
+
+		if _, ok := allowedColumnsMap[resTarget.Name]; !ok {
+			return fmt.Errorf("column %s is not allowed", resTarget.Name)
+		}
+	}
+
+	return nil
+}
+
 type sugaredGrantStmt struct {
 	*sugaredStmt
 }
