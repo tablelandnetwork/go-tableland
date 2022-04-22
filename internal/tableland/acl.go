@@ -147,6 +147,7 @@ type Policy interface {
 	UpdateWhere() string
 
 	// UpdateColumns imposes restrictions on what columns can be updated.
+	// Empty means all columns are allowed.
 	UpdateColumns() []string
 }
 

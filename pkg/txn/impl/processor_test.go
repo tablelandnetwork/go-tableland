@@ -263,6 +263,80 @@ func TestRunSQL(t *testing.T) {
 func TestRunSQLWithPolicies(t *testing.T) {
 	t.Parallel()
 
+	t.Run("insert-not-allowed", func(t *testing.T) {
+		t.Parallel()
+		ctx := context.Background()
+
+		txnp, _ := newTxnProcessorWithTable(t, 0)
+
+		b, err := txnp.OpenBatch(ctx)
+		require.NoError(t, err)
+
+		policy := policyFactory(policyData{
+			isInsertAllowed: false,
+		})
+
+		wq := mustWriteStmt(t, `insert into foo_100 values ('one');`)
+		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq}, policy)
+		require.Error(t, err)
+	})
+
+	t.Run("update-not-allowed", func(t *testing.T) {
+		t.Parallel()
+		ctx := context.Background()
+
+		txnp, _ := newTxnProcessorWithTable(t, 0)
+
+		b, err := txnp.OpenBatch(ctx)
+		require.NoError(t, err)
+
+		policy := policyFactory(policyData{
+			isUpdateAllowed: false,
+		})
+
+		wq := mustWriteStmt(t, `update foo_100 set zar = 'three';`)
+		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq}, policy)
+		require.Error(t, err)
+	})
+
+	t.Run("delete-not-allowed", func(t *testing.T) {
+		t.Parallel()
+		ctx := context.Background()
+
+		txnp, _ := newTxnProcessorWithTable(t, 0)
+
+		b, err := txnp.OpenBatch(ctx)
+		require.NoError(t, err)
+
+		policy := policyFactory(policyData{
+			isDeleteAllowed: false,
+		})
+
+		wq := mustWriteStmt(t, `DELETE FROM foo_100`)
+		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq}, policy)
+		require.Error(t, err)
+	})
+
+	t.Run("update-column-not-allowed", func(t *testing.T) {
+		t.Parallel()
+		ctx := context.Background()
+
+		txnp, _ := newTxnProcessorWithTable(t, 0)
+
+		b, err := txnp.OpenBatch(ctx)
+		require.NoError(t, err)
+
+		policy := policyFactory(policyData{
+			isUpdateAllowed: true,
+			updateColumns:   []string{"zaz"}, // zaz instead of zar
+		})
+
+		// tries to update zar and not zaz
+		wq := mustWriteStmt(t, `update foo_100 set zar = 'three';`)
+		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq}, policy)
+		require.ErrorContains(t, err, "column zar is not allowed")
+	})
+
 	t.Run("update-where-policy", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
@@ -281,6 +355,7 @@ func TestRunSQLWithPolicies(t *testing.T) {
 		policy := policyFactory(policyData{
 			isUpdateAllowed: true,
 			updateWhere:     "zar = 'two'",
+			updateColumns:   []string{"zar"},
 		})
 
 		// send an update that updates all rows with a policy to restrics the update
