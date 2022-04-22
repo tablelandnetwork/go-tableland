@@ -281,7 +281,7 @@ func (ep *EventProcessor) executeEvent(
 	case *ethereum.ContractCreateTable:
 		log.Debug().
 			Str("caller", e.Caller.Hex()).
-			Str("tokenId", e.TokenId.String()).
+			Str("tokenId", e.TableId.String()).
 			Str("statement", e.Statement).
 			Msgf("executing create-table event")
 		receipt, err := ep.executeCreateTableEvent(ctx, b, blockNumber, be, e)
@@ -312,12 +312,12 @@ func (ep *EventProcessor) executeCreateTableEvent(
 		return receipt, nil
 	}
 
-	if e.TokenId == nil {
+	if e.TableId == nil {
 		err := "token id is empty"
 		receipt.Error = &err
 		return receipt, nil
 	}
-	tableID := tableland.TableID(*e.TokenId)
+	tableID := tableland.TableID(*e.TableId)
 
 	if err := b.InsertTable(ctx, tableID, e.Caller.Hex(), createStmt); err != nil {
 		var pgErr *txn.ErrQueryExecution
