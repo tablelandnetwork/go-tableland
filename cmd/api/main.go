@@ -260,7 +260,7 @@ func getTablelandService(
 ) tableland.Tableland {
 	switch conf.Impl {
 	case "mesa":
-		mesa := impl.NewTablelandMesa(store, parser, txnp, acl, registry, 4)
+		mesa := impl.NewTablelandMesa(store, parser, txnp, acl, registry, conf.Registry.ChainID)
 		instrumentedMesa, err := impl.NewInstrumentedTablelandMesa(mesa)
 		if err != nil {
 			log.Fatal().Err(err).Msg("instrumenting mesa")
