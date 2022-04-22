@@ -240,9 +240,15 @@ func (b *batch) GetLastProcessedHeight(ctx context.Context) (int64, error) {
 
 func (b *batch) SetLastProcessedHeight(ctx context.Context, height int64) error {
 	f := func(tx pgx.Tx) error {
-		_, err := tx.Exec(ctx, "UPDATE system_txn_processor set block_number=$1", height)
+		tag, err := tx.Exec(ctx, "UPDATE system_txn_processor set block_number=$1", height)
 		if err != nil {
 			return fmt.Errorf("update last processed block number: %s", err)
+		}
+		if tag.RowsAffected() != 1 {
+			_, err := tx.Exec(ctx, "INSERT INTO system_txn_processor VALUES ($1)", height)
+			if err != nil {
+				return fmt.Errorf("inserting first processed height: %s", err)
+			}
 		}
 		return nil
 	}
