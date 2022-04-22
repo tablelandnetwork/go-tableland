@@ -272,6 +272,7 @@ func TestRunSQLWithPolicies(t *testing.T) {
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
 
+		// start with two rows
 		wq1 := mustWriteStmt(t, `insert into foo_100 values ('one');`)
 		wq2 := mustWriteStmt(t, `insert into foo_100 values ('two');`)
 		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1, wq2}, tableland.DefaultPolicy{})
@@ -282,6 +283,7 @@ func TestRunSQLWithPolicies(t *testing.T) {
 			updateWhere:     "zar = 'two'",
 		})
 
+		// send an update that updates all rows with a policy to restrics the update
 		wq3 := mustWriteStmt(t, `update foo_100 set zar = 'three'`)
 		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq3}, policy)
 		require.NoError(t, err)
@@ -290,6 +292,7 @@ func TestRunSQLWithPolicies(t *testing.T) {
 		require.NoError(t, b.Close(ctx))
 		require.NoError(t, txnp.Close(ctx))
 
+		// there should be only one row updated
 		require.Equal(t, 1, tableRowCountT100(t, pool, "select count(*) from _100 WHERE zar = 'three'"))
 	})
 }
