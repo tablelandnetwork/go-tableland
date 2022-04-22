@@ -374,5 +374,18 @@ func (s *InstrumentedSQLStorePGX) GetReceipt(
 	ctx context.Context,
 	chainID int64,
 	txnHash string) (eventprocessor.Receipt, bool, error) {
-	return s.store.GetReceipt(ctx, chainID, txnHash)
+	start := time.Now()
+	receipt, ok, err := s.store.GetReceipt(ctx, chainID, txnHash)
+	latency := time.Since(start).Milliseconds()
+
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("GetReceipt")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return receipt, ok, err
+
 }
