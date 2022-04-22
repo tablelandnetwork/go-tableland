@@ -160,8 +160,7 @@ func (cp *CounterProbe) healthCheck(ctx context.Context) (int64, error) {
 
 func (cp *CounterProbe) increaseCounterValue(ctx context.Context) error {
 	updateCounterReq := tableland.RunSQLRequest{
-		Controller: cp.ctrl,
-		Statement:  fmt.Sprintf("update %s set count=count+1", cp.tblname),
+		Statement: fmt.Sprintf("update %s set count=count+1", cp.tblname),
 	}
 	var updateCounterRes tableland.RunSQLResponse
 	if err := cp.rpcClient.CallContext(ctx, &updateCounterRes, "tableland_runSQL", updateCounterReq); err != nil {
@@ -173,8 +172,7 @@ func (cp *CounterProbe) increaseCounterValue(ctx context.Context) error {
 
 func (cp *CounterProbe) getCurrentCounterValue(ctx context.Context) (int64, error) {
 	getCounterReq := tableland.RunSQLRequest{
-		Controller: cp.ctrl,
-		Statement:  fmt.Sprintf("select * from %s", cp.tblname),
+		Statement: fmt.Sprintf("select * from %s", cp.tblname),
 	}
 
 	type data struct {

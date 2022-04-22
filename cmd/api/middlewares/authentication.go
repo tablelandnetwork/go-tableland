@@ -41,7 +41,7 @@ func Authentication(next http.Handler) http.Handler {
 			return
 		}
 
-		r = r.WithContext(context.WithValue(r.Context(), ContextKeyAddress, issuer))
+		r = r.WithContext(context.WithValue(r.Context(), ContextKeyAddress, strings.ToLower(issuer)))
 
 		next.ServeHTTP(w, r)
 	})

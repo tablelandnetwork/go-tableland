@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/textileio/go-tableland/cmd/api/middlewares"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/global"
@@ -58,7 +59,8 @@ func (t *InstrumentedTablelandMesa) RunSQL(ctx context.Context,
 	resp, err := t.tableland.RunSQL(ctx, req)
 	latency := time.Since(start).Milliseconds()
 
-	t.record(ctx, recordData{"RunSQL", req.Controller, "", err == nil, latency})
+	controller, _ := ctx.Value(middlewares.ContextKeyAddress).(string)
+	t.record(ctx, recordData{"RunSQL", controller, "", err == nil, latency})
 	return resp, err
 }
 
