@@ -2,10 +2,12 @@ package impl
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
 	logger "github.com/rs/zerolog/log"
+	"github.com/textileio/go-tableland/cmd/api/middlewares"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
@@ -50,6 +52,11 @@ func (t *TablelandMesa) ValidateCreateTable(
 
 // RunSQL allows the user to run SQL.
 func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.RunSQLRequest) (tableland.RunSQLResponse, error) {
+	ctxController := ctx.Value(middlewares.ContextKeyAddress)
+	controller, ok := ctxController.(string)
+	if !ok || controller == "" {
+		return tableland.RunSQLResponse{}, errors.New("no controller address found in context")
+	}
 	readStmt, mutatingStmts, err := t.parser.ValidateRunSQL(req.Statement)
 	if err != nil {
 		return tableland.RunSQLResponse{}, fmt.Errorf("validating query: %s", err)
@@ -57,7 +64,7 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.RunSQLRequest)
 
 	// Read statement
 	if readStmt != nil {
-		queryResult, err := t.runSelect(ctx, req.Controller, readStmt)
+		queryResult, err := t.runSelect(ctx, controller, readStmt)
 		if err != nil {
 			return tableland.RunSQLResponse{}, fmt.Errorf("running read statement: %s", err)
 		}
@@ -66,14 +73,14 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.RunSQLRequest)
 
 	// Mutating statements
 	tableID := mutatingStmts[0].GetTableID()
-	tx, err := t.registry.RunSQL(ctx, common.HexToAddress(req.Controller), tableID, req.Statement)
+	tx, err := t.registry.RunSQL(ctx, common.HexToAddress(controller), tableID, req.Statement)
 	if err != nil {
 		return tableland.RunSQLResponse{}, fmt.Errorf("sending tx: %s", err)
 	}
 
 	response := tableland.RunSQLResponse{}
 	response.Transaction.Hash = tx.Hash().String()
-	t.incrementRunSQLCount(ctx, req.Controller)
+	t.incrementRunSQLCount(ctx, controller)
 	return response, nil
 }
 

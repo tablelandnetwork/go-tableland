@@ -8,8 +8,7 @@ import (
 
 // RunSQLRequest is a user RunSQL request.
 type RunSQLRequest struct {
-	Controller string `json:"controller"`
-	Statement  string `json:"statement"`
+	Statement string `json:"statement"`
 }
 
 // RunSQLResponse is a RunSQL response.
