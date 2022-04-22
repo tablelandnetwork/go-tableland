@@ -93,7 +93,7 @@
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "tokenId",
+        "name": "tableId",
         "type": "uint256"
       },
       {
@@ -599,7 +599,7 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "table",
+        "name": "tableId",
         "type": "uint256"
       },
       {
