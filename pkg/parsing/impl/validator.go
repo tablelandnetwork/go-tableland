@@ -271,29 +271,35 @@ type sugaredWriteStmt struct {
 }
 
 func (ws *sugaredWriteStmt) AddWhereClause(whereClauses string) error {
-	dummy, err := pg_query.Parse("UPDATE dummy SET foo = 'bar' WHERE " + whereClauses)
+	if ws.Operation() != tableland.OpUpdate {
+		return nil
+	}
+
+	// helper query to extract the where clause from the AST
+	helper, err := pg_query.Parse("UPDATE helper SET foo = 'bar' WHERE " + whereClauses)
 	if err != nil {
 		return fmt.Errorf("parsing where clauses: %s", err)
 	}
 
 	updateStmt := ws.node.GetUpdateStmt()
-	var whereClauseWithPolicy *pg_query.Node
+	var newWhereClause *pg_query.Node
 	if updateStmt.GetWhereClause() != nil {
+		// merge both where clauses nodes
 		boolExpr := &pg_query.BoolExpr{
 			Boolop: 1,
 			Args: []*pg_query.Node{
 				updateStmt.GetWhereClause(),
-				dummy.Stmts[0].GetStmt().GetUpdateStmt().GetWhereClause(),
+				helper.Stmts[0].GetStmt().GetUpdateStmt().GetWhereClause(),
 			},
 		}
 
-		whereClauseWithPolicy = &pg_query.Node{Node: &pg_query.Node_BoolExpr{BoolExpr: boolExpr}}
+		newWhereClause = &pg_query.Node{Node: &pg_query.Node_BoolExpr{BoolExpr: boolExpr}}
 	} else {
-		whereClauseWithPolicy = dummy.Stmts[0].GetStmt().GetUpdateStmt().GetWhereClause()
+		// use the where clause from the helper query, because the stmt had none
+		newWhereClause = helper.Stmts[0].GetStmt().GetUpdateStmt().GetWhereClause()
 	}
 
-	updateStmt.WhereClause = whereClauseWithPolicy
-
+	updateStmt.WhereClause = newWhereClause
 	return nil
 }
 

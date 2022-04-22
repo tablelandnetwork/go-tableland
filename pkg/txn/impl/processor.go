@@ -450,10 +450,11 @@ func (b *batch) applyPolicy(ws parsing.SugaredWriteStmt, policy tableland.Policy
 		return errors.New("delete is not allowed")
 	}
 
-	// apply the WHERE clauses
 	if ws.Operation() == tableland.OpUpdate {
 		// check columns
+		// columnsAllowed := policy.UpdateColumns()
 
+		// apply the WHERE clauses
 		if policy.UpdateWhere() != "" {
 			if err := ws.AddWhereClause(policy.UpdateWhere()); err != nil {
 				return fmt.Errorf("adding where clause: %s", err)
