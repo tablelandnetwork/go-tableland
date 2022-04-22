@@ -387,5 +387,4 @@ func (s *InstrumentedSQLStorePGX) GetReceipt(
 	s.latencyHistogram.Record(ctx, latency, attributes...)
 
 	return receipt, ok, err
-
 }
