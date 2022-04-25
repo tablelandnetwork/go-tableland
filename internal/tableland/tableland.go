@@ -40,12 +40,12 @@ type GetReceiptResponse struct {
 	Receipt *TxnReceipt `json:"receipt,omitempty"`
 }
 
-// ValidateCreateTableRequest is a CreateTableHash request.
+// ValidateCreateTableRequest is a ValidateCreateTable request.
 type ValidateCreateTableRequest struct {
 	CreateStatement string `json:"create_statement"`
 }
 
-// ValidateCreateTableResponse is a CreateTableHash response.
+// ValidateCreateTableResponse is a ValidateCreateTable response.
 type ValidateCreateTableResponse struct {
 	StructureHash string `json:"structure_hash"`
 }
