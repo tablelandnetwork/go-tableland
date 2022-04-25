@@ -14,7 +14,7 @@ services:
       - DB_USER=dev_user
       - DB_PASS=dev_password
       - DB_NAME=dev_database
-      - REGISTRY_ETHENDPOINT=wss://opt-kovan.g.alchemy.com/v2/${KOVAN_ALCHEMY_API_KEY:?You must provide a KOVAN Alchemy API KEY}
+      - REGISTRY_ETHENDPOINT=wss://opt-kovan.g.alchemy.com/v2/${ALCHEMY_API_KEY:?You must provide a KOVAN Alchemy API KEY}
       - REGISTRY_CHAINID=69
       - REGISTRY_CONTRACTADDRESS=0x06E54Aa21496Ed0099219ea79a2c72247F36091A # Current supported SC is `eth-tableland@c43b49a`.
       - SIGNER_PRIVATEKEY=7393d9c3f7d442326e09809558cc5a5da042b84eeb793cf30c47f2c529367fd5
