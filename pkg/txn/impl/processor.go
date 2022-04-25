@@ -170,11 +170,7 @@ func (b *batch) ExecWriteQueries(
 					return fmt.Errorf("executing grant stmt: %s", err)
 				}
 			case parsing.SugaredWriteStmt:
-				if err := b.applyPolicy(stmt, policy); err != nil {
-					return fmt.Errorf("not allowed to execute stmt: %s", err)
-				}
-
-				if err := b.executeWriteStmt(ctx, tx, stmt, controller, beforeRowCount); err != nil {
+				if err := b.executeWriteStmt(ctx, tx, stmt, controller, policy, beforeRowCount); err != nil {
 					return fmt.Errorf("executing write stmt: %w", err)
 				}
 			default:
@@ -398,6 +394,7 @@ func (b *batch) executeWriteStmt(
 	tx pgx.Tx,
 	ws parsing.SugaredWriteStmt,
 	controller common.Address,
+	policy tableland.Policy,
 	beforeRowCount int) error {
 	ok, err := b.tp.acl.CheckPrivileges(ctx, tx, controller, ws.GetTableID(), ws.Operation())
 	if err != nil {
@@ -408,6 +405,10 @@ func (b *batch) executeWriteStmt(
 			Code: "ACL",
 			Msg:  "not enough privileges",
 		}
+	}
+
+	if err := b.applyPolicy(ws, policy); err != nil {
+		return fmt.Errorf("not allowed to execute stmt: %w", err)
 	}
 
 	desugared, err := ws.GetDesugaredQuery()
@@ -439,15 +440,24 @@ func (b *batch) executeWriteStmt(
 
 func (b *batch) applyPolicy(ws parsing.SugaredWriteStmt, policy tableland.Policy) error {
 	if ws.Operation() == tableland.OpInsert && !policy.IsInsertAllowed() {
-		return errors.New("insert is not allowed")
+		return &txn.ErrQueryExecution{
+			Code: "POLICY",
+			Msg:  "insert is not allowed",
+		}
 	}
 
 	if ws.Operation() == tableland.OpUpdate && !policy.IsUpdateAllowed() {
-		return errors.New("update is not allowed")
+		return &txn.ErrQueryExecution{
+			Code: "POLICY",
+			Msg:  "update is not allowed",
+		}
 	}
 
 	if ws.Operation() == tableland.OpDelete && !policy.IsDeleteAllowed() {
-		return errors.New("delete is not allowed")
+		return &txn.ErrQueryExecution{
+			Code: "POLICY",
+			Msg:  "delete is not allowed",
+		}
 	}
 
 	if ws.Operation() == tableland.OpUpdate {
@@ -455,14 +465,21 @@ func (b *batch) applyPolicy(ws parsing.SugaredWriteStmt, policy tableland.Policy
 		columnsAllowed := policy.UpdateColumns()
 		if len(columnsAllowed) > 0 {
 			if err := ws.CheckColumns(columnsAllowed); err != nil {
-				return fmt.Errorf("checking columns: %s", err)
+				return &txn.ErrQueryExecution{
+					Code: "POLICY",
+					Msg:  err.Error(),
+				}
 			}
 		}
 
 		// apply the WHERE clauses
 		if policy.UpdateWhere() != "" {
 			if err := ws.AddWhereClause(policy.UpdateWhere()); err != nil {
-				return fmt.Errorf("adding where clause: %s", err)
+				errQueryExecution := &txn.ErrQueryExecution{
+					Code: "POLICY",
+					Msg:  err.Error(),
+				}
+				return fmt.Errorf("adding where clause: %w", errQueryExecution)
 			}
 
 			return nil

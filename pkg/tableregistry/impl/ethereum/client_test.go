@@ -72,7 +72,7 @@ func TestRunSQL(t *testing.T) {
 	require.True(t, event.Policy.AllowInsert)
 	require.True(t, event.Policy.AllowUpdate)
 	require.Equal(t, "", event.Policy.UpdateWhere)
-	require.Equal(t, []string{""}, event.Policy.UpdateColumns)
+	require.Equal(t, []string{}, event.Policy.UpdateColumns)
 	require.Equal(t, statement, event.Statement)
 }
 
