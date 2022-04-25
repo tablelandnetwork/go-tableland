@@ -358,7 +358,7 @@ func TestRunSQLWithPolicies(t *testing.T) {
 			updateColumns:   []string{"zar"},
 		})
 
-		// send an update that updates all rows with a policy to restrics the update
+		// send an update that updates all rows with a policy to restricts the update
 		wq3 := mustWriteStmt(t, `update foo_100 set zar = 'three'`)
 		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq3}, policy)
 		require.NoError(t, err)
