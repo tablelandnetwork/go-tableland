@@ -76,7 +76,7 @@ func (ef *EventFeed) Start(
 	ctx, cls := context.WithCancel(ctx)
 	defer cls()
 	chHeads := make(chan *types.Header, 1)
-	if err := ef.notifyNewHeads(ctx, chHeads); err != nil {
+	if err := ef.notifyNewBlocks(ctx, chHeads); err != nil {
 		return fmt.Errorf("creating background head notificator: %s", err)
 	}
 
@@ -232,33 +232,60 @@ func (ef *EventFeed) getTopicsForEventTypes(ets []eventfeed.EventType) ([]common
 	return topics, nil
 }
 
-// notifyNewHeads will send to the provided channel new detected heads in the chain.
+// notifyNewBlocks will send to the provided channel new detected blocks in the chain.
 // It's mandatory that the caller cancels the provided context to gracefully close the background process.
 // When this happens the provided channel will be closed.
-func (ef *EventFeed) notifyNewHeads(ctx context.Context, ch chan *types.Header) error {
+func (ef *EventFeed) notifyNewBlocks(ctx context.Context, clientCh chan *types.Header) error {
+	// Always push as fast as possible the latest block.
 	h, err := ef.ethClient.HeaderByNumber(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("get current head: %s", err)
+		return fmt.Errorf("get current block: %s", err)
 	}
-	ch <- h
+	clientCh <- h
 
-	subHeader, err := ef.ethClient.SubscribeNewHead(ctx, ch)
-	if err != nil {
-		return fmt.Errorf("subscribing to new heads: %s", err)
-	}
+	ch := make(chan *types.Header, 1)
+	notifierSignaler := make(chan struct{})
+	// Fire a goroutine that relays new detected blocks to the client, while also inspecting
+	// the healthiness of the subscription. If the subscription is faulty, it notifies
+	// that the subscription should be regenerated.
 	go func() {
-		defer close(ch)
-		defer subHeader.Unsubscribe()
+		defer close(clientCh)
+		defer close(notifierSignaler)
+
 		for {
 			select {
 			case <-ctx.Done():
-				log.Info().Msg("gracefully closing new heads subscription")
+				log.Info().Msg("gracefully closing new blocks subscription")
 				return
-			case err := <-subHeader.Err():
-				log.Error().Err(err).Msg("new heads subscription")
-				return
+			case h := <-ch:
+				clientCh <- h
+			case <-time.After(ef.config.NewBlockTimeout):
+				log.Warn().Dur("timeout", ef.config.NewBlockTimeout).Msgf("new blocks subscription is quiet, rebuilding")
+				notifierSignaler <- struct{}{}
 			}
 		}
 	}()
+
+	// This goroutine is responsible to always having a **single** subscription. It can receive a signal from
+	// the above goroutine to re-generate the current subscription since it was detected faulty.
+	go func() {
+		var sub ethereum.Subscription
+		for range notifierSignaler {
+			if sub != nil {
+				sub.Unsubscribe()
+			}
+			sub, err = ef.ethClient.SubscribeNewHead(ctx, ch)
+			if err != nil {
+				log.Error().Err(err).Msg("subscribing to blocks")
+				continue
+			}
+		}
+		if sub != nil {
+			sub.Unsubscribe()
+		}
+		log.Info().Msg("gracefully closing notifier")
+	}()
+	notifierSignaler <- struct{}{}
+
 	return nil
 }
