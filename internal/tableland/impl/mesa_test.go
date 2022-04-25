@@ -415,6 +415,10 @@ func jsonEq(
 	expJSON string) func() bool {
 	return func() bool {
 		r, err := tbld.RunSQL(ctx, req)
+		// if we get a table undefined error, try again
+		if err != nil && strings.Contains(err.Error(), "SQLSTATE 42P01") {
+			return false
+		}
 		require.NoError(t, err)
 
 		b, err := json.Marshal(r.Result)
@@ -441,6 +445,10 @@ func jsonEq(
 func runSQLCountEq(t *testing.T, tbld tableland.Tableland, sql string, address string, expCount int) func() bool {
 	return func() bool {
 		response, err := runSQL(t, tbld, sql, address)
+		// if we get a table undefined error, try again
+		if err != nil && strings.Contains(err.Error(), "SQLSTATE 42P01") {
+			return false
+		}
 		require.NoError(t, err)
 
 		responseInBytes, err := json.Marshal(response)
