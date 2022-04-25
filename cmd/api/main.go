@@ -199,7 +199,7 @@ func main() {
 	}
 	router.Post("/rpc", func(rw http.ResponseWriter, r *http.Request) {
 		server.ServeHTTP(rw, r)
-	}, middlewares.Authentication, middlewares.VerifyController, rateLim, middlewares.OtelHTTP("rpc"))
+	}, middlewares.Authentication, rateLim, middlewares.OtelHTTP("rpc"))
 
 	// Gateway configuration.
 	router.Get("/tables/{id}", systemController.GetTable, middlewares.OtelHTTP("GetTable"))
