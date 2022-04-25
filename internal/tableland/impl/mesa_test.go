@@ -48,7 +48,7 @@ func TestTodoAppWorkflow(t *testing.T) {
 		  );`)
 	require.NoError(t, err)
 
-	processCSV(t, caller.String(), tbld, "testdata/todoapp_queries.csv", backend)
+	processCSV(t, tbld, "testdata/todoapp_queries.csv", backend)
 }
 
 func TestInsertOnConflict(t *testing.T) {
@@ -84,7 +84,7 @@ func TestInsertOnConflict(t *testing.T) {
 		time.Second*5,
 		time.Millisecond*100,
 	)
-	requireReceipts(t, ctx, tbld, txnHashes, true)
+	requireReceipts(ctx, t, tbld, txnHashes, true)
 }
 
 func TestMultiStatement(t *testing.T) {
@@ -115,7 +115,7 @@ func TestMultiStatement(t *testing.T) {
 		time.Second*5,
 		time.Millisecond*100,
 	)
-	requireReceipts(t, ctx, tbld, []string{r.Transaction.Hash}, true)
+	requireReceipts(ctx, t, tbld, []string{r.Transaction.Hash}, true)
 }
 
 func TestReadSystemTable(t *testing.T) {
@@ -144,7 +144,7 @@ func TestJSON(t *testing.T) {
 	_, err := sc.CreateTable(auth, caller, `CREATE TABLE foo (myjson JSON);`)
 	require.NoError(t, err)
 
-	processCSV(t, caller.Hex(), tbld, "testdata/json_queries.csv", backend)
+	processCSV(t, tbld, "testdata/json_queries.csv", backend)
 }
 
 func TestCheckInsertPrivileges(t *testing.T) {
@@ -203,11 +203,11 @@ func TestCheckInsertPrivileges(t *testing.T) {
 			if test.isAllowed {
 				require.Eventually(t, runSQLCountEq(t, tbld, testQuery, grantee, 1), 5*time.Second, 100*time.Millisecond)
 				successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
-				requireReceipts(t, ctx, tbld, successfulTxnHashes, true)
+				requireReceipts(ctx, t, tbld, successfulTxnHashes, true)
 			} else {
 				require.Never(t, runSQLCountEq(t, tbld, testQuery, grantee, 1), 5*time.Second, 100*time.Millisecond)
-				requireReceipts(t, ctx, tbld, successfulTxnHashes, true)
-				requireReceipts(t, ctx, tbld, []string{r.Transaction.Hash}, false)
+				requireReceipts(ctx, t, tbld, successfulTxnHashes, true)
+				requireReceipts(ctx, t, tbld, []string{r.Transaction.Hash}, false)
 			}
 		})
 	}
@@ -276,11 +276,11 @@ func TestCheckUpdatePrivileges(t *testing.T) {
 			if test.isAllowed {
 				require.Eventually(t, runSQLCountEq(t, tbld, testQuery, grantee, 1), 5*time.Second, 100*time.Millisecond)
 				successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
-				requireReceipts(t, ctx, tbld, successfulTxnHashes, true)
+				requireReceipts(ctx, t, tbld, successfulTxnHashes, true)
 			} else {
 				require.Never(t, runSQLCountEq(t, tbld, testQuery, grantee, 1), 5*time.Second, 100*time.Millisecond)
-				requireReceipts(t, ctx, tbld, successfulTxnHashes, true)
-				requireReceipts(t, ctx, tbld, []string{r.Transaction.Hash}, false)
+				requireReceipts(ctx, t, tbld, successfulTxnHashes, true)
+				requireReceipts(ctx, t, tbld, []string{r.Transaction.Hash}, false)
 			}
 		})
 	}
@@ -347,10 +347,10 @@ func TestCheckDeletePrivileges(t *testing.T) {
 			if test.isAllowed {
 				require.Eventually(t, runSQLCountEq(t, tbld, testQuery, grantee, 0), 5*time.Second, 100*time.Millisecond)
 				successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
-				requireReceipts(t, ctx, tbld, successfulTxnHashes, true)
+				requireReceipts(ctx, t, tbld, successfulTxnHashes, true)
 			} else {
 				require.Never(t, runSQLCountEq(t, tbld, testQuery, grantee, 0), 5*time.Second, 100*time.Millisecond)
-				requireReceipts(t, ctx, tbld, []string{r.Transaction.Hash}, false)
+				requireReceipts(ctx, t, tbld, []string{r.Transaction.Hash}, false)
 			}
 		})
 	}
@@ -379,18 +379,18 @@ func TestOwnerRevokesItsPrivilegeInsideMultipleStatements(t *testing.T) {
 	testQuery := "SELECT * FROM foo_0;"
 	cond := runSQLCountEq(t, tbld, testQuery, "0xd43c59d5694ec111eb9e986c233200b14249558d", 1)
 	require.Never(t, cond, 5*time.Second, 100*time.Millisecond)
-	requireReceipts(t, ctx, tbld, []string{r.Transaction.Hash}, false)
+	requireReceipts(ctx, t, tbld, []string{r.Transaction.Hash}, false)
 }
 
 func processCSV(
 	t *testing.T,
-	controller string,
 	tbld tableland.Tableland,
 	csvPath string,
 	backend *backends.SimulatedBackend) {
 	t.Helper()
 
-	ctx := context.WithValue(context.Background(), middlewares.ContextKeyAddress, "0xd43c59d5694ec111eb9e986c233200b14249558d")
+	ctx := context.WithValue(
+		context.Background(), middlewares.ContextKeyAddress, "0xd43c59d5694ec111eb9e986c233200b14249558d")
 	baseReq := tableland.RunSQLRequest{}
 	records := readCsvFile(t, csvPath)
 	for _, record := range records {
@@ -407,7 +407,12 @@ func processCSV(
 	}
 }
 
-func jsonEq(t *testing.T, ctx context.Context, tbld tableland.Tableland, req tableland.RunSQLRequest, expJSON string) func() bool {
+func jsonEq(
+	t *testing.T,
+	ctx context.Context,
+	tbld tableland.Tableland,
+	req tableland.RunSQLRequest,
+	expJSON string) func() bool {
 	return func() bool {
 		r, err := tbld.RunSQL(ctx, req)
 		require.NoError(t, err)
@@ -549,7 +554,7 @@ func (acl *aclHalfMock) IsOwner(ctx context.Context, controller common.Address, 
 	return true, nil
 }
 
-func requireReceipts(t *testing.T, ctx context.Context, tbld tableland.Tableland, txnHashes []string, ok bool) {
+func requireReceipts(ctx context.Context, t *testing.T, tbld tableland.Tableland, txnHashes []string, ok bool) {
 	t.Helper()
 
 	for _, txnHash := range txnHashes {
