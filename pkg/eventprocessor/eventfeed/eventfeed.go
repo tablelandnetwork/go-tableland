@@ -67,6 +67,7 @@ type Config struct {
 	MinBlockChainDepth int
 	MaxBlocksFetchSize int
 	ChainAPIBackoff    time.Duration
+	NewBlockTimeout    time.Duration
 }
 
 // DefaultConfig returns the default configuration.
@@ -75,6 +76,7 @@ func DefaultConfig() *Config {
 		MinBlockChainDepth: 5,
 		MaxBlocksFetchSize: 10000,
 		ChainAPIBackoff:    time.Second * 15,
+		NewBlockTimeout:    time.Second * 30,
 	}
 }
 
@@ -114,6 +116,20 @@ func WithChainAPIBackoff(backoff time.Duration) Option {
 			return fmt.Errorf("chain api backoff is too low (<1s)")
 		}
 		c.ChainAPIBackoff = backoff
+		return nil
+	}
+}
+
+// WithNewBlockTimeout is the maximum duration to wait for a new expected block.
+// If we don't receive a new block from the chain after this time, the underlying
+// system will repair the faulty subscription. An arbitrary safe value would be
+// ~5*avg_block_time of the underlying chain.
+func WithNewBlockTimeout(timeout time.Duration) Option {
+	return func(c *Config) error {
+		if timeout < time.Second {
+			return fmt.Errorf("new head timeout is too low (<1s)")
+		}
+		c.NewBlockTimeout = timeout
 		return nil
 	}
 }

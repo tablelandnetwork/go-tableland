@@ -59,6 +59,7 @@ type config struct {
 		ChainAPIBackoff    string `default:"15s"`
 		MaxBlocksFetchSize int    `default:"10000"`
 		MinBlockDepth      int    `default:"5"`
+		NewBlockTimeout    string `default:"30s"`
 	}
 	EventProcessor struct {
 		BlockFailedExecutionBackoff string `default:"10s"`
