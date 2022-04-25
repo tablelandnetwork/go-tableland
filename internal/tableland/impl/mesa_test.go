@@ -80,7 +80,7 @@ func TestInsertOnConflict(t *testing.T) {
 	req.Statement = "SELECT count FROM _0"
 	require.Eventually(
 		t,
-		jsonEq(t, ctx, tbld, req, `{"columns":[{"name":"count"}],"rows":[[9]]}`),
+		jsonEq(ctx, t, tbld, req, `{"columns":[{"name":"count"}],"rows":[[9]]}`),
 		time.Second*5,
 		time.Millisecond*100,
 	)
@@ -111,7 +111,7 @@ func TestMultiStatement(t *testing.T) {
 	req.Statement = "SELECT name from _0"
 	require.Eventually(
 		t,
-		jsonEq(t, ctx, tbld, req, `{"columns":[{"name":"name"}],"rows":[["zoo"]]}`),
+		jsonEq(ctx, t, tbld, req, `{"columns":[{"name":"name"}],"rows":[["zoo"]]}`),
 		time.Second*5,
 		time.Millisecond*100,
 	)
@@ -398,7 +398,7 @@ func processCSV(
 		req.Statement = record[1]
 
 		if record[0] == "r" {
-			require.Eventually(t, jsonEq(t, ctx, tbld, req, record[2]), time.Second*5, time.Millisecond*100)
+			require.Eventually(t, jsonEq(ctx, t, tbld, req, record[2]), time.Second*5, time.Millisecond*100)
 		} else {
 			_, err := tbld.RunSQL(ctx, req)
 			require.NoError(t, err)
@@ -408,8 +408,8 @@ func processCSV(
 }
 
 func jsonEq(
-	t *testing.T,
 	ctx context.Context,
+	t *testing.T,
 	tbld tableland.Tableland,
 	req tableland.RunSQLRequest,
 	expJSON string) func() bool {
