@@ -139,10 +139,15 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("parsing chain api backoff duration")
 	}
+	newBlockTimeout, err := time.ParseDuration(config.EventFeed.NewBlockTimeout)
+	if err != nil {
+		log.Fatal().Err(err).Msg("parsing chain api backoff duration")
+	}
 	efOpts := []eventfeed.Option{
 		eventfeed.WithChainAPIBackoff(chainAPIBackoff),
 		eventfeed.WithMaxBlocksFetchSize(config.EventFeed.MaxBlocksFetchSize),
 		eventfeed.WithMinBlockDepth(config.EventFeed.MinBlockDepth),
+		eventfeed.WithNewBlockTimeout(newBlockTimeout),
 	}
 	ef, err := efimpl.New(conn, scAddress, efOpts...)
 	if err != nil {
