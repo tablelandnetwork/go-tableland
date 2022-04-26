@@ -151,20 +151,20 @@ type Policy interface {
 	UpdateColumns() []string
 }
 
-// DefaultPolicy is a policy that imposes no restrictions on execution of statements.
-type DefaultPolicy struct{}
+// AllowAllPolicy is a policy that imposes no restrictions on execution of statements.
+type AllowAllPolicy struct{}
 
 // IsInsertAllowed rejects insert statement execution.
-func (p DefaultPolicy) IsInsertAllowed() bool { return true }
+func (p AllowAllPolicy) IsInsertAllowed() bool { return true }
 
 // IsUpdateAllowed rejects update statement execution.
-func (p DefaultPolicy) IsUpdateAllowed() bool { return true }
+func (p AllowAllPolicy) IsUpdateAllowed() bool { return true }
 
 // IsDeleteAllowed rejects delete statement execution.
-func (p DefaultPolicy) IsDeleteAllowed() bool { return true }
+func (p AllowAllPolicy) IsDeleteAllowed() bool { return true }
 
 // WhereClause is SQL where clauses that restricts update and delete execution.
-func (p DefaultPolicy) WhereClause() string { return "" }
+func (p AllowAllPolicy) WhereClause() string { return "" }
 
 // UpdateColumns imposes restrictions on what columns can be updated.
-func (p DefaultPolicy) UpdateColumns() []string { return []string{} }
+func (p AllowAllPolicy) UpdateColumns() []string { return []string{} }
