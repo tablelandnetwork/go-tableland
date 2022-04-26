@@ -354,7 +354,7 @@ func TestRunSQLWithPolicies(t *testing.T) {
 
 		policy := policyFactory(policyData{
 			isUpdateAllowed: true,
-			updateWhere:     "zar = 'two'",
+			whereClause:     "zar = 'two'",
 			updateColumns:   []string{"zar"},
 		})
 
@@ -552,7 +552,7 @@ type policyData struct {
 	isInsertAllowed bool
 	isUpdateAllowed bool
 	isDeleteAllowed bool
-	updateWhere     string
+	whereClause     string
 	updateColumns   []string
 }
 
@@ -567,5 +567,5 @@ type policy struct {
 func (p policy) IsInsertAllowed() bool   { return p.policyData.isInsertAllowed }
 func (p policy) IsUpdateAllowed() bool   { return p.policyData.isUpdateAllowed }
 func (p policy) IsDeleteAllowed() bool   { return p.policyData.isDeleteAllowed }
-func (p policy) UpdateWhere() string     { return p.policyData.updateWhere }
+func (p policy) WhereClause() string     { return p.policyData.whereClause }
 func (p policy) UpdateColumns() []string { return p.policyData.updateColumns }

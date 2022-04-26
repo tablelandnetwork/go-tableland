@@ -143,8 +143,8 @@ type Policy interface {
 	// IsDeleteAllowed rejects delete statement execution.
 	IsDeleteAllowed() bool
 
-	// UpdateWhere is SQL where clauses that restricts update execution.
-	UpdateWhere() string
+	// WhereClause is SQL where clauses that restricts update and delete execution.
+	WhereClause() string
 
 	// UpdateColumns imposes restrictions on what columns can be updated.
 	// Empty means all columns are allowed.
@@ -163,8 +163,8 @@ func (p DefaultPolicy) IsUpdateAllowed() bool { return true }
 // IsDeleteAllowed rejects delete statement execution.
 func (p DefaultPolicy) IsDeleteAllowed() bool { return true }
 
-// UpdateWhere is SQL where clauses that restricts update execution.
-func (p DefaultPolicy) UpdateWhere() string { return "" }
+// WhereClause is SQL where clauses that restricts update and delete execution.
+func (p DefaultPolicy) WhereClause() string { return "" }
 
 // UpdateColumns imposes restrictions on what columns can be updated.
 func (p DefaultPolicy) UpdateColumns() []string { return []string{} }

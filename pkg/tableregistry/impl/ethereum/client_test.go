@@ -74,7 +74,7 @@ func TestRunSQL(t *testing.T) {
 	require.True(t, event.Policy.AllowDelete)
 	require.True(t, event.Policy.AllowInsert)
 	require.True(t, event.Policy.AllowUpdate)
-	require.Equal(t, "", event.Policy.UpdateWhere)
+	require.Equal(t, "", event.Policy.WhereClause)
 	require.Equal(t, []string{}, event.Policy.UpdateColumns)
 	require.Equal(t, statement, event.Statement)
 }
@@ -201,7 +201,7 @@ func TestRunSQLWithBadgesAndRigsPolicy(t *testing.T) {
 	require.False(t, event.Policy.AllowDelete)
 	require.False(t, event.Policy.AllowInsert)
 	require.True(t, event.Policy.AllowUpdate)
-	require.Equal(t, "rig_id in (0) and id in (0,1)", event.Policy.UpdateWhere)
+	require.Equal(t, "rig_id in (0) and id in (0,1)", event.Policy.WhereClause)
 	require.Equal(t, []string{"position"}, event.Policy.UpdateColumns)
 	require.Equal(t, statement, event.Statement)
 }
