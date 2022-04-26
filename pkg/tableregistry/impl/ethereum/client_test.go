@@ -19,6 +19,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/tableland"
 	nonceimpl "github.com/textileio/go-tableland/pkg/nonce/impl"
+	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum/badges"
+	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum/controller"
+	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum/rigs"
 	"github.com/textileio/go-tableland/pkg/wallet"
 )
 
@@ -82,12 +85,12 @@ func TestSetController(t *testing.T) {
 	// You have to be the owner of the token to set the controller
 	tokenID := requireMint(t, backend, contract, txOpts, txOpts.From)
 
-	table, err := tableland.NewTableID(tokenID.String())
+	tableID, err := tableland.NewTableID(tokenID.String())
 	require.NoError(t, err)
 
 	// Use the high-level Ethereum client to make the call.
 	controller := common.HexToAddress("0x848D5C7d4bB9E4613B6bd2C421f88Db0D7F46C58")
-	tx, err := client.SetController(context.Background(), txOpts.From, table, controller)
+	tx, err := client.SetController(context.Background(), txOpts.From, tableID, controller)
 	require.NoError(t, err)
 	backend.Commit()
 
@@ -110,6 +113,97 @@ func TestSetController(t *testing.T) {
 
 	require.Equal(t, tokenID.Int64(), event.TokenId.Int64())
 	require.Equal(t, controller, event.Controller)
+}
+
+func TestRunSQLWithBadgesAndRigsPolicy(t *testing.T) {
+	backend, _, txOpts, contract, client := setup(t)
+
+	userAddress := common.HexToAddress("0xa57b464e14671F99392ac06F4582f70C4D165607")
+
+	//Deploy controller contract
+	controllerAddress, _, controllerContract, err := controller.DeployContract(
+		txOpts,
+		backend,
+	)
+	require.NoError(t, err)
+	backend.Commit()
+
+	//Deploy badges contract
+	badgesAddress, _, badgesContract, err := badges.DeployContract(
+		txOpts,
+		backend,
+	)
+	require.NoError(t, err)
+	backend.Commit()
+
+	//Deploy rigs contract
+	rigsAddress, _, rigsContract, err := rigs.DeployContract(
+		txOpts,
+		backend,
+	)
+	require.NoError(t, err)
+	backend.Commit()
+
+	// Set rigs contract address on controller
+	_, err = controllerContract.SetRigs(txOpts, rigsAddress)
+	require.NoError(t, err)
+	backend.Commit()
+
+	// Set badges contract address on controller
+	_, err = controllerContract.SetBadges(txOpts, badgesAddress)
+	require.NoError(t, err)
+	backend.Commit()
+
+	// You have to be the owner of the token to set the controller
+	tokenID := requireMint(t, backend, contract, txOpts, userAddress)
+	tableID, err := tableland.NewTableID(tokenID.String())
+	require.NoError(t, err)
+
+	_, err = client.SetController(context.Background(), userAddress, tableID, controllerAddress)
+	require.NoError(t, err)
+	backend.Commit()
+
+	// Mint two badges with ids 0 and 1
+	_, err = badgesContract.SafeMint(txOpts, userAddress)
+	require.NoError(t, err)
+	backend.Commit()
+
+	_, err = badgesContract.SafeMint(txOpts, userAddress)
+	require.NoError(t, err)
+	backend.Commit()
+
+	// Mint one rig with id 0
+	_, err = rigsContract.SafeMint(txOpts, userAddress)
+	require.NoError(t, err)
+	backend.Commit()
+
+	// execute RunSQL with a controller previously set
+	statement := "update badges set position = 1"
+	txn, err := client.RunSQL(context.Background(), userAddress, tableID, statement)
+	require.NoError(t, err)
+	backend.Commit()
+
+	receipt, err := backend.TransactionReceipt(context.Background(), txn.Hash())
+	require.NoError(t, err)
+	require.NotNil(t, receipt)
+
+	require.Len(t, receipt.Logs, 1)
+	require.Len(t, receipt.Logs[0].Topics, 1)
+
+	contractAbi, err := abi.JSON(strings.NewReader(ContractMetaData.ABI))
+	require.NoError(t, err)
+
+	event := &ContractRunSQL{}
+	err = contractAbi.UnpackIntoInterface(event, "RunSQL", receipt.Logs[0].Data)
+
+	require.NoError(t, err)
+	require.Equal(t, tableID.ToBigInt().Int64(), event.TableId.Int64())
+	require.False(t, event.Policy.AllowDelete)
+	require.False(t, event.Policy.AllowInsert)
+	require.True(t, event.Policy.AllowUpdate)
+	require.Equal(t, "rig_id in (0) and id in (0,1)", event.Policy.UpdateWhere)
+	require.Equal(t, []string{"position"}, event.Policy.UpdateColumns)
+	require.Equal(t, statement, event.Statement)
 }
 
 func requireMint(
