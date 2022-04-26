@@ -137,56 +137,14 @@ func (s *SystemStore) GetACLOnTableByController(
 	return aclFromSQLtoDTO(systemACL)
 }
 
-// GetNonce returns the nonce stored in the database by a given address.
-func (s *SystemStore) GetNonce(ctx context.Context, network string, addr common.Address) (nonce.Nonce, error) {
-	params := db.GetNonceParams{
-		Address: addr.Hex(),
-		Network: network,
-	}
-
-	systemNonce, err := s.db.queries().GetNonce(ctx, params)
-	if err == pgx.ErrNoRows {
-		return nonce.Nonce{
-			Address: common.HexToAddress(systemNonce.Address),
-			Network: nonce.Network(systemNonce.Network),
-		}, nil
-	}
-
-	if err != nil {
-		return nonce.Nonce{}, fmt.Errorf("get nonce: %s", err)
-	}
-
-	return nonce.Nonce{
-		Address: common.HexToAddress(systemNonce.Address),
-		Network: nonce.Network(systemNonce.Network),
-		Nonce:   systemNonce.Nonce,
-	}, nil
-}
-
-// UpsertNonce updates a nonce.
-func (s *SystemStore) UpsertNonce(ctx context.Context, network string, addr common.Address, nonce int64) error {
-	params := db.UpsertNonceParams{
-		Address: addr.Hex(),
-		Network: network,
-		Nonce:   nonce,
-	}
-
-	err := s.db.queries().UpsertNonce(ctx, params)
-	if err != nil {
-		return fmt.Errorf("upsert nonce: %s", err)
-	}
-
-	return nil
-}
-
 // ListPendingTx lists all pendings txs.
 func (s *SystemStore) ListPendingTx(
 	ctx context.Context,
-	network string,
+	chainID int64,
 	addr common.Address) ([]nonce.PendingTx, error) {
 	params := db.ListPendingTxParams{
 		Address: addr.Hex(),
-		Network: network,
+		ChainID: chainID,
 	}
 
 	res, err := s.db.queries().ListPendingTx(ctx, params)
@@ -200,7 +158,7 @@ func (s *SystemStore) ListPendingTx(
 			Address:   common.HexToAddress(r.Address),
 			Nonce:     r.Nonce,
 			Hash:      common.HexToHash(r.Hash),
-			Network:   nonce.Network(r.Network),
+			ChainID:   r.ChainID,
 			CreatedAt: r.CreatedAt,
 		}
 
@@ -213,12 +171,12 @@ func (s *SystemStore) ListPendingTx(
 // InsertPendingTx insert a new pending tx.
 func (s *SystemStore) InsertPendingTx(
 	ctx context.Context,
-	network string,
+	chainID int64,
 	addr common.Address,
 	nonce int64, hash common.Hash) error {
 	params := db.InsertPendingTxParams{
 		Address: addr.Hex(),
-		Network: network,
+		ChainID: chainID,
 		Nonce:   nonce,
 		Hash:    hash.Hex(),
 	}

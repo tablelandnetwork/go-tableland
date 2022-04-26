@@ -16,28 +16,12 @@ func (q *Queries) DeletePendingTxByHash(ctx context.Context, hash string) error 
 	return err
 }
 
-const getNonce = `-- name: GetNonce :one
-SELECT network, address, nonce FROM system_nonce WHERE address = $1 AND network = $2
-`
-
-type GetNonceParams struct {
-	Address string
-	Network string
-}
-
-func (q *Queries) GetNonce(ctx context.Context, arg GetNonceParams) (SystemNonce, error) {
-	row := q.db.QueryRow(ctx, getNonce, arg.Address, arg.Network)
-	var i SystemNonce
-	err := row.Scan(&i.Network, &i.Address, &i.Nonce)
-	return i, err
-}
-
 const insertPendingTx = `-- name: InsertPendingTx :exec
-INSERT INTO system_pending_tx ("network", "address", "hash", "nonce") VALUES ($1, $2, $3, $4)
+INSERT INTO system_pending_tx ("chain_id", "address", "hash", "nonce") VALUES ($1, $2, $3, $4)
 `
 
 type InsertPendingTxParams struct {
-	Network string
+	ChainID int64
 	Address string
 	Hash    string
 	Nonce   int64
@@ -45,7 +29,7 @@ type InsertPendingTxParams struct {
 
 func (q *Queries) InsertPendingTx(ctx context.Context, arg InsertPendingTxParams) error {
 	_, err := q.db.Exec(ctx, insertPendingTx,
-		arg.Network,
+		arg.ChainID,
 		arg.Address,
 		arg.Hash,
 		arg.Nonce,
@@ -54,16 +38,16 @@ func (q *Queries) InsertPendingTx(ctx context.Context, arg InsertPendingTxParams
 }
 
 const listPendingTx = `-- name: ListPendingTx :many
-SELECT network, address, hash, nonce, created_at FROM system_pending_tx WHERE address = $1 AND network = $2
+SELECT chain_id, address, hash, nonce, created_at FROM system_pending_tx WHERE address = $1 AND chain_id = $2
 `
 
 type ListPendingTxParams struct {
 	Address string
-	Network string
+	ChainID int64
 }
 
 func (q *Queries) ListPendingTx(ctx context.Context, arg ListPendingTxParams) ([]SystemPendingTx, error) {
-	rows, err := q.db.Query(ctx, listPendingTx, arg.Address, arg.Network)
+	rows, err := q.db.Query(ctx, listPendingTx, arg.Address, arg.ChainID)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +56,7 @@ func (q *Queries) ListPendingTx(ctx context.Context, arg ListPendingTxParams) ([
 	for rows.Next() {
 		var i SystemPendingTx
 		if err := rows.Scan(
-			&i.Network,
+			&i.ChainID,
 			&i.Address,
 			&i.Hash,
 			&i.Nonce,
@@ -86,22 +70,4 @@ func (q *Queries) ListPendingTx(ctx context.Context, arg ListPendingTxParams) ([
 		return nil, err
 	}
 	return items, nil
-}
-
-const upsertNonce = `-- name: UpsertNonce :exec
-INSERT INTO system_nonce ("network", "address", "nonce") VALUES ($1, $2, $3)
-    ON CONFLICT (network, address)
-    DO UPDATE SET nonce = $3
-    WHERE system_nonce.address = $2 AND system_nonce.network = $1
-`
-
-type UpsertNonceParams struct {
-	Network string
-	Address string
-	Nonce   int64
-}
-
-func (q *Queries) UpsertNonce(ctx context.Context, arg UpsertNonceParams) error {
-	_, err := q.db.Exec(ctx, upsertNonce, arg.Network, arg.Address, arg.Nonce)
-	return err
 }

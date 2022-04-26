@@ -19,7 +19,7 @@ var log = logger.With().Str("component", "nonce").Logger()
 // nonce and pending txs locally.
 type LocalTracker struct {
 	currNonce  int64
-	network    noncepkg.Network
+	chainID    int64
 	pendingTxs []noncepkg.PendingTx
 	wallet     *wallet.Wallet
 
@@ -43,6 +43,7 @@ func NewLocalTracker(
 	ctx context.Context,
 	w *wallet.Wallet,
 	nonceStore noncepkg.NonceStore,
+	chainID int64,
 	chainClient noncepkg.ChainClient,
 	checkInterval time.Duration,
 	minBlockChainDepth int,
@@ -50,7 +51,7 @@ func NewLocalTracker(
 ) (*LocalTracker, error) {
 	t := &LocalTracker{
 		wallet:      w,
-		network:     noncepkg.EthereumNetwork,
+		chainID:     chainID,
 		nonceStore:  nonceStore,
 		chainClient: chainClient,
 
@@ -121,9 +122,9 @@ func (t *LocalTracker) GetNonce(ctx context.Context) (noncepkg.RegisterPendingTx
 	registerPendingTx := func(pendingHash common.Hash) {
 		incrementedNonce := nonce + 1
 
-		if err := t.nonceStore.InsertPendingTxAndUpsertNonce(
+		if err := t.nonceStore.InsertPendingTx(
 			ctx,
-			t.network,
+			t.chainID,
 			t.wallet.Address(),
 			incrementedNonce,
 			pendingHash); err != nil {
@@ -161,41 +162,20 @@ func (t *LocalTracker) GetPendingCount(_ context.Context) int {
 }
 
 func (t *LocalTracker) initialize(ctx context.Context) error {
-	// Get the nonce stored locally
-	nonce, err := t.nonceStore.GetNonce(ctx, t.network, t.wallet.Address())
+	// Get the nonce from the network
+	networkNonce, err := t.chainClient.PendingNonceAt(ctx, t.wallet.Address())
 	if err != nil {
-		return fmt.Errorf("get nonce for tracker initialization: %s", err)
+		return fmt.Errorf("get pending nonce at: %s", err)
 	}
 
 	// Get pending txs for the address
-	pendingTxs, err := t.nonceStore.ListPendingTx(ctx, t.network, t.wallet.Address())
+	pendingTxs, err := t.nonceStore.ListPendingTx(ctx, t.chainID, t.wallet.Address())
 	if err != nil {
 		return fmt.Errorf("get nonce for tracker initialization: %s", err)
 	}
 
 	t.pendingTxs = pendingTxs
-
-	// If the local nonce is zero it may indicate that we have no register of the nonce locally
-	if nonce.Nonce == 0 {
-		// maybe this is not a fresh address, so we need to figured out the nonce
-		// by making a call to the network
-		networkNonce, err := t.chainClient.PendingNonceAt(ctx, t.wallet.Address())
-		if err != nil {
-			return fmt.Errorf("get pending nonce at: %s", err)
-		}
-
-		if err := t.nonceStore.UpsertNonce(ctx, t.network, t.wallet.Address(), int64(networkNonce)); err != nil {
-			return fmt.Errorf("upsert nonce: %s", err)
-		}
-
-		nonce = noncepkg.Nonce{
-			Network: noncepkg.EthereumNetwork,
-			Nonce:   int64(networkNonce),
-			Address: t.wallet.Address(),
-		}
-	}
-
-	t.currNonce = nonce.Nonce
+	t.currNonce = int64(networkNonce)
 	return nil
 }
 

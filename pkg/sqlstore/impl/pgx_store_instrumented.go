@@ -154,54 +154,13 @@ func (s *InstrumentedSQLStorePGX) Read(ctx context.Context, stmt parsing.Sugared
 	return data, err
 }
 
-// GetNonce returns the nonce stored in the database by a given address.
-func (s *InstrumentedSQLStorePGX) GetNonce(
-	ctx context.Context,
-	network string,
-	addr common.Address) (nonce.Nonce, error) {
-	start := time.Now()
-	data, err := s.store.GetNonce(ctx, network, addr)
-	latency := time.Since(start).Milliseconds()
-
-	attributes := []attribute.KeyValue{
-		{Key: "method", Value: attribute.StringValue("GetNonce")},
-		{Key: "success", Value: attribute.BoolValue(err == nil)},
-	}
-
-	s.callCount.Add(ctx, 1, attributes...)
-	s.latencyHistogram.Record(ctx, latency, attributes...)
-
-	return data, err
-}
-
-// UpsertNonce updates a nonce.
-func (s *InstrumentedSQLStorePGX) UpsertNonce(
-	ctx context.Context,
-	network string,
-	addr common.Address,
-	nonce int64) error {
-	start := time.Now()
-	err := s.store.UpsertNonce(ctx, network, addr, nonce)
-	latency := time.Since(start).Milliseconds()
-
-	attributes := []attribute.KeyValue{
-		{Key: "method", Value: attribute.StringValue("UpsertNonce")},
-		{Key: "success", Value: attribute.BoolValue(err == nil)},
-	}
-
-	s.callCount.Add(ctx, 1, attributes...)
-	s.latencyHistogram.Record(ctx, latency, attributes...)
-
-	return err
-}
-
 // ListPendingTx lists all pendings txs.
 func (s *InstrumentedSQLStorePGX) ListPendingTx(
 	ctx context.Context,
-	network string,
+	chainID int64,
 	addr common.Address) ([]nonce.PendingTx, error) {
 	start := time.Now()
-	data, err := s.store.ListPendingTx(ctx, network, addr)
+	data, err := s.store.ListPendingTx(ctx, chainID, addr)
 	latency := time.Since(start).Milliseconds()
 
 	attributes := []attribute.KeyValue{
@@ -218,12 +177,12 @@ func (s *InstrumentedSQLStorePGX) ListPendingTx(
 // InsertPendingTx insert a new pending tx.
 func (s *InstrumentedSQLStorePGX) InsertPendingTx(
 	ctx context.Context,
-	network string,
+	chainID int64,
 	addr common.Address,
 	nonce int64,
 	hash common.Hash) error {
 	start := time.Now()
-	err := s.store.InsertPendingTx(ctx, network, addr, nonce, hash)
+	err := s.store.InsertPendingTx(ctx, chainID, addr, nonce, hash)
 	latency := time.Since(start).Milliseconds()
 
 	attributes := []attribute.KeyValue{

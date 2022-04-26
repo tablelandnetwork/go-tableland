@@ -84,6 +84,7 @@ func main() {
 		ctx,
 		wallet,
 		nonceimpl.NewNonceStore(sqlstore),
+		config.Registry.ChainID,
 		conn,
 		checkInterval,
 		config.NonceTracker.MinBlockDepth,
