@@ -273,7 +273,7 @@ type sugaredWriteStmt struct {
 func (ws *sugaredWriteStmt) AddWhereClause(whereClauses string) error {
 	// this does not apply to insert
 	if ws.Operation() == tableland.OpInsert {
-		return nil
+		return parsing.ErrCantAddWhereOnINSERT
 	}
 
 	// helper query to extract the where clause from the AST
@@ -306,7 +306,7 @@ func (ws *sugaredWriteStmt) AddWhereClause(whereClauses string) error {
 
 func (ws *sugaredWriteStmt) CheckColumns(allowedColumns []string) error {
 	if ws.Operation() != tableland.OpUpdate {
-		return nil
+		return parsing.ErrCanOnlyCheckColumnsOnUPDATE
 	}
 
 	allowedColumnsMap := make(map[string]struct{})

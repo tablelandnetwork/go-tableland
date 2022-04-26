@@ -465,20 +465,26 @@ func (b *batch) applyPolicy(ws parsing.SugaredWriteStmt, policy tableland.Policy
 		columnsAllowed := policy.UpdateColumns()
 		if len(columnsAllowed) > 0 {
 			if err := ws.CheckColumns(columnsAllowed); err != nil {
-				return &txn.ErrQueryExecution{
-					Code: "POLICY_CHECK_COLUMNS",
-					Msg:  err.Error(),
+				if err != parsing.ErrCanOnlyCheckColumnsOnUPDATE {
+					return &txn.ErrQueryExecution{
+						Code: "POLICY_CHECK_COLUMNS",
+						Msg:  err.Error(),
+					}
 				}
+				log.Warn().Err(err).Msg("check columns being called on insert or delete")
 			}
 		}
 
 		// apply the WHERE clauses
 		if policy.WhereClause() != "" {
 			if err := ws.AddWhereClause(policy.WhereClause()); err != nil {
-				return &txn.ErrQueryExecution{
-					Code: "POLICY_APPLY_WHERE_CLAUSE",
-					Msg:  err.Error(),
+				if err != parsing.ErrCantAddWhereOnINSERT {
+					return &txn.ErrQueryExecution{
+						Code: "POLICY_APPLY_WHERE_CLAUSE",
+						Msg:  err.Error(),
+					}
 				}
+				log.Warn().Err(err).Msg("add where clause called on insert")
 			}
 
 			return nil
