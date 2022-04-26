@@ -442,21 +442,21 @@ func (b *batch) applyPolicy(ws parsing.SugaredWriteStmt, policy tableland.Policy
 	if ws.Operation() == tableland.OpInsert && !policy.IsInsertAllowed() {
 		return &txn.ErrQueryExecution{
 			Code: "POLICY",
-			Msg:  "insert is not allowed",
+			Msg:  "insert is not allowed by policy",
 		}
 	}
 
 	if ws.Operation() == tableland.OpUpdate && !policy.IsUpdateAllowed() {
 		return &txn.ErrQueryExecution{
 			Code: "POLICY",
-			Msg:  "update is not allowed",
+			Msg:  "update is not allowed by policy",
 		}
 	}
 
 	if ws.Operation() == tableland.OpDelete && !policy.IsDeleteAllowed() {
 		return &txn.ErrQueryExecution{
 			Code: "POLICY",
-			Msg:  "delete is not allowed",
+			Msg:  "delete is not allowed by policy",
 		}
 	}
 
@@ -466,7 +466,7 @@ func (b *batch) applyPolicy(ws parsing.SugaredWriteStmt, policy tableland.Policy
 		if len(columnsAllowed) > 0 {
 			if err := ws.CheckColumns(columnsAllowed); err != nil {
 				return &txn.ErrQueryExecution{
-					Code: "POLICY",
+					Code: "POLICY_CHECK_COLUMNS",
 					Msg:  err.Error(),
 				}
 			}
@@ -475,11 +475,10 @@ func (b *batch) applyPolicy(ws parsing.SugaredWriteStmt, policy tableland.Policy
 		// apply the WHERE clauses
 		if policy.WhereClause() != "" {
 			if err := ws.AddWhereClause(policy.WhereClause()); err != nil {
-				errQueryExecution := &txn.ErrQueryExecution{
-					Code: "POLICY",
+				return &txn.ErrQueryExecution{
+					Code: "POLICY_APPLY_WHERE_CLAUSE",
 					Msg:  err.Error(),
 				}
-				return fmt.Errorf("adding where clause: %w", errQueryExecution)
 			}
 
 			return nil
