@@ -278,7 +278,9 @@ func TestRunSQLWithPolicies(t *testing.T) {
 
 		wq := mustWriteStmt(t, `insert into foo_100 values ('one');`)
 		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq}, policy)
-		require.Error(t, err)
+		var errQueryExecution *txn.ErrQueryExecution
+		require.ErrorAs(t, err, &errQueryExecution)
+		require.ErrorContains(t, err, "insert is not allowed by policy")
 	})
 
 	t.Run("update-not-allowed", func(t *testing.T) {
@@ -296,7 +298,9 @@ func TestRunSQLWithPolicies(t *testing.T) {
 
 		wq := mustWriteStmt(t, `update foo_100 set zar = 'three';`)
 		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq}, policy)
-		require.Error(t, err)
+		var errQueryExecution *txn.ErrQueryExecution
+		require.ErrorAs(t, err, &errQueryExecution)
+		require.ErrorContains(t, err, "update is not allowed by policy")
 	})
 
 	t.Run("delete-not-allowed", func(t *testing.T) {
@@ -314,7 +318,9 @@ func TestRunSQLWithPolicies(t *testing.T) {
 
 		wq := mustWriteStmt(t, `DELETE FROM foo_100`)
 		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq}, policy)
-		require.Error(t, err)
+		var errQueryExecution *txn.ErrQueryExecution
+		require.ErrorAs(t, err, &errQueryExecution)
+		require.ErrorContains(t, err, "delete is not allowed by policy")
 	})
 
 	t.Run("update-column-not-allowed", func(t *testing.T) {
@@ -334,6 +340,8 @@ func TestRunSQLWithPolicies(t *testing.T) {
 		// tries to update zar and not zaz
 		wq := mustWriteStmt(t, `update foo_100 set zar = 'three';`)
 		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq}, policy)
+		var errQueryExecution *txn.ErrQueryExecution
+		require.ErrorAs(t, err, &errQueryExecution)
 		require.ErrorContains(t, err, "column zar is not allowed")
 	})
 
