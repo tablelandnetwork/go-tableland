@@ -1,6 +1,7 @@
 package parsing
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -33,6 +34,12 @@ type SugaredStmt interface {
 // (update, insert, delete).
 type SugaredWriteStmt interface {
 	SugaredStmt
+
+	// AddWhereClause adds where clauses to update statement.
+	AddWhereClause(string) error
+
+	// CheckColumns checks if a column that is not allowed is being touched on update.
+	CheckColumns([]string) error
 }
 
 // SugaredGrantStmt is an already parsed grant statement that satisfies all
@@ -138,6 +145,12 @@ var (
 	dummyStr     string
 	dummyBool    bool
 	dummyFloat64 float64
+
+	// ErrCantAddWhereOnINSERT indicates the AddWhereClause was called on an insert.
+	ErrCantAddWhereOnINSERT = errors.New("can't add where clauses to an insert")
+
+	// ErrCanOnlyCheckColumnsOnUPDATE indicates that the CheckColums was called on an insert or delete.
+	ErrCanOnlyCheckColumnsOnUPDATE = errors.New("can only check columns on update")
 )
 
 // ErrInvalidSyntax is an error returned when parsing the query.

@@ -27,21 +27,24 @@ func TestTracker(t *testing.T) {
 	tracker, backend, contract, txOpts, wallet := setup(ctx, t)
 
 	fn1, unlock1, nonce1 := tracker.GetNonce(ctx)
-	txn1, err := contract.RunSQL(txOpts, big.NewInt(1), wallet.Address(), "INSERT ...")
+	txn1, err := contract.RunSQL(txOpts, wallet.Address(), big.NewInt(0), "INSERT ...")
+
 	require.NoError(t, err)
 	backend.Commit()
 	fn1(txn1.Hash())
 	unlock1()
 
 	fn2, unlock2, nonce2 := tracker.GetNonce(ctx)
-	txn2, err := contract.RunSQL(txOpts, big.NewInt(1), wallet.Address(), "INSERT ...")
+	txn2, err := contract.RunSQL(txOpts, wallet.Address(), big.NewInt(0), "INSERT ...")
+
 	require.NoError(t, err)
 	backend.Commit()
 	fn2(txn2.Hash())
 	unlock2()
 
 	fn3, unlock3, nonce3 := tracker.GetNonce(ctx)
-	txn3, err := contract.RunSQL(txOpts, big.NewInt(1), wallet.Address(), "INSERT ...")
+	txn3, err := contract.RunSQL(txOpts, wallet.Address(), big.NewInt(0), "INSERT ...")
+
 	require.NoError(t, err)
 	backend.Commit()
 	fn3(txn3.Hash())
@@ -68,7 +71,8 @@ func TestTrackerUnlock(t *testing.T) {
 
 	// this call will be blocked until nonce tracker is unblocked
 	fn2, unlock2, nonce2 := tracker.GetNonce(ctx)
-	txn2, err := contract.RunSQL(txOpts, big.NewInt(1), wallet.Address(), "INSERT ...")
+	txn2, err := contract.RunSQL(txOpts, wallet.Address(), big.NewInt(0), "INSERT ...")
+
 	require.NoError(t, err)
 	backend.Commit()
 	fn2(txn2.Hash())
@@ -86,14 +90,15 @@ func TestTrackerPendingTxGotStuck(t *testing.T) {
 	tracker, backend, contract, txOpts, wallet := setup(ctx, t)
 
 	fn1, unlock1, nonce1 := tracker.GetNonce(ctx)
-	txn1, err := contract.RunSQL(txOpts, big.NewInt(1), wallet.Address(), "INSERT ...")
+	txn1, err := contract.RunSQL(txOpts, wallet.Address(), big.NewInt(1), "INSERT ...")
+
 	require.NoError(t, err)
 	backend.Commit()
 	fn1(txn1.Hash())
 	unlock1()
 
 	fn2, unlock2, nonce2 := tracker.GetNonce(ctx)
-	txn2, err := contract.RunSQL(txOpts, big.NewInt(1), wallet.Address(), "INSERT ...")
+	txn2, err := contract.RunSQL(txOpts, wallet.Address(), big.NewInt(0), "INSERT ...")
 	require.NoError(t, err)
 	//backend.Commit() , this tx will get stuck
 	fn2(txn2.Hash())

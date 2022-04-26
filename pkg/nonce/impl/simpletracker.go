@@ -33,6 +33,7 @@ func (t *SimpleTracker) GetNonce(ctx context.Context) (nonce.RegisterPendingTx, 
 	if err != nil {
 		panic(err)
 	}
+
 	return func(pendingHash common.Hash) {
 			// noop
 		}, func() {

@@ -111,6 +111,26 @@ func (t *TablelandMesa) GetReceipt(
 	}, nil
 }
 
+// SetController allows users to the controller for a token id.
+func (t *TablelandMesa) SetController(
+	ctx context.Context,
+	req tableland.SetControllerRequest) (tableland.SetControllerResponse, error) {
+	tableID, err := tableland.NewTableID(req.TokenID)
+	if err != nil {
+		return tableland.SetControllerResponse{}, fmt.Errorf("parsing table id: %s", err)
+	}
+
+	tx, err := t.registry.SetController(ctx, common.HexToAddress(req.Caller), tableID, common.HexToAddress(req.Controller))
+	if err != nil {
+		return tableland.SetControllerResponse{}, fmt.Errorf("sending tx: %s", err)
+	}
+
+	response := tableland.SetControllerResponse{}
+	response.Transaction.Hash = tx.Hash().String()
+	t.incrementRunSQLCount(ctx, req.Controller)
+	return response, nil
+}
+
 func (t *TablelandMesa) runSelect(ctx context.Context, ctrl string, stmt parsing.SugaredReadStmt) (interface{}, error) {
 	queryResult, err := t.store.Read(ctx, stmt)
 	if err != nil {

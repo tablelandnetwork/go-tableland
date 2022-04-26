@@ -76,6 +76,17 @@ func (t *InstrumentedTablelandMesa) GetReceipt(
 	return resp, err
 }
 
+// SetController allows users to the controller for a token id.
+func (t *InstrumentedTablelandMesa) SetController(ctx context.Context,
+	req tableland.SetControllerRequest) (tableland.SetControllerResponse, error) {
+	start := time.Now()
+	resp, err := t.tableland.SetController(ctx, req)
+	latency := time.Since(start).Milliseconds()
+
+	t.record(ctx, recordData{"SetController", req.Caller, "", err == nil, latency})
+	return resp, err
+}
+
 func (t *InstrumentedTablelandMesa) record(ctx context.Context, data recordData) {
 	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
 	attributes := []attribute.KeyValue{

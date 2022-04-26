@@ -1,0 +1,74 @@
+[
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "caller",
+				"type": "address"
+			}
+		],
+		"name": "getPolicy",
+		"outputs": [
+			{
+				"components": [
+					{
+						"internalType": "bool",
+						"name": "allowInsert",
+						"type": "bool"
+					},
+					{
+						"internalType": "bool",
+						"name": "allowUpdate",
+						"type": "bool"
+					},
+					{
+						"internalType": "bool",
+						"name": "allowDelete",
+						"type": "bool"
+					},
+					{
+						"internalType": "string",
+						"name": "whereClause",
+						"type": "string"
+					},
+					{
+						"internalType": "string[]",
+						"name": "updateColumns",
+						"type": "string[]"
+					}
+				],
+				"internalType": "struct TablelandControllerLibrary.Policy",
+				"name": "",
+				"type": "tuple"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "badges",
+				"type": "address"
+			}
+		],
+		"name": "setBadges",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "rigs",
+				"type": "address"
+			}
+		],
+		"name": "setRigs",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	}
+]

@@ -144,7 +144,8 @@ func (b *batch) InsertTable(
 func (b *batch) ExecWriteQueries(
 	ctx context.Context,
 	controller common.Address,
-	mqueries []parsing.SugaredMutatingStmt) error {
+	mqueries []parsing.SugaredMutatingStmt,
+	policy tableland.Policy) error {
 	f := func(tx pgx.Tx) error {
 		if len(mqueries) == 0 {
 			log.Warn().Msg("no mutating-queries to execute in a batch")
@@ -169,8 +170,7 @@ func (b *batch) ExecWriteQueries(
 					return fmt.Errorf("executing grant stmt: %s", err)
 				}
 			case parsing.SugaredWriteStmt:
-				err := b.executeWriteStmt(ctx, tx, stmt, controller, beforeRowCount)
-				if err != nil {
+				if err := b.executeWriteStmt(ctx, tx, stmt, controller, policy, beforeRowCount); err != nil {
 					return fmt.Errorf("executing write stmt: %w", err)
 				}
 			default:
@@ -394,7 +394,12 @@ func (b *batch) executeWriteStmt(
 	tx pgx.Tx,
 	ws parsing.SugaredWriteStmt,
 	controller common.Address,
+	policy tableland.Policy,
 	beforeRowCount int) error {
+	if err := b.applyPolicy(ws, policy); err != nil {
+		return fmt.Errorf("not allowed to execute stmt: %w", err)
+	}
+
 	ok, err := b.tp.acl.CheckPrivileges(ctx, tx, controller, ws.GetTableID(), ws.Operation())
 	if err != nil {
 		return fmt.Errorf("error checking acl: %s", err)
@@ -427,6 +432,62 @@ func (b *batch) executeWriteStmt(
 				BeforeRowCount: beforeRowCount,
 				AfterRowCount:  afterRowCount,
 			}
+		}
+	}
+
+	return nil
+}
+
+func (b *batch) applyPolicy(ws parsing.SugaredWriteStmt, policy tableland.Policy) error {
+	if ws.Operation() == tableland.OpInsert && !policy.IsInsertAllowed() {
+		return &txn.ErrQueryExecution{
+			Code: "POLICY",
+			Msg:  "insert is not allowed by policy",
+		}
+	}
+
+	if ws.Operation() == tableland.OpUpdate && !policy.IsUpdateAllowed() {
+		return &txn.ErrQueryExecution{
+			Code: "POLICY",
+			Msg:  "update is not allowed by policy",
+		}
+	}
+
+	if ws.Operation() == tableland.OpDelete && !policy.IsDeleteAllowed() {
+		return &txn.ErrQueryExecution{
+			Code: "POLICY",
+			Msg:  "delete is not allowed by policy",
+		}
+	}
+
+	if ws.Operation() == tableland.OpUpdate {
+		// check allowed columns
+		columnsAllowed := policy.UpdateColumns()
+		if len(columnsAllowed) > 0 {
+			if err := ws.CheckColumns(columnsAllowed); err != nil {
+				if err != parsing.ErrCanOnlyCheckColumnsOnUPDATE {
+					return &txn.ErrQueryExecution{
+						Code: "POLICY_CHECK_COLUMNS",
+						Msg:  err.Error(),
+					}
+				}
+				log.Warn().Err(err).Msg("check columns being called on insert or delete")
+			}
+		}
+
+		// apply the WHERE clauses
+		if policy.WhereClause() != "" {
+			if err := ws.AddWhereClause(policy.WhereClause()); err != nil {
+				if err != parsing.ErrCantAddWhereOnINSERT {
+					return &txn.ErrQueryExecution{
+						Code: "POLICY_APPLY_WHERE_CLAUSE",
+						Msg:  err.Error(),
+					}
+				}
+				log.Warn().Err(err).Msg("add where clause called on insert")
+			}
+
+			return nil
 		}
 	}
 

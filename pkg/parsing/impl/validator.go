@@ -177,7 +177,7 @@ func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.SugaredReadStmt,
 			if stmt.GetDeleteStmt() != nil {
 				s.operation = tableland.OpDelete
 			}
-			ret[i] = parsing.SugaredWriteStmt(s)
+			ret[i] = &sugaredWriteStmt{s}
 		case isGrant(stmt):
 			if stmt.GetGrantStmt().IsGrant {
 				s.operation = tableland.OpGrant
@@ -185,7 +185,7 @@ func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.SugaredReadStmt,
 				s.operation = tableland.OpRevoke
 			}
 
-			ret[i] = parsing.SugaredGrantStmt(&sugaredGrantStmt{s})
+			ret[i] = &sugaredGrantStmt{s}
 		default:
 			return nil, nil, &parsing.ErrStatementIsNotSupported{}
 		}
@@ -264,6 +264,70 @@ func (s *sugaredStmt) GetTableID() tableland.TableID {
 
 func (s *sugaredStmt) Operation() tableland.Operation {
 	return s.operation
+}
+
+type sugaredWriteStmt struct {
+	*sugaredStmt
+}
+
+func (ws *sugaredWriteStmt) AddWhereClause(whereClauses string) error {
+	// this does not apply to insert
+	if ws.Operation() == tableland.OpInsert {
+		return parsing.ErrCantAddWhereOnINSERT
+	}
+
+	// helper query to extract the where clause from the AST
+	helper, err := pg_query.Parse("UPDATE helper SET foo = 'bar' WHERE " + whereClauses)
+	if err != nil {
+		return fmt.Errorf("parsing where clauses: %s", err)
+	}
+
+	updateStmt := ws.node.GetUpdateStmt()
+	var newWhereClause *pg_query.Node
+	if updateStmt.GetWhereClause() != nil {
+		// merge both where clauses nodes
+		boolExpr := &pg_query.BoolExpr{
+			Boolop: 1,
+			Args: []*pg_query.Node{
+				updateStmt.GetWhereClause(),
+				helper.Stmts[0].GetStmt().GetUpdateStmt().GetWhereClause(),
+			},
+		}
+
+		newWhereClause = &pg_query.Node{Node: &pg_query.Node_BoolExpr{BoolExpr: boolExpr}}
+	} else {
+		// use the where clause from the helper query, because the stmt had none
+		newWhereClause = helper.Stmts[0].GetStmt().GetUpdateStmt().GetWhereClause()
+	}
+
+	updateStmt.WhereClause = newWhereClause
+	return nil
+}
+
+func (ws *sugaredWriteStmt) CheckColumns(allowedColumns []string) error {
+	if ws.Operation() != tableland.OpUpdate {
+		return parsing.ErrCanOnlyCheckColumnsOnUPDATE
+	}
+
+	allowedColumnsMap := make(map[string]struct{})
+	for _, allowedColumn := range allowedColumns {
+		allowedColumnsMap[allowedColumn] = struct{}{}
+	}
+
+	updateStmt := ws.node.GetUpdateStmt()
+
+	for _, target := range updateStmt.TargetList {
+		resTarget := target.GetResTarget()
+		if resTarget == nil {
+			continue
+		}
+
+		if _, ok := allowedColumnsMap[resTarget.Name]; !ok {
+			return fmt.Errorf("column %s is not allowed", resTarget.Name)
+		}
+	}
+
+	return nil
 }
 
 type sugaredGrantStmt struct {

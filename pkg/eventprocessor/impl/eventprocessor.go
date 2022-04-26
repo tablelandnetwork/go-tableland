@@ -361,7 +361,7 @@ func (ep *EventProcessor) executeRunSQLEvent(
 		receipt.Error = &err
 		return receipt, nil
 	}
-	if err := b.ExecWriteQueries(ctx, e.Caller, mutatingStmts); err != nil {
+	if err := b.ExecWriteQueries(ctx, e.Caller, mutatingStmts, &policy{e.Policy}); err != nil {
 		var pgErr *txn.ErrQueryExecution
 		if errors.As(err, &pgErr) {
 			err := fmt.Sprintf("db query execution failed (code: %s, msg: %s)", pgErr.Code, pgErr.Msg)
@@ -374,4 +374,28 @@ func (ep *EventProcessor) executeRunSQLEvent(
 	receipt.TableID = &tblID
 
 	return receipt, nil
+}
+
+type policy struct {
+	ethereum.TablelandControllerLibraryPolicy
+}
+
+func (p *policy) IsInsertAllowed() bool {
+	return p.TablelandControllerLibraryPolicy.AllowInsert
+}
+
+func (p *policy) IsUpdateAllowed() bool {
+	return p.TablelandControllerLibraryPolicy.AllowUpdate
+}
+
+func (p *policy) IsDeleteAllowed() bool {
+	return p.TablelandControllerLibraryPolicy.AllowDelete
+}
+
+func (p *policy) WhereClause() string {
+	return p.TablelandControllerLibraryPolicy.WhereClause
+}
+
+func (p *policy) UpdateColumns() []string {
+	return p.TablelandControllerLibraryPolicy.UpdateColumns
 }

@@ -866,6 +866,52 @@ func TestGetGrantStatementRolesAndPrivileges(t *testing.T) {
 	}
 }
 
+func TestWriteStatementAddWhereClause(t *testing.T) {
+	t.Parallel()
+
+	testCase := []struct {
+		name        string
+		query       string
+		whereClause string
+		expQuery    string
+	}{
+		{
+			name:        "no-where-clause",
+			query:       "UPDATE foo_1337 SET id = 1",
+			whereClause: "bar = 1",
+			expQuery:    "UPDATE _1337 SET id = 1 WHERE bar = 1",
+		},
+		{
+			name:        "with-where-clause",
+			query:       "UPDATE foo_1337 SET id = 1 WHERE bar = 1",
+			whereClause: "c in (1, 2)",
+			expQuery:    "UPDATE _1337 SET id = 1 WHERE bar = 1 AND c IN (1, 2)",
+		},
+	}
+
+	for _, tc := range testCase {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			parser := postgresparser.New([]string{"system_", "registry"}, 0, 0)
+			rs, mss, err := parser.ValidateRunSQL(tc.query)
+			require.NoError(t, err)
+			require.Nil(t, rs)
+			require.Len(t, mss, 1)
+
+			ws, ok := mss[0].(parsing.SugaredWriteStmt)
+			require.True(t, ok)
+
+			err = ws.AddWhereClause(tc.whereClause)
+			require.NoError(t, err)
+
+			sql, err := ws.GetDesugaredQuery()
+			require.NoError(t, err)
+			require.Equal(t, tc.expQuery, sql)
+		})
+	}
+}
+
 // Helpers to have a pointer to pointer for generic test-case running.
 func ptr2ErrInvalidSyntax() **parsing.ErrInvalidSyntax {
 	var e *parsing.ErrInvalidSyntax

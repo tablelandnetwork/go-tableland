@@ -33,14 +33,14 @@ func TestRunSQL(t *testing.T) {
 		require.NoError(t, err)
 
 		wq1 := mustWriteStmt(t, `insert into foo_100 values ('one')`)
-		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1})
+		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1}, tableland.AllowAllPolicy{})
 		require.NoError(t, err)
 
 		require.NoError(t, b.Commit(ctx))
 		require.NoError(t, b.Close(ctx))
 		require.NoError(t, txnp.Close(ctx))
 
-		require.Equal(t, 1, tableRowCountT100(t, pool))
+		require.Equal(t, 1, tableRowCountT100(t, pool, "select count(*) from _100"))
 	})
 
 	t.Run("multiple queries", func(t *testing.T) {
@@ -54,18 +54,18 @@ func TestRunSQL(t *testing.T) {
 
 		{
 			wq1 := mustWriteStmt(t, `insert into foo_100 values ('wq1one')`)
-			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1})
+			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1}, tableland.AllowAllPolicy{})
 			require.NoError(t, err)
 		}
 		{
 			wq1 := mustWriteStmt(t, `insert into foo_100 values ('wq1two')`)
 			wq2 := mustWriteStmt(t, `insert into foo_100 values ('wq2three')`)
-			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1, wq2})
+			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1, wq2}, tableland.AllowAllPolicy{})
 			require.NoError(t, err)
 		}
 		{
 			wq1 := mustWriteStmt(t, `insert into foo_100 values ('wq1four')`)
-			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1})
+			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1}, tableland.AllowAllPolicy{})
 			require.NoError(t, err)
 		}
 
@@ -73,7 +73,7 @@ func TestRunSQL(t *testing.T) {
 		require.NoError(t, b.Close(ctx))
 		require.NoError(t, txnp.Close(ctx))
 
-		require.Equal(t, 4, tableRowCountT100(t, pool))
+		require.Equal(t, 4, tableRowCountT100(t, pool, "select count(*) from _100"))
 	})
 
 	t.Run("multiple with single failure", func(t *testing.T) {
@@ -87,18 +87,18 @@ func TestRunSQL(t *testing.T) {
 
 		{
 			wq1_1 := mustWriteStmt(t, `insert into foo_100 values ('onez')`)
-			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1_1})
+			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1_1}, tableland.AllowAllPolicy{})
 			require.NoError(t, err)
 		}
 		{
 			wq2_1 := mustWriteStmt(t, `insert into foo_100 values ('twoz')`)
 			wq2_2 := mustWriteStmt(t, `insert into foo_101 values ('threez')`)
-			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq2_1, wq2_2})
+			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq2_1, wq2_2}, tableland.AllowAllPolicy{})
 			require.Error(t, err)
 		}
 		{
 			wq3_1 := mustWriteStmt(t, `insert into foo_100 values ('fourz')`)
-			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq3_1})
+			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq3_1}, tableland.AllowAllPolicy{})
 			require.NoError(t, err)
 		}
 
@@ -113,7 +113,7 @@ func TestRunSQL(t *testing.T) {
 		// 1. wq1_1 and wq3_1 should survive the whole batch commit.
 		// 2. despite wq2_1 apparently should succeed, wq2_2 failure should rollback
 		//    both wq2_* statements.
-		require.Equal(t, 2, tableRowCountT100(t, pool))
+		require.Equal(t, 2, tableRowCountT100(t, pool, "select count(*) from _100"))
 	})
 
 	t.Run("with abrupt close", func(t *testing.T) {
@@ -127,13 +127,13 @@ func TestRunSQL(t *testing.T) {
 
 		{
 			wq1_1 := mustWriteStmt(t, `insert into foo_100 values ('one')`)
-			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1_1})
+			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1_1}, tableland.AllowAllPolicy{})
 			require.NoError(t, err)
 		}
 		{
 			wq2_1 := mustWriteStmt(t, `insert into foo_100 values ('two')`)
 			wq2_2 := mustWriteStmt(t, `insert into foo_100 values ('three')`)
-			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq2_1, wq2_2})
+			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq2_1, wq2_2}, tableland.AllowAllPolicy{})
 			require.NoError(t, err)
 		}
 
@@ -144,7 +144,7 @@ func TestRunSQL(t *testing.T) {
 		// The opened batch wasn't txnp.CloseBatch(), but we simply
 		// closed the whole store. This should rollback any ongoing
 		// opened batch and leave db state correctly.
-		require.Equal(t, 0, tableRowCountT100(t, pool))
+		require.Equal(t, 0, tableRowCountT100(t, pool, "select count(*) from _100"))
 	})
 
 	t.Run("single-query grant", func(t *testing.T) {
@@ -157,7 +157,7 @@ func TestRunSQL(t *testing.T) {
 		require.NoError(t, err)
 
 		wq1 := mustGrantStmt(t, "grant insert, update, delete on foo_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\", \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"") //nolint
-		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1})
+		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1}, tableland.AllowAllPolicy{})
 		require.NoError(t, err)
 
 		require.NoError(t, b.Commit(ctx))
@@ -191,7 +191,7 @@ func TestRunSQL(t *testing.T) {
 		wq2 := mustGrantStmt(t, "grant update on foo_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\"")
 		// add the delete privilege (and mistakenly the insert) grant for role 0x4afe8e30db4549384b0a05bb796468b130c7d6e0
 		wq3 := mustGrantStmt(t, "grant insert, delete on foo_100 to \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"")
-		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1, wq2, wq3})
+		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1, wq2, wq3}, tableland.AllowAllPolicy{})
 		require.NoError(t, err)
 
 		require.NoError(t, b.Commit(ctx))
@@ -236,7 +236,7 @@ func TestRunSQL(t *testing.T) {
 
 		wq1 := mustGrantStmt(t, "grant insert, update, delete on foo_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\"")
 		wq2 := mustGrantStmt(t, "revoke insert, delete on foo_100 from \"0xd43c59d5694ec111eb9e986c233200b14249558d\"")
-		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1, wq2})
+		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1, wq2}, tableland.AllowAllPolicy{})
 		require.NoError(t, err)
 
 		require.NoError(t, b.Commit(ctx))
@@ -257,6 +257,126 @@ func TestRunSQL(t *testing.T) {
 			require.Equal(t, "0xD43C59d5694eC111Eb9e986C233200b14249558D", aclRow.Controller)
 			require.Equal(t, tableland.Privileges{tableland.PrivUpdate}, aclRow.Privileges)
 		}
+	})
+}
+
+func TestRunSQLWithPolicies(t *testing.T) {
+	t.Parallel()
+
+	t.Run("insert-not-allowed", func(t *testing.T) {
+		t.Parallel()
+		ctx := context.Background()
+
+		txnp, _ := newTxnProcessorWithTable(t, 0)
+
+		b, err := txnp.OpenBatch(ctx)
+		require.NoError(t, err)
+
+		policy := policyFactory(policyData{
+			isInsertAllowed: false,
+		})
+
+		wq := mustWriteStmt(t, `insert into foo_100 values ('one');`)
+		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq}, policy)
+		var errQueryExecution *txn.ErrQueryExecution
+		require.ErrorAs(t, err, &errQueryExecution)
+		require.ErrorContains(t, err, "insert is not allowed by policy")
+	})
+
+	t.Run("update-not-allowed", func(t *testing.T) {
+		t.Parallel()
+		ctx := context.Background()
+
+		txnp, _ := newTxnProcessorWithTable(t, 0)
+
+		b, err := txnp.OpenBatch(ctx)
+		require.NoError(t, err)
+
+		policy := policyFactory(policyData{
+			isUpdateAllowed: false,
+		})
+
+		wq := mustWriteStmt(t, `update foo_100 set zar = 'three';`)
+		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq}, policy)
+		var errQueryExecution *txn.ErrQueryExecution
+		require.ErrorAs(t, err, &errQueryExecution)
+		require.ErrorContains(t, err, "update is not allowed by policy")
+	})
+
+	t.Run("delete-not-allowed", func(t *testing.T) {
+		t.Parallel()
+		ctx := context.Background()
+
+		txnp, _ := newTxnProcessorWithTable(t, 0)
+
+		b, err := txnp.OpenBatch(ctx)
+		require.NoError(t, err)
+
+		policy := policyFactory(policyData{
+			isDeleteAllowed: false,
+		})
+
+		wq := mustWriteStmt(t, `DELETE FROM foo_100`)
+		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq}, policy)
+		var errQueryExecution *txn.ErrQueryExecution
+		require.ErrorAs(t, err, &errQueryExecution)
+		require.ErrorContains(t, err, "delete is not allowed by policy")
+	})
+
+	t.Run("update-column-not-allowed", func(t *testing.T) {
+		t.Parallel()
+		ctx := context.Background()
+
+		txnp, _ := newTxnProcessorWithTable(t, 0)
+
+		b, err := txnp.OpenBatch(ctx)
+		require.NoError(t, err)
+
+		policy := policyFactory(policyData{
+			isUpdateAllowed: true,
+			updateColumns:   []string{"zaz"}, // zaz instead of zar
+		})
+
+		// tries to update zar and not zaz
+		wq := mustWriteStmt(t, `update foo_100 set zar = 'three';`)
+		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq}, policy)
+		var errQueryExecution *txn.ErrQueryExecution
+		require.ErrorAs(t, err, &errQueryExecution)
+		require.ErrorContains(t, err, "column zar is not allowed")
+	})
+
+	t.Run("update-where-policy", func(t *testing.T) {
+		t.Parallel()
+		ctx := context.Background()
+
+		txnp, pool := newTxnProcessorWithTable(t, 0)
+
+		b, err := txnp.OpenBatch(ctx)
+		require.NoError(t, err)
+
+		// start with two rows
+		wq1 := mustWriteStmt(t, `insert into foo_100 values ('one');`)
+		wq2 := mustWriteStmt(t, `insert into foo_100 values ('two');`)
+		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1, wq2}, tableland.AllowAllPolicy{})
+		require.NoError(t, err)
+
+		policy := policyFactory(policyData{
+			isUpdateAllowed: true,
+			whereClause:     "zar = 'two'",
+			updateColumns:   []string{"zar"},
+		})
+
+		// send an update that updates all rows with a policy to restricts the update
+		wq3 := mustWriteStmt(t, `update foo_100 set zar = 'three'`)
+		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq3}, policy)
+		require.NoError(t, err)
+
+		require.NoError(t, b.Commit(ctx))
+		require.NoError(t, b.Close(ctx))
+		require.NoError(t, txnp.Close(ctx))
+
+		// there should be only one row updated
+		require.Equal(t, 1, tableRowCountT100(t, pool, "select count(*) from _100 WHERE zar = 'three'"))
 	})
 }
 
@@ -313,7 +433,7 @@ func TestTableRowCountLimit(t *testing.T) {
 		require.NoError(t, err)
 
 		q := mustWriteStmt(t, `insert into foo_100 values ('one')`)
-		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{q})
+		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{q}, tableland.AllowAllPolicy{})
 		if err == nil {
 			require.NoError(t, b.Commit(ctx))
 		}
@@ -325,7 +445,7 @@ func TestTableRowCountLimit(t *testing.T) {
 	for i := 0; i < rowLimit; i++ {
 		require.NoError(t, insertRow(t))
 	}
-	require.Equal(t, rowLimit, tableRowCountT100(t, pool))
+	require.Equal(t, rowLimit, tableRowCountT100(t, pool, "select count(*) from _100"))
 
 	// The next insert should fail.
 	var errRowCount *txn.ErrRowCountExceeded
@@ -336,11 +456,10 @@ func TestTableRowCountLimit(t *testing.T) {
 	require.NoError(t, txnp.Close(ctx))
 }
 
-func tableRowCountT100(t *testing.T, pool *pgxpool.Pool) int {
+func tableRowCountT100(t *testing.T, pool *pgxpool.Pool, sql string) int {
 	t.Helper()
 
-	q := "select count(*) from _100"
-	row := pool.QueryRow(context.Background(), q)
+	row := pool.QueryRow(context.Background(), sql)
 	var rowCount int
 	err := row.Scan(&rowCount)
 	if err == pgx.ErrNoRows {
@@ -436,3 +555,25 @@ func (acl *aclMock) CheckPrivileges(
 func (acl *aclMock) IsOwner(ctx context.Context, controller common.Address, id tableland.TableID) (bool, error) {
 	return true, nil
 }
+
+type policyData struct {
+	isInsertAllowed bool
+	isUpdateAllowed bool
+	isDeleteAllowed bool
+	whereClause     string
+	updateColumns   []string
+}
+
+func policyFactory(data policyData) tableland.Policy {
+	return policy{data}
+}
+
+type policy struct {
+	policyData
+}
+
+func (p policy) IsInsertAllowed() bool   { return p.policyData.isInsertAllowed }
+func (p policy) IsUpdateAllowed() bool   { return p.policyData.isUpdateAllowed }
+func (p policy) IsDeleteAllowed() bool   { return p.policyData.isDeleteAllowed }
+func (p policy) WhereClause() string     { return p.policyData.whereClause }
+func (p policy) UpdateColumns() []string { return p.policyData.updateColumns }

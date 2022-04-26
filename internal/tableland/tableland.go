@@ -49,6 +49,20 @@ type ValidateCreateTableResponse struct {
 	StructureHash string `json:"structure_hash"`
 }
 
+// SetControllerRequest is a user SetController request.
+type SetControllerRequest struct {
+	Caller     string `json:"caller"`
+	Controller string `json:"controller"`
+	TokenID    string `json:"tokenId"`
+}
+
+// SetControllerResponse is a RunSQL response.
+type SetControllerResponse struct {
+	Transaction struct {
+		Hash string `json:"hash"`
+	} `json:"tx"`
+}
+
 // SQLRunner defines the run SQL interface of Tableland.
 type SQLRunner interface {
 	RunSQL(context.Context, RunSQLRequest) (RunSQLResponse, error)
@@ -59,6 +73,7 @@ type Tableland interface {
 	SQLRunner
 	ValidateCreateTable(context.Context, ValidateCreateTableRequest) (ValidateCreateTableResponse, error)
 	GetReceipt(context.Context, GetReceiptRequest) (GetReceiptResponse, error)
+	SetController(context.Context, SetControllerRequest) (SetControllerResponse, error)
 }
 
 // TableID is the ID of a Table.
