@@ -42,12 +42,10 @@ func TestIsOwner(t *testing.T) {
 }
 
 func TestRunSQL(t *testing.T) {
-	backend, key, fromAuth, _, _ := setup(t)
+	backend, key, txOpts, _, client := setup(t)
 	_, toAuth := requireNewAuth(t)
 	requireAuthGas(t, backend, toAuth)
-	requireTxn(t, backend, key, fromAuth.From, toAuth.From, big.NewInt(1000000000000000000))
-
-	backend, _, txOpts, _, client := setup(t)
+	requireTxn(t, backend, key, txOpts.From, toAuth.From, big.NewInt(1000000000000000000))
 
 	tableID := tableland.TableID(*big.NewInt(1))
 	statement := "insert into XXX values (1,2,3)"
