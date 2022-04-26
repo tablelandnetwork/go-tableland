@@ -271,7 +271,8 @@ type sugaredWriteStmt struct {
 }
 
 func (ws *sugaredWriteStmt) AddWhereClause(whereClauses string) error {
-	if ws.Operation() != tableland.OpUpdate {
+	// this does not apply to insert
+	if ws.Operation() == tableland.OpInsert {
 		return nil
 	}
 

@@ -234,7 +234,7 @@
 					},
 					{
 						"internalType": "string",
-						"name": "updateWhere",
+						"name": "whereClause",
 						"type": "string"
 					},
 					{

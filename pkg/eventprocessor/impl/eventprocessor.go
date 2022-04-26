@@ -392,8 +392,8 @@ func (p *policy) IsDeleteAllowed() bool {
 	return p.TablelandControllerLibraryPolicy.AllowDelete
 }
 
-func (p *policy) UpdateWhere() string {
-	return p.TablelandControllerLibraryPolicy.UpdateWhere
+func (p *policy) WhereClause() string {
+	return p.TablelandControllerLibraryPolicy.WhereClause
 }
 
 func (p *policy) UpdateColumns() []string {

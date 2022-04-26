@@ -20,6 +20,19 @@ ethereum:
 	go run github.com/ethereum/go-ethereum/cmd/abigen@v1.10.13 --abi ./pkg/tableregistry/impl/ethereum/abi.json --pkg ethereum --type Contract --out pkg/tableregistry/impl/ethereum/contract.go --bin pkg/tableregistry/impl/ethereum/bytecode.bin
 .PHONY: ethereum
 
+ethereum-controller:
+	go run github.com/ethereum/go-ethereum/cmd/abigen@v1.10.13 --abi ./pkg/tableregistry/impl/ethereum//controller/abi.json --pkg controller --type Contract --out pkg/tableregistry/impl/ethereum/controller/badges_controller.go --bin pkg/tableregistry/impl/ethereum/controller/bytecode.bin
+.PHONY: ethereum
+
+ethereum-badges:
+	go run github.com/ethereum/go-ethereum/cmd/abigen@v1.10.13 --abi ./pkg/tableregistry/impl/ethereum//badges/abi.json --pkg badges --type Contract --out pkg/tableregistry/impl/ethereum/badges/badges.go --bin pkg/tableregistry/impl/ethereum/badges/bytecode.bin
+.PHONY: ethereum
+
+ethereum-rigs:
+	go run github.com/ethereum/go-ethereum/cmd/abigen@v1.10.13 --abi ./pkg/tableregistry/impl/ethereum//rigs/abi.json --pkg rigs --type Contract --out pkg/tableregistry/impl/ethereum/rigs/rigs.go --bin pkg/tableregistry/impl/ethereum/rigs/bytecode.bin
+.PHONY: ethereum
+
+
 system-sql-assets:
 	cd pkg/sqlstore/impl/system && $(GO_BINDATA) -pkg migrations -prefix migrations/ -o migrations/migrations.go -ignore=migrations.go migrations && $(SQLC) generate; cd -;
 .PHONY: system-sql-assets

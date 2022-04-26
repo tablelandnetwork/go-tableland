@@ -396,6 +396,10 @@ func (b *batch) executeWriteStmt(
 	controller common.Address,
 	policy tableland.Policy,
 	beforeRowCount int) error {
+	if err := b.applyPolicy(ws, policy); err != nil {
+		return fmt.Errorf("not allowed to execute stmt: %w", err)
+	}
+
 	ok, err := b.tp.acl.CheckPrivileges(ctx, tx, controller, ws.GetTableID(), ws.Operation())
 	if err != nil {
 		return fmt.Errorf("error checking acl: %s", err)
@@ -405,10 +409,6 @@ func (b *batch) executeWriteStmt(
 			Code: "ACL",
 			Msg:  "not enough privileges",
 		}
-	}
-
-	if err := b.applyPolicy(ws, policy); err != nil {
-		return fmt.Errorf("not allowed to execute stmt: %w", err)
 	}
 
 	desugared, err := ws.GetDesugaredQuery()
@@ -473,8 +473,8 @@ func (b *batch) applyPolicy(ws parsing.SugaredWriteStmt, policy tableland.Policy
 		}
 
 		// apply the WHERE clauses
-		if policy.UpdateWhere() != "" {
-			if err := ws.AddWhereClause(policy.UpdateWhere()); err != nil {
+		if policy.WhereClause() != "" {
+			if err := ws.AddWhereClause(policy.WhereClause()); err != nil {
 				errQueryExecution := &txn.ErrQueryExecution{
 					Code: "POLICY",
 					Msg:  err.Error(),
