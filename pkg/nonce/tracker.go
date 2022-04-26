@@ -10,22 +10,9 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-// Network type is a string that indicates the network.
-type Network string
-
-// EthereumNetwork is referes to Ethereum.
-const EthereumNetwork Network = "eth"
-
-// Nonce represents a nonce for a given address.
-type Nonce struct {
-	Network Network
-	Nonce   int64
-	Address common.Address
-}
-
 // PendingTx represents a pending tx.
 type PendingTx struct {
-	Network   Network
+	ChainID   int64
 	Hash      common.Hash
 	Nonce     int64
 	Address   common.Address
@@ -64,9 +51,7 @@ type ChainClient interface {
 
 // NonceStore provides the api for managing the storage of nonce and pending txs.
 type NonceStore interface {
-	GetNonce(context.Context, Network, common.Address) (Nonce, error)
-	UpsertNonce(context.Context, Network, common.Address, int64) error
-	ListPendingTx(context.Context, Network, common.Address) ([]PendingTx, error)
-	InsertPendingTxAndUpsertNonce(context.Context, Network, common.Address, int64, common.Hash) error
+	ListPendingTx(context.Context, int64, common.Address) ([]PendingTx, error)
+	InsertPendingTx(context.Context, int64, common.Address, int64, common.Hash) error
 	DeletePendingTxByHash(context.Context, common.Hash) error
 }
