@@ -61,39 +61,22 @@ func (s *ThrottledSQLStorePGX) Read(ctx context.Context, stmt parsing.SugaredRea
 	return data, err
 }
 
-// GetNonce returns the nonce stored in the database by a given address.
-func (s *ThrottledSQLStorePGX) GetNonce(
-	ctx context.Context,
-	network string,
-	addr common.Address) (nonce.Nonce, error) {
-	return s.store.GetNonce(ctx, network, addr)
-}
-
-// UpsertNonce updates a nonce.
-func (s *ThrottledSQLStorePGX) UpsertNonce(
-	ctx context.Context,
-	network string,
-	addr common.Address,
-	nonce int64) error {
-	return s.store.UpsertNonce(ctx, network, addr, nonce)
-}
-
 // ListPendingTx lists all pendings txs.
 func (s *ThrottledSQLStorePGX) ListPendingTx(
 	ctx context.Context,
-	network string,
+	chainID int64,
 	addr common.Address) ([]nonce.PendingTx, error) {
-	return s.store.ListPendingTx(ctx, network, addr)
+	return s.store.ListPendingTx(ctx, chainID, addr)
 }
 
 // InsertPendingTx insert a new pending tx.
 func (s *ThrottledSQLStorePGX) InsertPendingTx(
 	ctx context.Context,
-	network string,
+	chainID int64,
 	addr common.Address,
 	nonce int64,
 	hash common.Hash) error {
-	return s.store.InsertPendingTx(ctx, network, addr, nonce, hash)
+	return s.store.InsertPendingTx(ctx, chainID, addr, nonce, hash)
 }
 
 // DeletePendingTxByHash deletes a pending tx.

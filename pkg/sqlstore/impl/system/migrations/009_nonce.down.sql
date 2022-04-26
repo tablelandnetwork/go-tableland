@@ -1,1 +1,1 @@
-DROP TABLE system_nonce;
+DROP TABLE system_pending_tx;

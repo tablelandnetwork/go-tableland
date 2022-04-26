@@ -134,6 +134,7 @@ func setup(ctx context.Context, t *testing.T) (
 		ctx,
 		wallet,
 		&NonceStore{sqlstore},
+		1337,
 		backend,
 		500*time.Millisecond,
 		0,
@@ -156,12 +157,11 @@ func TestInitialization(t *testing.T) {
 	sqlstore, err := sqlstoreimpl.New(ctx, url)
 	require.NoError(t, err)
 
-	// Tests the case of a non-fresh wallet that has already submitted some txs
-	// and we are not aware of (simulated by PendingNonceAt() returning 10).
+	// initialize without pending txs
 	{
 		tracker := &LocalTracker{
 			wallet:      wallet,
-			network:     noncepkg.EthereumNetwork,
+			chainID:     1337,
 			nonceStore:  &NonceStore{sqlstore},
 			chainClient: &ChainMock{},
 		}
@@ -169,32 +169,31 @@ func TestInitialization(t *testing.T) {
 		err = tracker.initialize(ctx)
 		require.NoError(t, err)
 
-		nonce, err := tracker.nonceStore.GetNonce(ctx, noncepkg.EthereumNetwork, wallet.Address())
-		require.NoError(t, err)
+		_, unlock, nonce := tracker.GetNonce(ctx)
+		unlock()
 
-		require.Equal(t, int64(10), nonce.Nonce)
+		require.Equal(t, int64(10), nonce)
 		require.Equal(t, 0, tracker.GetPendingCount(ctx))
 	}
 
-	// Tests the case of a non-fresh wallet that has already submitted some txs
-	// and we are aware of (simulated by GetNonce() returning 10) and has some pending tx.
+	// initialize with pending txs
 	{
 		testAddress := wallet.Address()
 
 		// insert two pending txs (nonce 0 and nonce 1)
 		nonceStore := &NonceStore{sqlstore}
-		err := nonceStore.InsertPendingTxAndUpsertNonce(
+		err := nonceStore.InsertPendingTx(
 			ctx,
-			noncepkg.EthereumNetwork,
+			1337,
 			testAddress,
 			0,
 			common.HexToHash("0x119f50bf7f1ff2daa4712119af9dbd429ab727690565f93193f63650b020bc30"),
 		)
 		require.NoError(t, err)
 
-		err = nonceStore.InsertPendingTxAndUpsertNonce(
+		err = nonceStore.InsertPendingTx(
 			ctx,
-			noncepkg.EthereumNetwork,
+			1337,
 			testAddress,
 			1,
 			common.HexToHash("0x7a0edee97ea3543c279a7329665cc851a9ea53a39ad5bbce55338052808a23a9"),
@@ -203,18 +202,18 @@ func TestInitialization(t *testing.T) {
 
 		tracker := &LocalTracker{
 			wallet:      wallet,
-			network:     noncepkg.EthereumNetwork,
+			chainID:     1337,
 			nonceStore:  &NonceStore{sqlstore},
-			chainClient: nil,
+			chainClient: &ChainMock{},
 		}
 
 		err = tracker.initialize(ctx)
 		require.NoError(t, err)
 
-		nonce, err := tracker.nonceStore.GetNonce(ctx, noncepkg.EthereumNetwork, testAddress)
-		require.NoError(t, err)
+		_, unlock, nonce := tracker.GetNonce(ctx)
+		unlock()
 
-		require.Equal(t, int64(1), nonce.Nonce)
+		require.Equal(t, int64(10), nonce)
 		require.Equal(t, 2, tracker.GetPendingCount(ctx))
 	}
 }
@@ -236,18 +235,18 @@ func TestMinBlockDepth(t *testing.T) {
 
 	// insert two pending txs (nonce 0 and nonce 1)
 	nonceStore := &NonceStore{sqlstore}
-	err = nonceStore.InsertPendingTxAndUpsertNonce(
+	err = nonceStore.InsertPendingTx(
 		ctx,
-		noncepkg.EthereumNetwork,
+		1337,
 		testAddress,
 		0,
 		common.HexToHash("0x119f50bf7f1ff2daa4712119af9dbd429ab727690565f93193f63650b020bc30"),
 	)
 	require.NoError(t, err)
 
-	err = nonceStore.InsertPendingTxAndUpsertNonce(
+	err = nonceStore.InsertPendingTx(
 		ctx,
-		noncepkg.EthereumNetwork,
+		1337,
 		testAddress,
 		1,
 		common.HexToHash("0x7a0edee97ea3543c279a7329665cc851a9ea53a39ad5bbce55338052808a23a9"),
@@ -256,20 +255,20 @@ func TestMinBlockDepth(t *testing.T) {
 
 	tracker := &LocalTracker{
 		wallet:      wallet,
-		network:     noncepkg.EthereumNetwork,
+		chainID:     1337,
 		nonceStore:  &NonceStore{sqlstore},
 		chainClient: &ChainMock{},
 
 		pendingTxs: []noncepkg.PendingTx{{
 			Nonce:     0,
 			Hash:      common.HexToHash("0x119f50bf7f1ff2daa4712119af9dbd429ab727690565f93193f63650b020bc30"),
-			Network:   noncepkg.EthereumNetwork,
+			ChainID:   1337,
 			Address:   testAddress,
 			CreatedAt: time.Now(),
 		}, {
 			Nonce:     1,
 			Hash:      common.HexToHash("0x7a0edee97ea3543c279a7329665cc851a9ea53a39ad5bbce55338052808a23a9"),
-			Network:   noncepkg.EthereumNetwork,
+			ChainID:   1337,
 			Address:   testAddress,
 			CreatedAt: time.Now(),
 		}},
@@ -286,7 +285,7 @@ func TestMinBlockDepth(t *testing.T) {
 	err = tracker.checkIfPendingTxWasIncluded(ctx, tracker.pendingTxs[0], h)
 	require.NoError(t, err)
 	require.Equal(t, 1, tracker.GetPendingCount(ctx))
-	txs, err := nonceStore.ListPendingTx(ctx, noncepkg.EthereumNetwork, testAddress)
+	txs, err := nonceStore.ListPendingTx(ctx, 1337, testAddress)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(txs))
 
@@ -295,7 +294,7 @@ func TestMinBlockDepth(t *testing.T) {
 	err = tracker.checkIfPendingTxWasIncluded(ctx, tracker.pendingTxs[0], h)
 	require.Equal(t, noncepkg.ErrBlockDiffNotEnough, err)
 	require.Equal(t, 1, tracker.GetPendingCount(ctx))
-	txs, err = nonceStore.ListPendingTx(ctx, noncepkg.EthereumNetwork, testAddress)
+	txs, err = nonceStore.ListPendingTx(ctx, 1337, testAddress)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(txs))
 
@@ -304,7 +303,7 @@ func TestMinBlockDepth(t *testing.T) {
 	err = tracker.checkIfPendingTxWasIncluded(ctx, tracker.pendingTxs[0], h)
 	require.NoError(t, err)
 	require.Equal(t, 0, tracker.GetPendingCount(ctx))
-	txs, err = nonceStore.ListPendingTx(ctx, noncepkg.EthereumNetwork, testAddress)
+	txs, err = nonceStore.ListPendingTx(ctx, 1337, testAddress)
 	require.NoError(t, err)
 	require.Equal(t, 0, len(txs))
 }
@@ -326,9 +325,9 @@ func TestCheckIfPendingTxIsStuck(t *testing.T) {
 
 	// insert two pending txs (nonce 0 and nonce 1)
 	nonceStore := &NonceStore{sqlstore}
-	err = nonceStore.InsertPendingTxAndUpsertNonce(
+	err = nonceStore.InsertPendingTx(
 		ctx,
-		noncepkg.EthereumNetwork,
+		1337,
 		testAddress,
 		0,
 		common.HexToHash("0xda3601329d295f03dc75bf42569f476f22995c456334c9a39a05e7cb7877dc41"),
@@ -337,14 +336,14 @@ func TestCheckIfPendingTxIsStuck(t *testing.T) {
 
 	tracker := &LocalTracker{
 		wallet:      wallet,
-		network:     noncepkg.EthereumNetwork,
+		chainID:     1337,
 		nonceStore:  &NonceStore{sqlstore},
 		chainClient: &ChainMock{},
 
 		pendingTxs: []noncepkg.PendingTx{{
 			Nonce:     0,
 			Hash:      common.HexToHash("0xda3601329d295f03dc75bf42569f476f22995c456334c9a39a05e7cb7877dc41"),
-			Network:   noncepkg.EthereumNetwork,
+			ChainID:   1337,
 			Address:   testAddress,
 			CreatedAt: time.Now(),
 		}},
@@ -361,7 +360,7 @@ func TestCheckIfPendingTxIsStuck(t *testing.T) {
 	err = tracker.checkIfPendingTxWasIncluded(ctx, tracker.pendingTxs[0], h)
 	require.Equal(t, noncepkg.ErrPendingTxMayBeStuck, err)
 	require.Equal(t, 1, tracker.GetPendingCount(ctx))
-	txs, err := nonceStore.ListPendingTx(ctx, noncepkg.EthereumNetwork, testAddress)
+	txs, err := nonceStore.ListPendingTx(ctx, 1337, testAddress)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(txs))
 }
