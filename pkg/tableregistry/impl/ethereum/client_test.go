@@ -176,7 +176,7 @@ func TestRunSQLWithBadgesAndRigsPolicy(t *testing.T) {
 	backend.Commit()
 
 	// execute RunSQL with a controller previously set
-	statement := "update badges set position = 1"
+	statement := "update badges_0 set position = 1"
 	txn, err := client.RunSQL(context.Background(), userAddress, tableID, statement)
 	require.NoError(t, err)
 	backend.Commit()
