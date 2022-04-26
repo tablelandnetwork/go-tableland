@@ -1,6 +1,7 @@
 package parsing
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -144,6 +145,12 @@ var (
 	dummyStr     string
 	dummyBool    bool
 	dummyFloat64 float64
+
+	// ErrCantAddWhereOnINSERT indicates the AddWhereClause was called on an insert.
+	ErrCantAddWhereOnINSERT = errors.New("can't add where clauses to an insert")
+
+	// ErrCanOnlyCheckColumnsOnUPDATE indicates that the CheckColums was called on an insert or delete.
+	ErrCanOnlyCheckColumnsOnUPDATE = errors.New("can only check columns on update")
 )
 
 // ErrInvalidSyntax is an error returned when parsing the query.
