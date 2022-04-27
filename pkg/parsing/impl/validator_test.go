@@ -169,6 +169,23 @@ func TestRunSQL(t *testing.T) {
 			expErrType: ptr2ErrReturningClause(),
 		},
 
+		// Disallow alias on relation
+		{
+			name:       "update alias",
+			query:      "update foo as f set f.a=f.a+1",
+			expErrType: ptr2ErrRelationAlias(),
+		},
+		{
+			name:       "insert alias",
+			query:      "insert into foo as f values (1, 'bar')",
+			expErrType: ptr2ErrRelationAlias(),
+		},
+		{
+			name:       "delete alias",
+			query:      "delete from foo as f where f.a=1",
+			expErrType: ptr2ErrRelationAlias(),
+		},
+
 		// Check no system-tables references.
 		{
 			name:       "update system table",
@@ -936,6 +953,11 @@ func ptr2ErrSystemTableReferencing() **parsing.ErrSystemTableReferencing {
 
 func ptr2ErrReturningClause() **parsing.ErrReturningClause {
 	var e *parsing.ErrReturningClause
+	return &e
+}
+
+func ptr2ErrRelationAlias() **parsing.ErrRelationAlias {
+	var e *parsing.ErrRelationAlias
 	return &e
 }
 func ptr2ErrNonDeterministicFunction() **parsing.ErrNonDeterministicFunction {
