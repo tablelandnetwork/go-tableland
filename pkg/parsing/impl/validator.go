@@ -373,6 +373,10 @@ func (pp *QueryValidator) validateWriteQuery(stmt *pg_query.Node) (string, error
 		return "", fmt.Errorf("no returning clause check: %w", err)
 	}
 
+	if err := checkNoRelationAlias(stmt); err != nil {
+		return "", fmt.Errorf("no relation alias check: %w", err)
+	}
+
 	if err := checkNoSystemTablesReferencing(stmt, pp.systemTablePrefixes); err != nil {
 		return "", fmt.Errorf("no system-table reference: %w", err)
 	}
@@ -648,6 +652,29 @@ func checkNoSystemTablesReferencing(node *pg_query.Node, systemTablePrefixes []s
 		if err := checkNoSystemTablesReferencing(joinExpr.Rarg, systemTablePrefixes); err != nil {
 			return fmt.Errorf("join right arg: %w", err)
 		}
+	}
+	return nil
+}
+
+func checkNoRelationAlias(node *pg_query.Node) error {
+	if node == nil {
+		return errEmptyNode
+	}
+
+	if updateStmt := node.GetUpdateStmt(); updateStmt != nil {
+		if updateStmt.GetRelation().GetAlias() != nil {
+			return &parsing.ErrRelationAlias{}
+		}
+	} else if insertStmt := node.GetInsertStmt(); insertStmt != nil {
+		if insertStmt.GetRelation().GetAlias() != nil {
+			return &parsing.ErrRelationAlias{}
+		}
+	} else if deleteStmt := node.GetDeleteStmt(); deleteStmt != nil {
+		if deleteStmt.GetRelation().GetAlias() != nil {
+			return &parsing.ErrRelationAlias{}
+		}
+	} else {
+		return errUnexpectedNodeType
 	}
 	return nil
 }
