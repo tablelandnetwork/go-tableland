@@ -293,6 +293,13 @@ func (e *ErrReturningClause) Error() string {
 	return "the query uses a RETURNING clause"
 }
 
+// ErrRelationAlias is an error returned when queries use alias on relation.
+type ErrRelationAlias struct{}
+
+func (e *ErrRelationAlias) Error() string {
+	return "the query uses an alias for relation"
+}
+
 // ErrNonDeterministicFunction is an error returned when queries use non-deterministic
 // function.
 type ErrNonDeterministicFunction struct{}
