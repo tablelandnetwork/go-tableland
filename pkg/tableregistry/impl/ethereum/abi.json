@@ -216,6 +216,12 @@
 				"type": "address"
 			},
 			{
+				"indexed": false,
+				"internalType": "bool",
+				"name": "isOwner",
+				"type": "bool"
+			},
+			{
 				"components": [
 					{
 						"internalType": "bool",

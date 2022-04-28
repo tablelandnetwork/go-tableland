@@ -33,7 +33,7 @@ func TestRunSQL(t *testing.T) {
 		require.NoError(t, err)
 
 		wq1 := mustWriteStmt(t, `insert into foo_100 values ('one')`)
-		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1}, tableland.AllowAllPolicy{})
+		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1}, true, tableland.AllowAllPolicy{})
 		require.NoError(t, err)
 
 		require.NoError(t, b.Commit(ctx))
@@ -54,18 +54,18 @@ func TestRunSQL(t *testing.T) {
 
 		{
 			wq1 := mustWriteStmt(t, `insert into foo_100 values ('wq1one')`)
-			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1}, tableland.AllowAllPolicy{})
+			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1}, true, tableland.AllowAllPolicy{})
 			require.NoError(t, err)
 		}
 		{
 			wq1 := mustWriteStmt(t, `insert into foo_100 values ('wq1two')`)
 			wq2 := mustWriteStmt(t, `insert into foo_100 values ('wq2three')`)
-			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1, wq2}, tableland.AllowAllPolicy{})
+			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1, wq2}, true, tableland.AllowAllPolicy{})
 			require.NoError(t, err)
 		}
 		{
 			wq1 := mustWriteStmt(t, `insert into foo_100 values ('wq1four')`)
-			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1}, tableland.AllowAllPolicy{})
+			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1}, true, tableland.AllowAllPolicy{})
 			require.NoError(t, err)
 		}
 
@@ -87,18 +87,18 @@ func TestRunSQL(t *testing.T) {
 
 		{
 			wq1_1 := mustWriteStmt(t, `insert into foo_100 values ('onez')`)
-			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1_1}, tableland.AllowAllPolicy{})
+			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1_1}, true, tableland.AllowAllPolicy{})
 			require.NoError(t, err)
 		}
 		{
 			wq2_1 := mustWriteStmt(t, `insert into foo_100 values ('twoz')`)
 			wq2_2 := mustWriteStmt(t, `insert into foo_101 values ('threez')`)
-			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq2_1, wq2_2}, tableland.AllowAllPolicy{})
+			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq2_1, wq2_2}, true, tableland.AllowAllPolicy{}) // nolint
 			require.Error(t, err)
 		}
 		{
 			wq3_1 := mustWriteStmt(t, `insert into foo_100 values ('fourz')`)
-			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq3_1}, tableland.AllowAllPolicy{})
+			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq3_1}, true, tableland.AllowAllPolicy{})
 			require.NoError(t, err)
 		}
 
@@ -127,13 +127,13 @@ func TestRunSQL(t *testing.T) {
 
 		{
 			wq1_1 := mustWriteStmt(t, `insert into foo_100 values ('one')`)
-			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1_1}, tableland.AllowAllPolicy{})
+			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1_1}, true, tableland.AllowAllPolicy{})
 			require.NoError(t, err)
 		}
 		{
 			wq2_1 := mustWriteStmt(t, `insert into foo_100 values ('two')`)
 			wq2_2 := mustWriteStmt(t, `insert into foo_100 values ('three')`)
-			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq2_1, wq2_2}, tableland.AllowAllPolicy{})
+			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq2_1, wq2_2}, true, tableland.AllowAllPolicy{}) // nolint
 			require.NoError(t, err)
 		}
 
@@ -157,7 +157,7 @@ func TestRunSQL(t *testing.T) {
 		require.NoError(t, err)
 
 		wq1 := mustGrantStmt(t, "grant insert, update, delete on foo_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\", \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"") //nolint
-		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1}, tableland.AllowAllPolicy{})
+		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1}, true, tableland.AllowAllPolicy{})
 		require.NoError(t, err)
 
 		require.NoError(t, b.Commit(ctx))
@@ -191,7 +191,7 @@ func TestRunSQL(t *testing.T) {
 		wq2 := mustGrantStmt(t, "grant update on foo_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\"")
 		// add the delete privilege (and mistakenly the insert) grant for role 0x4afe8e30db4549384b0a05bb796468b130c7d6e0
 		wq3 := mustGrantStmt(t, "grant insert, delete on foo_100 to \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"")
-		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1, wq2, wq3}, tableland.AllowAllPolicy{})
+		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1, wq2, wq3}, true, tableland.AllowAllPolicy{}) //nolint
 		require.NoError(t, err)
 
 		require.NoError(t, b.Commit(ctx))
@@ -236,7 +236,7 @@ func TestRunSQL(t *testing.T) {
 
 		wq1 := mustGrantStmt(t, "grant insert, update, delete on foo_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\"")
 		wq2 := mustGrantStmt(t, "revoke insert, delete on foo_100 from \"0xd43c59d5694ec111eb9e986c233200b14249558d\"")
-		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1, wq2}, tableland.AllowAllPolicy{})
+		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1, wq2}, true, tableland.AllowAllPolicy{})
 		require.NoError(t, err)
 
 		require.NoError(t, b.Commit(ctx))
@@ -277,7 +277,7 @@ func TestRunSQLWithPolicies(t *testing.T) {
 		})
 
 		wq := mustWriteStmt(t, `insert into foo_100 values ('one');`)
-		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq}, policy)
+		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq}, true, policy)
 		var errQueryExecution *txn.ErrQueryExecution
 		require.ErrorAs(t, err, &errQueryExecution)
 		require.ErrorContains(t, err, "insert is not allowed by policy")
@@ -297,7 +297,7 @@ func TestRunSQLWithPolicies(t *testing.T) {
 		})
 
 		wq := mustWriteStmt(t, `update foo_100 set zar = 'three';`)
-		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq}, policy)
+		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq}, true, policy)
 		var errQueryExecution *txn.ErrQueryExecution
 		require.ErrorAs(t, err, &errQueryExecution)
 		require.ErrorContains(t, err, "update is not allowed by policy")
@@ -317,7 +317,7 @@ func TestRunSQLWithPolicies(t *testing.T) {
 		})
 
 		wq := mustWriteStmt(t, `DELETE FROM foo_100`)
-		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq}, policy)
+		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq}, true, policy)
 		var errQueryExecution *txn.ErrQueryExecution
 		require.ErrorAs(t, err, &errQueryExecution)
 		require.ErrorContains(t, err, "delete is not allowed by policy")
@@ -339,7 +339,7 @@ func TestRunSQLWithPolicies(t *testing.T) {
 
 		// tries to update zar and not zaz
 		wq := mustWriteStmt(t, `update foo_100 set zar = 'three';`)
-		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq}, policy)
+		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq}, true, policy)
 		var errQueryExecution *txn.ErrQueryExecution
 		require.ErrorAs(t, err, &errQueryExecution)
 		require.ErrorContains(t, err, "column zar is not allowed")
@@ -357,7 +357,7 @@ func TestRunSQLWithPolicies(t *testing.T) {
 		// start with two rows
 		wq1 := mustWriteStmt(t, `insert into foo_100 values ('one');`)
 		wq2 := mustWriteStmt(t, `insert into foo_100 values ('two');`)
-		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1, wq2}, tableland.AllowAllPolicy{})
+		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1, wq2}, true, tableland.AllowAllPolicy{})
 		require.NoError(t, err)
 
 		policy := policyFactory(policyData{
@@ -368,7 +368,7 @@ func TestRunSQLWithPolicies(t *testing.T) {
 
 		// send an update that updates all rows with a policy to restricts the update
 		wq3 := mustWriteStmt(t, `update foo_100 set zar = 'three'`)
-		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq3}, policy)
+		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq3}, true, policy)
 		require.NoError(t, err)
 
 		require.NoError(t, b.Commit(ctx))
@@ -433,7 +433,7 @@ func TestTableRowCountLimit(t *testing.T) {
 		require.NoError(t, err)
 
 		q := mustWriteStmt(t, `insert into foo_100 values ('one')`)
-		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{q}, tableland.AllowAllPolicy{})
+		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{q}, true, tableland.AllowAllPolicy{})
 		if err == nil {
 			require.NoError(t, b.Commit(ctx))
 		}
@@ -549,10 +549,6 @@ func (acl *aclMock) CheckPrivileges(
 	controller common.Address,
 	id tableland.TableID,
 	op tableland.Operation) (bool, error) {
-	return true, nil
-}
-
-func (acl *aclMock) IsOwner(ctx context.Context, controller common.Address, id tableland.TableID) (bool, error) {
 	return true, nil
 }
 

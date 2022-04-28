@@ -42,13 +42,14 @@ func TestIsOwner(t *testing.T) {
 }
 
 func TestRunSQL(t *testing.T) {
-	backend, key, txOpts, _, client := setup(t)
-	_, toAuth := requireNewAuth(t)
-	requireAuthGas(t, backend, toAuth)
-	requireTxn(t, backend, key, txOpts.From, toAuth.From, big.NewInt(1000000000000000000))
+	backend, _, txOpts, contract, client := setup(t)
 
-	tableID := tableland.TableID(*big.NewInt(1))
-	statement := "insert into XXX values (1,2,3)"
+	tokenID := requireMint(t, backend, contract, txOpts, txOpts.From)
+
+	tableID, err := tableland.NewTableID(tokenID.String())
+	require.NoError(t, err)
+
+	statement := "insert into foo_0 values (1,2,3)"
 
 	txn, err := client.RunSQL(context.Background(), txOpts.From, tableID, statement)
 	require.NoError(t, err)
@@ -75,6 +76,7 @@ func TestRunSQL(t *testing.T) {
 	require.Equal(t, "", event.Policy.WhereClause)
 	require.Equal(t, []string{}, event.Policy.UpdateColumns)
 	require.Equal(t, statement, event.Statement)
+	require.True(t, event.IsOwner)
 }
 
 func TestSetController(t *testing.T) {
