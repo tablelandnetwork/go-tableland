@@ -10,9 +10,6 @@ import (
 
 // ACL is the API for access control rules check.
 type ACL interface {
-	// IsOwner checks if an address is the owner of a table by making a contract call.
-	IsOwner(context.Context, common.Address, TableID) (bool, error)
-
 	// CheckPrivileges checks if an address can execute a specific operation on a table.
 	CheckPrivileges(context.Context, pgx.Tx, common.Address, TableID, Operation) (bool, error)
 }

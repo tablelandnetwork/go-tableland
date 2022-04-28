@@ -24,15 +24,6 @@ func NewACL(store sqlstore.SQLStore, registry tableregistry.TableRegistry) table
 	}
 }
 
-// IsOwner checks if an address is the owner of a table by making a contract call.
-func (acl *acl) IsOwner(ctx context.Context, controller common.Address, id tableland.TableID) (bool, error) {
-	isOwner, err := acl.registry.IsOwner(ctx, controller, id.ToBigInt())
-	if err != nil {
-		return false, fmt.Errorf("failed to execute contract call: %s", err)
-	}
-	return isOwner, nil
-}
-
 // CheckPrivileges checks if an address can execute a specific operation on a table.
 func (acl *acl) CheckPrivileges(
 	ctx context.Context,

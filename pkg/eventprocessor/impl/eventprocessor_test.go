@@ -270,7 +270,3 @@ func (acl *aclMock) CheckPrivileges(
 	op tableland.Operation) (bool, error) {
 	return true, nil
 }
-
-func (acl *aclMock) IsOwner(ctx context.Context, controller common.Address, id tableland.TableID) (bool, error) {
-	return true, nil
-}

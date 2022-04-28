@@ -45,6 +45,7 @@ type Batch interface {
 		ctx context.Context,
 		controller common.Address,
 		query []parsing.SugaredMutatingStmt,
+		isOwner bool,
 		policy tableland.Policy) error
 
 	GetLastProcessedHeight(ctx context.Context) (int64, error)
