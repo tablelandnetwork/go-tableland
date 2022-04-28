@@ -361,7 +361,7 @@ func (ep *EventProcessor) executeRunSQLEvent(
 		receipt.Error = &err
 		return receipt, nil
 	}
-	if err := b.ExecWriteQueries(ctx, e.Caller, mutatingStmts, &policy{e.Policy}); err != nil {
+	if err := b.ExecWriteQueries(ctx, e.Caller, mutatingStmts, e.IsOwner, &policy{e.Policy}); err != nil {
 		var pgErr *txn.ErrQueryExecution
 		if errors.As(err, &pgErr) {
 			err := fmt.Sprintf("db query execution failed (code: %s, msg: %s)", pgErr.Code, pgErr.Msg)

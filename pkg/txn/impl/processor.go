@@ -145,6 +145,7 @@ func (b *batch) ExecWriteQueries(
 	ctx context.Context,
 	controller common.Address,
 	mqueries []parsing.SugaredMutatingStmt,
+	isOwner bool,
 	policy tableland.Policy) error {
 	f := func(tx pgx.Tx) error {
 		if len(mqueries) == 0 {
@@ -165,7 +166,7 @@ func (b *batch) ExecWriteQueries(
 
 			switch stmt := mq.(type) {
 			case parsing.SugaredGrantStmt:
-				err := b.executeGrantStmt(ctx, tx, stmt, controller)
+				err := b.executeGrantStmt(ctx, tx, stmt, isOwner)
 				if err != nil {
 					return fmt.Errorf("executing grant stmt: %s", err)
 				}
@@ -330,17 +331,12 @@ func (b *batch) executeGrantStmt(
 	ctx context.Context,
 	tx pgx.Tx,
 	gs parsing.SugaredGrantStmt,
-	controller common.Address) error {
+	isOwner bool) error {
 	tableID := gs.GetTableID()
 
 	dbID := pgtype.Numeric{}
 	if err := dbID.Set(tableID.String()); err != nil {
 		return fmt.Errorf("parsing table id to numeric: %s", err)
-	}
-
-	isOwner, err := b.tp.acl.IsOwner(ctx, controller, tableID)
-	if err != nil {
-		return fmt.Errorf("error checking acl: %s", err)
 	}
 
 	if !isOwner {
