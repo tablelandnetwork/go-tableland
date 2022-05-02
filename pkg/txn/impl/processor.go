@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/rs/zerolog"
 	logger "github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
@@ -18,10 +19,10 @@ import (
 	"github.com/textileio/go-tableland/pkg/txn"
 )
 
-var log = logger.With().Str("component", "txnprocessor").Logger()
-
 // TblTxnProcessor executes mutating actions in a Tableland database.
 type TblTxnProcessor struct {
+	log     zerolog.Logger
+	chainID tableland.ChainID
 	pool    *pgxpool.Pool
 	chBatch chan struct{}
 
@@ -32,7 +33,11 @@ type TblTxnProcessor struct {
 var _ txn.TxnProcessor = (*TblTxnProcessor)(nil)
 
 // NewTxnProcessor returns a new Tableland transaction processor.
-func NewTxnProcessor(postgresURI string, maxTableRowCount int, acl tableland.ACL) (*TblTxnProcessor, error) {
+func NewTxnProcessor(
+	chainID tableland.ChainID,
+	postgresURI string,
+	maxTableRowCount int,
+	acl tableland.ACL) (*TblTxnProcessor, error) {
 	ctx, cls := context.WithTimeout(context.Background(), time.Second*10)
 	defer cls()
 	pool, err := pgxpool.Connect(ctx, postgresURI)
@@ -42,7 +47,14 @@ func NewTxnProcessor(postgresURI string, maxTableRowCount int, acl tableland.ACL
 	if maxTableRowCount < 0 {
 		return nil, fmt.Errorf("maximum table row count is negative")
 	}
+
+	log := logger.With().
+		Str("component", "txnprocessor").
+		Int64("chainID", int64(chainID)).
+		Logger()
 	tblp := &TblTxnProcessor{
+		log:     log,
+		chainID: chainID,
 		pool:    pool,
 		chBatch: make(chan struct{}, 1),
 
@@ -80,7 +92,7 @@ func (tp *TblTxnProcessor) Close(ctx context.Context) error {
 	case <-ctx.Done():
 		return errors.New("closing ctx done")
 	case <-tp.chBatch:
-		log.Info().Msg("txn processor closed gracefully")
+		tp.log.Info().Msg("txn processor closed gracefully")
 		return nil
 	}
 }
@@ -149,7 +161,7 @@ func (b *batch) ExecWriteQueries(
 	policy tableland.Policy) error {
 	f := func(tx pgx.Tx) error {
 		if len(mqueries) == 0 {
-			log.Warn().Msg("no mutating-queries to execute in a batch")
+			b.tp.log.Warn().Msg("no mutating-queries to execute in a batch")
 			return nil
 		}
 
@@ -467,7 +479,7 @@ func (b *batch) applyPolicy(ws parsing.SugaredWriteStmt, policy tableland.Policy
 						Msg:  err.Error(),
 					}
 				}
-				log.Warn().Err(err).Msg("check columns being called on insert or delete")
+				b.tp.log.Warn().Err(err).Msg("check columns being called on insert or delete")
 			}
 		}
 
@@ -480,7 +492,7 @@ func (b *batch) applyPolicy(ws parsing.SugaredWriteStmt, policy tableland.Policy
 						Msg:  err.Error(),
 					}
 				}
-				log.Warn().Err(err).Msg("add where clause called on insert")
+				b.tp.log.Warn().Err(err).Msg("add where clause called on insert")
 			}
 
 			return nil

@@ -261,10 +261,10 @@ func wireChainComponents(
 		return nil, nil, fmt.Errorf("failed to create ethereum client: %s", err)
 	}
 
-	acl := impl.NewACL(sqlstore, registry)
+	acl := impl.NewACL(config.ChainID, sqlstore, registry)
 
 	var txnp txn.TxnProcessor
-	txnp, err = txnimpl.NewTxnProcessor(databaseURL, tableMaxRowCount, acl)
+	txnp, err = txnimpl.NewTxnProcessor(config.ChainID, databaseURL, tableMaxRowCount, acl)
 	if err != nil {
 		return nil, nil, fmt.Errorf("creating txn processor: %s", err)
 	}
