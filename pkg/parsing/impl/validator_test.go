@@ -586,6 +586,11 @@ func TestCreateTableChecks(t *testing.T) {
 			query:      "delete from foo",
 			expErrType: ptr2ErrNoTopLevelCreate(),
 		},
+		{
+			name:       "ccccc",
+			query:      "create table fooz ( a text, b numeric, c integer, d real, e blob)",
+			expErrType: nil,
+		},
 
 		// Valid table with all accepted types.
 		{
