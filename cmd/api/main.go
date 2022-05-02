@@ -188,7 +188,6 @@ func createChainIDStack(
 	if err != nil {
 		return chains.ChainStack{}, fmt.Errorf("failed initialize sqlstore: %s", err)
 	}
-	defer store.Close()
 
 	store, err = sqlstoreimpl.NewInstrumentedSQLStorePGX(config.ChainID, store)
 	if err != nil {
@@ -199,7 +198,6 @@ func createChainIDStack(
 	if err != nil {
 		return chains.ChainStack{}, fmt.Errorf("failed to connect to ethereum endpoint: %s", err)
 	}
-	defer conn.Close()
 
 	wallet, err := wallet.NewWallet(config.Signer.PrivateKey)
 	if err != nil {
@@ -289,7 +287,10 @@ func createChainIDStack(
 		Close: func(ctx context.Context) error {
 			log.Info().Int64("chainId", int64(config.ChainID)).Msg("closing stack...")
 			defer log.Info().Int64("chainId", int64(config.ChainID)).Msg("stack closed")
+
 			ep.Stop()
+			conn.Close()
+			store.Close()
 			return nil
 		},
 	}, nil
