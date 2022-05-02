@@ -51,6 +51,7 @@ type config struct {
 	Chains []ChainConfig
 }
 
+// TableConstraints describes contraints to be enforced for Tableland tables.
 type TableConstraints struct {
 	MaxRowCount   int `default:"100_000"`
 	MaxColumns    int `default:"24"`
