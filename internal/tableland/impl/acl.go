@@ -12,15 +12,13 @@ import (
 )
 
 type acl struct {
-	chainID  tableland.ChainID
 	store    sqlstore.SQLStore
 	registry tableregistry.TableRegistry
 }
 
 // NewACL creates a new instance of the ACL.
-func NewACL(chainID tableland.ChainID, store sqlstore.SQLStore, registry tableregistry.TableRegistry) tableland.ACL {
+func NewACL(store sqlstore.SQLStore, registry tableregistry.TableRegistry) tableland.ACL {
 	return &acl{
-		chainID:  chainID,
 		store:    store,
 		registry: registry,
 	}

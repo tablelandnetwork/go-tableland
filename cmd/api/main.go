@@ -240,7 +240,7 @@ func createChainIDStack(
 		return chains.ChainStack{}, fmt.Errorf("failed to create ethereum client: %s", err)
 	}
 
-	acl := impl.NewACL(config.ChainID, store, registry)
+	acl := impl.NewACL(store, registry)
 
 	var txnp txn.TxnProcessor
 	txnp, err = txnimpl.NewTxnProcessor(config.ChainID, databaseURL, tableConstraints.MaxRowCount, acl)

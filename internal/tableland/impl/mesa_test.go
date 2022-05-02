@@ -563,7 +563,7 @@ func (acl *aclHalfMock) CheckPrivileges(
 	controller common.Address,
 	id tableland.TableID,
 	op tableland.Operation) (bool, error) {
-	aclImpl := NewACL(1337, acl.sqlStore, nil)
+	aclImpl := NewACL(acl.sqlStore, nil)
 	return aclImpl.CheckPrivileges(ctx, tx, controller, id, op)
 }
 
