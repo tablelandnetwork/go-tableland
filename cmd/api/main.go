@@ -27,6 +27,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/metrics"
 	nonceimpl "github.com/textileio/go-tableland/pkg/nonce/impl"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
+	"github.com/textileio/go-tableland/pkg/sqlstore"
 	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/txn"
@@ -67,7 +68,11 @@ func main() {
 	}
 	userController := controllers.NewUserController(svc)
 
-	sysStore, err := systemimpl.NewSystemSQLStoreService(chainStacks, config.Gateway.ExternalURIPrefix)
+	stores := make(map[tableland.ChainID]sqlstore.SQLStore, len(chainStacks))
+	for chainID, stack := range chainStacks {
+		stores[chainID] = stack.Store
+	}
+	sysStore, err := systemimpl.NewSystemSQLStoreService(stores, config.Gateway.ExternalURIPrefix)
 	if err != nil {
 		log.Fatal().Err(err).Msg("creating system store")
 	}

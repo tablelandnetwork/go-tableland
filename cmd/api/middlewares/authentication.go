@@ -12,7 +12,6 @@ import (
 	"github.com/spruceid/siwe-go"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/errors"
-	"github.com/textileio/go-tableland/pkg/jwt"
 )
 
 var errSIWEWrongDomain = stderrors.New("SIWE domain isn't Tableland")
@@ -50,16 +49,6 @@ func Authentication(next http.Handler) http.Handler {
 }
 
 func parseAuth(bearerToken string) (tableland.ChainID, string, error) {
-	j, err := jwt.Parse(bearerToken)
-	// JWT
-	if err == nil {
-		if err := j.Verify(); err != nil {
-			return 0, "", fmt.Errorf("validating jwt: %v", err)
-		}
-		return 4, j.Claims.Issuer, nil
-	}
-
-	// SIWE
 	var siweAuthMsg struct {
 		Message   string `json:"message"`
 		Signature string `json:"signature"`

@@ -10,7 +10,6 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/tableland"
-	jwtp "github.com/textileio/go-tableland/pkg/jwt"
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/metric/instrument"
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
@@ -46,16 +45,6 @@ func New(chckInterval time.Duration, endpoint, jwt, tblname string) (*CounterPro
 	if _, err := url.ParseQuery(endpoint); err != nil {
 		return nil, fmt.Errorf("invalid endpoint target: %s", err)
 	}
-	j, err := jwtp.Parse(jwt)
-	if err != nil {
-		return nil, fmt.Errorf("invalid jwt: %s", err)
-	}
-	if err := j.Verify(); err != nil {
-		return nil, fmt.Errorf("validating jwt: %s", err)
-	}
-	if j.Claims.Issuer == "" {
-		return nil, errors.New("jwt has no issuer")
-	}
 	rpcClient, err := rpc.Dial(endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("creating jsonrpc client: %s", err)
@@ -71,7 +60,7 @@ func New(chckInterval time.Duration, endpoint, jwt, tblname string) (*CounterPro
 	cp := &CounterProbe{
 		chckInterval: chckInterval,
 		rpcClient:    rpcClient,
-		ctrl:         j.Claims.Issuer,
+		ctrl:         "",
 		tblname:      tblname,
 
 		latencyHist: latencyHistogram,
