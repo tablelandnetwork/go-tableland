@@ -17,16 +17,12 @@ var log = logger.With().Str("component", "mesa").Logger()
 
 // TablelandMesa is the main implementation of Tableland spec.
 type TablelandMesa struct {
-	parser      parsing.SQLValidator
 	chainStacks map[tableland.ChainID]chains.ChainStack
 }
 
 // NewTablelandMesa creates a new TablelandMesa.
-func NewTablelandMesa(
-	parser parsing.SQLValidator,
-	chainStacks map[tableland.ChainID]chains.ChainStack) tableland.Tableland {
+func NewTablelandMesa(chainStacks map[tableland.ChainID]chains.ChainStack) tableland.Tableland {
 	return &TablelandMesa{
-		parser:      parser,
 		chainStacks: chainStacks,
 	}
 }
@@ -36,7 +32,16 @@ func NewTablelandMesa(
 func (t *TablelandMesa) ValidateCreateTable(
 	ctx context.Context,
 	req tableland.ValidateCreateTableRequest) (tableland.ValidateCreateTableResponse, error) {
-	createStmt, err := t.parser.ValidateCreateTable(req.CreateStatement)
+	ctxChainID := ctx.Value(middlewares.ContextKeyChainID)
+	chainID, ok := ctxChainID.(tableland.ChainID)
+	if !ok {
+		return tableland.ValidateCreateTableResponse{}, errors.New("no chain id found in context")
+	}
+	stack, ok := t.chainStacks[chainID]
+	if !ok {
+		return tableland.ValidateCreateTableResponse{}, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
+	}
+	createStmt, err := stack.Parser.ValidateCreateTable(req.CreateStatement)
 	if err != nil {
 		return tableland.ValidateCreateTableResponse{}, fmt.Errorf("parsing create table statement: %s", err)
 	}
@@ -55,8 +60,11 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.RunSQLRequest)
 	if !ok {
 		return tableland.RunSQLResponse{}, errors.New("no chain id found in context")
 	}
-
-	readStmt, mutatingStmts, err := t.parser.ValidateRunSQL(req.Statement)
+	stack, ok := t.chainStacks[chainID]
+	if !ok {
+		return tableland.RunSQLResponse{}, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
+	}
+	readStmt, mutatingStmts, err := stack.Parser.ValidateRunSQL(req.Statement)
 	if err != nil {
 		return tableland.RunSQLResponse{}, fmt.Errorf("validating query: %s", err)
 	}
@@ -68,11 +76,6 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.RunSQLRequest)
 			return tableland.RunSQLResponse{}, fmt.Errorf("running read statement: %s", err)
 		}
 		return tableland.RunSQLResponse{Result: queryResult}, nil
-	}
-
-	stack, ok := t.chainStacks[chainID]
-	if !ok {
-		return tableland.RunSQLResponse{}, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
 	}
 
 	// Mutating statements

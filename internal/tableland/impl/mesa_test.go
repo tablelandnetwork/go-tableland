@@ -513,7 +513,7 @@ func setup(
 	store, err := sqlstoreimpl.New(ctx, tableland.ChainID(1337), url)
 	require.NoError(t, err)
 
-	parser := parserimpl.New([]string{"system_", "registry"}, 0, 0)
+	parser := parserimpl.New([]string{"system_", "registry"}, 1337, 0, 0)
 	txnp, err := txnpimpl.NewTxnProcessor(1337, url, 0, &aclHalfMock{store})
 	require.NoError(t, err)
 
@@ -530,7 +530,9 @@ func setup(
 		impl.NewSimpleTracker(wallet, backend),
 	)
 	require.NoError(t, err)
-	tbld := NewTablelandMesa(parser, map[tableland.ChainID]chains.ChainStack{1337: {Store: store, Registry: registry}})
+	tbld := NewTablelandMesa(map[tableland.ChainID]chains.ChainStack{
+		1337: {Store: store, Registry: registry, Parser: parser},
+	})
 
 	// Spin up dependencies needed for the EventProcessor.
 	// i.e: TxnProcessor, Parser, and EventFeed (connected to the EVM chain)

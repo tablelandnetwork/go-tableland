@@ -8,7 +8,8 @@ import (
 
 // Table represents a system-wide table stored in Tableland.
 type Table struct {
-	ID         tableland.TableID `json:"id"`         // table id
+	ID         tableland.TableID `json:"id"` // table id
+	ChainID    tableland.ChainID `json:"chain_id"`
 	Controller string            `json:"controller"` // controller address
 	Name       string            `json:"name"`
 	Structure  string            `json:"structure"`
@@ -33,6 +34,7 @@ type TableMetadataAttribute struct {
 // SystemACL represents the system acl table.
 type SystemACL struct {
 	Controller string
+	ChainID    tableland.ChainID
 	TableID    tableland.TableID
 	Privileges tableland.Privileges
 	CreatedAt  time.Time

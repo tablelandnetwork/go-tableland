@@ -15,6 +15,7 @@ type Registry struct {
 	Structure  string
 	Controller string
 	Name       string
+	ChainID    int64
 }
 
 type SystemAcl struct {
@@ -23,6 +24,7 @@ type SystemAcl struct {
 	Privileges []string
 	CreatedAt  time.Time
 	UpdatedAt  sql.NullTime
+	ChainID    int64
 }
 
 type SystemAuth struct {
