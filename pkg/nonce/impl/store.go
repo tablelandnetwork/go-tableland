@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/nonce"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 )
@@ -22,7 +23,7 @@ func NewNonceStore(systemStore sqlstore.SQLStore) nonce.NonceStore {
 // ListPendingTx lists all pendings txs.
 func (s *NonceStore) ListPendingTx(
 	ctx context.Context,
-	chainID int64,
+	chainID tableland.ChainID,
 	addr common.Address) ([]nonce.PendingTx, error) {
 	txs, err := s.systemStore.ListPendingTx(ctx, chainID, addr)
 	if err != nil {
@@ -35,7 +36,7 @@ func (s *NonceStore) ListPendingTx(
 // InsertPendingTx insert a new pending tx.
 func (s *NonceStore) InsertPendingTx(
 	ctx context.Context,
-	chainID int64,
+	chainID tableland.ChainID,
 	addr common.Address,
 	nonce int64, hash common.Hash) error {
 	if err := s.systemStore.InsertPendingTx(ctx, chainID, addr, nonce, hash); err != nil {
