@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/omeid/uconfig"
+	"github.com/omeid/uconfig/plugins"
+	"github.com/omeid/uconfig/plugins/file"
 	"github.com/textileio/go-tableland/internal/tableland"
 )
 
@@ -82,23 +85,21 @@ type ChainConfig struct {
 }
 
 func setupConfig() *config {
-	conf := &config{}
-	confFiles := uconfig.Files{
-		{configFilename, json.Unmarshal},
+	fileBytes, err := os.ReadFile(configFilename)
+	fileStr := string(fileBytes)
+	var plugins []plugins.Plugin
+	if err != os.ErrNotExist {
+		fileStr = os.ExpandEnv(fileStr)
+		plugins = append(plugins, file.NewReader(strings.NewReader(fileStr), json.Unmarshal))
 	}
 
-	c, err := uconfig.Classic(&conf, confFiles)
+	conf := &config{}
+	c, err := uconfig.Classic(&conf, file.Files{}, plugins...)
 	if err != nil {
+		fmt.Printf("invalid configuration: %s", err)
 		c.Usage()
 		os.Exit(1)
 	}
-
-	buf, err := json.MarshalIndent(&conf, "", "  ")
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("%s\n", buf)
-	os.Exit(1)
 
 	return conf
 }
