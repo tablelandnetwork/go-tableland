@@ -17,7 +17,7 @@ func TestLastSeen(t *testing.T) {
 	require.NoError(t, err)
 	defer pool.Close()
 
-	store, err := New(pool)
+	store, err := New(pool, 1337)
 	require.NoError(t, err)
 
 	err = store.IncrementCreateTableCount(ctx, "address")

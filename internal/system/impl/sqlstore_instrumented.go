@@ -13,6 +13,8 @@ import (
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
 )
 
+// TODO(JSIGN): add chainID in metrics.
+
 // InstrumentedSystemSQLStoreService implements the SystemService interface using SQLStore.
 type InstrumentedSystemSQLStoreService struct {
 	system           system.SystemService

@@ -20,6 +20,7 @@ import (
 // Random address for testing. The value isn't important
 // because the ACL is mocked.
 var controller = common.HexToAddress("0x07dfFc57AA386D2b239CaBE8993358DF20BAFBE2")
+var chainId = 1337
 
 func TestRunSQL(t *testing.T) {
 	t.Parallel()
@@ -167,7 +168,7 @@ func TestRunSQL(t *testing.T) {
 		ss := wq1.(parsing.SugaredGrantStmt)
 		for _, role := range ss.GetRoles() {
 			// Check that an entry was inserted in the system_acl table for each row.
-			systemStore, err := system.New(pool)
+			systemStore, err := system.New(pool, tableland.ChainID(chainId))
 			require.NoError(t, err)
 			aclRow, err := systemStore.GetACLOnTableByController(ctx, ss.GetTableID(), role.String())
 			require.NoError(t, err)
@@ -198,7 +199,7 @@ func TestRunSQL(t *testing.T) {
 		require.NoError(t, b.Close(ctx))
 		require.NoError(t, txnp.Close(ctx))
 
-		systemStore, err := system.New(pool)
+		systemStore, err := system.New(pool, tableland.ChainID(chainId))
 		require.NoError(t, err)
 
 		ss := wq1.(parsing.SugaredGrantStmt)
@@ -243,7 +244,7 @@ func TestRunSQL(t *testing.T) {
 		require.NoError(t, b.Close(ctx))
 		require.NoError(t, txnp.Close(ctx))
 
-		systemStore, err := system.New(pool)
+		systemStore, err := system.New(pool, tableland.ChainID(chainId))
 		require.NoError(t, err)
 
 		ss := wq1.(parsing.SugaredGrantStmt)
@@ -403,7 +404,7 @@ func TestRegisterTable(t *testing.T) {
 		require.NoError(t, txnp.Close(ctx))
 
 		// Check that the table was registered in the system-table.
-		systemStore, err := system.New(pool)
+		systemStore, err := system.New(pool, tableland.ChainID(chainId))
 		require.NoError(t, err)
 		table, err := systemStore.GetTable(ctx, id)
 		require.NoError(t, err)
@@ -496,7 +497,7 @@ func newTxnProcessor(t *testing.T, rowsLimit int) (*TblTxnProcessor, *pgxpool.Po
 	require.NoError(t, err)
 
 	// Boostrap system store to run the db migrations.
-	_, err = system.New(pool)
+	_, err = system.New(pool, tableland.ChainID(chainId))
 	require.NoError(t, err)
 	return txnp, pool
 }

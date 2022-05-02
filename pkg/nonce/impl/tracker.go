@@ -20,7 +20,6 @@ import (
 type LocalTracker struct {
 	log        zerolog.Logger
 	currNonce  int64
-	chainID    tableland.ChainID
 	pendingTxs []noncepkg.PendingTx
 	wallet     *wallet.Wallet
 
@@ -58,7 +57,6 @@ func NewLocalTracker(
 	t := &LocalTracker{
 		log:         log,
 		wallet:      w,
-		chainID:     chainID,
 		nonceStore:  nonceStore,
 		chainClient: chainClient,
 
@@ -109,7 +107,6 @@ func (t *LocalTracker) GetNonce(ctx context.Context) (noncepkg.RegisterPendingTx
 
 		if err := t.nonceStore.InsertPendingTx(
 			ctx,
-			t.chainID,
 			t.wallet.Address(),
 			incrementedNonce,
 			pendingHash); err != nil {
@@ -154,7 +151,7 @@ func (t *LocalTracker) initialize(ctx context.Context) error {
 	}
 
 	// Get pending txs for the address
-	pendingTxs, err := t.nonceStore.ListPendingTx(ctx, t.chainID, t.wallet.Address())
+	pendingTxs, err := t.nonceStore.ListPendingTx(ctx, t.wallet.Address())
 	if err != nil {
 		return fmt.Errorf("get nonce for tracker initialization: %s", err)
 	}

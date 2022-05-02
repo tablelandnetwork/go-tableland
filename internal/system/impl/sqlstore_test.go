@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/textileio/go-tableland/cmd/api/middlewares"
+	"github.com/textileio/go-tableland/internal/chains"
 	"github.com/textileio/go-tableland/internal/tableland"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl"
@@ -14,11 +16,13 @@ import (
 	"github.com/textileio/go-tableland/tests"
 )
 
+var chainID = tableland.ChainID(1337)
+
 func TestSystemSQLStoreService(t *testing.T) {
 	url := tests.PostgresURL(t)
 
-	ctx := context.Background()
-	store, err := impl.New(ctx, url)
+	ctx := context.WithValue(context.Background(), middlewares.ContextKeyChainID, tableland.ChainID(1337))
+	store, err := impl.New(ctx, chainID, url)
 	require.NoError(t, err)
 
 	// populate the registry with a table
@@ -37,7 +41,8 @@ func TestSystemSQLStoreService(t *testing.T) {
 	require.NoError(t, b.Commit(ctx))
 	require.NoError(t, b.Close(ctx))
 
-	svc, err := NewSystemSQLStoreService(store, "https://tableland.network/tables")
+	stack := map[tableland.ChainID]chains.ChainStack{1337: {Store: store}}
+	svc, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables")
 	require.NoError(t, err)
 	metadata, err := svc.GetTableMetadata(ctx, id)
 	require.NoError(t, err)
