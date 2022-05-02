@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rs/zerolog"
 	logger "github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
@@ -20,8 +21,6 @@ import (
 )
 
 var (
-	log = logger.With().Str("component", "eventprocessor").Logger()
-
 	// eventTypes are the event types that the event processor is interested to process
 	// and thus have execution logic for them.
 	eventTypes = []eventfeed.EventType{eventfeed.RunSQL, eventfeed.CreateTable}
@@ -29,6 +28,7 @@ var (
 
 // EventProcessor processes new events detected by an event feed.
 type EventProcessor struct {
+	log     zerolog.Logger
 	parser  parsing.SQLValidator
 	txnp    txn.TxnProcessor
 	ef      eventfeed.EventFeed
@@ -41,6 +41,7 @@ type EventProcessor struct {
 	daemonCanceled chan struct{}
 
 	// Metrics
+	mBaseLabels            []attribute.KeyValue
 	mExecutionRound        atomic.Int64
 	mLastProcessedHeight   atomic.Int64
 	mBlockExecutionLatency syncint64.Histogram
@@ -61,14 +62,19 @@ func New(parser parsing.SQLValidator,
 		}
 	}
 
+	log := logger.With().
+		Str("component", "eventprocessor").
+		Int64("chainID", int64(chainID)).
+		Logger()
 	ep := &EventProcessor{
+		log:     log,
 		parser:  parser,
 		txnp:    txnp,
 		ef:      ef,
 		chainID: chainID,
 		config:  config,
 	}
-	if err := ep.initMetrics(); err != nil {
+	if err := ep.initMetrics(chainID); err != nil {
 		return nil, fmt.Errorf("initializing metric instruments: %s", err)
 	}
 
@@ -84,7 +90,7 @@ func (ep *EventProcessor) Start() error {
 		return fmt.Errorf("already started")
 	}
 
-	log.Debug().Msg("starting daemon...")
+	ep.log.Debug().Msg("starting daemon...")
 	ctx, cls := context.WithCancel(context.Background())
 	ep.daemonCtx = ctx
 	ep.daemonCancel = cls
@@ -92,7 +98,7 @@ func (ep *EventProcessor) Start() error {
 	if err := ep.startDaemon(); err != nil {
 		return fmt.Errorf("background daemon failed starting: %s", err)
 	}
-	log.Info().Msg("started")
+	ep.log.Info().Msg("started")
 
 	return nil
 }
@@ -105,7 +111,7 @@ func (ep *EventProcessor) Stop() {
 		return
 	}
 
-	log.Debug().Msg("stopping syncer gracefully...")
+	ep.log.Debug().Msg("stopping syncer gracefully...")
 	ep.daemonCancel()
 	<-ep.daemonCanceled
 
@@ -115,7 +121,7 @@ func (ep *EventProcessor) Stop() {
 	ep.daemonCanceled = nil
 	ep.mExecutionRound.Store(0)
 
-	log.Debug().Msg("syncer stopped")
+	ep.log.Debug().Msg("syncer stopped")
 }
 
 func (ep *EventProcessor) startDaemon() error {
@@ -129,7 +135,7 @@ func (ep *EventProcessor) startDaemon() error {
 	}
 	fromHeight, err := b.GetLastProcessedHeight(ctx)
 	if err != nil {
-		log.Err(err).Msg("getting last processed height")
+		ep.log.Err(err).Msg("getting last processed height")
 	}
 	if err := b.Close(ctx); err != nil {
 		return fmt.Errorf("closing batch: %s", err)
@@ -144,17 +150,17 @@ func (ep *EventProcessor) startDaemon() error {
 	go func() {
 		defer close(ch)
 		if err := ep.ef.Start(ep.daemonCtx, fromHeight, ch, eventTypes); err != nil {
-			log.Error().Err(err).Msg("query feed was closed unexpectedly")
+			ep.log.Error().Err(err).Msg("query feed was closed unexpectedly")
 			ep.Stop() // We cleanup daemon ctx and allow the processor to StartSync() cleanly if needed.
 			return
 		}
-		log.Info().Msg("event feed gracefully closed")
+		ep.log.Info().Msg("event feed gracefully closed")
 	}()
 
 	// Listen to new events from the EventFeed, and process them.
 	go func() {
 		defer close(ep.daemonCanceled)
-		defer log.Info().Msg("processor gracefully closed")
+		defer ep.log.Info().Msg("processor gracefully closed")
 
 		for bqs := range ch {
 			// If a runBlockQueries execution fails, we keep retrying since it *must* be
@@ -176,7 +182,7 @@ func (ep *EventProcessor) startDaemon() error {
 				// the database is temporarily down. Higher values indicate that we're
 				// definitely stuck processing a block and definitely needs close attention.
 				if err := ep.runBlockQueries(ep.daemonCtx, bqs); err != nil {
-					log.Error().Int("attempt", int(ep.mExecutionRound.Load())).Err(err).Msg("executing block queries")
+					ep.log.Error().Int("attempt", int(ep.mExecutionRound.Load())).Err(err).Msg("executing block queries")
 					ep.mExecutionRound.Inc()
 					time.Sleep(ep.config.BlockFailedExecutionBackoff)
 					continue
@@ -198,7 +204,7 @@ func (ep *EventProcessor) runBlockQueries(ctx context.Context, bqs eventfeed.Blo
 	}
 	defer func() {
 		if err := b.Close(ctx); err != nil {
-			log.Error().Err(err).Msg("closing batch")
+			ep.log.Error().Err(err).Msg("closing batch")
 		}
 	}()
 
@@ -223,13 +229,13 @@ func (ep *EventProcessor) runBlockQueries(ctx context.Context, bqs eventfeed.Blo
 			return fmt.Errorf("executing query: %s", err)
 		}
 		receipts[i] = receipt
-		attrs := []attribute.KeyValue{
+		attrs := append([]attribute.KeyValue{
 			attribute.String("eventtype", fmt.Sprintf("%T", e)),
-		}
+		}, ep.mBaseLabels...)
 		if receipt.Error != nil {
 			// Some acceptable failure happened (e.g: invalid syntax, inserting
 			// a string in an integer column, etc). Just log it, and move on.
-			log.Info().Str("failCause", *receipt.Error).Msg("event execution failed")
+			ep.log.Info().Str("failCause", *receipt.Error).Msg("event execution failed")
 			attrs = append(attrs, attribute.String("failCause", *receipt.Error))
 		}
 
@@ -240,7 +246,7 @@ func (ep *EventProcessor) runBlockQueries(ctx context.Context, bqs eventfeed.Blo
 	if err := b.SaveTxnReceipts(ctx, receipts); err != nil {
 		return fmt.Errorf("saving txn receipts: %s", err)
 	}
-	log.Debug().Int64("height", bqs.BlockNumber).Int("receipts", len(receipts)).Msg("saved receipts")
+	ep.log.Debug().Int64("height", bqs.BlockNumber).Int("receipts", len(receipts)).Msg("saved receipts")
 
 	// Update the last processed height.
 	if err := b.SetLastProcessedHeight(ctx, bqs.BlockNumber); err != nil {
@@ -250,10 +256,10 @@ func (ep *EventProcessor) runBlockQueries(ctx context.Context, bqs eventfeed.Blo
 	if err := b.Commit(ctx); err != nil {
 		return fmt.Errorf("committing changes: %s", err)
 	}
-	log.Debug().Int64("height", bqs.BlockNumber).Msg("new last processed height")
+	ep.log.Debug().Int64("height", bqs.BlockNumber).Msg("new last processed height")
 
 	ep.mLastProcessedHeight.Store(bqs.BlockNumber)
-	ep.mBlockExecutionLatency.Record(ctx, time.Since(start).Milliseconds())
+	ep.mBlockExecutionLatency.Record(ctx, time.Since(start).Milliseconds(), ep.mBaseLabels...)
 
 	return nil
 }
@@ -272,14 +278,14 @@ func (ep *EventProcessor) executeEvent(
 	be eventfeed.BlockEvent) (eventprocessor.Receipt, error) {
 	switch e := be.Event.(type) {
 	case *ethereum.ContractRunSQL:
-		log.Debug().Str("statement", e.Statement).Msgf("executing run-sql event")
+		ep.log.Debug().Str("statement", e.Statement).Msgf("executing run-sql event")
 		receipt, err := ep.executeRunSQLEvent(ctx, b, blockNumber, be, e)
 		if err != nil {
 			return eventprocessor.Receipt{}, fmt.Errorf("executing runsql event: %s", err)
 		}
 		return receipt, nil
 	case *ethereum.ContractCreateTable:
-		log.Debug().
+		ep.log.Debug().
 			Str("caller", e.Caller.Hex()).
 			Str("tokenId", e.TableId.String()).
 			Str("statement", e.Statement).
