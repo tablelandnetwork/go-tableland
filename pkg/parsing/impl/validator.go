@@ -115,16 +115,16 @@ func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.SugaredReadStmt,
 		if err != nil {
 			return nil, nil, fmt.Errorf("validating read-query: %w", err)
 		}
-		namePrefix, posTableName, err := pp.deconstructRefTable(refTable)
+		namePrefix, tableName, dbTableName, err := pp.deconstructRefTable(refTable)
 		if err != nil {
 			return nil, nil, fmt.Errorf("deconstructing referenced table name: %w", err)
 		}
 		return &sugaredStmt{
-			chainID:    pp.chainID,
-			node:       stmt,
-			namePrefix: namePrefix,
-			tableName:  posTableName,
-			operation:  tableland.OpSelect,
+			dbTableName: dbTableName,
+			node:        stmt,
+			namePrefix:  namePrefix,
+			tableName:   tableName,
+			operation:   tableland.OpSelect,
 		}, nil, nil
 	}
 
@@ -159,7 +159,7 @@ func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.SugaredReadStmt,
 		}
 	}
 
-	namePrefix, tableName, err := pp.deconstructRefTable(targetTable)
+	namePrefix, tableName, dbTableName, err := pp.deconstructRefTable(targetTable)
 	if err != nil {
 		return nil, nil, fmt.Errorf("deconstructing referenced table name: %w", err)
 	}
@@ -168,10 +168,10 @@ func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.SugaredReadStmt,
 	for i := range parsed.Stmts {
 		stmt := parsed.Stmts[i].Stmt
 		s := &sugaredStmt{
-			chainID:    pp.chainID,
-			node:       stmt,
-			namePrefix: namePrefix,
-			tableName:  tableName,
+			dbTableName: dbTableName,
+			node:        stmt,
+			namePrefix:  namePrefix,
+			tableName:   tableName,
 		}
 
 		switch {
@@ -202,57 +202,63 @@ func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.SugaredReadStmt,
 	return nil, ret, nil
 }
 
-func (pp *QueryValidator) deconstructRefTable(refTable string) (string, string, error) {
+// deconstructRefTable returns three main deconstructions of the reference table name in the query:
+// 1) The {name} of {name}_{ID}
+// 2) The _{ID} of {name}_{ID}
+// 3) A chain-scoped corresponding real name of the table, from {name}_{ID} -> _{chanID}_{ID}, which will be used
+//    for desugaring the query.
+// It covers the special case of the query referencing system tables, and acting accordingly.
+func (pp *QueryValidator) deconstructRefTable(refTable string) (string, string, string, error) {
 	if hasPrefix(refTable, pp.systemTablePrefixes) {
-		return "", refTable, nil
+		return "", refTable, refTable, nil
 	}
 	if !pp.rawTablenameRegEx.MatchString(refTable) {
-		return "", "", &parsing.ErrInvalidTableName{}
+		return "", "", "", &parsing.ErrInvalidTableName{}
 	}
 
-	var namePrefix, realTableName string
+	var namePrefix, tableID string
 	sepIdx := strings.LastIndex(refTable, "_")
 	if sepIdx == -1 {
-		realTableName = refTable // No name prefix case, _{ID}.
+		tableID = refTable // No name prefix case, _{ID}.
 	} else {
-		namePrefix = refTable[:sepIdx]    // If sepIdx==0, this is correct too.
-		realTableName = refTable[sepIdx:] // {name}_{id} -> _{id}
+		namePrefix = refTable[:sepIdx] // If sepIdx==0, this is correct too.
+		tableID = refTable[sepIdx:]    // {name}_{id} -> _{id}
 	}
+	dbTableName := fmt.Sprintf("_%d%s", pp.chainID, tableID)
 
-	return namePrefix, realTableName, nil
+	return namePrefix, tableID, dbTableName, nil
 }
 
 type sugaredStmt struct {
-	node       *pg_query.Node
-	namePrefix string
-	chainID    tableland.ChainID
-	tableName  string
-	operation  tableland.Operation
+	node        *pg_query.Node
+	namePrefix  string // From {name}_{tableID} -> {name}
+	tableName   string // From {name}_{ID} -> _{ID}
+	dbTableName string // From {name}_{ID} -> _{chainID}_{ID}
+	operation   tableland.Operation
 }
 
 func (s *sugaredStmt) GetDesugaredQuery() (string, error) {
 	parsedTree := &pg_query.ParseResult{}
 
-	chainScopedDBTableName := fmt.Sprintf("_%d%s", s.chainID, s.tableName)
 	if insertStmt := s.node.GetInsertStmt(); insertStmt != nil {
-		insertStmt.Relation.Relname = chainScopedDBTableName
+		insertStmt.Relation.Relname = s.dbTableName
 	} else if updateStmt := s.node.GetUpdateStmt(); updateStmt != nil {
-		updateStmt.Relation.Relname = chainScopedDBTableName
+		updateStmt.Relation.Relname = s.dbTableName
 	} else if deleteStmt := s.node.GetDeleteStmt(); deleteStmt != nil {
-		deleteStmt.Relation.Relname = chainScopedDBTableName
+		deleteStmt.Relation.Relname = s.dbTableName
 	} else if selectStmt := s.node.GetSelectStmt(); selectStmt != nil {
 		for i := range selectStmt.FromClause {
 			rangeVar := selectStmt.FromClause[i].GetRangeVar()
 			if rangeVar == nil {
 				return "", fmt.Errorf("select doesn't reference a table")
 			}
-			rangeVar.Relname = chainScopedDBTableName
+			rangeVar.Relname = s.dbTableName
 		}
 	} else if grantStmt := s.node.GetGrantStmt(); grantStmt != nil {
 		// It is safe to assume Objects has always one element.
 		// This is validated in the checkPrivileges call.
 
-		grantStmt.Objects[0].GetRangeVar().Relname = chainScopedDBTableName
+		grantStmt.Objects[0].GetRangeVar().Relname = s.dbTableName
 	}
 	rs := &pg_query.RawStmt{Stmt: s.node}
 	parsedTree.Stmts = []*pg_query.RawStmt{rs}
