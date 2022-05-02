@@ -11,7 +11,9 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/rs/zerolog"
 	logger "github.com/rs/zerolog/log"
+	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	tbleth "github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
 	"go.opentelemetry.io/otel/attribute"
@@ -19,22 +21,27 @@ import (
 	"go.uber.org/atomic"
 )
 
-var log = logger.With().Str("component", "eventfeed").Logger()
-
 // EventFeed provides a stream of filtered events from a SC.
 type EventFeed struct {
+	log       zerolog.Logger
+	chainID   tableland.ChainID
 	ethClient eventfeed.ChainClient
 	scAddress common.Address
 	scABI     *abi.ABI
 	config    *eventfeed.Config
 
 	// Metrics
+	mBaseLabels       []attribute.KeyValue
 	mEventTypeCounter syncint64.Counter
 	mCurrentHeight    atomic.Int64
 }
 
 // New returns a new EventFeed.
-func New(ethClient eventfeed.ChainClient, scAddress common.Address, opts ...eventfeed.Option) (*EventFeed, error) {
+func New(
+	chainID tableland.ChainID,
+	ethClient eventfeed.ChainClient,
+	scAddress common.Address,
+	opts ...eventfeed.Option) (*EventFeed, error) {
 	config := eventfeed.DefaultConfig()
 	for _, o := range opts {
 		if err := o(config); err != nil {
@@ -45,13 +52,19 @@ func New(ethClient eventfeed.ChainClient, scAddress common.Address, opts ...even
 	if err != nil {
 		return nil, fmt.Errorf("get contract-abi: %s", err)
 	}
+	log := logger.With().
+		Str("component", "eventfeed").
+		Int64("chainID", int64(chainID)).
+		Logger()
 	ef := &EventFeed{
+		log:       log,
+		chainID:   chainID,
 		ethClient: ethClient,
 		scAddress: scAddress,
 		scABI:     scABI,
 		config:    config,
 	}
-	if err := ef.initMetrics(); err != nil {
+	if err := ef.initMetrics(chainID); err != nil {
 		return nil, fmt.Errorf("initializing metrics instruments: %s", err)
 	}
 
@@ -66,8 +79,8 @@ func (ef *EventFeed) Start(
 	fromHeight int64,
 	ch chan<- eventfeed.BlockEvents,
 	filterEventTypes []eventfeed.EventType) error {
-	log.Debug().Msg("starting...")
-	defer log.Debug().Msg("stopped")
+	ef.log.Debug().Msg("starting...")
+	defer ef.log.Debug().Msg("stopped")
 
 	// Spinup a background process that will post to chHeads when a new block is detected.
 	// This channel will be the heart-beat to pull new logs from the chain.
@@ -88,7 +101,7 @@ func (ef *EventFeed) Start(
 
 	// Listen for new blocks, and get new events.
 	for h := range chHeads {
-		log.Debug().Int64("height", h.Number.Int64()).Msg("received new chain header")
+		ef.log.Debug().Int64("height", h.Number.Int64()).Msg("received new chain header")
 
 		// We do a for loop since we'll try to catch from fromHeight to the new reported
 		// head in batches with max size MaxEventsBatchSize. This is important to
@@ -119,19 +132,19 @@ func (ef *EventFeed) Start(
 				Addresses: []common.Address{ef.scAddress},
 				Topics:    [][]common.Hash{filterTopics},
 			}
-			log.Debug().Int64("from", fromHeight).Int64("to", toHeight).Msg("calling filter logs")
+			ef.log.Debug().Int64("from", fromHeight).Int64("to", toHeight).Msg("calling filter logs")
 			logs, err := ef.ethClient.FilterLogs(ctx, query)
 			if err != nil {
 				// If we got an error here, log it but allow to be retried
 				// in the next head. Probably the API can have transient unavailability.
-				log.Warn().Err(err).Msgf("filter logs from %d to %d", fromHeight, toHeight)
+				ef.log.Warn().Err(err).Msgf("filter logs from %d to %d", fromHeight, toHeight)
 				time.Sleep(ef.config.ChainAPIBackoff)
 				continue
 			}
 
 			// If there're no events, nothing to do here.
 			if len(logs) == 0 {
-				log.Debug().Msg("no filter logs")
+				ef.log.Debug().Msg("no filter logs")
 			} else {
 				// We received new events. We'll group/pack them by block number in
 				// BlockEvents structs, and send them to the `ch` channel provided
@@ -210,7 +223,8 @@ func (ef *EventFeed) parseEvent(l types.Log) (eventfeed.BlockEvent, error) {
 	// This parsedEvent(...) function was coded in a generic way, so it will hardly
 	// ever change.
 
-	ef.mEventTypeCounter.Add(context.Background(), 1, attribute.String("name", eventDescr.Name))
+	attrs := append([]attribute.KeyValue{attribute.String("name", eventDescr.Name)}, ef.mBaseLabels...)
+	ef.mEventTypeCounter.Add(context.Background(), 1, attrs...)
 
 	return eventfeed.BlockEvent{TxnHash: l.TxHash, Event: i}, nil
 }
@@ -255,12 +269,12 @@ func (ef *EventFeed) notifyNewBlocks(ctx context.Context, clientCh chan *types.H
 		for {
 			select {
 			case <-ctx.Done():
-				log.Info().Msg("gracefully closing new blocks subscription")
+				ef.log.Info().Msg("gracefully closing new blocks subscription")
 				return
 			case h := <-ch:
 				clientCh <- h
 			case <-time.After(ef.config.NewBlockTimeout):
-				log.Warn().Dur("timeout", ef.config.NewBlockTimeout).Msgf("new blocks subscription is quiet, rebuilding")
+				ef.log.Warn().Dur("timeout", ef.config.NewBlockTimeout).Msgf("new blocks subscription is quiet, rebuilding")
 				notifierSignaler <- struct{}{}
 			}
 		}
@@ -276,14 +290,14 @@ func (ef *EventFeed) notifyNewBlocks(ctx context.Context, clientCh chan *types.H
 			}
 			sub, err = ef.ethClient.SubscribeNewHead(ctx, ch)
 			if err != nil {
-				log.Error().Err(err).Msg("subscribing to blocks")
+				ef.log.Error().Err(err).Msg("subscribing to blocks")
 				continue
 			}
 		}
 		if sub != nil {
 			sub.Unsubscribe()
 		}
-		log.Info().Msg("gracefully closing notifier")
+		ef.log.Info().Msg("gracefully closing notifier")
 	}()
 	notifierSignaler <- struct{}{}
 

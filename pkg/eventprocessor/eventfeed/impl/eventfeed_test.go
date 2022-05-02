@@ -22,7 +22,7 @@ func TestRunSQLEvents(t *testing.T) {
 	t.Parallel()
 
 	backend, addr, sc, authOpts, _ := testutil.Setup(t)
-	qf, err := New(backend, addr, eventfeed.WithMinBlockDepth(0))
+	qf, err := New(1337, backend, addr, eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
 
 	ctrl := common.HexToAddress("0xB0Cf943Cf94E7B6A2657D15af41c5E06c2BFEA3D")
@@ -85,7 +85,7 @@ func TestCreateTableAndRunSQLEvents(t *testing.T) {
 	t.Parallel()
 
 	backend, addr, sc, authOpts, _ := testutil.Setup(t)
-	qf, err := New(backend, addr, eventfeed.WithMinBlockDepth(0))
+	qf, err := New(1337, backend, addr, eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
 
 	ctx, cls := context.WithCancel(context.Background())
@@ -137,7 +137,7 @@ func TestInfura(t *testing.T) {
 	require.NoError(t, err)
 	rinkebyContractAddr := common.HexToAddress("0x847645b7dAA32eFda757d3c10f1c82BFbB7b41D0")
 
-	qf, err := New(conn, rinkebyContractAddr, eventfeed.WithMinBlockDepth(0))
+	qf, err := New(1337, conn, rinkebyContractAddr, eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
 
 	ctx, cls := context.WithCancel(context.Background())
