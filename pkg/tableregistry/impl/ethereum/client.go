@@ -19,14 +19,14 @@ type Client struct {
 	contract *Contract
 	backend  bind.ContractBackend
 	wallet   *wallet.Wallet
-	chainID  int64
+	chainID  tableland.ChainID
 	tracker  nonce.NonceTracker
 }
 
 // NewClient creates a new Client.
 func NewClient(
 	backend bind.ContractBackend,
-	chainID int64,
+	chainID tableland.ChainID,
 	contractAddr common.Address,
 	wallet *wallet.Wallet,
 	tracker nonce.NonceTracker) (*Client, error) {
@@ -64,7 +64,7 @@ func (c *Client) RunSQL(
 		return nil, fmt.Errorf("suggest gas price: %s", err)
 	}
 
-	auth, err := bind.NewKeyedTransactorWithChainID(c.wallet.PrivateKey(), big.NewInt(c.chainID))
+	auth, err := bind.NewKeyedTransactorWithChainID(c.wallet.PrivateKey(), big.NewInt(int64(c.chainID)))
 	if err != nil {
 		return nil, fmt.Errorf("creating keyed transactor: %s", err)
 	}
@@ -100,7 +100,7 @@ func (c *Client) SetController(
 		return nil, fmt.Errorf("suggest gas price: %s", err)
 	}
 
-	auth, err := bind.NewKeyedTransactorWithChainID(c.wallet.PrivateKey(), big.NewInt(c.chainID))
+	auth, err := bind.NewKeyedTransactorWithChainID(c.wallet.PrivateKey(), big.NewInt(int64(c.chainID)))
 	if err != nil {
 		return nil, fmt.Errorf("creating keyed transactor: %s", err)
 	}

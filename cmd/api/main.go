@@ -76,15 +76,15 @@ func main() {
 		log.Fatal().Err(err).Msg("instrumenting sql validator")
 	}
 
-	chainRegistries := map[int64]tableregistry.TableRegistry{}
+	chainRegistries := map[tableland.ChainID]tableregistry.TableRegistry{}
 	var chainFinalizers []chainStackFinalizer
 	for _, chainCfg := range config.Chains {
 		if _, ok := chainRegistries[chainCfg.ChainID]; ok {
-			log.Fatal().Int64("chainId", chainCfg.ChainID).Msg("chain id configuration is duplicated")
+			log.Fatal().Int64("chainId", int64(chainCfg.ChainID)).Msg("chain id configuration is duplicated")
 		}
 		registry, fin, err := wireChainComponents(chainCfg, sqlstore, parser, databaseURL, config.TableConstraints.MaxRowCount)
 		if err != nil {
-			log.Fatal().Int64("chainId", chainCfg.ChainID).Err(err).Msg("spinning up chain stack")
+			log.Fatal().Int64("chainId", int64(chainCfg.ChainID)).Err(err).Msg("spinning up chain stack")
 		}
 		chainFinalizers = append(chainFinalizers, fin)
 		chainRegistries[chainCfg.ChainID] = registry
@@ -187,7 +187,7 @@ func getTablelandService(
 	conf *config,
 	store sqlstore.SQLStore,
 	parser parsing.SQLValidator,
-	chainRegistries map[int64]tableregistry.TableRegistry,
+	chainRegistries map[tableland.ChainID]tableregistry.TableRegistry,
 ) tableland.Tableland {
 	mesa := impl.NewTablelandMesa(store, parser, chainRegistries)
 	instrumentedMesa, err := impl.NewInstrumentedTablelandMesa(mesa)
@@ -252,7 +252,7 @@ func wireChainComponents(
 	scAddress := common.HexToAddress(config.Registry.ContractAddress)
 	registry, err := ethereum.NewClient(
 		conn,
-		config.Registry.ChainID,
+		config.ChainID,
 		scAddress,
 		wallet,
 		tracker,
@@ -293,7 +293,7 @@ func wireChainComponents(
 	epOpts := []eventprocessor.Option{
 		eventprocessor.WithBlockFailedExecutionBackoff(blockFailedExecutionBackoff),
 	}
-	ep, err := epimpl.New(parser, txnp, ef, config.Registry.ChainID, epOpts...)
+	ep, err := epimpl.New(parser, txnp, ef, config.ChainID, epOpts...)
 	if err != nil {
 		return nil, nil, fmt.Errorf("creating event processor")
 	}
@@ -303,8 +303,8 @@ func wireChainComponents(
 
 	return registry,
 		func(ctx context.Context) error {
-			log.Info().Int64("chainId", config.ChainID).Msg("closing stack...")
-			defer log.Info().Int64("chainId", config.ChainID).Msg("stack closed")
+			log.Info().Int64("chainId", int64(config.ChainID)).Msg("closing stack...")
+			defer log.Info().Int64("chainId", int64(config.ChainID)).Msg("stack closed")
 			ep.Stop()
 			return nil
 		}, nil

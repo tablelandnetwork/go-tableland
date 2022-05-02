@@ -140,11 +140,11 @@ func (s *SystemStore) GetACLOnTableByController(
 // ListPendingTx lists all pendings txs.
 func (s *SystemStore) ListPendingTx(
 	ctx context.Context,
-	chainID int64,
+	chainID tableland.ChainID,
 	addr common.Address) ([]nonce.PendingTx, error) {
 	params := db.ListPendingTxParams{
 		Address: addr.Hex(),
-		ChainID: chainID,
+		ChainID: int64(chainID),
 	}
 
 	res, err := s.db.queries().ListPendingTx(ctx, params)
@@ -171,12 +171,12 @@ func (s *SystemStore) ListPendingTx(
 // InsertPendingTx insert a new pending tx.
 func (s *SystemStore) InsertPendingTx(
 	ctx context.Context,
-	chainID int64,
+	chainID tableland.ChainID,
 	addr common.Address,
 	nonce int64, hash common.Hash) error {
 	params := db.InsertPendingTxParams{
 		Address: addr.Hex(),
-		ChainID: chainID,
+		ChainID: int64(chainID),
 		Nonce:   nonce,
 		Hash:    hash.Hex(),
 	}
@@ -218,10 +218,10 @@ func (s *SystemStore) Begin(ctx context.Context) (pgx.Tx, error) {
 // GetReceipt returns a event receipt by transaction hash.
 func (s *SystemStore) GetReceipt(
 	ctx context.Context,
-	chainID int64,
+	chainID tableland.ChainID,
 	txnHash string) (eventprocessor.Receipt, bool, error) {
 	params := db.GetReceiptParams{
-		ChainID: chainID,
+		ChainID: int64(chainID),
 		TxnHash: txnHash,
 	}
 

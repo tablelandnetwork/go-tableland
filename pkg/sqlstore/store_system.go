@@ -17,10 +17,10 @@ type SystemStore interface {
 	IncrementCreateTableCount(context.Context, string) error
 	IncrementRunSQLCount(context.Context, string) error
 	GetACLOnTableByController(context.Context, tableland.TableID, string) (SystemACL, error)
-	ListPendingTx(context.Context, int64, common.Address) ([]nonce.PendingTx, error)
-	InsertPendingTx(context.Context, int64, common.Address, int64, common.Hash) error
+	ListPendingTx(context.Context, tableland.ChainID, common.Address) ([]nonce.PendingTx, error)
+	InsertPendingTx(context.Context, tableland.ChainID, common.Address, int64, common.Hash) error
 	DeletePendingTxByHash(context.Context, common.Hash) error
 	WithTx(tx pgx.Tx) SystemStore
 	Begin(context.Context) (pgx.Tx, error)
-	GetReceipt(context.Context, int64, string) (eventprocessor.Receipt, bool, error)
+	GetReceipt(context.Context, tableland.ChainID, string) (eventprocessor.Receipt, bool, error)
 }

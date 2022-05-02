@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/omeid/uconfig"
+	"github.com/textileio/go-tableland/internal/tableland"
 )
 
 // configFilename is the filename of the config file automatically loaded.
@@ -52,11 +53,10 @@ type config struct {
 }
 
 type ChainConfig struct {
-	Name     string `default:""`
-	ChainID  int64  `default:"0"`
+	Name     string            `default:""`
+	ChainID  tableland.ChainID `default:"0"`
 	Registry struct {
 		EthEndpoint     string `default:"eth_endpoint"`
-		ChainID         int64  `default:"1"`
 		ContractAddress string `default:"contract_address"`
 	}
 	Signer struct {

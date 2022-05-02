@@ -5,6 +5,7 @@ import (
 
 	"github.com/spruceid/siwe-go"
 	"github.com/stretchr/testify/require"
+	"github.com/textileio/go-tableland/internal/tableland"
 )
 
 func TestSIWE(t *testing.T) {
@@ -17,7 +18,7 @@ func TestSIWE(t *testing.T) {
 		chainID, issuer, err := parseAuth(siweToken)
 		require.NoError(t, err)
 		require.Equal(t, "0xd535bAd504CDd77e2C51dE26F416693DF7a01ac8", issuer)
-		require.Equal(t, int64(4), chainID)
+		require.Equal(t, tableland.ChainID(4), chainID)
 	})
 	t.Run("wrong domain", func(t *testing.T) {
 		t.Parallel()
