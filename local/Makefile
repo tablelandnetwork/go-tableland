@@ -11,13 +11,17 @@ down:
 .PHONY: down
 
 # Note that -V indicates that we always start fresh.
-staging-up:
-	sed "s/{{platform}}/$(PLATFORM)/g" docker-compose-staging.yml | COMPOSE_DOCKER_CLI_BUILD=1 docker-compose -f - up --build -V
-.PHONY: up
+kovan-staging-up:
+	sed "s/{{platform}}/$(PLATFORM)/g" docker-compose-live.yml | \
+	ENV_FILE=.env_kovan-staging \
+	CONFIG_FILE=config-kovan-staging.json \
+    COMPOSE_DOCKER_CLI_BUILD=1 \
+	docker-compose -f - up --build -V
+.PHONY: kovan-staging-up
 
-staging-down:
-	docker-compose -f docker-compose-staging.yml down
-.PHONY: down
+kovan-staging-down:
+	docker-compose -f docker-compose-live.yml down
+.PHONY: kovan-staging-down
 
 
 psql:
