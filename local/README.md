@@ -10,13 +10,14 @@ For a validator stack against a local hardhat network:
 - `make up`
 - `make down`
 
-For a validator stack against the staging enviroment running in the L2 testnet:
-- `make staging-up`
-- `make staging-down`
-Note that you need an `.env` file with your Alchemy API KEY in the L2 testnet:
-```
-ALCHEMY_API_KEY=XXXXXXXXX
-```
+For a validator stack against different real EVM chain enviroments run:
+- `make {network-name}-up` 
+- `make {network-name}-down`
+
+Note that every enviroment has two files:
+- `.env_{network-name}` which allows to configure enviroments to fill secrets for the validator, plus expand variables present in the config file.
+- `config-{network-name}.json` is the configuration file for the validator.
+
 
 To connect to the database run:
 - `make psql`
