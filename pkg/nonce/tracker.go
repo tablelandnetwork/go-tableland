@@ -8,7 +8,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/textileio/go-tableland/internal/tableland"
 )
 
 // PendingTx represents a pending tx.
@@ -52,7 +51,7 @@ type ChainClient interface {
 
 // NonceStore provides the api for managing the storage of nonce and pending txs.
 type NonceStore interface {
-	ListPendingTx(context.Context, tableland.ChainID, common.Address) ([]PendingTx, error)
-	InsertPendingTx(context.Context, tableland.ChainID, common.Address, int64, common.Hash) error
+	ListPendingTx(context.Context, common.Address) ([]PendingTx, error)
+	InsertPendingTx(context.Context, common.Address, int64, common.Hash) error
 	DeletePendingTxByHash(context.Context, common.Hash) error
 }

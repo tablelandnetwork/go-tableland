@@ -8,30 +8,26 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	logger "github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/cmd/api/middlewares"
+	"github.com/textileio/go-tableland/internal/chains"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
-	"github.com/textileio/go-tableland/pkg/sqlstore"
-	"github.com/textileio/go-tableland/pkg/tableregistry"
 )
 
 var log = logger.With().Str("component", "mesa").Logger()
 
 // TablelandMesa is the main implementation of Tableland spec.
 type TablelandMesa struct {
-	store           sqlstore.SQLStore
-	parser          parsing.SQLValidator
-	chainRegistries map[tableland.ChainID]tableregistry.TableRegistry
+	parser      parsing.SQLValidator
+	chainStacks map[tableland.ChainID]chains.ChainStack
 }
 
 // NewTablelandMesa creates a new TablelandMesa.
 func NewTablelandMesa(
-	store sqlstore.SQLStore,
 	parser parsing.SQLValidator,
-	chainRegistries map[tableland.ChainID]tableregistry.TableRegistry) tableland.Tableland {
+	chainStacks map[tableland.ChainID]chains.ChainStack) tableland.Tableland {
 	return &TablelandMesa{
-		store:           store,
-		parser:          parser,
-		chainRegistries: chainRegistries,
+		parser:      parser,
+		chainStacks: chainStacks,
 	}
 }
 
@@ -54,6 +50,12 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.RunSQLRequest)
 	if !ok || controller == "" {
 		return tableland.RunSQLResponse{}, errors.New("no controller address found in context")
 	}
+	ctxChainID := ctx.Value(middlewares.ContextKeyChainID)
+	chainID, ok := ctxChainID.(tableland.ChainID)
+	if !ok {
+		return tableland.RunSQLResponse{}, errors.New("no chain id found in context")
+	}
+
 	readStmt, mutatingStmts, err := t.parser.ValidateRunSQL(req.Statement)
 	if err != nil {
 		return tableland.RunSQLResponse{}, fmt.Errorf("validating query: %s", err)
@@ -61,33 +63,28 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.RunSQLRequest)
 
 	// Read statement
 	if readStmt != nil {
-		queryResult, err := t.runSelect(ctx, controller, readStmt)
+		queryResult, err := t.runSelect(ctx, chainID, controller, readStmt)
 		if err != nil {
 			return tableland.RunSQLResponse{}, fmt.Errorf("running read statement: %s", err)
 		}
 		return tableland.RunSQLResponse{Result: queryResult}, nil
 	}
 
-	ctxChainID := ctx.Value(middlewares.ContextKeyChainID)
-	chainID, ok := ctxChainID.(tableland.ChainID)
-	if !ok {
-		return tableland.RunSQLResponse{}, errors.New("no chain id found in context")
-	}
-	registry, ok := t.chainRegistries[chainID]
+	stack, ok := t.chainStacks[chainID]
 	if !ok {
 		return tableland.RunSQLResponse{}, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
 	}
 
 	// Mutating statements
 	tableID := mutatingStmts[0].GetTableID()
-	tx, err := registry.RunSQL(ctx, common.HexToAddress(controller), tableID, req.Statement)
+	tx, err := stack.Registry.RunSQL(ctx, common.HexToAddress(controller), tableID, req.Statement)
 	if err != nil {
 		return tableland.RunSQLResponse{}, fmt.Errorf("sending tx: %s", err)
 	}
 
 	response := tableland.RunSQLResponse{}
 	response.Transaction.Hash = tx.Hash().String()
-	t.incrementRunSQLCount(ctx, controller)
+	t.incrementRunSQLCount(ctx, chainID, controller)
 	return response, nil
 }
 
@@ -104,7 +101,11 @@ func (t *TablelandMesa) GetReceipt(
 	if !ok {
 		return tableland.GetReceiptResponse{}, errors.New("no chain id found in context")
 	}
-	receipt, ok, err := t.store.GetReceipt(ctx, chainID, req.TxnHash)
+	stack, ok := t.chainStacks[chainID]
+	if !ok {
+		return tableland.GetReceiptResponse{}, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
+	}
+	receipt, ok, err := stack.Store.GetReceipt(ctx, req.TxnHash)
 	if err != nil {
 		return tableland.GetReceiptResponse{}, fmt.Errorf("get txn receipt: %s", err)
 	}
@@ -137,35 +138,50 @@ func (t *TablelandMesa) SetController(
 	if !ok {
 		return tableland.SetControllerResponse{}, errors.New("no chain id found in context")
 	}
-	registry, ok := t.chainRegistries[chainID]
+	stack, ok := t.chainStacks[chainID]
+	if !ok {
+		return tableland.SetControllerResponse{}, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
+	}
 	if !ok {
 		return tableland.SetControllerResponse{}, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
 	}
 
-	tx, err := registry.SetController(ctx, common.HexToAddress(req.Caller), tableID, common.HexToAddress(req.Controller))
+	tx, err := stack.Registry.SetController(ctx, common.HexToAddress(req.Caller), tableID, common.HexToAddress(req.Controller))
 	if err != nil {
 		return tableland.SetControllerResponse{}, fmt.Errorf("sending tx: %s", err)
 	}
 
 	response := tableland.SetControllerResponse{}
 	response.Transaction.Hash = tx.Hash().String()
-	t.incrementRunSQLCount(ctx, req.Controller)
+	t.incrementRunSQLCount(ctx, chainID, req.Controller)
 	return response, nil
 }
 
-func (t *TablelandMesa) runSelect(ctx context.Context, ctrl string, stmt parsing.SugaredReadStmt) (interface{}, error) {
-	queryResult, err := t.store.Read(ctx, stmt)
+func (t *TablelandMesa) runSelect(
+	ctx context.Context,
+	chainID tableland.ChainID,
+	ctrl string,
+	stmt parsing.SugaredReadStmt) (interface{}, error) {
+	stack, ok := t.chainStacks[chainID]
+	if !ok {
+		return nil, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
+	}
+	queryResult, err := stack.Store.Read(ctx, stmt)
 	if err != nil {
 		return nil, fmt.Errorf("executing read-query: %s", err)
 	}
 
-	t.incrementRunSQLCount(ctx, ctrl)
+	t.incrementRunSQLCount(ctx, chainID, ctrl)
 
 	return queryResult, nil
 }
 
-func (t *TablelandMesa) incrementRunSQLCount(ctx context.Context, address string) {
-	if err := t.store.IncrementRunSQLCount(ctx, address); err != nil {
+func (t *TablelandMesa) incrementRunSQLCount(ctx context.Context, chainID tableland.ChainID, address string) {
+	stack, ok := t.chainStacks[chainID]
+	if !ok {
+		log.Error().Int64("chainID", int64(chainID)).Msg("chain idisn't supported in the validator")
+	}
+	if err := stack.Store.IncrementRunSQLCount(ctx, address); err != nil {
 		log.Error().Err(err).Msg("incrementing run sql count")
 	}
 }

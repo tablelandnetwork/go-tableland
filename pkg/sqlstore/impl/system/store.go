@@ -30,12 +30,13 @@ import (
 // For safety reasons, this layer has no access to the database object or the transaction object.
 // The access is made through the dbWithTx interface.
 type SystemStore struct {
-	db   dbWithTx
-	pool *pgxpool.Pool
+	chainID tableland.ChainID
+	db      dbWithTx
+	pool    *pgxpool.Pool
 }
 
 // New returns a new SystemStore backed by `pgxpool.Pool`.
-func New(pool *pgxpool.Pool) (*SystemStore, error) {
+func New(pool *pgxpool.Pool, chainID tableland.ChainID) (*SystemStore, error) {
 	as := bindata.Resource(migrations.AssetNames(),
 		func(name string) ([]byte, error) {
 			return migrations.Asset(name)
@@ -46,8 +47,9 @@ func New(pool *pgxpool.Pool) (*SystemStore, error) {
 	}
 
 	return &SystemStore{
-		db:   &dbWithTxImpl{db: db.New(pool)},
-		pool: pool,
+		db:      &dbWithTxImpl{db: db.New(pool)},
+		pool:    pool,
+		chainID: chainID,
 	}, nil
 }
 
@@ -138,13 +140,10 @@ func (s *SystemStore) GetACLOnTableByController(
 }
 
 // ListPendingTx lists all pendings txs.
-func (s *SystemStore) ListPendingTx(
-	ctx context.Context,
-	chainID tableland.ChainID,
-	addr common.Address) ([]nonce.PendingTx, error) {
+func (s *SystemStore) ListPendingTx(ctx context.Context, addr common.Address) ([]nonce.PendingTx, error) {
 	params := db.ListPendingTxParams{
 		Address: addr.Hex(),
-		ChainID: int64(chainID),
+		ChainID: int64(s.chainID),
 	}
 
 	res, err := s.db.queries().ListPendingTx(ctx, params)
@@ -171,12 +170,11 @@ func (s *SystemStore) ListPendingTx(
 // InsertPendingTx insert a new pending tx.
 func (s *SystemStore) InsertPendingTx(
 	ctx context.Context,
-	chainID tableland.ChainID,
 	addr common.Address,
 	nonce int64, hash common.Hash) error {
 	params := db.InsertPendingTxParams{
 		Address: addr.Hex(),
-		ChainID: int64(chainID),
+		ChainID: int64(s.chainID),
 		Nonce:   nonce,
 		Hash:    hash.Hex(),
 	}
@@ -202,11 +200,12 @@ func (s *SystemStore) DeletePendingTxByHash(ctx context.Context, hash common.Has
 // WithTx returns a copy of the current SystemStore with a tx attached.
 func (s *SystemStore) WithTx(tx pgx.Tx) sqlstore.SystemStore {
 	return &SystemStore{
-		&dbWithTxImpl{
+		chainID: s.chainID,
+		db: &dbWithTxImpl{
 			db: s.db.queries(),
 			tx: tx,
 		},
-		s.pool,
+		pool: s.pool,
 	}
 }
 
@@ -218,10 +217,9 @@ func (s *SystemStore) Begin(ctx context.Context) (pgx.Tx, error) {
 // GetReceipt returns a event receipt by transaction hash.
 func (s *SystemStore) GetReceipt(
 	ctx context.Context,
-	chainID tableland.ChainID,
 	txnHash string) (eventprocessor.Receipt, bool, error) {
 	params := db.GetReceiptParams{
-		ChainID: int64(chainID),
+		ChainID: int64(s.chainID),
 		TxnHash: txnHash,
 	}
 
@@ -234,7 +232,7 @@ func (s *SystemStore) GetReceipt(
 	}
 
 	receipt := eventprocessor.Receipt{
-		ChainID:     chainID,
+		ChainID:     s.chainID,
 		BlockNumber: res.BlockNumber,
 		TxnHash:     txnHash,
 	}
