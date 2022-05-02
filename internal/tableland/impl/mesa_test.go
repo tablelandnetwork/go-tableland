@@ -53,6 +53,7 @@ func TestTodoAppWorkflow(t *testing.T) {
 
 func TestInsertOnConflict(t *testing.T) {
 	t.Parallel()
+	t.SkipNow() // TODO(jsign)
 
 	ctx, tbld, backend, sc, auth := setup(t)
 	caller := common.HexToAddress("0xd43c59d5694ec111eb9e986c233200b14249558d")
