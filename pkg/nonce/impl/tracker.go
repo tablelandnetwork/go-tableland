@@ -8,17 +8,17 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/rs/zerolog"
 	logger "github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/tableland"
 	noncepkg "github.com/textileio/go-tableland/pkg/nonce"
 	"github.com/textileio/go-tableland/pkg/wallet"
 )
 
-var log = logger.With().Str("component", "nonce").Logger()
-
 // LocalTracker implements a nonce tracker that stores
 // nonce and pending txs locally.
 type LocalTracker struct {
+	log        zerolog.Logger
 	currNonce  int64
 	chainID    tableland.ChainID
 	pendingTxs []noncepkg.PendingTx
@@ -51,7 +51,12 @@ func NewLocalTracker(
 	minBlockChainDepth int,
 	stuckInterval time.Duration,
 ) (*LocalTracker, error) {
+	log := logger.With().
+		Str("component", "nonce").
+		Int64("chainId", int64(chainID)).
+		Logger()
 	t := &LocalTracker{
+		log:         log,
 		wallet:      w,
 		chainID:     chainID,
 		nonceStore:  nonceStore,
@@ -108,7 +113,7 @@ func (t *LocalTracker) GetNonce(ctx context.Context) (noncepkg.RegisterPendingTx
 			t.wallet.Address(),
 			incrementedNonce,
 			pendingHash); err != nil {
-			log.Error().
+			t.log.Error().
 				Err(err).
 				Int64("nonce", nonce).
 				Str("hash", pendingHash.Hex()).
@@ -166,7 +171,7 @@ func (t *LocalTracker) checkIfPendingTxWasIncluded(
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	log.Debug().
+	t.log.Debug().
 		Str("hash", pendingTx.Hash.Hex()).
 		Int64("nonce", pendingTx.Nonce).
 		Msg("checking pending tx...")
@@ -174,7 +179,7 @@ func (t *LocalTracker) checkIfPendingTxWasIncluded(
 	txReceipt, err := t.chainClient.TransactionReceipt(ctx, pendingTx.Hash)
 	if err != nil {
 		if time.Since(pendingTx.CreatedAt) > t.stuckInterval {
-			log.Error().
+			t.log.Error().
 				Str("hash", pendingTx.Hash.Hex()).
 				Int64("nonce", pendingTx.Nonce).
 				Time("createdAt", pendingTx.CreatedAt).
@@ -188,7 +193,7 @@ func (t *LocalTracker) checkIfPendingTxWasIncluded(
 
 	blockDiff := h.Number.Int64() - txReceipt.BlockNumber.Int64()
 	if blockDiff < int64(t.minBlockChainDepth) {
-		log.Debug().
+		t.log.Debug().
 			Str("hash", pendingTx.Hash.Hex()).
 			Int64("nonce", pendingTx.Nonce).
 			Int64("blockDiff", blockDiff).
@@ -244,7 +249,7 @@ func (t *LocalTracker) checkPendingTxns() error {
 				break
 			}
 
-			log.Error().
+			t.log.Error().
 				Str("hash", pendingTx.Hash.Hex()).
 				Int64("nonce", pendingTx.Nonce).
 				Err(err).
