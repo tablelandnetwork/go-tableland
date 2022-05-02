@@ -20,14 +20,14 @@ var log = logger.With().Str("component", "mesa").Logger()
 type TablelandMesa struct {
 	store           sqlstore.SQLStore
 	parser          parsing.SQLValidator
-	chainRegistries map[int64]tableregistry.TableRegistry
+	chainRegistries map[tableland.ChainID]tableregistry.TableRegistry
 }
 
 // NewTablelandMesa creates a new TablelandMesa.
 func NewTablelandMesa(
 	store sqlstore.SQLStore,
 	parser parsing.SQLValidator,
-	chainRegistries map[int64]tableregistry.TableRegistry) tableland.Tableland {
+	chainRegistries map[tableland.ChainID]tableregistry.TableRegistry) tableland.Tableland {
 	return &TablelandMesa{
 		store:           store,
 		parser:          parser,
@@ -69,7 +69,7 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.RunSQLRequest)
 	}
 
 	ctxChainID := ctx.Value(middlewares.ContextKeyChainID)
-	chainID, ok := ctxChainID.(int64)
+	chainID, ok := ctxChainID.(tableland.ChainID)
 	if !ok {
 		return tableland.RunSQLResponse{}, errors.New("no chain id found in context")
 	}
@@ -100,7 +100,7 @@ func (t *TablelandMesa) GetReceipt(
 	}
 
 	ctxChainID := ctx.Value(middlewares.ContextKeyChainID)
-	chainID, ok := ctxChainID.(int64)
+	chainID, ok := ctxChainID.(tableland.ChainID)
 	if !ok {
 		return tableland.GetReceiptResponse{}, errors.New("no chain id found in context")
 	}
@@ -133,7 +133,7 @@ func (t *TablelandMesa) SetController(
 	}
 
 	ctxChainID := ctx.Value(middlewares.ContextKeyChainID)
-	chainID, ok := ctxChainID.(int64)
+	chainID, ok := ctxChainID.(tableland.ChainID)
 	if !ok {
 		return tableland.SetControllerResponse{}, errors.New("no chain id found in context")
 	}

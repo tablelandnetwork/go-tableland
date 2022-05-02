@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	logger "github.com/rs/zerolog/log"
+	"github.com/textileio/go-tableland/internal/tableland"
 	noncepkg "github.com/textileio/go-tableland/pkg/nonce"
 	"github.com/textileio/go-tableland/pkg/wallet"
 )
@@ -19,7 +20,7 @@ var log = logger.With().Str("component", "nonce").Logger()
 // nonce and pending txs locally.
 type LocalTracker struct {
 	currNonce  int64
-	chainID    int64
+	chainID    tableland.ChainID
 	pendingTxs []noncepkg.PendingTx
 	wallet     *wallet.Wallet
 
@@ -43,7 +44,7 @@ func NewLocalTracker(
 	ctx context.Context,
 	w *wallet.Wallet,
 	nonceStore noncepkg.NonceStore,
-	chainID int64,
+	chainID tableland.ChainID,
 	chainClient noncepkg.ChainClient,
 	checkInterval time.Duration,
 	minBlockChainDepth int,

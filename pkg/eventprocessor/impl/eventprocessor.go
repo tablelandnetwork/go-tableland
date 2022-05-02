@@ -33,7 +33,7 @@ type EventProcessor struct {
 	txnp    txn.TxnProcessor
 	ef      eventfeed.EventFeed
 	config  *eventprocessor.Config
-	chainID int64
+	chainID tableland.ChainID
 
 	lock           sync.Mutex
 	daemonCtx      context.Context
@@ -52,7 +52,7 @@ type EventProcessor struct {
 func New(parser parsing.SQLValidator,
 	txnp txn.TxnProcessor,
 	ef eventfeed.EventFeed,
-	chainID int64,
+	chainID tableland.ChainID,
 	opts ...eventprocessor.Option) (*EventProcessor, error) {
 	config := eventprocessor.DefaultConfig()
 	for _, op := range opts {

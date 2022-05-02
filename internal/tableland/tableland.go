@@ -26,7 +26,7 @@ type GetReceiptRequest struct {
 
 // TxnReceipt is a Tableland event processing receipt.
 type TxnReceipt struct {
-	ChainID     int64    `json:"chain_id"`
+	ChainID     ChainID  `json:"chain_id"`
 	TxnHash     string   `json:"txn_hash"`
 	BlockNumber int64    `json:"block_number"`
 	Error       *string  `json:"error,omitempty"`
@@ -104,3 +104,6 @@ func NewTableID(strID string) (TableID, error) {
 	}
 	return TableID(*tableID), nil
 }
+
+// ChainID is a supported EVM chain identifier.
+type ChainID int64

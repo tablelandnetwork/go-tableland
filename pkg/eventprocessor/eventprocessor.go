@@ -43,7 +43,7 @@ type EventProcessor interface {
 
 // Receipt is an event receipt.
 type Receipt struct {
-	ChainID     int64
+	ChainID     tableland.ChainID
 	BlockNumber int64
 	TxnHash     string
 

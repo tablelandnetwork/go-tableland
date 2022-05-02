@@ -509,7 +509,7 @@ func setup(
 
 	url := tests.PostgresURL(t)
 
-	ctx := context.WithValue(context.Background(), middlewares.ContextKeyChainID, int64(1337))
+	ctx := context.WithValue(context.Background(), middlewares.ContextKeyChainID, tableland.ChainID(1337))
 	sqlstore, err := sqlstoreimpl.New(ctx, url)
 	require.NoError(t, err)
 
@@ -530,7 +530,7 @@ func setup(
 		impl.NewSimpleTracker(wallet, backend),
 	)
 	require.NoError(t, err)
-	tbld := NewTablelandMesa(sqlstore, parser, map[int64]tableregistry.TableRegistry{1337: registry})
+	tbld := NewTablelandMesa(sqlstore, parser, map[tableland.ChainID]tableregistry.TableRegistry{1337: registry})
 
 	// Spin up dependencies needed for the EventProcessor.
 	// i.e: TxnProcessor, Parser, and EventFeed (connected to the EVM chain)
@@ -576,7 +576,7 @@ func requireReceipts(ctx context.Context, t *testing.T, tbld tableland.Tableland
 		require.NoError(t, err)
 		require.True(t, r.Ok)
 		require.NotNil(t, r.Receipt)
-		require.Equal(t, int64(1337), r.Receipt.ChainID)
+		require.Equal(t, tableland.ChainID(1337), r.Receipt.ChainID)
 		require.Equal(t, txnHash, txnHash)
 		require.NotZero(t, r.Receipt.BlockNumber)
 		if ok {

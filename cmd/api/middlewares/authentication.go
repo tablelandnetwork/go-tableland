@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/spruceid/siwe-go"
+	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/errors"
 	"github.com/textileio/go-tableland/pkg/jwt"
 )
@@ -48,7 +49,7 @@ func Authentication(next http.Handler) http.Handler {
 	})
 }
 
-func parseAuth(bearerToken string) (int64, string, error) {
+func parseAuth(bearerToken string) (tableland.ChainID, string, error) {
 	j, err := jwt.Parse(bearerToken)
 	// JWT
 	if err == nil {
@@ -80,5 +81,5 @@ func parseAuth(bearerToken string) (int64, string, error) {
 	if _, err := msg.Verify(siweAuthMsg.Signature, nil, nil); err != nil {
 		return 0, "", fmt.Errorf("checking siwe validity: %w", err)
 	}
-	return int64(msg.GetChainID()), msg.GetAddress().String(), nil
+	return tableland.ChainID(msg.GetChainID()), msg.GetAddress().String(), nil
 }

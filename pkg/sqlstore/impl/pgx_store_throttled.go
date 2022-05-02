@@ -64,7 +64,7 @@ func (s *ThrottledSQLStorePGX) Read(ctx context.Context, stmt parsing.SugaredRea
 // ListPendingTx lists all pendings txs.
 func (s *ThrottledSQLStorePGX) ListPendingTx(
 	ctx context.Context,
-	chainID int64,
+	chainID tableland.ChainID,
 	addr common.Address) ([]nonce.PendingTx, error) {
 	return s.store.ListPendingTx(ctx, chainID, addr)
 }
@@ -72,7 +72,7 @@ func (s *ThrottledSQLStorePGX) ListPendingTx(
 // InsertPendingTx insert a new pending tx.
 func (s *ThrottledSQLStorePGX) InsertPendingTx(
 	ctx context.Context,
-	chainID int64,
+	chainID tableland.ChainID,
 	addr common.Address,
 	nonce int64,
 	hash common.Hash) error {
@@ -102,7 +102,7 @@ func (s *ThrottledSQLStorePGX) Begin(ctx context.Context) (pgx.Tx, error) {
 // GetReceipt gets the receipt from a processed event by txn hash.
 func (s *ThrottledSQLStorePGX) GetReceipt(
 	ctx context.Context,
-	chainID int64,
+	chainID tableland.ChainID,
 	txnHash string) (eventprocessor.Receipt, bool, error) {
 	return s.store.GetReceipt(ctx, chainID, txnHash)
 }
