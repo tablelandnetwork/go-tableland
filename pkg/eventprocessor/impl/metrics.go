@@ -4,12 +4,15 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/textileio/go-tableland/internal/tableland"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/metric/instrument"
 )
 
-func (ep *EventProcessor) initMetrics() error {
+func (ep *EventProcessor) initMetrics(chainID tableland.ChainID) error {
 	meter := global.MeterProvider().Meter("tableland")
+	ep.mBaseLabels = []attribute.KeyValue{attribute.Int64("chain_id", int64(chainID))}
 
 	// Async instruments.
 	mExecutionRound, err := meter.AsyncInt64().Gauge("tableland.eventprocessor.execution.round")
@@ -22,8 +25,8 @@ func (ep *EventProcessor) initMetrics() error {
 	}
 	err = meter.RegisterCallback([]instrument.Asynchronous{mExecutionRound, mLastProcessedHeight},
 		func(ctx context.Context) {
-			mExecutionRound.Observe(ctx, ep.mExecutionRound.Load())
-			mLastProcessedHeight.Observe(ctx, ep.mLastProcessedHeight.Load())
+			mExecutionRound.Observe(ctx, ep.mExecutionRound.Load(), ep.mBaseLabels...)
+			mLastProcessedHeight.Observe(ctx, ep.mLastProcessedHeight.Load(), ep.mBaseLabels...)
 		})
 	if err != nil {
 		return fmt.Errorf("registering async metric callback: %s", err)
