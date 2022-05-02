@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -56,60 +57,6 @@ func main() {
 	}
 	defer sqlstore.Close()
 
-	conn, err := ethclient.Dial(config.Chains[0].Registry.EthEndpoint)
-	if err != nil {
-		log.Fatal().
-			Err(err).
-			Str("ethEndpoint", config.Chains[0].Registry.EthEndpoint).
-			Msg("failed to connect to ethereum endpoint")
-	}
-	defer conn.Close()
-
-	wallet, err := wallet.NewWallet(config.Chains[0].Signer.PrivateKey)
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed to create wallet")
-	}
-
-	checkInterval, err := time.ParseDuration(config.Chains[0].NonceTracker.CheckInterval)
-	if err != nil {
-		log.Fatal().Err(err).Msg("parsing nonce tracker check interval duration")
-	}
-
-	stuckInterval, err := time.ParseDuration(config.Chains[0].NonceTracker.StuckInterval)
-	if err != nil {
-		log.Fatal().Err(err).Msg("parsing nonce tracker stuck interval duration")
-	}
-
-	tracker, err := nonceimpl.NewLocalTracker(
-		ctx,
-		wallet,
-		nonceimpl.NewNonceStore(sqlstore),
-		config.Registry.ChainID,
-		conn,
-		checkInterval,
-		config.Chains[0].NonceTracker.MinBlockDepth,
-		stuckInterval,
-	)
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed to create new tracker")
-	}
-
-	scAddress := common.HexToAddress(config.Chains[0].Registry.ContractAddress)
-	registry, err := ethereum.NewClient(
-		conn,
-		config.Chains[0].Registry.ChainID,
-		scAddress,
-		wallet,
-		tracker,
-	)
-
-	if err != nil {
-		log.Fatal().
-			Err(err).
-			Str("contractAddress", config.Chains[0].Registry.ContractAddress).
-			Msg("failed to create new ethereum client")
-	}
-
 	readQueryDelay, err := time.ParseDuration(config.Throttling.ReadQueryDelay)
 	if err != nil {
 		log.Fatal().Err(err).Msg("parsing read query delay duration")
@@ -129,47 +76,21 @@ func main() {
 		log.Fatal().Err(err).Msg("instrumenting sql validator")
 	}
 
-	acl := impl.NewACL(sqlstore, registry)
-
-	var txnp txn.TxnProcessor
-	txnp, err = txnimpl.NewTxnProcessor(databaseURL, config.TableConstraints.MaxRowCount, acl)
-	if err != nil {
-		log.Fatal().Err(err).Msg("creating txn processor")
-	}
-	chainAPIBackoff, err := time.ParseDuration(config.Chains[0].EventFeed.ChainAPIBackoff)
-	if err != nil {
-		log.Fatal().Err(err).Msg("parsing chain api backoff duration")
-	}
-	newBlockTimeout, err := time.ParseDuration(config.EventFeed.NewBlockTimeout)
-	if err != nil {
-		log.Fatal().Err(err).Msg("parsing chain api backoff duration")
-	}
-	efOpts := []eventfeed.Option{
-		eventfeed.WithChainAPIBackoff(chainAPIBackoff),
-		eventfeed.WithMaxBlocksFetchSize(config.EventFeed.MaxBlocksFetchSize),
-		eventfeed.WithMinBlockDepth(config.EventFeed.MinBlockDepth),
-		eventfeed.WithNewBlockTimeout(newBlockTimeout),
-	}
-	ef, err := efimpl.New(conn, scAddress, efOpts...)
-	if err != nil {
-		log.Fatal().Err(err).Msg("creating event feed")
-	}
-	blockFailedExecutionBackoff, err := time.ParseDuration(config.Chains[0].EventProcessor.BlockFailedExecutionBackoff)
-	if err != nil {
-		log.Fatal().Err(err).Msg("parsing block failed execution backoff duration")
-	}
-	epOpts := []eventprocessor.Option{
-		eventprocessor.WithBlockFailedExecutionBackoff(blockFailedExecutionBackoff),
-	}
-	ep, err := epimpl.New(parser, txnp, ef, config.Chains[0].Registry.ChainID, epOpts...)
-	if err != nil {
-		log.Fatal().Err(err).Msg("creating event processor")
-	}
-	if err := ep.Start(); err != nil {
-		log.Fatal().Err(err).Msg("starting event processor")
+	chainRegistries := map[int64]tableregistry.TableRegistry{}
+	var chainFinalizers []chainStackFinalizer
+	for _, chainCfg := range config.Chains {
+		if _, ok := chainRegistries[chainCfg.ChainID]; ok {
+			log.Fatal().Int64("chainId", chainCfg.ChainID).Msg("chain id configuration is duplicated")
+		}
+		registry, fin, err := wireChainComponents(chainCfg, sqlstore, parser, databaseURL, config.TableConstraints.MaxRowCount)
+		if err != nil {
+			log.Fatal().Int64("chainId", chainCfg.ChainID).Err(err).Msg("spinning up chain stack")
+		}
+		chainFinalizers = append(chainFinalizers, fin)
+		chainRegistries[chainCfg.ChainID] = registry
 	}
 
-	svc := getTablelandService(config, sqlstore, parser, registry)
+	svc := getTablelandService(config, sqlstore, parser, chainRegistries)
 	if err := server.RegisterName("tableland", svc); err != nil {
 		log.Fatal().Err(err).Msg("failed to register a json-rpc service")
 	}
@@ -239,7 +160,20 @@ func main() {
 	}()
 
 	cli.HandleInterrupt(func() {
-		ep.Stop()
+		var wg sync.WaitGroup
+		wg.Add(len(chainFinalizers))
+		for _, chainFinalizer := range chainFinalizers {
+			go func(chainFinalizer chainStackFinalizer) {
+				defer wg.Done()
+
+				ctx, cls := context.WithTimeout(context.Background(), time.Second*15)
+				defer cls()
+				if err := chainFinalizer(ctx); err != nil {
+					log.Error().Err(err).Msg("finalizing chain stack")
+				}
+			}(chainFinalizer)
+		}
+		wg.Wait()
 
 		ctx, cls := context.WithTimeout(context.Background(), time.Second*10)
 		defer cls()
@@ -253,9 +187,9 @@ func getTablelandService(
 	conf *config,
 	store sqlstore.SQLStore,
 	parser parsing.SQLValidator,
-	registry tableregistry.TableRegistry,
+	chainRegistries map[int64]tableregistry.TableRegistry,
 ) tableland.Tableland {
-	mesa := impl.NewTablelandMesa(store, parser, registry, conf.Registry.ChainID)
+	mesa := impl.NewTablelandMesa(store, parser, chainRegistries)
 	instrumentedMesa, err := impl.NewInstrumentedTablelandMesa(mesa)
 	if err != nil {
 		log.Fatal().Err(err).Msg("instrumenting mesa")
@@ -265,4 +199,113 @@ func getTablelandService(
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
+}
+
+// chainStackFinalizer is a function that gracefully close a chain sub-stack.
+type chainStackFinalizer func(ctx context.Context) error
+
+func wireChainComponents(
+	config ChainConfig,
+	sqlstore sqlstore.SQLStore,
+	parser parsing.SQLValidator,
+	databaseURL string,
+	tableMaxRowCount int,
+) (tableregistry.TableRegistry, chainStackFinalizer, error) {
+	conn, err := ethclient.Dial(config.Registry.EthEndpoint)
+	if err != nil {
+		log.Fatal().
+			Err(err).
+			Str("ethEndpoint", config.Registry.EthEndpoint).
+			Msg("failed to connect to ethereum endpoint")
+	}
+	defer conn.Close()
+
+	wallet, err := wallet.NewWallet(config.Signer.PrivateKey)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create wallet: %s", err)
+	}
+
+	checkInterval, err := time.ParseDuration(config.NonceTracker.CheckInterval)
+	if err != nil {
+		return nil, nil, fmt.Errorf("parsing nonce tracker check interval duration: %s", err)
+	}
+
+	stuckInterval, err := time.ParseDuration(config.NonceTracker.StuckInterval)
+	if err != nil {
+		return nil, nil, fmt.Errorf("parsing nonce tracker stuck interval duration: %s", err)
+	}
+
+	tracker, err := nonceimpl.NewLocalTracker(
+		context.Background(), // TODO(jsign): tenative since the tracker will change.
+		wallet,
+		nonceimpl.NewNonceStore(sqlstore),
+		config.ChainID,
+		conn,
+		checkInterval,
+		config.NonceTracker.MinBlockDepth,
+		stuckInterval,
+	)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create new tracker: %s", err)
+	}
+
+	scAddress := common.HexToAddress(config.Registry.ContractAddress)
+	registry, err := ethereum.NewClient(
+		conn,
+		config.Registry.ChainID,
+		scAddress,
+		wallet,
+		tracker,
+	)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create ethereum client: %s", err)
+	}
+
+	acl := impl.NewACL(sqlstore, registry)
+
+	var txnp txn.TxnProcessor
+	txnp, err = txnimpl.NewTxnProcessor(databaseURL, tableMaxRowCount, acl)
+	if err != nil {
+		return nil, nil, fmt.Errorf("creating txn processor: %s", err)
+	}
+	chainAPIBackoff, err := time.ParseDuration(config.EventFeed.ChainAPIBackoff)
+	if err != nil {
+		return nil, nil, fmt.Errorf("parsing chain api backoff duration: %s", err)
+	}
+	newBlockTimeout, err := time.ParseDuration(config.EventFeed.NewBlockTimeout)
+	if err != nil {
+		return nil, nil, fmt.Errorf("parsing chain api backoff duration: %s", err)
+	}
+	efOpts := []eventfeed.Option{
+		eventfeed.WithChainAPIBackoff(chainAPIBackoff),
+		eventfeed.WithMaxBlocksFetchSize(config.EventFeed.MaxBlocksFetchSize),
+		eventfeed.WithMinBlockDepth(config.EventFeed.MinBlockDepth),
+		eventfeed.WithNewBlockTimeout(newBlockTimeout),
+	}
+	ef, err := efimpl.New(conn, scAddress, efOpts...)
+	if err != nil {
+		return nil, nil, fmt.Errorf("creating event feed: %s", err)
+	}
+	blockFailedExecutionBackoff, err := time.ParseDuration(config.EventProcessor.BlockFailedExecutionBackoff)
+	if err != nil {
+		return nil, nil, fmt.Errorf("parsing block failed execution backoff duration: %s", err)
+	}
+	epOpts := []eventprocessor.Option{
+		eventprocessor.WithBlockFailedExecutionBackoff(blockFailedExecutionBackoff),
+	}
+	ep, err := epimpl.New(parser, txnp, ef, config.Registry.ChainID, epOpts...)
+	if err != nil {
+		return nil, nil, fmt.Errorf("creating event processor")
+	}
+	if err := ep.Start(); err != nil {
+		return nil, nil, fmt.Errorf("starting event processor")
+	}
+
+	return registry,
+		func(ctx context.Context) error {
+			log.Info().Int64("chainId", config.ChainID).Msg("closing stack...")
+			defer log.Info().Int64("chainId", config.ChainID).Msg("stack closed")
+			ep.Stop()
+			return nil
+		}, nil
 }

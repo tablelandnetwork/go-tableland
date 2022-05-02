@@ -25,6 +25,7 @@ import (
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
+	"github.com/textileio/go-tableland/pkg/tableregistry"
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/testutil"
 	txnpimpl "github.com/textileio/go-tableland/pkg/txn/impl"
@@ -526,7 +527,7 @@ func setup(
 		impl.NewSimpleTracker(wallet, backend),
 	)
 	require.NoError(t, err)
-	tbld := NewTablelandMesa(sqlstore, parser, registry, 1337)
+	tbld := NewTablelandMesa(sqlstore, parser, map[int64]tableregistry.TableRegistry{1337: registry})
 
 	// Spin up dependencies needed for the EventProcessor.
 	// i.e: TxnProcessor, Parser, and EventFeed (connected to the EVM chain)
