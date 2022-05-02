@@ -7,7 +7,6 @@ import (
 	"net/url"
 
 	"github.com/textileio/go-tableland/cmd/api/middlewares"
-	"github.com/textileio/go-tableland/internal/chains"
 	"github.com/textileio/go-tableland/internal/system"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
@@ -26,19 +25,19 @@ const (
 // SystemSQLStoreService implements the SystemService interface using SQLStore.
 type SystemSQLStoreService struct {
 	extURLPrefix string
-	chainStacks  map[tableland.ChainID]chains.ChainStack
+	stores       map[tableland.ChainID]sqlstore.SQLStore
 }
 
 // NewSystemSQLStoreService creates a new SystemSQLStoreService.
 func NewSystemSQLStoreService(
-	chainStacks map[tableland.ChainID]chains.ChainStack,
+	stores map[tableland.ChainID]sqlstore.SQLStore,
 	extURLPrefix string) (system.SystemService, error) {
 	if _, err := url.ParseRequestURI(extURLPrefix); err != nil {
 		return nil, fmt.Errorf("invalid external url prefix: %s", err)
 	}
 	return &SystemSQLStoreService{
 		extURLPrefix: extURLPrefix,
-		chainStacks:  chainStacks,
+		stores:       stores,
 	}, nil
 }
 
@@ -51,11 +50,11 @@ func (s *SystemSQLStoreService) GetTableMetadata(
 	if !ok {
 		return sqlstore.TableMetadata{}, errors.New("no chain id found in context")
 	}
-	stack, ok := s.chainStacks[chainID]
+	store, ok := s.stores[chainID]
 	if !ok {
 		return sqlstore.TableMetadata{}, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
 	}
-	table, err := stack.Store.GetTable(ctx, id)
+	table, err := store.GetTable(ctx, id)
 	if err != nil {
 		return sqlstore.TableMetadata{}, fmt.Errorf("error fetching the table: %s", err)
 	}
@@ -83,11 +82,11 @@ func (s *SystemSQLStoreService) GetTablesByController(
 	if !ok {
 		return nil, errors.New("no chain id found in context")
 	}
-	stack, ok := s.chainStacks[chainID]
+	store, ok := s.stores[chainID]
 	if !ok {
 		return nil, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
 	}
-	tables, err := stack.Store.GetTablesByController(ctx, controller)
+	tables, err := store.GetTablesByController(ctx, controller)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching the tables: %s", err)
 	}

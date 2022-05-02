@@ -8,9 +8,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/cmd/api/middlewares"
-	"github.com/textileio/go-tableland/internal/chains"
 	"github.com/textileio/go-tableland/internal/tableland"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
+	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl"
 	txnimpl "github.com/textileio/go-tableland/pkg/txn/impl"
 	"github.com/textileio/go-tableland/tests"
@@ -41,7 +41,7 @@ func TestSystemSQLStoreService(t *testing.T) {
 	require.NoError(t, b.Commit(ctx))
 	require.NoError(t, b.Close(ctx))
 
-	stack := map[tableland.ChainID]chains.ChainStack{1337: {Store: store}}
+	stack := map[tableland.ChainID]sqlstore.SQLStore{1337: store}
 	svc, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables")
 	require.NoError(t, err)
 	metadata, err := svc.GetTableMetadata(ctx, id)
