@@ -2,9 +2,12 @@ package impl
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 
+	"github.com/textileio/go-tableland/cmd/api/middlewares"
+	"github.com/textileio/go-tableland/internal/chains"
 	"github.com/textileio/go-tableland/internal/system"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
@@ -23,17 +26,19 @@ const (
 // SystemSQLStoreService implements the SystemService interface using SQLStore.
 type SystemSQLStoreService struct {
 	extURLPrefix string
-	store        sqlstore.SQLStore
+	chainStacks  map[tableland.ChainID]chains.ChainStack
 }
 
 // NewSystemSQLStoreService creates a new SystemSQLStoreService.
-func NewSystemSQLStoreService(store sqlstore.SQLStore, extURLPrefix string) (system.SystemService, error) {
+func NewSystemSQLStoreService(
+	chainStacks map[tableland.ChainID]chains.ChainStack,
+	extURLPrefix string) (system.SystemService, error) {
 	if _, err := url.ParseRequestURI(extURLPrefix); err != nil {
 		return nil, fmt.Errorf("invalid external url prefix: %s", err)
 	}
 	return &SystemSQLStoreService{
 		extURLPrefix: extURLPrefix,
-		store:        store,
+		chainStacks:  chainStacks,
 	}, nil
 }
 
@@ -41,7 +46,16 @@ func NewSystemSQLStoreService(store sqlstore.SQLStore, extURLPrefix string) (sys
 func (s *SystemSQLStoreService) GetTableMetadata(
 	ctx context.Context,
 	id tableland.TableID) (sqlstore.TableMetadata, error) {
-	table, err := s.store.GetTable(ctx, id)
+	ctxChainID := ctx.Value(middlewares.ContextKeyChainID)
+	chainID, ok := ctxChainID.(tableland.ChainID)
+	if !ok {
+		return sqlstore.TableMetadata{}, errors.New("no chain id found in context")
+	}
+	stack, ok := s.chainStacks[chainID]
+	if !ok {
+		return sqlstore.TableMetadata{}, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
+	}
+	table, err := stack.Store.GetTable(ctx, id)
 	if err != nil {
 		return sqlstore.TableMetadata{}, fmt.Errorf("error fetching the table: %s", err)
 	}
@@ -64,9 +78,18 @@ func (s *SystemSQLStoreService) GetTableMetadata(
 func (s *SystemSQLStoreService) GetTablesByController(
 	ctx context.Context,
 	controller string) ([]sqlstore.Table, error) {
-	tables, err := s.store.GetTablesByController(ctx, controller)
+	ctxChainID := ctx.Value(middlewares.ContextKeyChainID)
+	chainID, ok := ctxChainID.(tableland.ChainID)
+	if !ok {
+		return nil, errors.New("no chain id found in context")
+	}
+	stack, ok := s.chainStacks[chainID]
+	if !ok {
+		return nil, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
+	}
+	tables, err := stack.Store.GetTablesByController(ctx, controller)
 	if err != nil {
-		return []sqlstore.Table{}, fmt.Errorf("error fetching the tables: %s", err)
+		return nil, fmt.Errorf("error fetching the tables: %s", err)
 	}
 	return tables, nil
 }

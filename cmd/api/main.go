@@ -15,6 +15,7 @@ import (
 	"github.com/textileio/go-tableland/buildinfo"
 	"github.com/textileio/go-tableland/cmd/api/controllers"
 	"github.com/textileio/go-tableland/cmd/api/middlewares"
+	"github.com/textileio/go-tableland/internal/chains"
 	systemimpl "github.com/textileio/go-tableland/internal/system/impl"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/internal/tableland/impl"
@@ -27,9 +28,7 @@ import (
 	nonceimpl "github.com/textileio/go-tableland/pkg/nonce/impl"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
-	"github.com/textileio/go-tableland/pkg/sqlstore"
 	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
-	"github.com/textileio/go-tableland/pkg/tableregistry"
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/txn"
 	txnimpl "github.com/textileio/go-tableland/pkg/txn/impl"
@@ -41,7 +40,6 @@ func main() {
 	logging.SetupLogger(buildinfo.GitCommit, config.Log.Debug, config.Log.Human)
 
 	server := rpc.NewServer()
-	ctx := context.Background()
 
 	databaseURL := fmt.Sprintf(
 		"postgres://%s:%s@%s:%s/%s?sslmode=disable&timezone=UTC",
@@ -51,22 +49,6 @@ func main() {
 		config.DB.Port,
 		config.DB.Name,
 	)
-	sqlstore, err := sqlstoreimpl.New(ctx, databaseURL)
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed initialize sqlstore")
-	}
-	defer sqlstore.Close()
-
-	readQueryDelay, err := time.ParseDuration(config.Throttling.ReadQueryDelay)
-	if err != nil {
-		log.Fatal().Err(err).Msg("parsing read query delay duration")
-	}
-	sqlstore, err = sqlstoreimpl.NewInstrumentedSQLStorePGX(sqlstore)
-	if err != nil {
-		log.Fatal().Err(err).Msg("instrumenting sql store pgx")
-	}
-	sqlstore = sqlstoreimpl.NewThrottledSQLStorePGX(sqlstore, readQueryDelay)
-
 	parser, err := parserimpl.NewInstrumentedSQLValidator(
 		parserimpl.New([]string{systemimpl.SystemTablesPrefix, systemimpl.RegistryTableName},
 			config.TableConstraints.MaxColumns,
@@ -76,28 +58,25 @@ func main() {
 		log.Fatal().Err(err).Msg("instrumenting sql validator")
 	}
 
-	chainRegistries := map[tableland.ChainID]tableregistry.TableRegistry{}
-	var chainFinalizers []chainStackFinalizer
+	chainStacks := map[tableland.ChainID]chains.ChainStack{}
 	for _, chainCfg := range config.Chains {
-		if _, ok := chainRegistries[chainCfg.ChainID]; ok {
+		if _, ok := chainStacks[chainCfg.ChainID]; ok {
 			log.Fatal().Int64("chainId", int64(chainCfg.ChainID)).Msg("chain id configuration is duplicated")
 		}
-		registry, fin, err := wireChainComponents(
-			chainCfg, sqlstore, parser, databaseURL, config.TableConstraints.MaxRowCount)
+		chainStack, err := createChainIDStack(chainCfg, parser, databaseURL, config.TableConstraints.MaxRowCount)
 		if err != nil {
 			log.Fatal().Int64("chainId", int64(chainCfg.ChainID)).Err(err).Msg("spinning up chain stack")
 		}
-		chainFinalizers = append(chainFinalizers, fin)
-		chainRegistries[chainCfg.ChainID] = registry
+		chainStacks[chainCfg.ChainID] = chainStack
 	}
 
-	svc := getTablelandService(sqlstore, parser, chainRegistries)
+	svc := getTablelandService(chainStacks, parser)
 	if err := server.RegisterName("tableland", svc); err != nil {
 		log.Fatal().Err(err).Msg("failed to register a json-rpc service")
 	}
 	userController := controllers.NewUserController(svc)
 
-	sysStore, err := systemimpl.NewSystemSQLStoreService(sqlstore, config.Gateway.ExternalURIPrefix)
+	sysStore, err := systemimpl.NewSystemSQLStoreService(chainStacks, config.Gateway.ExternalURIPrefix)
 	if err != nil {
 		log.Fatal().Err(err).Msg("creating system store")
 	}
@@ -162,17 +141,17 @@ func main() {
 
 	cli.HandleInterrupt(func() {
 		var wg sync.WaitGroup
-		wg.Add(len(chainFinalizers))
-		for _, chainFinalizer := range chainFinalizers {
-			go func(chainFinalizer chainStackFinalizer) {
+		wg.Add(len(chainStacks))
+		for chainID, stack := range chainStacks {
+			go func(chainID tableland.ChainID, stack chains.ChainStack) {
 				defer wg.Done()
 
 				ctx, cls := context.WithTimeout(context.Background(), time.Second*15)
 				defer cls()
-				if err := chainFinalizer(ctx); err != nil {
-					log.Error().Err(err).Msg("finalizing chain stack")
+				if err := stack.Close(ctx); err != nil {
+					log.Error().Err(err).Int64("chainID", int64(chainID)).Msg("finalizing chain stack")
 				}
-			}(chainFinalizer)
+			}(chainID, stack)
 		}
 		wg.Wait()
 
@@ -185,11 +164,10 @@ func main() {
 }
 
 func getTablelandService(
-	store sqlstore.SQLStore,
+	chainStacks map[tableland.ChainID]chains.ChainStack,
 	parser parsing.SQLValidator,
-	chainRegistries map[tableland.ChainID]tableregistry.TableRegistry,
 ) tableland.Tableland {
-	mesa := impl.NewTablelandMesa(store, parser, chainRegistries)
+	mesa := impl.NewTablelandMesa(parser, chainStacks)
 	instrumentedMesa, err := impl.NewInstrumentedTablelandMesa(mesa)
 	if err != nil {
 		log.Fatal().Err(err).Msg("instrumenting mesa")
@@ -201,44 +179,50 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// chainStackFinalizer is a function that gracefully close a chain sub-stack.
-type chainStackFinalizer func(ctx context.Context) error
-
-func wireChainComponents(
+func createChainIDStack(
 	config ChainConfig,
-	sqlstore sqlstore.SQLStore,
 	parser parsing.SQLValidator,
 	databaseURL string,
 	tableMaxRowCount int,
-) (tableregistry.TableRegistry, chainStackFinalizer, error) {
+) (chains.ChainStack, error) {
+	ctxSQLStore, clsSQLStore := context.WithTimeout(context.Background(), time.Second*10)
+	defer clsSQLStore()
+	store, err := sqlstoreimpl.New(ctxSQLStore, config.ChainID, databaseURL)
+	if err != nil {
+		return chains.ChainStack{}, fmt.Errorf("failed initialize sqlstore: %s", err)
+	}
+	defer store.Close()
+
+	store, err = sqlstoreimpl.NewInstrumentedSQLStorePGX(config.ChainID, store)
+	if err != nil {
+		return chains.ChainStack{}, fmt.Errorf("instrumenting sql store pgx: %s", err)
+	}
+
 	conn, err := ethclient.Dial(config.Registry.EthEndpoint)
 	if err != nil {
-		log.Fatal().
-			Err(err).
-			Str("ethEndpoint", config.Registry.EthEndpoint).
-			Msg("failed to connect to ethereum endpoint")
+		return chains.ChainStack{}, fmt.Errorf("failed to connect to ethereum endpoint: %s", err)
 	}
 	defer conn.Close()
 
 	wallet, err := wallet.NewWallet(config.Signer.PrivateKey)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create wallet: %s", err)
+		return chains.ChainStack{}, fmt.Errorf("failed to create wallet: %s", err)
 	}
 
 	checkInterval, err := time.ParseDuration(config.NonceTracker.CheckInterval)
 	if err != nil {
-		return nil, nil, fmt.Errorf("parsing nonce tracker check interval duration: %s", err)
+		return chains.ChainStack{}, fmt.Errorf("parsing nonce tracker check interval duration: %s", err)
 	}
 	stuckInterval, err := time.ParseDuration(config.NonceTracker.StuckInterval)
 	if err != nil {
-		return nil, nil, fmt.Errorf("parsing nonce tracker stuck interval duration: %s", err)
+		return chains.ChainStack{}, fmt.Errorf("parsing nonce tracker stuck interval duration: %s", err)
 	}
 	ctxLocalTracker, clsLocalTracker := context.WithTimeout(context.Background(), time.Second*15)
 	defer clsLocalTracker()
 	tracker, err := nonceimpl.NewLocalTracker(
 		ctxLocalTracker,
 		wallet,
-		nonceimpl.NewNonceStore(sqlstore),
+		nonceimpl.NewNonceStore(store),
 		config.ChainID,
 		conn,
 		checkInterval,
@@ -246,7 +230,7 @@ func wireChainComponents(
 		stuckInterval,
 	)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create new tracker: %s", err)
+		return chains.ChainStack{}, fmt.Errorf("failed to create new tracker: %s", err)
 	}
 
 	scAddress := common.HexToAddress(config.Registry.ContractAddress)
@@ -258,23 +242,23 @@ func wireChainComponents(
 		tracker,
 	)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create ethereum client: %s", err)
+		return chains.ChainStack{}, fmt.Errorf("failed to create ethereum client: %s", err)
 	}
 
-	acl := impl.NewACL(config.ChainID, sqlstore, registry)
+	acl := impl.NewACL(config.ChainID, store, registry)
 
 	var txnp txn.TxnProcessor
 	txnp, err = txnimpl.NewTxnProcessor(config.ChainID, databaseURL, tableMaxRowCount, acl)
 	if err != nil {
-		return nil, nil, fmt.Errorf("creating txn processor: %s", err)
+		return chains.ChainStack{}, fmt.Errorf("creating txn processor: %s", err)
 	}
 	chainAPIBackoff, err := time.ParseDuration(config.EventFeed.ChainAPIBackoff)
 	if err != nil {
-		return nil, nil, fmt.Errorf("parsing chain api backoff duration: %s", err)
+		return chains.ChainStack{}, fmt.Errorf("parsing chain api backoff duration: %s", err)
 	}
 	newBlockTimeout, err := time.ParseDuration(config.EventFeed.NewBlockTimeout)
 	if err != nil {
-		return nil, nil, fmt.Errorf("parsing chain api backoff duration: %s", err)
+		return chains.ChainStack{}, fmt.Errorf("parsing chain api backoff duration: %s", err)
 	}
 	efOpts := []eventfeed.Option{
 		eventfeed.WithChainAPIBackoff(chainAPIBackoff),
@@ -284,28 +268,31 @@ func wireChainComponents(
 	}
 	ef, err := efimpl.New(config.ChainID, conn, scAddress, efOpts...)
 	if err != nil {
-		return nil, nil, fmt.Errorf("creating event feed: %s", err)
+		return chains.ChainStack{}, fmt.Errorf("creating event feed: %s", err)
 	}
 	blockFailedExecutionBackoff, err := time.ParseDuration(config.EventProcessor.BlockFailedExecutionBackoff)
 	if err != nil {
-		return nil, nil, fmt.Errorf("parsing block failed execution backoff duration: %s", err)
+		return chains.ChainStack{}, fmt.Errorf("parsing block failed execution backoff duration: %s", err)
 	}
 	epOpts := []eventprocessor.Option{
 		eventprocessor.WithBlockFailedExecutionBackoff(blockFailedExecutionBackoff),
 	}
 	ep, err := epimpl.New(parser, txnp, ef, config.ChainID, epOpts...)
 	if err != nil {
-		return nil, nil, fmt.Errorf("creating event processor")
+		return chains.ChainStack{}, fmt.Errorf("creating event processor")
 	}
 	if err := ep.Start(); err != nil {
-		return nil, nil, fmt.Errorf("starting event processor")
+		return chains.ChainStack{}, fmt.Errorf("starting event processor")
 	}
 
-	return registry,
-		func(ctx context.Context) error {
+	return chains.ChainStack{
+		Store:    store,
+		Registry: registry,
+		Close: func(ctx context.Context) error {
 			log.Info().Int64("chainId", int64(config.ChainID)).Msg("closing stack...")
 			defer log.Info().Int64("chainId", int64(config.ChainID)).Msg("stack closed")
 			ep.Stop()
 			return nil
-		}, nil
+		},
+	}, nil
 }

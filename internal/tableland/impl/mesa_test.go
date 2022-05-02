@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/cmd/api/middlewares"
+	"github.com/textileio/go-tableland/internal/chains"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
@@ -25,7 +26,6 @@ import (
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
-	"github.com/textileio/go-tableland/pkg/tableregistry"
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/testutil"
 	txnpimpl "github.com/textileio/go-tableland/pkg/txn/impl"
@@ -510,11 +510,11 @@ func setup(
 	url := tests.PostgresURL(t)
 
 	ctx := context.WithValue(context.Background(), middlewares.ContextKeyChainID, tableland.ChainID(1337))
-	sqlstore, err := sqlstoreimpl.New(ctx, url)
+	store, err := sqlstoreimpl.New(ctx, tableland.ChainID(1337), url)
 	require.NoError(t, err)
 
 	parser := parserimpl.New([]string{"system_", "registry"}, 0, 0)
-	txnp, err := txnpimpl.NewTxnProcessor(1337, url, 0, &aclHalfMock{sqlstore})
+	txnp, err := txnpimpl.NewTxnProcessor(1337, url, 0, &aclHalfMock{store})
 	require.NoError(t, err)
 
 	backend, addr, sc, auth, sk := testutil.Setup(t)
@@ -530,7 +530,7 @@ func setup(
 		impl.NewSimpleTracker(wallet, backend),
 	)
 	require.NoError(t, err)
-	tbld := NewTablelandMesa(sqlstore, parser, map[tableland.ChainID]tableregistry.TableRegistry{1337: registry})
+	tbld := NewTablelandMesa(parser, map[tableland.ChainID]chains.ChainStack{1337: {Store: store, Registry: registry}})
 
 	// Spin up dependencies needed for the EventProcessor.
 	// i.e: TxnProcessor, Parser, and EventFeed (connected to the EVM chain)

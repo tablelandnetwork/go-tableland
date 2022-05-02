@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
@@ -23,14 +24,14 @@ func (db *SQLStorePGX) Close() {
 }
 
 // New creates a new pgx pool and instantiate both the user and system stores.
-func New(ctx context.Context, postgresURI string) (sqlstore.SQLStore, error) {
+func New(ctx context.Context, chainID tableland.ChainID, postgresURI string) (sqlstore.SQLStore, error) {
 	pool, err := pgxpool.Connect(ctx, postgresURI)
 	if err != nil {
 		return nil, fmt.Errorf("connecting to postgres: %s", err)
 	}
 
-	userStore := user.New(pool)
-	systemStore, err := system.New(pool)
+	userStore := user.New(pool, chainID)
+	systemStore, err := system.New(pool, chainID)
 	if err != nil {
 		return nil, fmt.Errorf("creating system store: %s", err)
 	}

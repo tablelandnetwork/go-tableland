@@ -206,7 +206,7 @@ func setup(t *testing.T) (contractRunSQLBlockSender, checkReceipts, dbReader) {
 		return txnHashes
 	}
 
-	sqlstr, err := sqlstoreimpl.New(ctx, url)
+	sqlstr, err := sqlstoreimpl.New(ctx, tableland.ChainID(1337), url)
 	require.NoError(t, err)
 	tableReader := func(readQuery string) []int {
 		rq, _, err := parser.ValidateRunSQL(readQuery)
@@ -226,7 +226,7 @@ func setup(t *testing.T) (contractRunSQLBlockSender, checkReceipts, dbReader) {
 	checkReceipts := func(t *testing.T, rs ...eventprocessor.Receipt) func() bool {
 		return func() bool {
 			for _, expReceipt := range rs {
-				gotReceipt, found, err := sqlstr.GetReceipt(context.Background(), chainID, expReceipt.TxnHash)
+				gotReceipt, found, err := sqlstr.GetReceipt(context.Background(), expReceipt.TxnHash)
 				if !found {
 					return false
 				}
