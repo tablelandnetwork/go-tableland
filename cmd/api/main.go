@@ -82,7 +82,8 @@ func main() {
 		if _, ok := chainRegistries[chainCfg.ChainID]; ok {
 			log.Fatal().Int64("chainId", int64(chainCfg.ChainID)).Msg("chain id configuration is duplicated")
 		}
-		registry, fin, err := wireChainComponents(chainCfg, sqlstore, parser, databaseURL, config.TableConstraints.MaxRowCount)
+		registry, fin, err := wireChainComponents(
+			chainCfg, sqlstore, parser, databaseURL, config.TableConstraints.MaxRowCount)
 		if err != nil {
 			log.Fatal().Int64("chainId", int64(chainCfg.ChainID)).Err(err).Msg("spinning up chain stack")
 		}
@@ -90,7 +91,7 @@ func main() {
 		chainRegistries[chainCfg.ChainID] = registry
 	}
 
-	svc := getTablelandService(config, sqlstore, parser, chainRegistries)
+	svc := getTablelandService(sqlstore, parser, chainRegistries)
 	if err := server.RegisterName("tableland", svc); err != nil {
 		log.Fatal().Err(err).Msg("failed to register a json-rpc service")
 	}
@@ -184,7 +185,6 @@ func main() {
 }
 
 func getTablelandService(
-	conf *config,
 	store sqlstore.SQLStore,
 	parser parsing.SQLValidator,
 	chainRegistries map[tableland.ChainID]tableregistry.TableRegistry,
@@ -229,14 +229,14 @@ func wireChainComponents(
 	if err != nil {
 		return nil, nil, fmt.Errorf("parsing nonce tracker check interval duration: %s", err)
 	}
-
 	stuckInterval, err := time.ParseDuration(config.NonceTracker.StuckInterval)
 	if err != nil {
 		return nil, nil, fmt.Errorf("parsing nonce tracker stuck interval duration: %s", err)
 	}
-
+	ctxLocalTracker, clsLocalTracker := context.WithTimeout(context.Background(), time.Second*15)
+	defer clsLocalTracker()
 	tracker, err := nonceimpl.NewLocalTracker(
-		context.Background(), // TODO(jsign): tenative since the tracker will change.
+		ctxLocalTracker,
 		wallet,
 		nonceimpl.NewNonceStore(sqlstore),
 		config.ChainID,
