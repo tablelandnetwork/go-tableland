@@ -39,7 +39,8 @@ type LocalTracker struct {
 	stuckInterval      time.Duration
 }
 
-// NewLocalTracker creates a new local tracker.
+// NewLocalTracker creates a new local tracker. The provided context is used only for initialization
+// logic. For graceful closing, the caller should use the Close() API.
 func NewLocalTracker(
 	ctx context.Context,
 	w *wallet.Wallet,
@@ -71,30 +72,8 @@ func NewLocalTracker(
 		for {
 			select {
 			case <-ticker.C:
-				h, err := t.chainClient.HeaderByNumber(ctx, nil)
-				if err != nil {
-					log.Error().Err(err).Msg("get chain tip header")
-					continue
-				}
-
-				//copy to avoid data race
-				t.mu.Lock()
-				pendingTxs := make([]noncepkg.PendingTx, len(t.pendingTxs))
-				copy(pendingTxs, t.pendingTxs)
-				t.mu.Unlock()
-
-				for _, pendingTx := range pendingTxs {
-					if err := t.checkIfPendingTxWasIncluded(ctx, pendingTx, h); err != nil {
-						if err == noncepkg.ErrBlockDiffNotEnough {
-							break
-						}
-
-						log.Error().
-							Str("hash", pendingTx.Hash.Hex()).
-							Int64("nonce", pendingTx.Nonce).
-							Err(err).
-							Msg("check if pending tx was included")
-					}
+				if err := t.checkPendingTxns(); err != nil {
+					log.Error().Err(err).Msg("checking pending txns")
 				}
 			case <-t.close:
 				ticker.Stop()
@@ -240,5 +219,38 @@ func (t *LocalTracker) deletePendingTxByHash(ctx context.Context, hash common.Ha
 	}
 	t.pendingTxs = append(t.pendingTxs[:deleteIndex], t.pendingTxs[deleteIndex+1:]...)
 
+	return nil
+}
+
+func (t *LocalTracker) checkPendingTxns() error {
+	ctx, cls := context.WithTimeout(context.Background(), time.Second*15)
+	defer cls()
+	h, err := t.chainClient.HeaderByNumber(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("get chain tip header: %s", err)
+	}
+
+	//copy to avoid data race
+	t.mu.Lock()
+	pendingTxs := make([]noncepkg.PendingTx, len(t.pendingTxs))
+	copy(pendingTxs, t.pendingTxs)
+	t.mu.Unlock()
+
+	for _, pendingTx := range pendingTxs {
+		ctx, cls := context.WithTimeout(context.Background(), time.Second*15)
+		if err := t.checkIfPendingTxWasIncluded(ctx, pendingTx, h); err != nil {
+			if err == noncepkg.ErrBlockDiffNotEnough {
+				cls()
+				break
+			}
+
+			log.Error().
+				Str("hash", pendingTx.Hash.Hex()).
+				Int64("nonce", pendingTx.Nonce).
+				Err(err).
+				Msg("check if pending tx was included")
+		}
+		cls()
+	}
 	return nil
 }
