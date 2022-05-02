@@ -52,6 +52,7 @@ type config struct {
 	Chains []ChainConfig
 }
 
+// ChainConfig contains all the chain execution stack configuration for a particular EVM chain.
 type ChainConfig struct {
 	Name     string            `default:""`
 	ChainID  tableland.ChainID `default:"0"`
