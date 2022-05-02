@@ -1,0 +1,64 @@
+{
+  "Impl": "mesa",
+  "HTTP": {
+    "Port": "8080",
+    "RateLimInterval": "1s",
+    "MaxRequestPerInterval": 10
+  },
+  "Gateway": {
+    "ExternalURIPrefix": "http://testnet.tableland.network"
+  },
+  "DB": {
+    "Host": "database",
+    "Port": "5432",
+    "User": "dev_user",
+    "Pass": "dev_password",
+    "Name": "dev_database"
+  },
+  "TableConstraints": {
+    "MaxRowCount": 100000,
+    "MaxColumns": 24,
+    "MaxTextLength": 1024
+  },
+  "Throttling": {
+    "ReadQueryDelay": "0ms"
+  },
+  "Metrics": {
+    "Port": "9090"
+  },
+  "Log": {
+    "Human": false,
+    "Debug": false
+  },
+  "AdminAPI": {
+    "Username": "",
+    "Password": ""
+  },
+  "Chains": [
+    {
+      "Name": "Rinkeby",
+      "ChainID": 4,
+      "Registry": {
+        "EthEndpoint": "wss://infura.rinkeby",
+        "ChainID": 1,
+        "ContractAddress": "rinkeby_contract_addddrrr"
+      },
+      "Signer": {
+        "PrivateKey": ""
+      },
+      "EventFeed": {
+        "ChainAPIBackoff": "15s",
+        "MaxBlocksFetchSize": 10000,
+        "MinBlockDepth": 5
+      },
+      "EventProcessor": {
+        "BlockFailedExecutionBackoff": "10s"
+      },
+      "NonceTracker": {
+         "CheckInterval": "10s",
+         "StuckInterval": "10m",
+         "MinBlockDepth": 5
+      }
+   }
+ ]
+}

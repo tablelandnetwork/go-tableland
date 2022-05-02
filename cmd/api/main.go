@@ -56,26 +56,26 @@ func main() {
 	}
 	defer sqlstore.Close()
 
-	conn, err := ethclient.Dial(config.Registry.EthEndpoint)
+	conn, err := ethclient.Dial(config.Chains[0].Registry.EthEndpoint)
 	if err != nil {
 		log.Fatal().
 			Err(err).
-			Str("ethEndpoint", config.Registry.EthEndpoint).
+			Str("ethEndpoint", config.Chains[0].Registry.EthEndpoint).
 			Msg("failed to connect to ethereum endpoint")
 	}
 	defer conn.Close()
 
-	wallet, err := wallet.NewWallet(config.Signer.PrivateKey)
+	wallet, err := wallet.NewWallet(config.Chains[0].Signer.PrivateKey)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to create wallet")
 	}
 
-	checkInterval, err := time.ParseDuration(config.NonceTracker.CheckInterval)
+	checkInterval, err := time.ParseDuration(config.Chains[0].NonceTracker.CheckInterval)
 	if err != nil {
 		log.Fatal().Err(err).Msg("parsing nonce tracker check interval duration")
 	}
 
-	stuckInterval, err := time.ParseDuration(config.NonceTracker.StuckInterval)
+	stuckInterval, err := time.ParseDuration(config.Chains[0].NonceTracker.StuckInterval)
 	if err != nil {
 		log.Fatal().Err(err).Msg("parsing nonce tracker stuck interval duration")
 	}
@@ -87,17 +87,17 @@ func main() {
 		config.Registry.ChainID,
 		conn,
 		checkInterval,
-		config.NonceTracker.MinBlockDepth,
+		config.Chains[0].NonceTracker.MinBlockDepth,
 		stuckInterval,
 	)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to create new tracker")
 	}
 
-	scAddress := common.HexToAddress(config.Registry.ContractAddress)
+	scAddress := common.HexToAddress(config.Chains[0].Registry.ContractAddress)
 	registry, err := ethereum.NewClient(
 		conn,
-		config.Registry.ChainID,
+		config.Chains[0].Registry.ChainID,
 		scAddress,
 		wallet,
 		tracker,
@@ -106,7 +106,7 @@ func main() {
 	if err != nil {
 		log.Fatal().
 			Err(err).
-			Str("contractAddress", config.Registry.ContractAddress).
+			Str("contractAddress", config.Chains[0].Registry.ContractAddress).
 			Msg("failed to create new ethereum client")
 	}
 
@@ -136,7 +136,7 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("creating txn processor")
 	}
-	chainAPIBackoff, err := time.ParseDuration(config.EventFeed.ChainAPIBackoff)
+	chainAPIBackoff, err := time.ParseDuration(config.Chains[0].EventFeed.ChainAPIBackoff)
 	if err != nil {
 		log.Fatal().Err(err).Msg("parsing chain api backoff duration")
 	}
@@ -154,14 +154,14 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("creating event feed")
 	}
-	blockFailedExecutionBackoff, err := time.ParseDuration(config.EventProcessor.BlockFailedExecutionBackoff)
+	blockFailedExecutionBackoff, err := time.ParseDuration(config.Chains[0].EventProcessor.BlockFailedExecutionBackoff)
 	if err != nil {
 		log.Fatal().Err(err).Msg("parsing block failed execution backoff duration")
 	}
 	epOpts := []eventprocessor.Option{
 		eventprocessor.WithBlockFailedExecutionBackoff(blockFailedExecutionBackoff),
 	}
-	ep, err := epimpl.New(parser, txnp, ef, config.Registry.ChainID, epOpts...)
+	ep, err := epimpl.New(parser, txnp, ef, config.Chains[0].Registry.ChainID, epOpts...)
 	if err != nil {
 		log.Fatal().Err(err).Msg("creating event processor")
 	}
