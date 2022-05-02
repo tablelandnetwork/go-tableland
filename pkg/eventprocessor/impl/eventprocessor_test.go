@@ -182,7 +182,7 @@ func setup(t *testing.T) (contractRunSQLBlockSender, checkReceipts, dbReader) {
 
 	// Spin up dependencies needed for the EventProcessor.
 	// i.e: TxnProcessor, Parser, and EventFeed (connected to the EVM chain)
-	ef, err := efimpl.New(backend, addr, eventfeed.WithMinBlockDepth(0))
+	ef, err := efimpl.New(1337, backend, addr, eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
 	url := tests.PostgresURL(t)
 	txnp, err := txnpimpl.NewTxnProcessor(url, 0, &aclMock{})
