@@ -27,7 +27,6 @@ func New(pool *pgxpool.Pool, chainID tableland.ChainID) *UserStore {
 
 // Read executes a read statement on the db.
 func (db *UserStore) Read(ctx context.Context, rq parsing.SugaredReadStmt) (interface{}, error) {
-	// TODO(jsign): desiguar with chainID
 	var ret interface{}
 	f := func(tx pgx.Tx) error {
 		wqName := rq.GetNamePrefix()

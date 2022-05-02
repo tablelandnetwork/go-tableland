@@ -8,11 +8,16 @@ import (
 )
 
 const deletePendingTxByHash = `-- name: DeletePendingTxByHash :exec
-DELETE FROM system_pending_tx WHERE hash = $1
+DELETE FROM system_pending_tx WHERE chain_id=$1 AND hash = $2
 `
 
-func (q *Queries) DeletePendingTxByHash(ctx context.Context, hash string) error {
-	_, err := q.db.Exec(ctx, deletePendingTxByHash, hash)
+type DeletePendingTxByHashParams struct {
+	ChainID int64
+	Hash    string
+}
+
+func (q *Queries) DeletePendingTxByHash(ctx context.Context, arg DeletePendingTxByHashParams) error {
+	_, err := q.db.Exec(ctx, deletePendingTxByHash, arg.ChainID, arg.Hash)
 	return err
 }
 

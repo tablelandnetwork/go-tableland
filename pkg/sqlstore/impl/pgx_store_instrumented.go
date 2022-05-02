@@ -17,8 +17,6 @@ import (
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
 )
 
-// TODO(jsign): chain id metrics.
-
 // InstrumentedSQLStorePGX implements a instrumented SQLStore interface using pgx.
 type InstrumentedSQLStorePGX struct {
 	chainID          tableland.ChainID
