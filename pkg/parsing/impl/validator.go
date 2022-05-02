@@ -21,6 +21,7 @@ var (
 
 // QueryValidator enforces PostgresSQL constraints for Tableland.
 type QueryValidator struct {
+	chainID             tableland.ChainID
 	systemTablePrefixes []string
 	acceptedTypesNames  []string
 	rawTablenameRegEx   *regexp.Regexp
@@ -31,7 +32,11 @@ type QueryValidator struct {
 var _ parsing.SQLValidator = (*QueryValidator)(nil)
 
 // New returns a Tableland query validator.
-func New(systemTablePrefixes []string, maxAllowedColumns int, maxTextLength int) *QueryValidator {
+func New(
+	systemTablePrefixes []string,
+	chainID tableland.ChainID,
+	maxAllowedColumns int,
+	maxTextLength int) *QueryValidator {
 	// We create here a flattened slice of all the accepted type names from
 	// the parsing.AcceptedTypes source of truth. We do this since having a
 	// slice is easier and faster to do checks.
@@ -48,6 +53,7 @@ func New(systemTablePrefixes []string, maxAllowedColumns int, maxTextLength int)
 		rawTablenameRegEx:   rawTablenameRegEx,
 		maxAllowedColumns:   maxAllowedColumns,
 		maxTextLength:       maxTextLength,
+		chainID:             chainID,
 	}
 }
 
@@ -84,7 +90,7 @@ func (pp *QueryValidator) ValidateCreateTable(query string) (parsing.CreateStmt,
 		}
 	}
 
-	return genCreateStmt(stmt, colNameTypes), nil
+	return genCreateStmt(stmt, colNameTypes, pp.chainID), nil
 }
 
 // ValidateRunSQL validates the query and returns an error if isn't allowed.
@@ -114,10 +120,11 @@ func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.SugaredReadStmt,
 			return nil, nil, fmt.Errorf("deconstructing referenced table name: %w", err)
 		}
 		return &sugaredStmt{
-			node:              stmt,
-			namePrefix:        namePrefix,
-			postgresTableName: posTableName,
-			operation:         tableland.OpSelect,
+			chainID:    pp.chainID,
+			node:       stmt,
+			namePrefix: namePrefix,
+			tableName:  posTableName,
+			operation:  tableland.OpSelect,
 		}, nil, nil
 	}
 
@@ -152,7 +159,7 @@ func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.SugaredReadStmt,
 		}
 	}
 
-	namePrefix, posTableName, err := pp.deconstructRefTable(targetTable)
+	namePrefix, tableName, err := pp.deconstructRefTable(targetTable)
 	if err != nil {
 		return nil, nil, fmt.Errorf("deconstructing referenced table name: %w", err)
 	}
@@ -161,9 +168,10 @@ func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.SugaredReadStmt,
 	for i := range parsed.Stmts {
 		stmt := parsed.Stmts[i].Stmt
 		s := &sugaredStmt{
-			node:              stmt,
-			namePrefix:        namePrefix,
-			postgresTableName: posTableName,
+			chainID:    pp.chainID,
+			node:       stmt,
+			namePrefix: namePrefix,
+			tableName:  tableName,
 		}
 
 		switch {
@@ -215,34 +223,36 @@ func (pp *QueryValidator) deconstructRefTable(refTable string) (string, string, 
 }
 
 type sugaredStmt struct {
-	node              *pg_query.Node
-	namePrefix        string
-	postgresTableName string
-	operation         tableland.Operation
+	node       *pg_query.Node
+	namePrefix string
+	chainID    tableland.ChainID
+	tableName  string
+	operation  tableland.Operation
 }
 
 func (s *sugaredStmt) GetDesugaredQuery() (string, error) {
 	parsedTree := &pg_query.ParseResult{}
 
+	chainScopedDBTableName := fmt.Sprintf("_%d%s", s.chainID, s.tableName)
 	if insertStmt := s.node.GetInsertStmt(); insertStmt != nil {
-		insertStmt.Relation.Relname = s.postgresTableName
+		insertStmt.Relation.Relname = chainScopedDBTableName
 	} else if updateStmt := s.node.GetUpdateStmt(); updateStmt != nil {
-		updateStmt.Relation.Relname = s.postgresTableName
+		updateStmt.Relation.Relname = chainScopedDBTableName
 	} else if deleteStmt := s.node.GetDeleteStmt(); deleteStmt != nil {
-		deleteStmt.Relation.Relname = s.postgresTableName
+		deleteStmt.Relation.Relname = chainScopedDBTableName
 	} else if selectStmt := s.node.GetSelectStmt(); selectStmt != nil {
 		for i := range selectStmt.FromClause {
 			rangeVar := selectStmt.FromClause[i].GetRangeVar()
 			if rangeVar == nil {
 				return "", fmt.Errorf("select doesn't reference a table")
 			}
-			rangeVar.Relname = s.postgresTableName
+			rangeVar.Relname = chainScopedDBTableName
 		}
 	} else if grantStmt := s.node.GetGrantStmt(); grantStmt != nil {
 		// It is safe to assume Objects has always one element.
 		// This is validated in the checkPrivileges call.
 
-		grantStmt.Objects[0].GetRangeVar().Relname = s.postgresTableName
+		grantStmt.Objects[0].GetRangeVar().Relname = chainScopedDBTableName
 	}
 	rs := &pg_query.RawStmt{Stmt: s.node}
 	parsedTree.Stmts = []*pg_query.RawStmt{rs}
@@ -258,7 +268,7 @@ func (s *sugaredStmt) GetNamePrefix() string {
 }
 
 func (s *sugaredStmt) GetTableID() tableland.TableID {
-	tid, _ := tableland.NewTableID(s.postgresTableName[1:])
+	tid, _ := tableland.NewTableID(s.tableName[1:])
 	return tid
 }
 
@@ -928,7 +938,7 @@ func checkCreateColTypes(createStmt *pg_query.CreateStmt, acceptedTypesNames []s
 	return colNameTypes, nil
 }
 
-func genCreateStmt(cNode *pg_query.Node, cols []colNameType) *createStmt {
+func genCreateStmt(cNode *pg_query.Node, cols []colNameType, chainID tableland.ChainID) *createStmt {
 	strCols := make([]string, len(cols))
 	for i := range cols {
 		strCols[i] = fmt.Sprintf("%s:%s", cols[i].colName, cols[i].typeName)
@@ -939,6 +949,7 @@ func genCreateStmt(cNode *pg_query.Node, cols []colNameType) *createStmt {
 	hash := sh.Sum(nil)
 
 	return &createStmt{
+		chainID:       chainID,
 		cNode:         cNode,
 		structureHash: hex.EncodeToString(hash),
 		namePrefix:    cNode.GetCreateStmt().Relation.Relname,
@@ -956,6 +967,7 @@ func hasPrefix(s string, prefixes []string) bool {
 }
 
 type createStmt struct {
+	chainID       tableland.ChainID
 	cNode         *pg_query.Node
 	structureHash string
 	namePrefix    string
@@ -966,7 +978,7 @@ var _ parsing.CreateStmt = (*createStmt)(nil)
 func (cs *createStmt) GetRawQueryForTableID(id tableland.TableID) (string, error) {
 	parsedTree := &pg_query.ParseResult{}
 
-	cs.cNode.GetCreateStmt().Relation.Relname = fmt.Sprintf("_%s", id)
+	cs.cNode.GetCreateStmt().Relation.Relname = fmt.Sprintf("_%d_%s", cs.chainID, id)
 	rs := &pg_query.RawStmt{Stmt: cs.cNode}
 	parsedTree.Stmts = []*pg_query.RawStmt{rs}
 	wq, err := pg_query.Deparse(parsedTree)

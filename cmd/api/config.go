@@ -30,12 +30,8 @@ type config struct {
 		Pass string `default:"dev_password"`
 		Name string `default:"dev_database"`
 	}
-	TableConstraints struct {
-		MaxRowCount   int `default:"100_000"`
-		MaxColumns    int `default:"24"`
-		MaxTextLength int `default:"1024"`
-	}
-	Throttling struct {
+	TableConstraints TableConstraints
+	Throttling       struct {
 		ReadQueryDelay string `default:"0ms"`
 	}
 	Metrics struct {
@@ -50,6 +46,12 @@ type config struct {
 		Password string `default:""`
 	}
 	Chains []ChainConfig
+}
+
+type TableConstraints struct {
+	MaxRowCount   int `default:"100_000"`
+	MaxColumns    int `default:"24"`
+	MaxTextLength int `default:"1024"`
 }
 
 // ChainConfig contains all the chain execution stack configuration for a particular EVM chain.

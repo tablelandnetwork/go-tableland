@@ -187,7 +187,7 @@ func setup(t *testing.T) (contractRunSQLBlockSender, checkReceipts, dbReader) {
 	url := tests.PostgresURL(t)
 	txnp, err := txnpimpl.NewTxnProcessor(1337, url, 0, &aclMock{})
 	require.NoError(t, err)
-	parser := parserimpl.New([]string{"system_", "registry"}, 0, 0)
+	parser := parserimpl.New([]string{"system_", "registry"}, 1337, 0, 0)
 
 	// Create EventProcessor for our test.
 	ep, err := New(parser, txnp, ef, chainID)

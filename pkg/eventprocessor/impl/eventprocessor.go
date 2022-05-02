@@ -50,7 +50,8 @@ type EventProcessor struct {
 }
 
 // New returns a new EventProcessor.
-func New(parser parsing.SQLValidator,
+func New(
+	parser parsing.SQLValidator,
 	txnp txn.TxnProcessor,
 	ef eventfeed.EventFeed,
 	chainID tableland.ChainID,

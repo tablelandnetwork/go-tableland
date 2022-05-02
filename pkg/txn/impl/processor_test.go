@@ -41,7 +41,7 @@ func TestRunSQL(t *testing.T) {
 		require.NoError(t, b.Close(ctx))
 		require.NoError(t, txnp.Close(ctx))
 
-		require.Equal(t, 1, tableRowCountT100(t, pool, "select count(*) from _100"))
+		require.Equal(t, 1, tableRowCountT100(t, pool, "select count(*) from _1337_100"))
 	})
 
 	t.Run("multiple queries", func(t *testing.T) {
@@ -74,7 +74,7 @@ func TestRunSQL(t *testing.T) {
 		require.NoError(t, b.Close(ctx))
 		require.NoError(t, txnp.Close(ctx))
 
-		require.Equal(t, 4, tableRowCountT100(t, pool, "select count(*) from _100"))
+		require.Equal(t, 4, tableRowCountT100(t, pool, "select count(*) from _1337_100"))
 	})
 
 	t.Run("multiple with single failure", func(t *testing.T) {
@@ -114,7 +114,7 @@ func TestRunSQL(t *testing.T) {
 		// 1. wq1_1 and wq3_1 should survive the whole batch commit.
 		// 2. despite wq2_1 apparently should succeed, wq2_2 failure should rollback
 		//    both wq2_* statements.
-		require.Equal(t, 2, tableRowCountT100(t, pool, "select count(*) from _100"))
+		require.Equal(t, 2, tableRowCountT100(t, pool, "select count(*) from _1337_100"))
 	})
 
 	t.Run("with abrupt close", func(t *testing.T) {
@@ -145,7 +145,7 @@ func TestRunSQL(t *testing.T) {
 		// The opened batch wasn't txnp.CloseBatch(), but we simply
 		// closed the whole store. This should rollback any ongoing
 		// opened batch and leave db state correctly.
-		require.Equal(t, 0, tableRowCountT100(t, pool, "select count(*) from _100"))
+		require.Equal(t, 0, tableRowCountT100(t, pool, "select count(*) from _1337_100"))
 	})
 
 	t.Run("single-query grant", func(t *testing.T) {
@@ -377,12 +377,12 @@ func TestRunSQLWithPolicies(t *testing.T) {
 		require.NoError(t, txnp.Close(ctx))
 
 		// there should be only one row updated
-		require.Equal(t, 1, tableRowCountT100(t, pool, "select count(*) from _100 WHERE zar = 'three'"))
+		require.Equal(t, 1, tableRowCountT100(t, pool, "select count(*) from _1337_100 WHERE zar = 'three'"))
 	})
 }
 
 func TestRegisterTable(t *testing.T) {
-	parser := parserimpl.New([]string{}, 0, 0)
+	parser := parserimpl.New([]string{}, 1337, 0, 0)
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
@@ -416,7 +416,7 @@ func TestRegisterTable(t *testing.T) {
 		require.NotEqual(t, new(time.Time), table.CreatedAt) // CreatedAt is not the zero value
 
 		// Check that the user table was created.
-		ok := existsTableWithName(t, pool, "_100")
+		ok := existsTableWithName(t, pool, "_1337_100")
 		require.True(t, ok)
 	})
 }
@@ -446,7 +446,7 @@ func TestTableRowCountLimit(t *testing.T) {
 	for i := 0; i < rowLimit; i++ {
 		require.NoError(t, insertRow(t))
 	}
-	require.Equal(t, rowLimit, tableRowCountT100(t, pool, "select count(*) from _100"))
+	require.Equal(t, rowLimit, tableRowCountT100(t, pool, "select count(*) from _1337_100"))
 
 	// The next insert should fail.
 	var errRowCount *txn.ErrRowCountExceeded
@@ -512,7 +512,7 @@ func newTxnProcessorWithTable(t *testing.T, rowsLimit int) (*TblTxnProcessor, *p
 	require.NoError(t, err)
 	id, err := tableland.NewTableID("100")
 	require.NoError(t, err)
-	parser := parserimpl.New([]string{}, 0, 0)
+	parser := parserimpl.New([]string{}, 1337, 0, 0)
 	createStmt, err := parser.ValidateCreateTable("create table foo (zar text)")
 	require.NoError(t, err)
 	err = b.InsertTable(ctx, id, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", createStmt)
@@ -526,7 +526,7 @@ func newTxnProcessorWithTable(t *testing.T, rowsLimit int) (*TblTxnProcessor, *p
 
 func mustWriteStmt(t *testing.T, q string) parsing.SugaredMutatingStmt {
 	t.Helper()
-	p := parserimpl.New([]string{"system_", "registry"}, 0, 0)
+	p := parserimpl.New([]string{"system_", "registry"}, 1337, 0, 0)
 	_, wss, err := p.ValidateRunSQL(q)
 	require.NoError(t, err)
 	require.Len(t, wss, 1)
@@ -535,7 +535,7 @@ func mustWriteStmt(t *testing.T, q string) parsing.SugaredMutatingStmt {
 
 func mustGrantStmt(t *testing.T, q string) parsing.SugaredMutatingStmt {
 	t.Helper()
-	p := parserimpl.New([]string{"system_", "registry"}, 0, 0)
+	p := parserimpl.New([]string{"system_", "registry"}, 1337, 0, 0)
 	_, wss, err := p.ValidateRunSQL(q)
 	require.NoError(t, err)
 	require.Len(t, wss, 1)

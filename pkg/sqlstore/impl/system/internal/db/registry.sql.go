@@ -10,11 +10,16 @@ import (
 )
 
 const getTable = `-- name: GetTable :one
-SELECT created_at, id, structure, controller, name FROM registry WHERE id = $1
+SELECT created_at, id, structure, controller, name, chain_id FROM registry WHERE chain_id =$1 AND id = $2
 `
 
-func (q *Queries) GetTable(ctx context.Context, id pgtype.Numeric) (Registry, error) {
-	row := q.db.QueryRow(ctx, getTable, id)
+type GetTableParams struct {
+	ChainID int64
+	ID      pgtype.Numeric
+}
+
+func (q *Queries) GetTable(ctx context.Context, arg GetTableParams) (Registry, error) {
+	row := q.db.QueryRow(ctx, getTable, arg.ChainID, arg.ID)
 	var i Registry
 	err := row.Scan(
 		&i.CreatedAt,
@@ -22,16 +27,22 @@ func (q *Queries) GetTable(ctx context.Context, id pgtype.Numeric) (Registry, er
 		&i.Structure,
 		&i.Controller,
 		&i.Name,
+		&i.ChainID,
 	)
 	return i, err
 }
 
 const getTablesByController = `-- name: GetTablesByController :many
-SELECT created_at, id, structure, controller, name FROM registry WHERE controller ILIKE $1
+SELECT created_at, id, structure, controller, name, chain_id FROM registry WHERE chain_id=$1 AND controller ILIKE $2
 `
 
-func (q *Queries) GetTablesByController(ctx context.Context, controller string) ([]Registry, error) {
-	rows, err := q.db.Query(ctx, getTablesByController, controller)
+type GetTablesByControllerParams struct {
+	ChainID    int64
+	Controller string
+}
+
+func (q *Queries) GetTablesByController(ctx context.Context, arg GetTablesByControllerParams) ([]Registry, error) {
+	rows, err := q.db.Query(ctx, getTablesByController, arg.ChainID, arg.Controller)
 	if err != nil {
 		return nil, err
 	}
@@ -45,6 +56,7 @@ func (q *Queries) GetTablesByController(ctx context.Context, controller string) 
 			&i.Structure,
 			&i.Controller,
 			&i.Name,
+			&i.ChainID,
 		); err != nil {
 			return nil, err
 		}

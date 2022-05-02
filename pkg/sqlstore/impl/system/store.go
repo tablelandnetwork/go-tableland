@@ -59,7 +59,10 @@ func (s *SystemStore) GetTable(ctx context.Context, id tableland.TableID) (sqlst
 	if err := dbID.Set(id.String()); err != nil {
 		return sqlstore.Table{}, fmt.Errorf("parsing id to numeric: %s", err)
 	}
-	table, err := s.db.queries().GetTable(ctx, dbID)
+	table, err := s.db.queries().GetTable(ctx, db.GetTableParams{
+		ChainID: int64(s.chainID),
+		ID:      dbID,
+	})
 	if err != nil {
 		return sqlstore.Table{}, fmt.Errorf("failed to get the table: %s", err)
 	}
@@ -71,7 +74,10 @@ func (s *SystemStore) GetTablesByController(ctx context.Context, controller stri
 	if err := sanitizeAddress(controller); err != nil {
 		return []sqlstore.Table{}, fmt.Errorf("sanitizing address: %s", err)
 	}
-	sqlcTables, err := s.db.queries().GetTablesByController(ctx, controller)
+	sqlcTables, err := s.db.queries().GetTablesByController(ctx, db.GetTablesByControllerParams{
+		ChainID:    int64(s.chainID),
+		Controller: controller,
+	})
 	if err != nil {
 		return []sqlstore.Table{}, fmt.Errorf("failed to get the table: %s", err)
 	}
@@ -87,6 +93,7 @@ func (s *SystemStore) GetTablesByController(ctx context.Context, controller stri
 	return tables, nil
 }
 
+// TOOD(jsign): remove this?
 // IncrementCreateTableCount increments the counter.
 func (s *SystemStore) IncrementCreateTableCount(ctx context.Context, address string) error {
 	if err := sanitizeAddress(address); err != nil {
@@ -120,6 +127,7 @@ func (s *SystemStore) GetACLOnTableByController(
 	}
 
 	params := db.GetAclByTableAndControllerParams{
+		ChainID:    int64(s.chainID),
 		Controller: controller,
 		TableID:    dbID,
 	}
@@ -300,6 +308,7 @@ func tableFromSQLToDTO(table db.Registry) (sqlstore.Table, error) {
 	}
 	return sqlstore.Table{
 		ID:         id,
+		ChainID:    tableland.ChainID(table.ChainID),
 		Controller: table.Controller,
 		Name:       table.Name,
 		Structure:  table.Structure,
@@ -326,6 +335,7 @@ func aclFromSQLtoDTO(acl db.SystemAcl) (sqlstore.SystemACL, error) {
 	}
 
 	systemACL := sqlstore.SystemACL{
+		ChainID:    tableland.ChainID(acl.ChainID),
 		TableID:    id,
 		Controller: acl.Controller,
 		Privileges: privileges,
