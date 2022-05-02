@@ -514,7 +514,7 @@ func setup(
 	require.NoError(t, err)
 
 	parser := parserimpl.New([]string{"system_", "registry"}, 0, 0)
-	txnp, err := txnpimpl.NewTxnProcessor(url, 0, &aclHalfMock{sqlstore})
+	txnp, err := txnpimpl.NewTxnProcessor(1337, url, 0, &aclHalfMock{sqlstore})
 	require.NoError(t, err)
 
 	backend, addr, sc, auth, sk := testutil.Setup(t)
@@ -558,7 +558,7 @@ func (acl *aclHalfMock) CheckPrivileges(
 	controller common.Address,
 	id tableland.TableID,
 	op tableland.Operation) (bool, error) {
-	aclImpl := NewACL(acl.sqlStore, nil)
+	aclImpl := NewACL(1337, acl.sqlStore, nil)
 	return aclImpl.CheckPrivileges(ctx, tx, controller, id, op)
 }
 

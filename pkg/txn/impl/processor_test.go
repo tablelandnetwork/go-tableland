@@ -488,7 +488,7 @@ func newTxnProcessor(t *testing.T, rowsLimit int) (*TblTxnProcessor, *pgxpool.Po
 
 	url := tests.PostgresURL(t)
 
-	txnp, err := NewTxnProcessor(url, rowsLimit, &aclMock{})
+	txnp, err := NewTxnProcessor(1337, url, rowsLimit, &aclMock{})
 	require.NoError(t, err)
 
 	ctx := context.Background()
