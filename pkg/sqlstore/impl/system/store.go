@@ -197,7 +197,10 @@ func (s *SystemStore) InsertPendingTx(
 
 // DeletePendingTxByHash deletes a pending tx.
 func (s *SystemStore) DeletePendingTxByHash(ctx context.Context, hash common.Hash) error {
-	err := s.db.queries().DeletePendingTxByHash(ctx, hash.Hex())
+	err := s.db.queries().DeletePendingTxByHash(ctx, db.DeletePendingTxByHashParams{
+		ChainID: int64(s.chainID),
+		Hash:    hash.Hex(),
+	})
 	if err != nil {
 		return fmt.Errorf("delete pending tx: %s", err)
 	}

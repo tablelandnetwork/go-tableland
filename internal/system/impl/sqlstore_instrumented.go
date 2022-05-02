@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/textileio/go-tableland/cmd/api/middlewares"
 	"github.com/textileio/go-tableland/internal/system"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
@@ -12,8 +13,6 @@ import (
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
 )
-
-// TODO(JSIGN): add chainID in metrics.
 
 // InstrumentedSystemSQLStoreService implements the SystemService interface using SQLStore.
 type InstrumentedSystemSQLStoreService struct {
@@ -44,12 +43,14 @@ func (s *InstrumentedSystemSQLStoreService) GetTableMetadata(
 	start := time.Now()
 	metadata, err := s.system.GetTableMetadata(ctx, id)
 	latency := time.Since(start).Milliseconds()
+	chainID, _ := ctx.Value(middlewares.ContextKeyChainID).(tableland.ChainID)
 
 	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
 	attributes := []attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("GetTableMetadata")},
 		{Key: "id", Value: attribute.StringValue(id.String())},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
+		{Key: "chainID", Value: attribute.Int64Value(int64(chainID))},
 	}
 
 	s.callCount.Add(ctx, 1, attributes...)
@@ -64,12 +65,14 @@ func (s *InstrumentedSystemSQLStoreService) GetTablesByController(ctx context.Co
 	start := time.Now()
 	tables, err := s.system.GetTablesByController(ctx, controller)
 	latency := time.Since(start).Milliseconds()
+	chainID, _ := ctx.Value(middlewares.ContextKeyChainID).(tableland.ChainID)
 
 	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
 	attributes := []attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("GetTablesByController")},
 		{Key: "controller", Value: attribute.StringValue(controller)},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
+		{Key: "chainID", Value: attribute.Int64Value(int64(chainID))},
 	}
 
 	s.callCount.Add(ctx, 1, attributes...)
