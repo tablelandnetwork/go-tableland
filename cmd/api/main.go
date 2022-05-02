@@ -26,7 +26,6 @@ import (
 	"github.com/textileio/go-tableland/pkg/logging"
 	"github.com/textileio/go-tableland/pkg/metrics"
 	nonceimpl "github.com/textileio/go-tableland/pkg/nonce/impl"
-	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
@@ -49,28 +48,20 @@ func main() {
 		config.DB.Port,
 		config.DB.Name,
 	)
-	parser, err := parserimpl.NewInstrumentedSQLValidator(
-		parserimpl.New([]string{systemimpl.SystemTablesPrefix, systemimpl.RegistryTableName},
-			config.TableConstraints.MaxColumns,
-			config.TableConstraints.MaxTextLength),
-	)
-	if err != nil {
-		log.Fatal().Err(err).Msg("instrumenting sql validator")
-	}
 
 	chainStacks := map[tableland.ChainID]chains.ChainStack{}
 	for _, chainCfg := range config.Chains {
 		if _, ok := chainStacks[chainCfg.ChainID]; ok {
 			log.Fatal().Int64("chainId", int64(chainCfg.ChainID)).Msg("chain id configuration is duplicated")
 		}
-		chainStack, err := createChainIDStack(chainCfg, parser, databaseURL, config.TableConstraints.MaxRowCount)
+		chainStack, err := createChainIDStack(chainCfg, databaseURL, config.TableConstraints)
 		if err != nil {
 			log.Fatal().Int64("chainId", int64(chainCfg.ChainID)).Err(err).Msg("spinning up chain stack")
 		}
 		chainStacks[chainCfg.ChainID] = chainStack
 	}
 
-	svc := getTablelandService(chainStacks, parser)
+	svc := getTablelandService(chainStacks)
 	if err := server.RegisterName("tableland", svc); err != nil {
 		log.Fatal().Err(err).Msg("failed to register a json-rpc service")
 	}
@@ -163,11 +154,8 @@ func main() {
 	})
 }
 
-func getTablelandService(
-	chainStacks map[tableland.ChainID]chains.ChainStack,
-	parser parsing.SQLValidator,
-) tableland.Tableland {
-	mesa := impl.NewTablelandMesa(parser, chainStacks)
+func getTablelandService(chainStacks map[tableland.ChainID]chains.ChainStack) tableland.Tableland {
+	mesa := impl.NewTablelandMesa(chainStacks)
 	instrumentedMesa, err := impl.NewInstrumentedTablelandMesa(mesa)
 	if err != nil {
 		log.Fatal().Err(err).Msg("instrumenting mesa")
@@ -181,10 +169,19 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 
 func createChainIDStack(
 	config ChainConfig,
-	parser parsing.SQLValidator,
 	databaseURL string,
-	tableMaxRowCount int,
+	tableConstraints TableConstraints,
 ) (chains.ChainStack, error) {
+	parser, err := parserimpl.NewInstrumentedSQLValidator(
+		parserimpl.New(
+			[]string{systemimpl.SystemTablesPrefix, systemimpl.RegistryTableName},
+			config.ChainID,
+			tableConstraints.MaxColumns,
+			tableConstraints.MaxTextLength),
+	)
+	if err != nil {
+		return chains.ChainStack{}, fmt.Errorf("instrumenting sql validator: %s", err)
+	}
 	ctxSQLStore, clsSQLStore := context.WithTimeout(context.Background(), time.Second*10)
 	defer clsSQLStore()
 	store, err := sqlstoreimpl.New(ctxSQLStore, config.ChainID, databaseURL)
@@ -248,7 +245,7 @@ func createChainIDStack(
 	acl := impl.NewACL(config.ChainID, store, registry)
 
 	var txnp txn.TxnProcessor
-	txnp, err = txnimpl.NewTxnProcessor(config.ChainID, databaseURL, tableMaxRowCount, acl)
+	txnp, err = txnimpl.NewTxnProcessor(config.ChainID, databaseURL, tableConstraints.MaxRowCount, acl)
 	if err != nil {
 		return chains.ChainStack{}, fmt.Errorf("creating txn processor: %s", err)
 	}
@@ -288,6 +285,7 @@ func createChainIDStack(
 	return chains.ChainStack{
 		Store:    store,
 		Registry: registry,
+		Parser:   parser,
 		Close: func(ctx context.Context) error {
 			log.Info().Int64("chainId", int64(config.ChainID)).Msg("closing stack...")
 			defer log.Info().Int64("chainId", int64(config.ChainID)).Msg("stack closed")

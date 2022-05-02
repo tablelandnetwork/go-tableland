@@ -118,8 +118,9 @@ func (b *batch) InsertTable(
 		}
 
 		if _, err := tx.Exec(ctx,
-			`INSERT INTO registry ("id","controller","name", "structure") 
-			 VALUES ($1,$2,$3,$4);`,
+			`INSERT INTO registry ("chain_id", "id","controller","name", "structure") 
+			 VALUES ($1,$2,$3,$4, $5);`,
+			b.tp.chainID,
 			dbID,
 			controller,
 			createStmt.GetNamePrefix(),
@@ -128,8 +129,9 @@ func (b *batch) InsertTable(
 		}
 
 		if _, err := tx.Exec(ctx,
-			`INSERT INTO system_acl ("table_id","controller","privileges") 
-			 VALUES ($1,$2,$3);`,
+			`INSERT INTO system_acl ("chain_id","table_id","controller","privileges") 
+			 VALUES ($1,$2,$3,$4);`,
+			b.tp.chainID,
 			dbID,
 			controller,
 			[]string{"a", "w", "d"}, // the abbreviations for PrivInsert, PrivUpdate and PrivDelete
@@ -165,7 +167,7 @@ func (b *batch) ExecWriteQueries(
 			return nil
 		}
 
-		dbName, beforeRowCount, err := GetTableNameAndRowCountByTableID(ctx, tx, mqueries[0].GetTableID())
+		dbName, beforeRowCount, err := GetTableNameAndRowCountByTableID(ctx, tx, b.tp.chainID, mqueries[0].GetTableID())
 		if err != nil {
 			return fmt.Errorf("table name lookup for table id: %s", err)
 		}
@@ -320,13 +322,20 @@ func (b *batch) Commit(ctx context.Context) error {
 
 // GetTableNameAndRowCountByTableID returns the table name and current row count for a TableID
 // within the provided transaction.
-func GetTableNameAndRowCountByTableID(ctx context.Context, tx pgx.Tx, id tableland.TableID) (string, int, error) {
+func GetTableNameAndRowCountByTableID(
+	ctx context.Context,
+	tx pgx.Tx,
+	chainID tableland.ChainID,
+	tableID tableland.TableID) (string, int, error) {
 	dbID := pgtype.Numeric{}
-	if err := dbID.Set(id.String()); err != nil {
+	if err := dbID.Set(tableID.String()); err != nil {
 		return "", 0, fmt.Errorf("parsing table id to numeric: %s", err)
 	}
-	q := fmt.Sprintf("SELECT (SELECT name FROM registry where id=$1), (SELECT count(*) FROM _%s)", id)
-	r := tx.QueryRow(ctx, q, dbID)
+
+	dbTableName := fmt.Sprintf("_%d_%s", chainID, tableID)
+	q := fmt.Sprintf(
+		"SELECT (SELECT name FROM registry where chain_id=$1 AND id=$2), (SELECT count(*) FROM %s)", dbTableName)
+	r := tx.QueryRow(ctx, q, chainID, dbID)
 	var dbName string
 	var rowCount int
 	err := r.Scan(&dbName, &rowCount)
@@ -361,14 +370,15 @@ func (b *batch) executeGrantStmt(
 			// Upserts the privileges into the acl table,
 			// making sure the array has unique elements.
 			if _, err := tx.Exec(ctx,
-				`INSERT INTO system_acl ("table_id","controller","privileges") 
-						VALUES ($1, $2, $3)
-						ON CONFLICT (table_id, controller)
+				`INSERT INTO system_acl ("chain_id","table_id","controller","privileges") 
+						VALUES ($1, $2, $3, $4)
+						ON CONFLICT (chain_id,table_id,controller)
 						DO UPDATE SET privileges = ARRAY(
-							SELECT DISTINCT UNNEST(privileges || $3) 
+							SELECT DISTINCT UNNEST(privileges || $4) 
 							FROM system_acl 
-							WHERE table_id = $1 AND controller = $2
+							WHERE table_id = $2 AND controller = $3
 						), updated_at = now();`,
+				b.tp.chainID,
 				dbID,
 				role.Hex(),
 				gs.GetPrivileges(),
@@ -379,9 +389,10 @@ func (b *batch) executeGrantStmt(
 			for _, privAbbr := range gs.GetPrivileges() {
 				if _, err := tx.Exec(ctx,
 					`UPDATE system_acl 
-								SET privileges = array_remove(privileges, $3), 
+								SET privileges = array_remove(privileges, $4), 
 									updated_at = now()
-								WHERE table_id = $1 AND controller = $2;`,
+								WHERE chain_id=$1 AND table_id = $2 AND controller = $3;`,
+					b.tp.chainID,
 					dbID,
 					role.Hex(),
 					privAbbr,

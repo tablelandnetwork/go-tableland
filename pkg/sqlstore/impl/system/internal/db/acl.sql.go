@@ -10,16 +10,17 @@ import (
 )
 
 const getAclByTableAndController = `-- name: GetAclByTableAndController :one
-SELECT table_id, controller, privileges, created_at, updated_at FROM system_acl WHERE table_id = $2 and controller ILIKE $1
+SELECT table_id, controller, privileges, created_at, updated_at, chain_id FROM system_acl WHERE chain_id = $3 AND table_id = $2 AND controller ILIKE $1
 `
 
 type GetAclByTableAndControllerParams struct {
 	Controller string
 	TableID    pgtype.Numeric
+	ChainID    int64
 }
 
 func (q *Queries) GetAclByTableAndController(ctx context.Context, arg GetAclByTableAndControllerParams) (SystemAcl, error) {
-	row := q.db.QueryRow(ctx, getAclByTableAndController, arg.Controller, arg.TableID)
+	row := q.db.QueryRow(ctx, getAclByTableAndController, arg.Controller, arg.TableID, arg.ChainID)
 	var i SystemAcl
 	err := row.Scan(
 		&i.TableID,
@@ -27,6 +28,7 @@ func (q *Queries) GetAclByTableAndController(ctx context.Context, arg GetAclByTa
 		&i.Privileges,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ChainID,
 	)
 	return i, err
 }

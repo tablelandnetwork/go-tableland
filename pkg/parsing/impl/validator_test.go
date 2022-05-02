@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
-	postgresparser "github.com/textileio/go-tableland/pkg/parsing/impl"
+	parser "github.com/textileio/go-tableland/pkg/parsing/impl"
 )
 
 func TestRunSQL(t *testing.T) {
@@ -483,7 +483,7 @@ func TestRunSQL(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
 
-				parser := postgresparser.New([]string{"system_", "registry"}, 0, 0)
+				parser := parser.New([]string{"system_", "registry"}, 1337, 0, 0)
 				rs, mss, err := parser.ValidateRunSQL(tc.query)
 
 				if tc.expErrType == nil {
@@ -649,7 +649,7 @@ func TestCreateTableChecks(t *testing.T) {
 		t.Run(it.name, func(tc testCase) func(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
-				parser := postgresparser.New([]string{"system_", "registry"}, 0, 0)
+				parser := parser.New([]string{"system_", "registry"}, 1337, 0, 0)
 				_, err := parser.ValidateCreateTable(tc.query)
 				if tc.expErrType == nil {
 					require.NoError(t, err)
@@ -687,9 +687,9 @@ func TestCreateTableResult(t *testing.T) {
 			// sha256(bar int4)
 			expStructureHash: "60b0e90a94273211e4836dc11d8eebd96e8020ce3408dd112ba9c42e762fe3cc",
 			expRawQueries: []rawQueryTableID{
-				{id: 1, rawQuery: "CREATE TABLE _1 (bar int)"},
-				{id: 42, rawQuery: "CREATE TABLE _42 (bar int)"},
-				{id: 2929392, rawQuery: "CREATE TABLE _2929392 (bar int)"},
+				{id: 1, rawQuery: "CREATE TABLE _1337_1 (bar int)"},
+				{id: 42, rawQuery: "CREATE TABLE _1337_42 (bar int)"},
+				{id: 2929392, rawQuery: "CREATE TABLE _1337_2929392 (bar int)"},
 			},
 		},
 		{
@@ -703,9 +703,9 @@ func TestCreateTableResult(t *testing.T) {
 			// sha256(name:text,age:int4,fav_color:varchar)
 			expStructureHash: "3e846cb815f96b1a572246e1bf5eb5eec8a93598aa4a9741e7dade425ff2dc69",
 			expRawQueries: []rawQueryTableID{
-				{id: 1, rawQuery: "CREATE TABLE _1 (name text, age int, fav_color varchar(10))"},
-				{id: 42, rawQuery: "CREATE TABLE _42 (name text, age int, fav_color varchar(10))"},
-				{id: 2929392, rawQuery: "CREATE TABLE _2929392 (name text, age int, fav_color varchar(10))"},
+				{id: 1, rawQuery: "CREATE TABLE _1337_1 (name text, age int, fav_color varchar(10))"},
+				{id: 42, rawQuery: "CREATE TABLE _1337_42 (name text, age int, fav_color varchar(10))"},
+				{id: 2929392, rawQuery: "CREATE TABLE _1337_2929392 (name text, age int, fav_color varchar(10))"},
 			},
 		},
 	}
@@ -714,7 +714,7 @@ func TestCreateTableResult(t *testing.T) {
 		t.Run(it.name, func(tc testCase) func(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
-				parser := postgresparser.New([]string{"system_", "registry"}, 0, 0)
+				parser := parser.New([]string{"system_", "registry"}, 1337, 0, 0)
 				cs, err := parser.ValidateCreateTable(tc.query)
 				require.NoError(t, err)
 
@@ -734,7 +734,7 @@ func TestCreateTableColLimit(t *testing.T) {
 	t.Parallel()
 
 	maxAllowedColumns := 3
-	parser := postgresparser.New([]string{"system_", "registry"}, maxAllowedColumns, 0)
+	parser := parser.New([]string{"system_", "registry"}, 1337, maxAllowedColumns, 0)
 
 	t.Run("success one column", func(t *testing.T) {
 		_, err := parser.ValidateCreateTable("create table foo (a int)")
@@ -757,7 +757,7 @@ func TestCreateTableTextLength(t *testing.T) {
 	t.Parallel()
 
 	textMaxLength := 4
-	parser := postgresparser.New([]string{"system_", "registry"}, 0, textMaxLength)
+	parser := parser.New([]string{"system_", "registry"}, 1337, 0, textMaxLength)
 
 	t.Run("success half limit", func(t *testing.T) {
 		_, _, err := parser.ValidateRunSQL(`insert into _0 values ('aa')`)
@@ -796,16 +796,16 @@ func TestGetWriteStatements(t *testing.T) {
 			name:  "double update",
 			query: "update foo_100 set a=1;update foo_100 set b=2;",
 			expectedStmts: []string{
-				"UPDATE _100 SET a = 1",
-				"UPDATE _100 SET b = 2",
+				"UPDATE _1337_100 SET a = 1",
+				"UPDATE _1337_100 SET b = 2",
 			},
 		},
 		{
 			name:  "insert update",
 			query: "insert into foo_0 values (1);update foo_0 set b=2;",
 			expectedStmts: []string{
-				"INSERT INTO _0 VALUES (1)",
-				"UPDATE _0 SET b = 2",
+				"INSERT INTO _1337_0 VALUES (1)",
+				"UPDATE _1337_0 SET b = 2",
 			},
 		},
 	}
@@ -814,7 +814,7 @@ func TestGetWriteStatements(t *testing.T) {
 		t.Run(it.name, func(tc testCase) func(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
-				parser := postgresparser.New([]string{"system_", "registry"}, 0, 0)
+				parser := parser.New([]string{"system_", "registry"}, 1337, 0, 0)
 				rs, stmts, err := parser.ValidateRunSQL(tc.query)
 				require.NoError(t, err)
 				require.Nil(t, rs)
@@ -845,7 +845,7 @@ func TestGetGrantStatementRolesAndPrivileges(t *testing.T) {
 			query:        "grant insert, UPDATE on a_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\";",
 			roles:        []common.Address{common.HexToAddress("0xd43c59d5694ec111eb9e986c233200b14249558d")},
 			privileges:   []tableland.Privilege{tableland.PrivInsert, tableland.PrivUpdate},
-			expectedStmt: "GRANT insert, update ON _100 TO \"0xd43c59d5694ec111eb9e986c233200b14249558d\"",
+			expectedStmt: "GRANT insert, update ON _1337_100 TO \"0xd43c59d5694ec111eb9e986c233200b14249558d\"",
 		},
 
 		{
@@ -856,7 +856,7 @@ func TestGetGrantStatementRolesAndPrivileges(t *testing.T) {
 				common.HexToAddress("0x4afe8e30db4549384b0a05bb796468b130c7d6e0"),
 			},
 			privileges:   []tableland.Privilege{tableland.PrivDelete},
-			expectedStmt: "REVOKE delete ON _100 FROM \"0xd43c59d5694ec111eb9e986c233200b14249558d\", \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"", // nolint
+			expectedStmt: "REVOKE delete ON _1337_100 FROM \"0xd43c59d5694ec111eb9e986c233200b14249558d\", \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"", // nolint
 		},
 	}
 
@@ -864,7 +864,7 @@ func TestGetGrantStatementRolesAndPrivileges(t *testing.T) {
 		t.Run(it.name, func(tc testCase) func(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
-				parser := postgresparser.New([]string{"system_", "registry"}, 0, 0)
+				parser := parser.New([]string{"system_", "registry"}, 1337, 0, 0)
 				rs, stmts, err := parser.ValidateRunSQL(tc.query)
 				require.NoError(t, err)
 				require.Nil(t, rs)
@@ -896,13 +896,13 @@ func TestWriteStatementAddWhereClause(t *testing.T) {
 			name:        "no-where-clause",
 			query:       "UPDATE foo_1337 SET id = 1",
 			whereClause: "bar = 1",
-			expQuery:    "UPDATE _1337 SET id = 1 WHERE bar = 1",
+			expQuery:    "UPDATE _31337_1337 SET id = 1 WHERE bar = 1",
 		},
 		{
 			name:        "with-where-clause",
 			query:       "UPDATE foo_1337 SET id = 1 WHERE bar = 1",
 			whereClause: "c in (1, 2)",
-			expQuery:    "UPDATE _1337 SET id = 1 WHERE bar = 1 AND c IN (1, 2)",
+			expQuery:    "UPDATE _31337_1337 SET id = 1 WHERE bar = 1 AND c IN (1, 2)",
 		},
 	}
 
@@ -910,7 +910,7 @@ func TestWriteStatementAddWhereClause(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			parser := postgresparser.New([]string{"system_", "registry"}, 0, 0)
+			parser := parser.New([]string{"system_", "registry"}, 31337, 0, 0)
 			rs, mss, err := parser.ValidateRunSQL(tc.query)
 			require.NoError(t, err)
 			require.Nil(t, rs)
