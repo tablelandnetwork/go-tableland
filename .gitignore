@@ -16,5 +16,5 @@
 .vscode/
 
 # Project
-.env
+.env*
 *.ignore
