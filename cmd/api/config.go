@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 
 	"github.com/omeid/uconfig"
@@ -36,14 +37,6 @@ type config struct {
 	Throttling struct {
 		ReadQueryDelay string `default:"0ms"`
 	}
-	Registry struct {
-		EthEndpoint     string `default:"eth_endpoint"`
-		ChainID         int64  `default:"1"`
-		ContractAddress string `default:"contract_address"`
-	}
-	Signer struct {
-		PrivateKey string `default:""`
-	}
 	Metrics struct {
 		Port string `default:"9090"`
 	}
@@ -55,19 +48,30 @@ type config struct {
 		Username string `default:""`
 		Password string `default:""`
 	}
-	EventFeed struct {
-		ChainAPIBackoff    string `default:"15s"`
-		MaxBlocksFetchSize int    `default:"10000"`
-		MinBlockDepth      int    `default:"5"`
-		NewBlockTimeout    string `default:"30s"`
-	}
-	EventProcessor struct {
-		BlockFailedExecutionBackoff string `default:"10s"`
-	}
-	NonceTracker struct {
-		CheckInterval string `default:"10s"`
-		StuckInterval string `default:"10m"`
-		MinBlockDepth int    `default:"5"`
+	Chains []struct {
+		Name     string `default:""`
+		ChainID  int64  `default:"0"`
+		Registry struct {
+			EthEndpoint     string `default:"eth_endpoint"`
+			ChainID         int64  `default:"1"`
+			ContractAddress string `default:"contract_address"`
+		}
+		Signer struct {
+			PrivateKey string `default:""`
+		}
+		EventFeed struct {
+			ChainAPIBackoff    string `default:"15s"`
+			MaxBlocksFetchSize int    `default:"10000"`
+			MinBlockDepth      int    `default:"5"`
+		}
+		EventProcessor struct {
+			BlockFailedExecutionBackoff string `default:"10s"`
+		}
+		NonceTracker struct {
+			CheckInterval string `default:"10s"`
+			StuckInterval string `default:"10m"`
+			MinBlockDepth int    `default:"5"`
+		}
 	}
 }
 
@@ -82,6 +86,13 @@ func setupConfig() *config {
 		c.Usage()
 		os.Exit(1)
 	}
+
+	buf, err := json.MarshalIndent(&conf, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("%s\n", buf)
+	os.Exit(1)
 
 	return conf
 }
