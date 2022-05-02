@@ -86,46 +86,6 @@ func (s *InstrumentedSQLStorePGX) GetTablesByController(
 	return tables, err
 }
 
-// IncrementCreateTableCount increments the counter.
-func (s *InstrumentedSQLStorePGX) IncrementCreateTableCount(ctx context.Context, address string) error {
-	start := time.Now()
-	err := s.store.IncrementCreateTableCount(ctx, address)
-	latency := time.Since(start).Milliseconds()
-
-	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
-	attributes := []attribute.KeyValue{
-		{Key: "method", Value: attribute.StringValue("IncrementCreateTableCount")},
-		{Key: "address", Value: attribute.StringValue(address)},
-		{Key: "success", Value: attribute.BoolValue(err == nil)},
-		{Key: "chainID", Value: attribute.Int64Value(int64(s.chainID))},
-	}
-
-	s.callCount.Add(ctx, 1, attributes...)
-	s.latencyHistogram.Record(ctx, latency, attributes...)
-
-	return err
-}
-
-// IncrementRunSQLCount increments the counter.
-func (s *InstrumentedSQLStorePGX) IncrementRunSQLCount(ctx context.Context, address string) error {
-	start := time.Now()
-	err := s.store.IncrementRunSQLCount(ctx, address)
-	latency := time.Since(start).Milliseconds()
-
-	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
-	attributes := []attribute.KeyValue{
-		{Key: "method", Value: attribute.StringValue("IncrementRunSQLCount")},
-		{Key: "address", Value: attribute.StringValue(address)},
-		{Key: "success", Value: attribute.BoolValue(err == nil)},
-		{Key: "chainID", Value: attribute.Int64Value(int64(s.chainID))},
-	}
-
-	s.callCount.Add(ctx, 1, attributes...)
-	s.latencyHistogram.Record(ctx, latency, attributes...)
-
-	return err
-}
-
 // GetACLOnTableByController increments the counter.
 func (s *InstrumentedSQLStorePGX) GetACLOnTableByController(
 	ctx context.Context,

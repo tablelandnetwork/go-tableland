@@ -14,8 +14,6 @@ import (
 type SystemStore interface {
 	GetTable(context.Context, tableland.TableID) (Table, error)
 	GetTablesByController(context.Context, string) ([]Table, error)
-	IncrementCreateTableCount(context.Context, string) error
-	IncrementRunSQLCount(context.Context, string) error
 	GetACLOnTableByController(context.Context, tableland.TableID, string) (SystemACL, error)
 	ListPendingTx(context.Context, common.Address) ([]nonce.PendingTx, error)
 	InsertPendingTx(context.Context, common.Address, int64, common.Hash) error

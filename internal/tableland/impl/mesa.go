@@ -6,14 +6,11 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
-	logger "github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/cmd/api/middlewares"
 	"github.com/textileio/go-tableland/internal/chains"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
 )
-
-var log = logger.With().Str("component", "mesa").Logger()
 
 // TablelandMesa is the main implementation of Tableland spec.
 type TablelandMesa struct {
@@ -71,7 +68,7 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.RunSQLRequest)
 
 	// Read statement
 	if readStmt != nil {
-		queryResult, err := t.runSelect(ctx, chainID, controller, readStmt)
+		queryResult, err := t.runSelect(ctx, chainID, readStmt)
 		if err != nil {
 			return tableland.RunSQLResponse{}, fmt.Errorf("running read statement: %s", err)
 		}
@@ -87,7 +84,6 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.RunSQLRequest)
 
 	response := tableland.RunSQLResponse{}
 	response.Transaction.Hash = tx.Hash().String()
-	t.incrementRunSQLCount(ctx, chainID, controller)
 	return response, nil
 }
 
@@ -149,21 +145,20 @@ func (t *TablelandMesa) SetController(
 		return tableland.SetControllerResponse{}, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
 	}
 
-	tx, err := stack.Registry.SetController(ctx, common.HexToAddress(req.Caller), tableID, common.HexToAddress(req.Controller))
+	tx, err := stack.Registry.SetController(
+		ctx, common.HexToAddress(req.Caller), tableID, common.HexToAddress(req.Controller))
 	if err != nil {
 		return tableland.SetControllerResponse{}, fmt.Errorf("sending tx: %s", err)
 	}
 
 	response := tableland.SetControllerResponse{}
 	response.Transaction.Hash = tx.Hash().String()
-	t.incrementRunSQLCount(ctx, chainID, req.Controller)
 	return response, nil
 }
 
 func (t *TablelandMesa) runSelect(
 	ctx context.Context,
 	chainID tableland.ChainID,
-	ctrl string,
 	stmt parsing.SugaredReadStmt) (interface{}, error) {
 	stack, ok := t.chainStacks[chainID]
 	if !ok {
@@ -174,17 +169,5 @@ func (t *TablelandMesa) runSelect(
 		return nil, fmt.Errorf("executing read-query: %s", err)
 	}
 
-	t.incrementRunSQLCount(ctx, chainID, ctrl)
-
 	return queryResult, nil
-}
-
-func (t *TablelandMesa) incrementRunSQLCount(ctx context.Context, chainID tableland.ChainID, address string) {
-	stack, ok := t.chainStacks[chainID]
-	if !ok {
-		log.Error().Int64("chainID", int64(chainID)).Msg("chain idisn't supported in the validator")
-	}
-	if err := stack.Store.IncrementRunSQLCount(ctx, address); err != nil {
-		log.Error().Err(err).Msg("incrementing run sql count")
-	}
 }

@@ -93,29 +93,6 @@ func (s *SystemStore) GetTablesByController(ctx context.Context, controller stri
 	return tables, nil
 }
 
-// TOOD(jsign): remove this?
-// IncrementCreateTableCount increments the counter.
-func (s *SystemStore) IncrementCreateTableCount(ctx context.Context, address string) error {
-	if err := sanitizeAddress(address); err != nil {
-		return fmt.Errorf("sanitizing address: %s", err)
-	}
-	if err := s.db.queries().IncrementCreateTableCount(ctx, address); err != nil {
-		return fmt.Errorf("incrementing create table count: %s", err)
-	}
-	return nil
-}
-
-// IncrementRunSQLCount increments the counter.
-func (s *SystemStore) IncrementRunSQLCount(ctx context.Context, address string) error {
-	if err := sanitizeAddress(address); err != nil {
-		return fmt.Errorf("sanitizing address: %s", err)
-	}
-	if err := s.db.queries().IncrementRunSQLCount(ctx, address); err != nil {
-		return fmt.Errorf("incrementing run sql count: %s", err)
-	}
-	return nil
-}
-
 // GetACLOnTableByController returns the privileges on table stored in the database for a given controller.
 func (s *SystemStore) GetACLOnTableByController(
 	ctx context.Context,
