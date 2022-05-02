@@ -25,6 +25,7 @@ type recordData struct {
 	tableID    string
 	success    bool
 	latency    int64
+	chainID    tableland.ChainID
 }
 
 // NewInstrumentedTablelandMesa creates a new InstrumentedTablelandMesa.
@@ -48,7 +49,8 @@ func (t *InstrumentedTablelandMesa) ValidateCreateTable(ctx context.Context,
 	start := time.Now()
 	resp, err := t.tableland.ValidateCreateTable(ctx, req)
 	latency := time.Since(start).Milliseconds()
-	t.record(ctx, recordData{"ValidateCreateTable", "", "", err == nil, latency})
+	chainID, _ := ctx.Value(middlewares.ContextKeyChainID).(tableland.ChainID)
+	t.record(ctx, recordData{"ValidateCreateTable", "", "", err == nil, latency, chainID})
 	return resp, err
 }
 
@@ -60,7 +62,8 @@ func (t *InstrumentedTablelandMesa) RunSQL(ctx context.Context,
 	latency := time.Since(start).Milliseconds()
 
 	controller, _ := ctx.Value(middlewares.ContextKeyAddress).(string)
-	t.record(ctx, recordData{"RunSQL", controller, "", err == nil, latency})
+	chainID, _ := ctx.Value(middlewares.ContextKeyChainID).(tableland.ChainID)
+	t.record(ctx, recordData{"RunSQL", controller, "", err == nil, latency, chainID})
 	return resp, err
 }
 
@@ -72,7 +75,8 @@ func (t *InstrumentedTablelandMesa) GetReceipt(
 	resp, err := t.tableland.GetReceipt(ctx, req)
 	latency := time.Since(start).Milliseconds()
 
-	t.record(ctx, recordData{"GetReceipt", "", "", err == nil, latency})
+	chainID, _ := ctx.Value(middlewares.ContextKeyChainID).(tableland.ChainID)
+	t.record(ctx, recordData{"GetReceipt", "", "", err == nil, latency, chainID})
 	return resp, err
 }
 
@@ -83,7 +87,8 @@ func (t *InstrumentedTablelandMesa) SetController(ctx context.Context,
 	resp, err := t.tableland.SetController(ctx, req)
 	latency := time.Since(start).Milliseconds()
 
-	t.record(ctx, recordData{"SetController", req.Caller, "", err == nil, latency})
+	chainID, _ := ctx.Value(middlewares.ContextKeyChainID).(tableland.ChainID)
+	t.record(ctx, recordData{"SetController", req.Caller, "", err == nil, latency, chainID})
 	return resp, err
 }
 

@@ -282,7 +282,7 @@ func wireChainComponents(
 		eventfeed.WithMinBlockDepth(config.EventFeed.MinBlockDepth),
 		eventfeed.WithNewBlockTimeout(newBlockTimeout),
 	}
-	ef, err := efimpl.New(conn, scAddress, efOpts...)
+	ef, err := efimpl.New(config.ChainID, conn, scAddress, efOpts...)
 	if err != nil {
 		return nil, nil, fmt.Errorf("creating event feed: %s", err)
 	}
