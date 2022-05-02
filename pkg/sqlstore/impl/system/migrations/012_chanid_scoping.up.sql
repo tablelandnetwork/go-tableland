@@ -24,6 +24,6 @@ ALTER TABLE system_acl DROP CONSTRAINT system_acl_pkey;
 ALTER TABLE system_acl ADD PRIMARY KEY (chain_id, table_id, controller);
 ALTER TABLE system_acl ADD CONSTRAINT system_acl_chain_id_table_id_fkey FOREIGN KEY (chain_id, table_id) REFERENCES registry (chain_id, id);
 
--- TODO(jsign): same with system_txn_receipts
+ALTER TABLE system_txn_receipts ADD PRIMARY KEY (chain_id, txn_hash);
 
 COMMIT;

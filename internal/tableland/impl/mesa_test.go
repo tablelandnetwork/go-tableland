@@ -53,7 +53,9 @@ func TestTodoAppWorkflow(t *testing.T) {
 
 func TestInsertOnConflict(t *testing.T) {
 	t.Parallel()
-	t.SkipNow() // TODO(jsign)
+	// TODO: This test was passing because the "DO UPDATE SET" clause didn't have a table name.
+	//       It's disabled temporarily until some soon related work in the validator will fix this.
+	t.SkipNow()
 
 	ctx, tbld, backend, sc, auth := setup(t)
 	caller := common.HexToAddress("0xd43c59d5694ec111eb9e986c233200b14249558d")
