@@ -18,23 +18,20 @@ var log = logger.With().Str("component", "mesa").Logger()
 
 // TablelandMesa is the main implementation of Tableland spec.
 type TablelandMesa struct {
-	store    sqlstore.SQLStore
-	parser   parsing.SQLValidator
-	registry tableregistry.TableRegistry
-	chainID  int64
+	store           sqlstore.SQLStore
+	parser          parsing.SQLValidator
+	chainRegistries map[int64]tableregistry.TableRegistry
 }
 
 // NewTablelandMesa creates a new TablelandMesa.
 func NewTablelandMesa(
 	store sqlstore.SQLStore,
 	parser parsing.SQLValidator,
-	registry tableregistry.TableRegistry,
-	chainID int64) tableland.Tableland {
+	chainRegistries map[int64]tableregistry.TableRegistry) tableland.Tableland {
 	return &TablelandMesa{
-		store:    store,
-		parser:   parser,
-		registry: registry,
-		chainID:  chainID,
+		store:           store,
+		parser:          parser,
+		chainRegistries: chainRegistries,
 	}
 }
 
@@ -71,9 +68,19 @@ func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.RunSQLRequest)
 		return tableland.RunSQLResponse{Result: queryResult}, nil
 	}
 
+	ctxChainID := ctx.Value(middlewares.ContextKeyChainID)
+	chainID, ok := ctxChainID.(int64)
+	if !ok {
+		return tableland.RunSQLResponse{}, errors.New("no chain id found in context")
+	}
+	registry, ok := t.chainRegistries[chainID]
+	if !ok {
+		return tableland.RunSQLResponse{}, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
+	}
+
 	// Mutating statements
 	tableID := mutatingStmts[0].GetTableID()
-	tx, err := t.registry.RunSQL(ctx, common.HexToAddress(controller), tableID, req.Statement)
+	tx, err := registry.RunSQL(ctx, common.HexToAddress(controller), tableID, req.Statement)
 	if err != nil {
 		return tableland.RunSQLResponse{}, fmt.Errorf("sending tx: %s", err)
 	}
@@ -92,7 +99,12 @@ func (t *TablelandMesa) GetReceipt(
 		return tableland.GetReceiptResponse{}, fmt.Errorf("invalid txn hash: %s", err)
 	}
 
-	receipt, ok, err := t.store.GetReceipt(ctx, t.chainID, req.TxnHash)
+	ctxChainID := ctx.Value(middlewares.ContextKeyChainID)
+	chainID, ok := ctxChainID.(int64)
+	if !ok {
+		return tableland.GetReceiptResponse{}, errors.New("no chain id found in context")
+	}
+	receipt, ok, err := t.store.GetReceipt(ctx, chainID, req.TxnHash)
 	if err != nil {
 		return tableland.GetReceiptResponse{}, fmt.Errorf("get txn receipt: %s", err)
 	}
@@ -120,7 +132,17 @@ func (t *TablelandMesa) SetController(
 		return tableland.SetControllerResponse{}, fmt.Errorf("parsing table id: %s", err)
 	}
 
-	tx, err := t.registry.SetController(ctx, common.HexToAddress(req.Caller), tableID, common.HexToAddress(req.Controller))
+	ctxChainID := ctx.Value(middlewares.ContextKeyChainID)
+	chainID, ok := ctxChainID.(int64)
+	if !ok {
+		return tableland.SetControllerResponse{}, errors.New("no chain id found in context")
+	}
+	registry, ok := t.chainRegistries[chainID]
+	if !ok {
+		return tableland.SetControllerResponse{}, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
+	}
+
+	tx, err := registry.SetController(ctx, common.HexToAddress(req.Caller), tableID, common.HexToAddress(req.Controller))
 	if err != nil {
 		return tableland.SetControllerResponse{}, fmt.Errorf("sending tx: %s", err)
 	}
