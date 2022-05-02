@@ -34,10 +34,7 @@ type config struct {
 		Name string `default:"dev_database"`
 	}
 	TableConstraints TableConstraints
-	Throttling       struct {
-		ReadQueryDelay string `default:"0ms"`
-	}
-	Metrics struct {
+	Metrics          struct {
 		Port string `default:"9090"`
 	}
 	Log struct {
