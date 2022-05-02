@@ -112,7 +112,6 @@ func (ef *EventFeed) Start(
 			if ctx.Err() != nil {
 				break
 			}
-
 			// Recall that we only accept as "final" blocks the one that are at least
 			// minChainDepth behind the new known head. This is done to avoid reorgs
 			// sideffects.
@@ -251,7 +250,9 @@ func (ef *EventFeed) getTopicsForEventTypes(ets []eventfeed.EventType) ([]common
 // When this happens the provided channel will be closed.
 func (ef *EventFeed) notifyNewBlocks(ctx context.Context, clientCh chan *types.Header) error {
 	// Always push as fast as possible the latest block.
-	h, err := ef.ethClient.HeaderByNumber(ctx, nil)
+	hbnCtx, hbnCls := context.WithTimeout(ctx, time.Second*10)
+	defer hbnCls()
+	h, err := ef.ethClient.HeaderByNumber(hbnCtx, nil)
 	if err != nil {
 		return fmt.Errorf("get current block: %s", err)
 	}
