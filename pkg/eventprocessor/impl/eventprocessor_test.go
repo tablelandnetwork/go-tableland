@@ -185,7 +185,7 @@ func setup(t *testing.T) (contractRunSQLBlockSender, checkReceipts, dbReader) {
 	ef, err := efimpl.New(1337, backend, addr, eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
 	url := tests.PostgresURL(t)
-	txnp, err := txnpimpl.NewTxnProcessor(url, 0, &aclMock{})
+	txnp, err := txnpimpl.NewTxnProcessor(1337, url, 0, &aclMock{})
 	require.NoError(t, err)
 	parser := parserimpl.New([]string{"system_", "registry"}, 0, 0)
 
