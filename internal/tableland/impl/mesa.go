@@ -111,16 +111,22 @@ func (t *TablelandMesa) GetReceipt(
 	if !ok {
 		return tableland.GetReceiptResponse{Ok: false}, nil
 	}
-	return tableland.GetReceiptResponse{
+
+	ret := tableland.GetReceiptResponse{
 		Ok: ok,
 		Receipt: &tableland.TxnReceipt{
 			ChainID:     receipt.ChainID,
 			TxnHash:     receipt.TxnHash,
 			BlockNumber: receipt.BlockNumber,
 			Error:       receipt.Error,
-			TableID:     receipt.TableID,
 		},
-	}, nil
+	}
+	if receipt.TableID != nil {
+		tID := receipt.TableID.String()
+		ret.Receipt.TableID = &tID
+	}
+
+	return ret, nil
 }
 
 // SetController allows users to the controller for a token id.

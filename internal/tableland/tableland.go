@@ -26,11 +26,11 @@ type GetReceiptRequest struct {
 
 // TxnReceipt is a Tableland event processing receipt.
 type TxnReceipt struct {
-	ChainID     ChainID  `json:"chain_id"`
-	TxnHash     string   `json:"txn_hash"`
-	BlockNumber int64    `json:"block_number"`
-	Error       *string  `json:"error,omitempty"`
-	TableID     *TableID `json:"table_id,omitempty"`
+	ChainID     ChainID `json:"chain_id"`
+	TxnHash     string  `json:"txn_hash"`
+	BlockNumber int64   `json:"block_number"`
+	Error       *string `json:"error,omitempty"`
+	TableID     *string `json:"table_id,omitempty"`
 }
 
 // GetReceiptResponse is a GetTxnReceipt response.
