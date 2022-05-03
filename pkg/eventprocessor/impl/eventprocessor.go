@@ -448,6 +448,10 @@ func (p *policy) WhereClause() string {
 	return p.TablelandControllerLibraryPolicy.WhereClause
 }
 
-func (p *policy) UpdateColumns() []string {
+func (p *policy) UpdatableColumns() []string {
 	return p.TablelandControllerLibraryPolicy.UpdatableColumns
+}
+
+func (p *policy) WithCheck() string {
+	return p.TablelandControllerLibraryPolicy.WithCheck
 }
