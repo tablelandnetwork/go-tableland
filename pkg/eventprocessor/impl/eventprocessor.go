@@ -335,6 +335,7 @@ func (ep *EventProcessor) executeCreateTableEvent(
 		}
 		return eventprocessor.Receipt{}, fmt.Errorf("executing table creation: %s", err)
 	}
+	receipt.TableID = &tableID
 
 	return receipt, nil
 }
