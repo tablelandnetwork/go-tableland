@@ -169,20 +169,26 @@ func (b *batch) ExecWriteQueries(
 
 		dbName, beforeRowCount, err := GetTableNameAndRowCountByTableID(ctx, tx, b.tp.chainID, mqueries[0].GetTableID())
 		if err != nil {
-			return fmt.Errorf("table name lookup for table id: %s", err)
+			return &txn.ErrQueryExecution{
+				Code: "TABLE_LOOKUP",
+				Msg:  fmt.Sprintf("table name lookup for table id: %s", err),
+			}
 		}
 
 		for _, mq := range mqueries {
 			mqName := mq.GetNamePrefix()
 			if mqName != "" && dbName != mqName {
-				return fmt.Errorf("table name prefix doesn't match (exp %s, got %s)", dbName, mqName)
+				return &txn.ErrQueryExecution{
+					Code: "TABLE_PREFIX",
+					Msg:  fmt.Sprintf("table name prefix doesn't match (exp %s, got %s)", dbName, mqName),
+				}
 			}
 
 			switch stmt := mq.(type) {
 			case parsing.SugaredGrantStmt:
 				err := b.executeGrantStmt(ctx, tx, stmt, isOwner)
 				if err != nil {
-					return fmt.Errorf("executing grant stmt: %s", err)
+					return fmt.Errorf("executing grant stmt: %w", err)
 				}
 			case parsing.SugaredWriteStmt:
 				if err := b.executeWriteStmt(ctx, tx, stmt, controller, policy, beforeRowCount); err != nil {
@@ -220,6 +226,13 @@ func isErrCausedByQuery(err error) (string, bool) {
 		"23502", // not_null_violation
 		"23505", // unique_violation
 		"23514", // check_violation
+
+		// Class 0L - Invalid Grantor
+		"0L000", //	invalid_grantor
+		"0LP01", //	invalid_grant_operation
+
+		// Class 0P — Invalid Role Specification
+		"0P000", //	invalid_role_specification
 	}
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
@@ -357,11 +370,17 @@ func (b *batch) executeGrantStmt(
 
 	dbID := pgtype.Numeric{}
 	if err := dbID.Set(tableID.String()); err != nil {
-		return fmt.Errorf("parsing table id to numeric: %s", err)
+		return &txn.ErrQueryExecution{
+			Code: "ACL_TABLE_ID",
+			Msg:  fmt.Sprintf("parsing table id to numeric: %s", err),
+		}
 	}
 
 	if !isOwner {
-		return fmt.Errorf("non owner cannot execute grant stmt")
+		return &txn.ErrQueryExecution{
+			Code: "ACL_NOT_OWNER",
+			Msg:  "non owner cannot execute grant stmt",
+		}
 	}
 
 	for _, role := range gs.GetRoles() {
@@ -383,6 +402,12 @@ func (b *batch) executeGrantStmt(
 				role.Hex(),
 				gs.GetPrivileges(),
 			); err != nil {
+				if code, ok := isErrCausedByQuery(err); ok {
+					return &txn.ErrQueryExecution{
+						Code: "POSTGRES_" + code,
+						Msg:  err.Error(),
+					}
+				}
 				return fmt.Errorf("creating/updating acl entry on system acl: %s", err)
 			}
 		case tableland.OpRevoke:
@@ -397,11 +422,20 @@ func (b *batch) executeGrantStmt(
 					role.Hex(),
 					privAbbr,
 				); err != nil {
+					if code, ok := isErrCausedByQuery(err); ok {
+						return &txn.ErrQueryExecution{
+							Code: "POSTGRES_" + code,
+							Msg:  err.Error(),
+						}
+					}
 					return fmt.Errorf("removing acl entry from system acl: %s", err)
 				}
 			}
 		default:
-			return fmt.Errorf("unknown grant stmt operation=%s", gs.Operation().String())
+			return &txn.ErrQueryExecution{
+				Code: "ACL_UNKNOWN_OPERATION",
+				Msg:  fmt.Sprintf("unknown grant stmt operation=%s", gs.Operation().String()),
+			}
 		}
 	}
 
