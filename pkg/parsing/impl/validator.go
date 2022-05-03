@@ -320,6 +320,45 @@ func (ws *sugaredWriteStmt) AddWhereClause(whereClauses string) error {
 	return nil
 }
 
+func (ws *sugaredWriteStmt) AddReturningClause() error {
+	// this does not apply to delete
+	if ws.Operation() == tableland.OpDelete {
+		return parsing.ErrCantAddReturningOnDELETE
+	}
+
+	ctidString := &pg_query.Node_String_{
+		String_: &pg_query.String{Str: "ctid"},
+	}
+
+	columnRef := &pg_query.Node{Node: &pg_query.Node_ColumnRef{
+		ColumnRef: &pg_query.ColumnRef{
+			Fields: []*pg_query.Node{{Node: ctidString}},
+		},
+	}}
+
+	resTarget := &pg_query.Node_ResTarget{
+		ResTarget: &pg_query.ResTarget{
+			Val: columnRef,
+		},
+	}
+
+	returningLists := []*pg_query.Node{{Node: resTarget}}
+
+	if ws.Operation() == tableland.OpUpdate {
+		updateStmt := ws.node.GetUpdateStmt()
+		updateStmt.ReturningList = returningLists
+		return nil
+	}
+
+	if ws.Operation() == tableland.OpInsert {
+		insertStmt := ws.node.GetInsertStmt()
+		insertStmt.ReturningList = returningLists
+		return nil
+	}
+
+	return nil
+}
+
 func (ws *sugaredWriteStmt) CheckColumns(allowedColumns []string) error {
 	if ws.Operation() != tableland.OpUpdate {
 		return parsing.ErrCanOnlyCheckColumnsOnUPDATE
