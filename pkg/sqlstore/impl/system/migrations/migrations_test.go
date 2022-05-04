@@ -12,7 +12,7 @@ import (
 )
 
 func TestMultichainMigration(t *testing.T) {
-	url := tests.PostgresURLWithImage(t, "tableland/postgres", "20220502_155944")
+	url := tests.PostgresURLWithImage(t, "tableland/postgres", "20220502_155944", "tableland")
 	ctx := context.Background()
 	pool, err := pgxpool.Connect(ctx, url)
 	require.NoError(t, err)

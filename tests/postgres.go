@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v4"
@@ -20,22 +21,22 @@ var (
 
 // PostgresURLWithImage gets a Postgres database URL for test such as
 // PostgresURL(), but with a custom docker image name and tag.
-func PostgresURLWithImage(t *testing.T, image string, tag string) string {
+func PostgresURLWithImage(t *testing.T, image string, tag string, dbName string) string {
 	ctx := context.Background()
 	pgURL := initURL(t, image, tag)
+
+	if dbName != "" {
+		pgURLSplitted := strings.Split(pgURL, "?")
+		pgURL = fmt.Sprintf("%s/%s?%s", pgURLSplitted[0], dbName, pgURLSplitted[1])
+	}
+
+	u, err := url.Parse(pgURL)
+	require.NoError(t, err, "parsing postgres url")
 
 	// use pgxpool to allow concurrent access.
 	conn, err := pgxpool.Connect(ctx, pgURL)
 	require.NoError(t, err, "connecting to postgres")
 	defer conn.Close()
-
-	_, err = conn.Exec(ctx, "CREATE DATABASE tableland;")
-	if err != nil {
-		require.Contains(t, err.Error(), `database "tableland" already exists`)
-	}
-
-	u, err := url.Parse(pgURL)
-	require.NoError(t, err, "parsing postgres url")
 
 	return u.String()
 }
@@ -45,7 +46,7 @@ func PostgresURLWithImage(t *testing.T, image string, tag string) string {
 // the server specified by PG_URL envvar if present, or starts a new Postgres
 // docker container which stops automatically after 10 minutes.
 func PostgresURL(t *testing.T) string {
-	return PostgresURLWithImage(t, "postgres", "14.1")
+	return PostgresURLWithImage(t, "postgres", "14.1", "")
 }
 
 func initURL(t *testing.T, image string, tag string) string {
@@ -63,11 +64,12 @@ func initURL(t *testing.T, image string, tag string) string {
 	if err = container.Expire(600); err != nil {
 		log.Warnf("failed to expire postgres docker container, continuing: %w", err)
 	}
-	pgURL = fmt.Sprintf("postgres://admin:admin@localhost:%s/tableland?sslmode=disable&timezone=UTC", container.GetPort("5432/tcp"))
+	pgURL = fmt.Sprintf("postgres://admin:admin@localhost:%s?sslmode=disable&timezone=UTC", container.GetPort("5432/tcp"))
 	err = pool.Retry(func() error {
 		ctx := context.Background()
 		conn, err := pgx.Connect(ctx, pgURL)
 		if err != nil {
+			fmt.Printf("HHHH: %s\n", err)
 			log.Warnf("postgres container is not up yet: %w", err)
 			return fmt.Errorf("connecting to the database: %s", err)
 		}
