@@ -233,6 +233,9 @@ func isErrCausedByQuery(err error) (string, bool) {
 
 		// Class 0P — Invalid Role Specification
 		"0P000", //	invalid_role_specification
+
+		// Class 42 - Syntax Error or Access Rule Violation
+		"42703", // undefined_column
 	}
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
