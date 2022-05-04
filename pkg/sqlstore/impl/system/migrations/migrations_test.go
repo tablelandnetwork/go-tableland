@@ -12,7 +12,9 @@ import (
 )
 
 func TestMultichainMigration(t *testing.T) {
-	url := tests.PostgresURLWithImage(t, "tableland/postgres", "20220502_155944", "tableland")
+	t.Parallel()
+
+	url := tests.PostgresURLWithImage(t, "textile/tableland-postgres", "20220504_110247", "tableland")
 	ctx := context.Background()
 	pool, err := pgxpool.Connect(ctx, url)
 	require.NoError(t, err)
@@ -29,7 +31,7 @@ func TestMultichainMigration(t *testing.T) {
 	// 1. Check that we have tables with the old (non-chainID scoped) format.
 	queryOldFormat := `SELECT count(*) FROM information_schema.tables WHERE table_name ~ '^_[0-9]+$'` // AND table_type='BASE TABLE'`
 	oldNamesCountBeforeMigration := execQueryCount(queryOldFormat)
-	require.Equal(t, 513, oldNamesCountBeforeMigration)
+	require.Equal(t, 518, oldNamesCountBeforeMigration)
 
 	// 2. Boostrap system store to run the db migrations.
 	_, err = system.New(pool, tableland.ChainID(1337))
