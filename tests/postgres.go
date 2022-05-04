@@ -69,7 +69,6 @@ func initURL(t *testing.T, image string, tag string) string {
 		ctx := context.Background()
 		conn, err := pgx.Connect(ctx, pgURL)
 		if err != nil {
-			fmt.Printf("HHHH: %s\n", err)
 			log.Warnf("postgres container is not up yet: %w", err)
 			return fmt.Errorf("connecting to the database: %s", err)
 		}

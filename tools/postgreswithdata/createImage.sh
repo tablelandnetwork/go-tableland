@@ -15,11 +15,11 @@ docker run -d --name tablelandbuildimage -e POSTGRES_USER=admin -e POSTGRES_PASS
 gcloud compute ssh \
 --zone $1 $2  \
 --project $3 \
---command="sudo su postgres -c 'pg_dumpall --clean --if-exists'" > ../../dump.sql
+--command="sudo su postgres -c 'pg_dumpall --clean --if-exists'" > dump.sql
 
 until docker exec tablelandbuildimage pg_isready -U admin; do sleep 3; done
-docker exec -i tablelandbuildimage psql -U admin < ../../dump.sql
-rm ../../dump.sql
+docker exec -i tablelandbuildimage psql -U admin < dump.sql
+rm dump.sql
 
 docker container commit tablelandbuildimage textile/tableland-postgres:$DOCKER_TAG
 docker stop tablelandbuildimage
