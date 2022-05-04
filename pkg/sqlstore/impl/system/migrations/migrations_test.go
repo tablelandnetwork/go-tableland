@@ -12,8 +12,6 @@ import (
 )
 
 func TestMultichainMigration(t *testing.T) {
-	t.Parallel()
-
 	url := tests.PostgresURLWithImage(t, "textile/tableland-postgres", "20220504_110247", "tableland")
 	ctx := context.Background()
 	pool, err := pgxpool.Connect(ctx, url)
@@ -29,7 +27,8 @@ func TestMultichainMigration(t *testing.T) {
 	}
 
 	// 1. Check that we have tables with the old (non-chainID scoped) format.
-	queryOldFormat := `SELECT count(*) FROM information_schema.tables WHERE table_name ~ '^_[0-9]+$'` // AND table_type='BASE TABLE'`
+	queryOldFormat :=
+		`SELECT count(*) FROM information_schema.tables WHERE table_name ~ '^_[0-9]+$' AND table_type='BASE TABLE'`
 	oldNamesCountBeforeMigration := execQueryCount(queryOldFormat)
 	require.Equal(t, 518, oldNamesCountBeforeMigration)
 
@@ -43,7 +42,8 @@ func TestMultichainMigration(t *testing.T) {
 	oldNamesCountAfterMigration := execQueryCount(queryOldFormat)
 	require.Equal(t, 0, oldNamesCountAfterMigration)
 
-	queryNewFormat := `SELECT count(*) FROM information_schema.tables WHERE table_name ~ '^_4_[0-9]+$' and table_type='BASE TABLE'`
+	queryNewFormat :=
+		`SELECT count(*) FROM information_schema.tables WHERE table_name ~ '^_4_[0-9]+$' and table_type='BASE TABLE'`
 	newNamesCountAfterMigration := execQueryCount(queryNewFormat)
 	require.Equal(t, oldNamesCountBeforeMigration, newNamesCountAfterMigration)
 }
