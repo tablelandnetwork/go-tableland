@@ -10,11 +10,11 @@ import (
 
 func TestProduction(t *testing.T) {
 	t.SkipNow()
-	jwt := "fillme"
+	siwe := "fillme"
 	endpoint := "https://testnet.tableland.network/rpc"
 	tblname := "Runbook_24"
 
-	cp, err := New(time.Second, endpoint, jwt, tblname)
+	cp, err := New(endpoint, siwe, tblname, time.Second, time.Second*10)
 	require.NoError(t, err)
 
 	value, err := cp.healthCheck(context.Background())

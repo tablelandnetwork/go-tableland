@@ -25,13 +25,16 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
 	defer cancel()
 
-	// Check interval format.
 	checkInterval, err := time.ParseDuration(cfg.Probe.CheckInterval)
 	if err != nil {
 		log.Fatal().Err(err).Msgf("check interval has invalid format: %s", cfg.Probe.CheckInterval)
 	}
+	receiptTimeout, err := time.ParseDuration(cfg.Probe.ReceiptTimeout)
+	if err != nil {
+		log.Fatal().Err(err).Msgf("receipt timeout has invalid format: %s", cfg.Probe.ReceiptTimeout)
+	}
 
-	cp, err := counterprobe.New(checkInterval, cfg.Probe.Target, cfg.Probe.JWT, cfg.Probe.Tablename)
+	cp, err := counterprobe.New(cfg.Probe.Target, cfg.Probe.SIWE, cfg.Probe.Tablename, checkInterval, receiptTimeout)
 	if err != nil {
 		log.Fatal().Err(err).Msg("initializing counter-probe")
 	}

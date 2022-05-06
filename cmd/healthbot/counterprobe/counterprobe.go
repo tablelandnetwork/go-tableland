@@ -24,10 +24,11 @@ const (
 // CounterProbe allows running an e2e probe for a pre-minted table
 // that has a counter column.
 type CounterProbe struct {
-	chckInterval time.Duration
-	rpcClient    *rpc.Client
-	ctrl         string
-	tblname      string
+	checkInterval  time.Duration
+	receiptTimeout time.Duration
+	tableName      string
+
+	rpcClient *rpc.Client
 
 	lock                sync.RWMutex
 	lastCounterValue    int64
@@ -38,8 +39,15 @@ type CounterProbe struct {
 }
 
 // New returns a *CounterProbe.
-func New(chckInterval time.Duration, endpoint, jwt, tblname string) (*CounterProbe, error) {
-	if len(tblname) == 0 {
+func New(endpoint string,
+	siwe string,
+	tableName string,
+	checkInterval time.Duration,
+	receiptTimeout time.Duration) (*CounterProbe, error) {
+	if receiptTimeout == 0 {
+		return nil, fmt.Errorf("receipt timeout can't be zero")
+	}
+	if len(tableName) == 0 {
 		return nil, errors.New("tablename is empty")
 	}
 	if _, err := url.ParseQuery(endpoint); err != nil {
@@ -49,7 +57,7 @@ func New(chckInterval time.Duration, endpoint, jwt, tblname string) (*CounterPro
 	if err != nil {
 		return nil, fmt.Errorf("creating jsonrpc client: %s", err)
 	}
-	rpcClient.SetHeader("Authorization", "Bearer "+jwt)
+	rpcClient.SetHeader("Authorization", "Bearer "+siwe)
 
 	meter := global.MeterProvider().Meter("tableland")
 	latencyHistogram, err := meter.SyncInt64().Histogram(metricPrefix + ".latency")
@@ -58,10 +66,10 @@ func New(chckInterval time.Duration, endpoint, jwt, tblname string) (*CounterPro
 	}
 
 	cp := &CounterProbe{
-		chckInterval: chckInterval,
-		rpcClient:    rpcClient,
-		ctrl:         "",
-		tblname:      tblname,
+		checkInterval:  checkInterval,
+		rpcClient:      rpcClient,
+		tableName:      tableName,
+		receiptTimeout: receiptTimeout,
 
 		latencyHist: latencyHistogram,
 	}
@@ -104,7 +112,7 @@ func (cp *CounterProbe) Run(ctx context.Context) {
 		case <-ctx.Done():
 			log.Info().Msg("closing gracefully...")
 			return
-		case <-time.After(cp.chckInterval):
+		case <-time.After(cp.checkInterval):
 			if err := cp.execProbe(ctx); err != nil {
 				log.Error().Err(err).Msg("health check failed")
 			}
@@ -149,19 +157,38 @@ func (cp *CounterProbe) healthCheck(ctx context.Context) (int64, error) {
 
 func (cp *CounterProbe) increaseCounterValue(ctx context.Context) error {
 	updateCounterReq := tableland.RunSQLRequest{
-		Statement: fmt.Sprintf("update %s set count=count+1", cp.tblname),
+		Statement: fmt.Sprintf("update %s set count=count+1", cp.tableName),
 	}
 	var updateCounterRes tableland.RunSQLResponse
 	if err := cp.rpcClient.CallContext(ctx, &updateCounterRes, "tableland_runSQL", updateCounterReq); err != nil {
 		return fmt.Errorf("calling tableland_runSQL: %s", err)
 	}
 
-	return nil
+	getReceiptRequest := tableland.GetReceiptRequest{
+		TxnHash: updateCounterRes.Transaction.Hash,
+	}
+
+	deadline := time.Now().Add(cp.receiptTimeout)
+	for time.Now().Before(deadline) {
+		var getReceiptResponse tableland.GetReceiptResponse
+		if err := cp.rpcClient.CallContext(ctx, &getReceiptResponse, "tableland_getReceipt", getReceiptRequest); err != nil {
+			return fmt.Errorf("calling tableland_getReceipt: %s", err)
+		}
+		if getReceiptResponse.Ok {
+			if getReceiptResponse.Receipt.Error != nil {
+				return fmt.Errorf("receipt found but has an error %s", *getReceiptResponse.Receipt.Error)
+			}
+			return nil
+		}
+		time.Sleep(time.Second * 5)
+	}
+
+	return fmt.Errorf("timed out waiting for receipt %s", getReceiptRequest.TxnHash)
 }
 
 func (cp *CounterProbe) getCurrentCounterValue(ctx context.Context) (int64, error) {
 	getCounterReq := tableland.RunSQLRequest{
-		Statement: fmt.Sprintf("select * from %s", cp.tblname),
+		Statement: fmt.Sprintf("select * from %s", cp.tableName),
 	}
 
 	type data struct {
