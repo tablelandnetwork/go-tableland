@@ -64,21 +64,16 @@ spec:
                 secretKeyRef:
                   name: tableland-secret
                   key: postgres-user
-            - name: ADMINAPI_USERNAME
+            - name: ALCHEMY_KOVAN_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: tableland-secret
-                  key: adminapi-username
-            - name: ADMINAPI_PASSWORD
+                  key: alchemy-kovan-api-key
+            - name: KOVAN_SIGNER_PRIVATE_KEY
               valueFrom:
                 secretKeyRef:
                   name: tableland-secret
-                  key: adminapi-password
-            - name: REGISTRY_ETHENDPOINT
-              valueFrom:
-                secretKeyRef:
-                  name: tableland-secret
-                  key: eth-endpoint
+                  key: kovan-signer-private-key
           envFrom:
             - configMapRef:
                 name: configmap-api
@@ -100,3 +95,10 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 20
             failureThreshold: 3
+      volumes:
+        - name: validator-config
+          configMap:
+            name: configmap-validator-config
+            items:
+              - key: config-staging.json
+                path: config.json

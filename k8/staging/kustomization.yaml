@@ -12,7 +12,9 @@ configMapGenerator:
 - envs:
   - configHealthbot.env
   name: configmap-healthbot
-
+- files:
+  - config-staging.json
+  name: configmap-validator-config
 
 patchesStrategicMerge:
 - ingress-nginx-patch.yaml
