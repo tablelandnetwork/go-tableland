@@ -499,7 +499,7 @@ func TestSetController(t *testing.T) {
 			AccessMode: pgx.ReadWrite,
 		})
 		require.NoError(t, err)
-		ok, err := IsControllerSet(ctx, tx, tableland.ChainID(chainID), tableID)
+		ok, err := isControllerSet(ctx, tx, tableland.ChainID(chainID), tableID)
 		require.NoError(t, err)
 		require.False(t, ok)
 		require.NoError(t, tx.Commit(ctx))
@@ -540,7 +540,7 @@ func TestSetController(t *testing.T) {
 			AccessMode: pgx.ReadWrite,
 		})
 		require.NoError(t, err)
-		ok, err := IsControllerSet(ctx, tx, tableland.ChainID(chainID), tableID)
+		ok, err := isControllerSet(ctx, tx, tableland.ChainID(chainID), tableID)
 		require.NoError(t, err)
 		require.True(t, ok)
 		require.NoError(t, tx.Commit(ctx))
@@ -558,7 +558,7 @@ func TestSetController(t *testing.T) {
 			AccessMode: pgx.ReadWrite,
 		})
 		require.NoError(t, err)
-		ok, err = IsControllerSet(ctx, tx, tableland.ChainID(chainID), tableID)
+		ok, err = isControllerSet(ctx, tx, tableland.ChainID(chainID), tableID)
 		require.NoError(t, err)
 		require.False(t, ok)
 		require.NoError(t, tx.Commit(ctx))
