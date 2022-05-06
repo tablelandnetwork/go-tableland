@@ -39,6 +39,14 @@ func main() {
 	config := setupConfig()
 	logging.SetupLogger(buildinfo.GitCommit, config.Log.Debug, config.Log.Human)
 
+	// Validator instrumentation configuration.
+	if err := metrics.SetupInstrumentation(":" + config.Metrics.Port); err != nil {
+		log.Fatal().
+			Err(err).
+			Str("port", config.Metrics.Port).
+			Msg("could not setup instrumentation")
+	}
+
 	server := rpc.NewServer()
 
 	databaseURL := fmt.Sprintf(
@@ -112,14 +120,6 @@ func main() {
 	if config.AdminAPI.Password == "" {
 		log.Warn().
 			Msg("no admin api password set")
-	}
-
-	// Validator instrumentation configuration.
-	if err := metrics.SetupInstrumentation(":" + config.Metrics.Port); err != nil {
-		log.Fatal().
-			Err(err).
-			Str("port", config.Metrics.Port).
-			Msg("could not setup instrumentation")
 	}
 
 	go func() {
