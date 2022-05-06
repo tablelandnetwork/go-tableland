@@ -237,7 +237,6 @@ func (ep *EventProcessor) runBlockQueries(ctx context.Context, bqs eventfeed.Blo
 			// Some acceptable failure happened (e.g: invalid syntax, inserting
 			// a string in an integer column, etc). Just log it, and move on.
 			ep.log.Info().Str("failCause", *receipt.Error).Msg("event execution failed")
-			attrs = append(attrs, attribute.String("failCause", *receipt.Error))
 		}
 
 		ep.mEventExecutionCounter.Add(ctx, 1, attrs...)
