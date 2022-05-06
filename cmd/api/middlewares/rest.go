@@ -11,6 +11,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/errors"
 )
 
+// RESTChainID adds to the request context the {chainID} that must be present in the REST path.
 func RESTChainID(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
@@ -20,7 +21,6 @@ func RESTChainID(next http.Handler) http.Handler {
 			w.WriteHeader(http.StatusBadRequest)
 			_ = json.NewEncoder(w).Encode(errors.ServiceError{Message: "no chain id in path"})
 			return
-
 		}
 		r = r.WithContext(context.WithValue(r.Context(), ContextKeyChainID, tableland.ChainID(chainID)))
 
