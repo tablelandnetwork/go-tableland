@@ -32,8 +32,13 @@
 						"type": "string"
 					},
 					{
+						"internalType": "string",
+						"name": "whereCheck",
+						"type": "string"
+					},
+					{
 						"internalType": "string[]",
-						"name": "updateColumns",
+						"name": "updatableColumns",
 						"type": "string[]"
 					}
 				],

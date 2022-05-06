@@ -47,7 +47,10 @@ type Batch interface {
 		query []parsing.SugaredMutatingStmt,
 		isOwner bool,
 		policy tableland.Policy) error
-
+	SetController(
+		ctx context.Context,
+		id tableland.TableID,
+		controller common.Address) error
 	GetLastProcessedHeight(ctx context.Context) (int64, error)
 	SetLastProcessedHeight(ctx context.Context, height int64) error
 	SaveTxnReceipts(ctx context.Context, rs []eventprocessor.Receipt) error

@@ -45,6 +45,8 @@ const (
 	RunSQL EventType = "RunSQL"
 	// CreateTable is a CreateTable event fired by the SC.
 	CreateTable = "CreateTable"
+	// SetController is a SetController event fired by the SC.
+	SetController = "SetController"
 )
 
 var (
@@ -57,8 +59,9 @@ var (
 	// IMPORTANT: we should *always* have a mapping for all EventType
 	// values.
 	SupportedEvents = map[EventType]reflect.Type{
-		RunSQL:      reflect.TypeOf(tbleth.ContractRunSQL{}),
-		CreateTable: reflect.TypeOf(tbleth.ContractCreateTable{}),
+		RunSQL:        reflect.TypeOf(tbleth.ContractRunSQL{}),
+		CreateTable:   reflect.TypeOf(tbleth.ContractCreateTable{}),
+		SetController: reflect.TypeOf(tbleth.ContractSetController{}),
 	}
 )
 
