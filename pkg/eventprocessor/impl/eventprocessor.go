@@ -150,7 +150,7 @@ func (ep *EventProcessor) startDaemon() error {
 	ch := make(chan eventfeed.BlockEvents)
 	go func() {
 		defer close(ch)
-		if err := ep.ef.Start(ep.daemonCtx, fromHeight, ch, eventTypes); err != nil {
+		if err := ep.ef.Start(ep.daemonCtx, fromHeight+1, ch, eventTypes); err != nil {
 			ep.log.Error().Err(err).Msg("query feed was closed unexpectedly")
 			ep.Stop() // We cleanup daemon ctx and allow the processor to StartSync() cleanly if needed.
 			return
