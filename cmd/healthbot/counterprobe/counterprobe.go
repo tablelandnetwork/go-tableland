@@ -157,7 +157,7 @@ func (cp *CounterProbe) healthCheck(ctx context.Context) (int64, error) {
 
 func (cp *CounterProbe) increaseCounterValue(ctx context.Context) error {
 	updateCounterReq := tableland.RunSQLRequest{
-		Statement: fmt.Sprintf("update %s set count=count+1", cp.tableName),
+		Statement: fmt.Sprintf("update %s set counter=counter+1", cp.tableName),
 	}
 	var updateCounterRes tableland.RunSQLResponse
 	if err := cp.rpcClient.CallContext(ctx, &updateCounterRes, "tableland_runSQL", updateCounterReq); err != nil {
