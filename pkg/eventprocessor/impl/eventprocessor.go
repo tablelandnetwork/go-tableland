@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"sync"
 	"time"
 
@@ -231,7 +232,7 @@ func (ep *EventProcessor) runBlockQueries(ctx context.Context, bqs eventfeed.Blo
 		}
 		receipts[i] = receipt
 		attrs := append([]attribute.KeyValue{
-			attribute.String("eventtype", fmt.Sprintf("%T", e)),
+			attribute.String("eventtype", reflect.TypeOf(e).String()),
 		}, ep.mBaseLabels...)
 		if receipt.Error != nil {
 			// Some acceptable failure happened (e.g: invalid syntax, inserting
