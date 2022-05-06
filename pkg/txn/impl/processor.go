@@ -415,8 +415,8 @@ func GetTableNameAndRowCountByTableID(
 	return dbName, rowCount, nil
 }
 
-// IsControllerSet checks if controller is set for a given table.
-func IsControllerSet(
+// isControllerSet checks if controller is set for a given table.
+func isControllerSet(
 	ctx context.Context,
 	tx pgx.Tx,
 	chainID tableland.ChainID,
@@ -531,7 +531,7 @@ func (b *batch) executeWriteStmt(
 	controller common.Address,
 	policy tableland.Policy,
 	beforeRowCount int) error {
-	isControllerSet, err := IsControllerSet(ctx, tx, b.tp.chainID, ws.GetTableID())
+	isControllerSet, err := isControllerSet(ctx, tx, b.tp.chainID, ws.GetTableID())
 	if err != nil {
 		return fmt.Errorf("checking controller is set: %w", err)
 	}
