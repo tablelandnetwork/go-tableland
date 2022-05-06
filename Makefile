@@ -47,9 +47,9 @@ build-healthbot:
 	go build -ldflags="${GOVVV_FLAGS}" ./cmd/healthbot
 .PHONY: build-healthbot
 
-build-api-dev:
+build-api-debug:
 	go build -ldflags="${GOVVV_FLAGS}" -gcflags="all=-N -l" ./cmd/api
-.PHONY: build-api-dev
+.PHONY: build-api-debug
 
 image:
 	docker build --platform linux/amd64 -t tableland/api:sha-$(HEAD_SHORT) -t tableland/api:latest -f ./cmd/api/Dockerfile .

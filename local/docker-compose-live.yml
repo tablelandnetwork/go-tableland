@@ -3,9 +3,9 @@ services:
   api:
     build:
       context: ..
-      dockerfile: ./cmd/api/Dockerfile
+      dockerfile: ./cmd/api/Dockerfile.debug
     platform: linux/{{platform}}
-    entrypoint: ["./with-postgres.sh", "./api"]
+    entrypoint: ["./with-postgres.sh", "./dlv", "--listen=:40000", "--headless=true", "--accept-multiclient", "--continue", "--api-version=2", "exec", "./api"]
     environment:
       - DB_HOST=database
       - DB_USER=dev_user
