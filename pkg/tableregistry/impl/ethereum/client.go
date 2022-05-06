@@ -8,6 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/nonce"
 	"github.com/textileio/go-tableland/pkg/tableregistry"
@@ -82,6 +83,7 @@ func (c *Client) RunSQL(
 
 	tx, err := c.contract.RunSQL(opts, addr, table.ToBigInt(), statement)
 	if err != nil {
+		log.Warn().Err(err).Msg("sending RunSQL transaction")
 		return nil, fmt.Errorf("calling RunSQL: %v", err)
 	}
 	registerPendingTx(tx.Hash())

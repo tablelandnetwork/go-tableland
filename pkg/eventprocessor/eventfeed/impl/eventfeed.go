@@ -101,7 +101,9 @@ func (ef *EventFeed) Start(
 
 	// Listen for new blocks, and get new events.
 	for h := range chHeads {
-		ef.log.Debug().Int64("height", h.Number.Int64()).Msg("received new chain header")
+		if h.Number.Int64()%100 == 0 {
+			ef.log.Debug().Int64("height", h.Number.Int64()).Msg("received new chain header")
+		}
 
 		// We do a for loop since we'll try to catch from fromHeight to the new reported
 		// head in batches with max size MaxEventsBatchSize. This is important to
