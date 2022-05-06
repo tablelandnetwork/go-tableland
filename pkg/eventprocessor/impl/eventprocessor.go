@@ -406,7 +406,13 @@ func (ep *EventProcessor) executeSetControllerEvent(
 		TxnHash:     be.TxnHash.String(),
 	}
 
+	if e.TableId == nil {
+		err := "token id is empty"
+		receipt.Error = &err
+		return receipt, nil
+	}
 	tableID := tableland.TableID(*e.TableId)
+
 	if err := b.SetController(ctx, tableID, e.Controller); err != nil {
 		var pgErr *txn.ErrQueryExecution
 		if errors.As(err, &pgErr) {
