@@ -8,10 +8,11 @@ import (
 
 type config struct {
 	Probe struct {
-		Target        string `default:""`
-		CheckInterval string `default:"15s"`
-		JWT           string `default:""`
-		Tablename     string `default:""`
+		Target         string `default:""`
+		CheckInterval  string `default:"15s"`
+		ReceiptTimeout string `default:"20s"`
+		SIWE           string `default:""`
+		Tablename      string `default:""`
 	}
 	Metrics struct {
 		Port string `default:"9090"`
