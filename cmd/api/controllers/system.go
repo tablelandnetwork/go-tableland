@@ -23,7 +23,7 @@ func NewSystemController(svc system.SystemService) *SystemController {
 	return &SystemController{svc}
 }
 
-// GetTable handles the GET /tables/{id} call.
+// GetTable handles the GET /chain/{chainID}/tables/{id} call.
 func (c *SystemController) GetTable(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	rw.Header().Set("Content-type", "application/json")
@@ -58,7 +58,7 @@ func (c *SystemController) GetTable(rw http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(rw).Encode(metadata)
 }
 
-// GetTablesByController handles the GET /tables/controller/{address} call.
+// GetTablesByController handles the GET /chain/{chainID}/tables/controller/{address} call.
 func (c *SystemController) GetTablesByController(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	rw.Header().Set("Content-type", "application/json")

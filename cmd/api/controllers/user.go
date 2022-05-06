@@ -22,7 +22,7 @@ func NewUserController(runner tableland.SQLRunner) *UserController {
 	return &UserController{runner}
 }
 
-// GetTableRow handles the GET /tables/{id}/{key}/{value} call.
+// GetTableRow handles the GET /chain/{chainID}/tables/{id}/{key}/{value} call.
 func (c *UserController) GetTableRow(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	rw.Header().Set("Content-type", "application/json")
