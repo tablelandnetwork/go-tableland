@@ -208,6 +208,10 @@ func createChainIDStack(
 	if err != nil {
 		return chains.ChainStack{}, fmt.Errorf("failed to create wallet: %s", err)
 	}
+	log.Info().
+		Int64("chainID", int64(config.ChainID)).
+		Str("wallet", wallet.Address().String()).
+		Msg("wallet public address")
 
 	checkInterval, err := time.ParseDuration(config.NonceTracker.CheckInterval)
 	if err != nil {
