@@ -35,6 +35,8 @@ metadata:
     app: api
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: api-v1
