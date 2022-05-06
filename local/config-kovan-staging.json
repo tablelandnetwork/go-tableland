@@ -51,7 +51,7 @@
       "NonceTracker": {
          "CheckInterval": "10s",
          "StuckInterval": "10m",
-         "MinBlockDepth": 5
+         "MinBlockDepth": 0
       }
    }
  ]
