@@ -133,7 +133,6 @@ func (ef *EventFeed) Start(
 				Addresses: []common.Address{ef.scAddress},
 				Topics:    [][]common.Hash{filterTopics},
 			}
-			ef.log.Debug().Int64("from", fromHeight).Int64("to", toHeight).Msg("calling filter logs")
 			logs, err := ef.ethClient.FilterLogs(ctx, query)
 			if err != nil {
 				// If we got an error here, log it but allow to be retried
@@ -143,10 +142,7 @@ func (ef *EventFeed) Start(
 				continue
 			}
 
-			// If there're no events, nothing to do here.
-			if len(logs) == 0 {
-				ef.log.Debug().Msg("no filter logs")
-			} else {
+			if len(logs) > 0 {
 				// We received new events. We'll group/pack them by block number in
 				// BlockEvents structs, and send them to the `ch` channel provided
 				// by the caller.
