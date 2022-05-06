@@ -208,6 +208,57 @@ func (b *batch) ExecWriteQueries(
 	return nil
 }
 
+// SetController sets and unsets the controller of a table.
+func (b *batch) SetController(
+	ctx context.Context,
+	id tableland.TableID,
+	controller common.Address) error {
+	f := func(tx pgx.Tx) error {
+		dbID := pgtype.Numeric{}
+		if err := dbID.Set(id.String()); err != nil {
+			return fmt.Errorf("parsing table id to numeric: %s", err)
+		}
+
+		if controller == common.HexToAddress("0x0") {
+			if _, err := tx.Exec(ctx,
+				`DELETE FROM system_controller WHERE chain_id = $1 AND table_id = $2;`,
+				b.tp.chainID,
+				dbID,
+			); err != nil {
+				if code, ok := isErrCausedByQuery(err); ok {
+					return &txn.ErrQueryExecution{
+						Code: "POSTGRES_" + code,
+						Msg:  err.Error(),
+					}
+				}
+				return fmt.Errorf("deleting entry from system controller: %s", err)
+			}
+		} else {
+			if _, err := tx.Exec(ctx,
+				`INSERT INTO system_controller ("chain_id", "table_id", "controller") 
+				 VALUES ($1,$2, $3);`,
+				b.tp.chainID,
+				dbID,
+				controller.Hex(),
+			); err != nil {
+				if code, ok := isErrCausedByQuery(err); ok {
+					return &txn.ErrQueryExecution{
+						Code: "POSTGRES_" + code,
+						Msg:  err.Error(),
+					}
+				}
+				return fmt.Errorf("inserting new entry into system controller: %s", err)
+			}
+		}
+
+		return nil
+	}
+	if err := b.txn.BeginFunc(ctx, f); err != nil {
+		return fmt.Errorf("processing set controller: %s", err)
+	}
+	return nil
+}
+
 // isErrCausedByQuery detects if the query execution failed because of possibly expected
 // bad queries from users. If that's the case the call might want to accept the failure
 // as an expected event in the flow.
@@ -364,6 +415,34 @@ func GetTableNameAndRowCountByTableID(
 	return dbName, rowCount, nil
 }
 
+// IsControllerSet checks if controller is set for a given table.
+func IsControllerSet(
+	ctx context.Context,
+	tx pgx.Tx,
+	chainID tableland.ChainID,
+	tableID tableland.TableID) (bool, error) {
+	dbID := pgtype.Numeric{}
+	if err := dbID.Set(tableID.String()); err != nil {
+		return false, &txn.ErrQueryExecution{
+			Code: "CONTROLLER_TABLE_ID",
+			Msg:  fmt.Sprintf("parsing table id to numeric: %s", err),
+		}
+	}
+
+	q := "SELECT controller FROM system_controller where chain_id=$1 AND table_id=$2"
+	r := tx.QueryRow(ctx, q, chainID, dbID)
+	var col string
+	err := r.Scan(&col)
+	if err == pgx.ErrNoRows {
+		return false, nil
+	}
+
+	if err != nil {
+		return false, fmt.Errorf("controller lookup: %s", err)
+	}
+	return true, nil
+}
+
 func (b *batch) executeGrantStmt(
 	ctx context.Context,
 	tx pgx.Tx,
@@ -452,18 +531,25 @@ func (b *batch) executeWriteStmt(
 	controller common.Address,
 	policy tableland.Policy,
 	beforeRowCount int) error {
-	if err := b.applyPolicy(ws, policy); err != nil {
-		return fmt.Errorf("not allowed to execute stmt: %w", err)
+	isControllerSet, err := IsControllerSet(ctx, tx, b.tp.chainID, ws.GetTableID())
+	if err != nil {
+		return fmt.Errorf("checking controller is set: %w", err)
 	}
 
-	ok, err := b.tp.acl.CheckPrivileges(ctx, tx, controller, ws.GetTableID(), ws.Operation())
-	if err != nil {
-		return fmt.Errorf("error checking acl: %s", err)
-	}
-	if !ok {
-		return &txn.ErrQueryExecution{
-			Code: "ACL",
-			Msg:  "not enough privileges",
+	if isControllerSet {
+		if err := b.applyPolicy(ws, policy); err != nil {
+			return fmt.Errorf("not allowed to execute stmt: %w", err)
+		}
+	} else {
+		ok, err := b.tp.acl.CheckPrivileges(ctx, tx, controller, ws.GetTableID(), ws.Operation())
+		if err != nil {
+			return fmt.Errorf("error checking acl: %s", err)
+		}
+		if !ok {
+			return &txn.ErrQueryExecution{
+				Code: "ACL",
+				Msg:  "not enough privileges",
+			}
 		}
 	}
 

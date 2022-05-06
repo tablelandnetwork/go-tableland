@@ -2,7 +2,7 @@ package testutil
 
 import (
 	"context"
-	"encoding/hex"
+	"crypto/ecdsa"
 	"math"
 	"math/big"
 	"testing"
@@ -17,7 +17,12 @@ import (
 )
 
 // Setup spinup a simulated backend node connected to a test EVM chain running the Registry smart-contract.
-func Setup(t *testing.T) (*backends.SimulatedBackend, common.Address, *ethereum.Contract, *bind.TransactOpts, string) {
+func Setup(t *testing.T) (
+	*backends.SimulatedBackend,
+	common.Address,
+	*ethereum.Contract,
+	*bind.TransactOpts,
+	*ecdsa.PrivateKey) {
 	key, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	auth, err := bind.NewKeyedTransactorWithChainID(key, big.NewInt(1337)) //nolint
@@ -45,5 +50,5 @@ func Setup(t *testing.T) (*backends.SimulatedBackend, common.Address, *ethereum.
 		t.Error("Expected a valid deployment address. Received empty address byte array instead")
 	}
 
-	return backend, address, contract, auth, hex.EncodeToString(crypto.FromECDSA(key))
+	return backend, address, contract, auth, key
 }

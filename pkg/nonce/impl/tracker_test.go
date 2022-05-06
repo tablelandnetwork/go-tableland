@@ -2,6 +2,7 @@ package impl
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"encoding/hex"
 	"errors"
 	"math/big"
@@ -16,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/tableland"
 	noncepkg "github.com/textileio/go-tableland/pkg/nonce"
+	"github.com/textileio/go-tableland/pkg/sqlstore"
 	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/testutil"
@@ -25,7 +27,7 @@ import (
 
 func TestTracker(t *testing.T) {
 	ctx := context.Background()
-	tracker, backend, contract, txOpts, wallet := setup(ctx, t)
+	tracker, backend, contract, txOpts, wallet, _ := setup(ctx, t)
 
 	fn1, unlock1, nonce1 := tracker.GetNonce(ctx)
 	txn1, err := contract.RunSQL(txOpts, wallet.Address(), big.NewInt(0), "INSERT ...")
@@ -61,7 +63,7 @@ func TestTracker(t *testing.T) {
 
 func TestTrackerUnlock(t *testing.T) {
 	ctx := context.Background()
-	tracker, backend, contract, txOpts, wallet := setup(ctx, t)
+	tracker, backend, contract, txOpts, wallet, _ := setup(ctx, t)
 
 	_, unlock, nonce1 := tracker.GetNonce(ctx)
 	// this go routine simulates a concurrent runSQL call that went wrong
@@ -88,11 +90,10 @@ func TestTrackerUnlock(t *testing.T) {
 
 func TestTrackerPendingTxGotStuck(t *testing.T) {
 	ctx := context.Background()
-	tracker, backend, contract, txOpts, wallet := setup(ctx, t)
+	tracker, backend, contract, txOpts, wallet, sqlstore := setup(ctx, t)
 
 	fn1, unlock1, nonce1 := tracker.GetNonce(ctx)
 	txn1, err := contract.RunSQL(txOpts, wallet.Address(), big.NewInt(1), "INSERT ...")
-
 	require.NoError(t, err)
 	backend.Commit()
 	fn1(txn1.Hash())
@@ -108,41 +109,10 @@ func TestTrackerPendingTxGotStuck(t *testing.T) {
 	require.Equal(t, int64(0), nonce1)
 	require.Equal(t, int64(1), nonce2)
 	require.Eventually(t, func() bool {
-		return tracker.GetPendingCount(ctx) == 1
+		txs, err := sqlstore.ListPendingTx(ctx, wallet.Address())
+		require.NoError(t, err)
+		return tracker.GetPendingCount(ctx) == 1 && int64(1) == txs[0].Nonce
 	}, 5*time.Second, time.Second)
-}
-
-func setup(ctx context.Context, t *testing.T) (
-	noncepkg.NonceTracker,
-	*backends.SimulatedBackend,
-	*ethereum.Contract,
-	*bind.TransactOpts,
-	*wallet.Wallet) {
-	url := tests.PostgresURL(t)
-
-	backend, _, contract, txOpts, _ := testutil.Setup(t)
-
-	key, err := crypto.GenerateKey()
-	require.NoError(t, err)
-
-	wallet, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(key)))
-	require.NoError(t, err)
-
-	sqlstore, err := sqlstoreimpl.New(ctx, tableland.ChainID(1337), url)
-	require.NoError(t, err)
-
-	tracker, err := NewLocalTracker(
-		ctx,
-		wallet,
-		&NonceStore{sqlstore},
-		1337,
-		backend,
-		500*time.Millisecond,
-		0,
-		10*time.Minute)
-	require.NoError(t, err)
-
-	return tracker, backend, contract, txOpts, wallet
 }
 
 func TestInitialization(t *testing.T) {
@@ -383,4 +353,85 @@ func (m *ChainMock) TransactionReceipt(ctx context.Context, txHash common.Hash) 
 // this is not used by any test.
 func (m *ChainMock) HeaderByNumber(ctx context.Context, n *big.Int) (*types.Header, error) {
 	return nil, nil
+}
+
+func setup(ctx context.Context, t *testing.T) (
+	noncepkg.NonceTracker,
+	*backends.SimulatedBackend,
+	*ethereum.Contract,
+	*bind.TransactOpts,
+	*wallet.Wallet,
+	sqlstore.SQLStore) {
+	url := tests.PostgresURL(t)
+
+	backend, _, contract, txOptsFrom, sk := testutil.Setup(t)
+
+	key, err := crypto.GenerateKey()
+	require.NoError(t, err)
+
+	txOptsTo, err := bind.NewKeyedTransactorWithChainID(key, big.NewInt(1337)) //nolint
+	require.NoError(t, err)
+
+	requireTxn(t, backend, sk, txOptsFrom.From, txOptsTo.From, big.NewInt(1000000000000000000))
+
+	wallet, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(key)))
+	require.NoError(t, err)
+
+	sqlstore, err := sqlstoreimpl.New(ctx, tableland.ChainID(1337), url)
+	require.NoError(t, err)
+
+	tracker, err := NewLocalTracker(
+		ctx,
+		wallet,
+		&NonceStore{sqlstore},
+		1337,
+		backend,
+		500*time.Millisecond,
+		0,
+		10*time.Minute)
+	require.NoError(t, err)
+
+	return tracker, backend, contract, txOptsTo, wallet, sqlstore
+}
+
+func requireTxn(
+	t *testing.T,
+	backend *backends.SimulatedBackend,
+	key *ecdsa.PrivateKey,
+	from common.Address,
+	to common.Address,
+	amt *big.Int,
+) {
+	nonce, err := backend.PendingNonceAt(context.Background(), from)
+	require.NoError(t, err)
+
+	gasLimit := uint64(21000)
+	gasPrice, err := backend.SuggestGasPrice(context.Background())
+	require.NoError(t, err)
+
+	var data []byte
+	txnData := &types.LegacyTx{
+		Nonce:    nonce,
+		GasPrice: gasPrice,
+		Gas:      gasLimit,
+		To:       &to,
+		Data:     data,
+		Value:    amt,
+	}
+	tx := types.NewTx(txnData)
+	signedTx, err := types.SignTx(tx, types.HomesteadSigner{}, key)
+	require.NoError(t, err)
+
+	bal, err := backend.BalanceAt(context.Background(), from, nil)
+	require.NoError(t, err)
+	require.NotZero(t, bal)
+
+	err = backend.SendTransaction(context.Background(), signedTx)
+	require.NoError(t, err)
+
+	backend.Commit()
+
+	receipt, err := backend.TransactionReceipt(context.Background(), signedTx.Hash())
+	require.NoError(t, err)
+	require.NotNil(t, receipt)
 }
