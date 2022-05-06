@@ -30,7 +30,7 @@ func main() {
 	}
 
 	opts := map[string]interface{}{
-		"chainID":        chainID,
+		"chainId":        *chainID,
 		"expirationTime": time.Now().Add(*validFor),
 		"nonce":          siwe.GenerateNonce(),
 	}
