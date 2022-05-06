@@ -95,6 +95,10 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 20
             failureThreshold: 3
+          volumeMounts:
+            - name: validator-config
+              mountPath: /app/config.json
+              subPath: config.json
       volumes:
         - name: validator-config
           configMap:
