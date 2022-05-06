@@ -49,11 +49,11 @@ spec:
             - name: metrics
               containerPort: 9090
           env:
-            - name: PROBE_JWT
+            - name: PROBE_SIWE
               valueFrom:
                 secretKeyRef:
                   name: tableland-secret
-                  key: healthbot-jwt
+                  key: healthbot-siwe
           envFrom:
             - configMapRef:
                 name: configmap-healthbot
