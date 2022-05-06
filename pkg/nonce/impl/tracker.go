@@ -108,7 +108,7 @@ func (t *LocalTracker) GetNonce(ctx context.Context) (noncepkg.RegisterPendingTx
 		if err := t.nonceStore.InsertPendingTx(
 			ctx,
 			t.wallet.Address(),
-			incrementedNonce,
+			nonce,
 			pendingHash); err != nil {
 			t.log.Error().
 				Err(err).

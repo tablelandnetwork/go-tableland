@@ -2,6 +2,7 @@ package impl
 
 import (
 	"context"
+	"math/big"
 	"testing"
 	"time"
 
@@ -22,7 +23,7 @@ import (
 var controller = common.HexToAddress("0x07dfFc57AA386D2b239CaBE8993358DF20BAFBE2")
 var chainID = 1337
 
-func TestRunSQL(t *testing.T) {
+func TestExecWriteQueries(t *testing.T) {
 	t.Parallel()
 	t.Run("single-query", func(t *testing.T) {
 		t.Parallel()
@@ -261,7 +262,7 @@ func TestRunSQL(t *testing.T) {
 	})
 }
 
-func TestRunSQLWithPolicies(t *testing.T) {
+func TestExecWriteQueriesWithPolicies(t *testing.T) {
 	t.Parallel()
 
 	t.Run("insert-not-allowed", func(t *testing.T) {
@@ -278,6 +279,11 @@ func TestRunSQLWithPolicies(t *testing.T) {
 		})
 
 		wq := mustWriteStmt(t, `insert into foo_100 values ('one');`)
+
+		// set the controller to anything other than zero
+		err = b.SetController(ctx, wq.GetTableID(), common.HexToAddress("0x1"))
+		require.NoError(t, err)
+
 		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq}, true, policy)
 		var errQueryExecution *txn.ErrQueryExecution
 		require.ErrorAs(t, err, &errQueryExecution)
@@ -298,6 +304,11 @@ func TestRunSQLWithPolicies(t *testing.T) {
 		})
 
 		wq := mustWriteStmt(t, `update foo_100 set zar = 'three';`)
+
+		// set the controller to anything other than zero
+		err = b.SetController(ctx, wq.GetTableID(), common.HexToAddress("0x1"))
+		require.NoError(t, err)
+
 		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq}, true, policy)
 		var errQueryExecution *txn.ErrQueryExecution
 		require.ErrorAs(t, err, &errQueryExecution)
@@ -318,6 +329,11 @@ func TestRunSQLWithPolicies(t *testing.T) {
 		})
 
 		wq := mustWriteStmt(t, `DELETE FROM foo_100`)
+
+		// set the controller to anything other than zero
+		err = b.SetController(ctx, wq.GetTableID(), common.HexToAddress("0x1"))
+		require.NoError(t, err)
+
 		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq}, true, policy)
 		var errQueryExecution *txn.ErrQueryExecution
 		require.ErrorAs(t, err, &errQueryExecution)
@@ -340,6 +356,11 @@ func TestRunSQLWithPolicies(t *testing.T) {
 
 		// tries to update zar and not zaz
 		wq := mustWriteStmt(t, `update foo_100 set zar = 'three';`)
+
+		// set the controller to anything other than zero
+		err = b.SetController(ctx, wq.GetTableID(), common.HexToAddress("0x1"))
+		require.NoError(t, err)
+
 		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq}, true, policy)
 		var errQueryExecution *txn.ErrQueryExecution
 		require.ErrorAs(t, err, &errQueryExecution)
@@ -358,6 +379,11 @@ func TestRunSQLWithPolicies(t *testing.T) {
 		// start with two rows
 		wq1 := mustWriteStmt(t, `insert into foo_100 values ('one');`)
 		wq2 := mustWriteStmt(t, `insert into foo_100 values ('two');`)
+
+		// set the controller to anything other than zero
+		err = b.SetController(ctx, wq2.GetTableID(), common.HexToAddress("0x1"))
+		require.NoError(t, err)
+
 		err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{wq1, wq2}, true, tableland.AllowAllPolicy{})
 		require.NoError(t, err)
 
@@ -455,6 +481,90 @@ func TestTableRowCountLimit(t *testing.T) {
 	require.Equal(t, rowLimit+1, errRowCount.AfterRowCount)
 
 	require.NoError(t, txnp.Close(ctx))
+}
+
+func TestSetController(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	tableID := tableland.TableID(*big.NewInt(100))
+
+	t.Run("controller-is-not-set-default", func(t *testing.T) {
+		t.Parallel()
+		_, pgxpool := newTxnProcessorWithTable(t, 0)
+
+		// Let's test first that the controller is not set (it's the default behavior)
+		tx, err := pgxpool.BeginTx(ctx, pgx.TxOptions{
+			IsoLevel:   pgx.Serializable,
+			AccessMode: pgx.ReadWrite,
+		})
+		require.NoError(t, err)
+		ok, err := IsControllerSet(ctx, tx, tableland.ChainID(chainID), tableID)
+		require.NoError(t, err)
+		require.False(t, ok)
+		require.NoError(t, tx.Commit(ctx))
+	})
+
+	t.Run("foreign-key-constraint", func(t *testing.T) {
+		t.Parallel()
+		txnp, _ := newTxnProcessorWithTable(t, 0)
+
+		// table id different than 100 violates foreign key
+		b, err := txnp.OpenBatch(ctx)
+		require.NoError(t, err)
+		err = b.SetController(ctx, tableland.TableID(*big.NewInt(0)), common.HexToAddress("0x01"))
+		require.NoError(t, b.Commit(ctx))
+		require.Error(t, err)
+		var errQueryExecution *txn.ErrQueryExecution
+		require.NotErrorIs(t, err, errQueryExecution)
+		require.Contains(t, err.Error(), "SQLSTATE 23503")
+
+		require.NoError(t, b.Close(ctx))
+		require.NoError(t, txnp.Close(ctx))
+	})
+
+	t.Run("set-unset-controller", func(t *testing.T) {
+		t.Parallel()
+		txnp, pgxpool := newTxnProcessorWithTable(t, 0)
+
+		// sets
+		b, err := txnp.OpenBatch(ctx)
+		require.NoError(t, err)
+		err = b.SetController(ctx, tableID, common.HexToAddress("0x01"))
+		require.NoError(t, b.Commit(ctx))
+		require.NoError(t, b.Close(ctx))
+		require.NoError(t, err)
+
+		tx, err := pgxpool.BeginTx(ctx, pgx.TxOptions{
+			IsoLevel:   pgx.Serializable,
+			AccessMode: pgx.ReadWrite,
+		})
+		require.NoError(t, err)
+		ok, err := IsControllerSet(ctx, tx, tableland.ChainID(chainID), tableID)
+		require.NoError(t, err)
+		require.True(t, ok)
+		require.NoError(t, tx.Commit(ctx))
+
+		// unsets
+		b, err = txnp.OpenBatch(ctx)
+		require.NoError(t, err)
+		err = b.SetController(ctx, tableID, common.HexToAddress("0x0"))
+		require.NoError(t, b.Commit(ctx))
+		require.NoError(t, b.Close(ctx))
+		require.NoError(t, err)
+
+		tx, err = pgxpool.BeginTx(ctx, pgx.TxOptions{
+			IsoLevel:   pgx.Serializable,
+			AccessMode: pgx.ReadWrite,
+		})
+		require.NoError(t, err)
+		ok, err = IsControllerSet(ctx, tx, tableland.ChainID(chainID), tableID)
+		require.NoError(t, err)
+		require.False(t, ok)
+		require.NoError(t, tx.Commit(ctx))
+
+		require.NoError(t, txnp.Close(ctx))
+	})
 }
 
 func tableRowCountT100(t *testing.T, pool *pgxpool.Pool, sql string) int {

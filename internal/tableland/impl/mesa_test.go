@@ -2,9 +2,12 @@ package impl
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"encoding/csv"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"os"
 	"reflect"
 	"strings"
@@ -14,6 +17,8 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/cmd/api/middlewares"
@@ -36,10 +41,10 @@ import (
 func TestTodoAppWorkflow(t *testing.T) {
 	t.Parallel()
 
-	ctx, tbld, backend, sc, auth := setup(t)
+	ctx, tbld, backend, sc, txOpts := setup(t)
 
-	caller := common.HexToAddress("0xd43c59d5694ec111eb9e986c233200b14249558d")
-	_, err := sc.CreateTable(auth, caller,
+	caller := txOpts.From
+	_, err := sc.CreateTable(txOpts, caller,
 		`CREATE TABLE todoapp (
 			complete BOOLEAN DEFAULT false,
 			name     VARCHAR DEFAULT '',
@@ -48,7 +53,7 @@ func TestTodoAppWorkflow(t *testing.T) {
 		  );`)
 	require.NoError(t, err)
 
-	processCSV(ctx, t, tbld, "testdata/todoapp_queries.csv", backend)
+	processCSV(ctx, t, caller, tbld, "testdata/todoapp_queries.csv", backend)
 }
 
 func TestInsertOnConflict(t *testing.T) {
@@ -57,17 +62,17 @@ func TestInsertOnConflict(t *testing.T) {
 	//       It's disabled temporarily until some soon related work in the validator will fix this.
 	t.SkipNow()
 
-	ctx, tbld, backend, sc, auth := setup(t)
-	caller := common.HexToAddress("0xd43c59d5694ec111eb9e986c233200b14249558d")
+	ctx, tbld, backend, sc, txOpts := setup(t)
+	caller := txOpts.From
 
-	_, err := sc.CreateTable(auth, caller,
+	_, err := sc.CreateTable(txOpts, caller,
 		`CREATE TABLE foo (
 			name text unique,
 			count int);`)
 	require.NoError(t, err)
 	backend.Commit()
 
-	ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, "0xd43c59d5694ec111eb9e986c233200b14249558d")
+	ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller.Hex())
 	baseReq := tableland.RunSQLRequest{}
 	req := baseReq
 	var txnHashes []string
@@ -92,16 +97,16 @@ func TestInsertOnConflict(t *testing.T) {
 func TestMultiStatement(t *testing.T) {
 	t.Parallel()
 
-	ctx, tbld, backend, sc, auth := setup(t)
-	caller := common.HexToAddress("0xd43c59d5694ec111eb9e986c233200b14249558d")
+	ctx, tbld, backend, sc, txOpts := setup(t)
+	caller := txOpts.From
 
-	_, err := sc.CreateTable(auth, caller,
+	_, err := sc.CreateTable(txOpts, caller,
 		`CREATE TABLE foo (
 			name text unique
 		);`)
 	require.NoError(t, err)
 
-	ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, "0xd43c59d5694ec111eb9e986c233200b14249558d")
+	ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller.Hex())
 	req := tableland.RunSQLRequest{
 		Statement: `INSERT INTO foo_0 values ('bar'); UPDATE foo_0 SET name='zoo'`,
 	}
@@ -122,13 +127,13 @@ func TestMultiStatement(t *testing.T) {
 func TestReadSystemTable(t *testing.T) {
 	t.Parallel()
 
-	ctx, tbld, _, sc, auth := setup(t)
-	caller := common.HexToAddress("0xd43c59d5694ec111eb9e986c233200b14249558d")
+	ctx, tbld, _, sc, txOpts := setup(t)
+	caller := txOpts.From
 
-	_, err := sc.CreateTable(auth, caller, `CREATE TABLE foo (myjson JSON);`)
+	_, err := sc.CreateTable(txOpts, caller, `CREATE TABLE foo (myjson JSON);`)
 	require.NoError(t, err)
 
-	res, err := runSQL(ctx, t, tbld, "select * from registry", "0xd43c59d5694ec111eb9e986c233200b14249558d")
+	res, err := runSQL(ctx, t, tbld, "select * from registry", caller.Hex())
 	require.NoError(t, err)
 	_, err = json.Marshal(res.Result)
 	require.NoError(t, err)
@@ -137,22 +142,21 @@ func TestReadSystemTable(t *testing.T) {
 func TestJSON(t *testing.T) {
 	t.Parallel()
 
-	ctx, tbld, backend, sc, auth := setup(t)
-	caller := common.HexToAddress("0xd43c59d5694ec111eb9e986c233200b14249558d")
+	ctx, tbld, backend, sc, txOpts := setup(t)
+	caller := txOpts.From
 
-	_, err := sc.CreateTable(auth, caller, `CREATE TABLE foo (myjson JSON);`)
+	_, err := sc.CreateTable(txOpts, caller, `CREATE TABLE foo (myjson JSON);`)
 	require.NoError(t, err)
 
-	processCSV(ctx, t, tbld, "testdata/json_queries.csv", backend)
+	processCSV(ctx, t, caller, tbld, "testdata/json_queries.csv", backend)
 }
 
 func TestCheckInsertPrivileges(t *testing.T) {
 	t.Parallel()
-	granter := "0xd43c59d5694ec111eb9e986c233200b14249558d" // nolint
-	grantee := "0x4afe8e30db4549384b0a05bb796468b130c7d6e0" // nolint
 
-	ctx, tbld, backend, sc, auth := setup(t)
-	caller := common.HexToAddress("0xd43c59d5694ec111eb9e986c233200b14249558d")
+	ctx, tbldGranter, tbldGrantee, backend, sc, txOptsGranter, txOptsGrantee := setupTablelandForTwoAddresses(t)
+	granter := txOptsGranter.From.Hex()
+	grantee := txOptsGrantee.From.Hex()
 
 	type testCase struct { // nolint
 		query      string
@@ -174,7 +178,7 @@ func TestCheckInsertPrivileges(t *testing.T) {
 	for i, test := range tests {
 		testCase := fmt.Sprint(i)
 		t.Run(testCase, func(t *testing.T) {
-			_, err := sc.CreateTable(auth, caller, `CREATE TABLE foo (bar text);`)
+			_, err := sc.CreateTable(txOptsGranter, common.HexToAddress(granter), `CREATE TABLE foo (bar text);`)
 			require.NoError(t, err)
 			backend.Commit()
 
@@ -187,25 +191,29 @@ func TestCheckInsertPrivileges(t *testing.T) {
 
 				// execute grant statement according to test case
 				grantQuery := fmt.Sprintf("GRANT %s ON foo_%s TO \"%s\"", strings.Join(privileges, ","), testCase, grantee)
-				r, err := runSQL(ctx, t, tbld, grantQuery, granter)
+				r, err := runSQL(ctx, t, tbldGranter, grantQuery, granter)
 				require.NoError(t, err)
 				backend.Commit()
 				successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
 			}
 
-			r, err := runSQL(ctx, t, tbld, fmt.Sprintf(test.query, testCase), grantee)
+			r, err := runSQL(ctx, t, tbldGrantee, fmt.Sprintf(test.query, testCase), grantee)
 			require.NoError(t, err)
 			backend.Commit()
 
 			testQuery := fmt.Sprintf("SELECT * FROM foo_%s WHERE bar ='Hello';", testCase)
 			if test.isAllowed {
-				require.Eventually(t, runSQLCountEq(ctx, t, tbld, testQuery, grantee, 1), 5*time.Second, 100*time.Millisecond)
+				require.Eventually(t,
+					runSQLCountEq(ctx, t, tbldGrantee, testQuery, grantee, 1),
+					5*time.Second,
+					100*time.Millisecond,
+				)
 				successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
-				requireReceipts(ctx, t, tbld, successfulTxnHashes, true)
+				requireReceipts(ctx, t, tbldGrantee, successfulTxnHashes, true)
 			} else {
-				require.Never(t, runSQLCountEq(ctx, t, tbld, testQuery, grantee, 1), 5*time.Second, 100*time.Millisecond)
-				requireReceipts(ctx, t, tbld, successfulTxnHashes, true)
-				requireReceipts(ctx, t, tbld, []string{r.Transaction.Hash}, false)
+				require.Never(t, runSQLCountEq(ctx, t, tbldGrantee, testQuery, grantee, 1), 5*time.Second, 100*time.Millisecond)
+				requireReceipts(ctx, t, tbldGrantee, successfulTxnHashes, true)
+				requireReceipts(ctx, t, tbldGrantee, []string{r.Transaction.Hash}, false)
 			}
 		})
 	}
@@ -213,12 +221,10 @@ func TestCheckInsertPrivileges(t *testing.T) {
 
 func TestCheckUpdatePrivileges(t *testing.T) {
 	t.Parallel()
-	granter := "0xd43c59d5694ec111eb9e986c233200b14249558d"
-	grantee := "0x4afe8e30db4549384b0a05bb796468b130c7d6e0"
 
-	ctx, tbld, backend, sc, auth := setup(t)
-	caller := common.HexToAddress("0xd43c59d5694ec111eb9e986c233200b14249558d")
-	ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller.Hex())
+	ctx, tbldGranter, tbldGrantee, backend, sc, txOptsGranter, txOptsGrantee := setupTablelandForTwoAddresses(t)
+	granter := txOptsGranter.From.Hex()
+	grantee := txOptsGrantee.From.Hex()
 
 	type testCase struct { // nolint
 		query      string
@@ -240,13 +246,13 @@ func TestCheckUpdatePrivileges(t *testing.T) {
 	for i, test := range tests {
 		testCase := fmt.Sprint(i)
 		t.Run(testCase, func(t *testing.T) {
-			_, err := sc.CreateTable(auth, caller, `CREATE TABLE foo (bar text);`)
+			_, err := sc.CreateTable(txOptsGranter, common.HexToAddress(granter), `CREATE TABLE foo (bar text);`)
 			require.NoError(t, err)
 			backend.Commit()
 			var successfulTxnHashes []string
 
 			// we initilize the table with a row to be updated
-			r, err := runSQL(ctx, t, tbld, fmt.Sprintf("INSERT INTO foo_%s (bar) VALUES ('Hello')", testCase), granter)
+			r, err := runSQL(ctx, t, tbldGranter, fmt.Sprintf("INSERT INTO foo_%s (bar) VALUES ('Hello')", testCase), granter)
 			require.NoError(t, err)
 			backend.Commit()
 			successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
@@ -259,25 +265,29 @@ func TestCheckUpdatePrivileges(t *testing.T) {
 
 				// execute grant statement according to test case
 				grantQuery := fmt.Sprintf("GRANT %s ON foo_%s TO \"%s\"", strings.Join(privileges, ","), testCase, grantee)
-				r, err := runSQL(ctx, t, tbld, grantQuery, granter)
+				r, err := runSQL(ctx, t, tbldGranter, grantQuery, granter)
 				require.NoError(t, err)
 				backend.Commit()
 				successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
 			}
 
-			r, err = runSQL(ctx, t, tbld, fmt.Sprintf(test.query, testCase), grantee)
+			r, err = runSQL(ctx, t, tbldGrantee, fmt.Sprintf(test.query, testCase), grantee)
 			require.NoError(t, err)
 			backend.Commit()
 
 			testQuery := fmt.Sprintf("SELECT * FROM foo_%s WHERE bar ='Hello 2';", testCase)
 			if test.isAllowed {
-				require.Eventually(t, runSQLCountEq(ctx, t, tbld, testQuery, grantee, 1), 5*time.Second, 100*time.Millisecond)
+				require.Eventually(t,
+					runSQLCountEq(ctx, t, tbldGrantee, testQuery, grantee, 1),
+					5*time.Second,
+					100*time.Millisecond,
+				)
 				successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
-				requireReceipts(ctx, t, tbld, successfulTxnHashes, true)
+				requireReceipts(ctx, t, tbldGrantee, successfulTxnHashes, true)
 			} else {
-				require.Never(t, runSQLCountEq(ctx, t, tbld, testQuery, grantee, 1), 5*time.Second, 100*time.Millisecond)
-				requireReceipts(ctx, t, tbld, successfulTxnHashes, true)
-				requireReceipts(ctx, t, tbld, []string{r.Transaction.Hash}, false)
+				require.Never(t, runSQLCountEq(ctx, t, tbldGrantee, testQuery, grantee, 1), 5*time.Second, 100*time.Millisecond)
+				requireReceipts(ctx, t, tbldGrantee, successfulTxnHashes, true)
+				requireReceipts(ctx, t, tbldGrantee, []string{r.Transaction.Hash}, false)
 			}
 		})
 	}
@@ -285,12 +295,10 @@ func TestCheckUpdatePrivileges(t *testing.T) {
 
 func TestCheckDeletePrivileges(t *testing.T) {
 	t.Parallel()
-	granter := "0xd43c59d5694ec111eb9e986c233200b14249558d"
-	grantee := "0x4afe8e30db4549384b0a05bb796468b130c7d6e0"
 
-	ctx, tbld, backend, sc, auth := setup(t)
-	caller := common.HexToAddress("0xd43c59d5694ec111eb9e986c233200b14249558d")
-	ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller.Hex())
+	ctx, tbldGranter, tbldGrantee, backend, sc, txOptsGranter, txOptsGrantee := setupTablelandForTwoAddresses(t)
+	granter := txOptsGranter.From.Hex()
+	grantee := txOptsGrantee.From.Hex()
 
 	type testCase struct { // nolint
 		query      string
@@ -312,12 +320,12 @@ func TestCheckDeletePrivileges(t *testing.T) {
 	for i, test := range tests {
 		testCase := fmt.Sprint(i)
 		t.Run(testCase, func(t *testing.T) {
-			_, err := sc.CreateTable(auth, caller, `CREATE TABLE foo (bar text);`)
+			_, err := sc.CreateTable(txOptsGranter, common.HexToAddress(granter), `CREATE TABLE foo (bar text);`)
 			require.NoError(t, err)
 			var successfulTxnHashes []string
 
 			// we initilize the table with a row to be delete
-			_, err = runSQL(ctx, t, tbld, fmt.Sprintf("INSERT INTO foo_%s (bar) VALUES ('Hello')", testCase), granter)
+			_, err = runSQL(ctx, t, tbldGranter, fmt.Sprintf("INSERT INTO foo_%s (bar) VALUES ('Hello')", testCase), granter)
 			require.NoError(t, err)
 			backend.Commit()
 
@@ -329,24 +337,28 @@ func TestCheckDeletePrivileges(t *testing.T) {
 
 				// execute grant statement according to test case
 				grantQuery := fmt.Sprintf("GRANT %s ON foo_%s TO \"%s\"", strings.Join(privileges, ","), testCase, grantee)
-				r, err := runSQL(ctx, t, tbld, grantQuery, granter)
+				r, err := runSQL(ctx, t, tbldGranter, grantQuery, granter)
 				require.NoError(t, err)
 				backend.Commit()
 				successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
 			}
 
-			r, err := runSQL(ctx, t, tbld, fmt.Sprintf(test.query, testCase), grantee)
+			r, err := runSQL(ctx, t, tbldGrantee, fmt.Sprintf(test.query, testCase), grantee)
 			require.NoError(t, err)
 			backend.Commit()
 
 			testQuery := fmt.Sprintf("SELECT * FROM foo_%s", testCase)
 			if test.isAllowed {
-				require.Eventually(t, runSQLCountEq(ctx, t, tbld, testQuery, grantee, 0), 5*time.Second, 100*time.Millisecond)
+				require.Eventually(t,
+					runSQLCountEq(ctx, t, tbldGrantee, testQuery, grantee, 0),
+					5*time.Second,
+					100*time.Millisecond,
+				)
 				successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
-				requireReceipts(ctx, t, tbld, successfulTxnHashes, true)
+				requireReceipts(ctx, t, tbldGrantee, successfulTxnHashes, true)
 			} else {
-				require.Never(t, runSQLCountEq(ctx, t, tbld, testQuery, grantee, 0), 5*time.Second, 100*time.Millisecond)
-				requireReceipts(ctx, t, tbld, []string{r.Transaction.Hash}, false)
+				require.Never(t, runSQLCountEq(ctx, t, tbldGrantee, testQuery, grantee, 0), 5*time.Second, 100*time.Millisecond)
+				requireReceipts(ctx, t, tbldGrantee, []string{r.Transaction.Hash}, false)
 			}
 		})
 	}
@@ -355,24 +367,24 @@ func TestCheckDeletePrivileges(t *testing.T) {
 func TestOwnerRevokesItsPrivilegeInsideMultipleStatements(t *testing.T) {
 	t.Parallel()
 
-	ctx, tbld, backend, sc, auth := setup(t)
-	caller := common.HexToAddress("0xd43c59d5694ec111eb9e986c233200b14249558d")
+	ctx, tbld, backend, sc, txOpts := setup(t)
+	caller := txOpts.From.Hex()
 
-	_, err := sc.CreateTable(auth, caller, `CREATE TABLE foo (bar text);`)
+	_, err := sc.CreateTable(txOpts, common.HexToAddress(caller), `CREATE TABLE foo (bar text);`)
 	require.NoError(t, err)
 
 	multiStatements := `
 		INSERT INTO foo_0 (bar) VALUES ('Hello');
 		UPDATE foo_0 SET bar = 'Hello 2';
-		REVOKE update ON foo_0 FROM "0xd43c59d5694ec111eb9e986c233200b14249558d";
+		REVOKE update ON foo_0 FROM "` + caller + `";
 		UPDATE foo_0 SET bar = 'Hello 3';
 	`
-	r, err := runSQL(ctx, t, tbld, multiStatements, "0xd43c59d5694ec111eb9e986c233200b14249558d")
+	r, err := runSQL(ctx, t, tbld, multiStatements, caller)
 	require.NoError(t, err)
 	backend.Commit()
 
 	testQuery := "SELECT * FROM foo_0;"
-	cond := runSQLCountEq(ctx, t, tbld, testQuery, "0xd43c59d5694ec111eb9e986c233200b14249558d", 1)
+	cond := runSQLCountEq(ctx, t, tbld, testQuery, caller, 1)
 	require.Never(t, cond, 5*time.Second, 100*time.Millisecond)
 	requireReceipts(ctx, t, tbld, []string{r.Transaction.Hash}, false)
 }
@@ -380,12 +392,13 @@ func TestOwnerRevokesItsPrivilegeInsideMultipleStatements(t *testing.T) {
 func processCSV(
 	ctx context.Context,
 	t *testing.T,
+	caller common.Address,
 	tbld tableland.Tableland,
 	csvPath string,
 	backend *backends.SimulatedBackend) {
 	t.Helper()
 
-	ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, "0xd43c59d5694ec111eb9e986c233200b14249558d")
+	ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller.Hex())
 	baseReq := tableland.RunSQLRequest{}
 	records := readCsvFile(t, csvPath)
 	for _, record := range records {
@@ -522,7 +535,7 @@ func setup(
 
 	backend, addr, sc, auth, sk := testutil.Setup(t)
 
-	wallet, err := wallet.NewWallet(sk)
+	wallet, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(sk)))
 	require.NoError(t, err)
 
 	registry, err := ethereum.NewClient(
@@ -551,6 +564,81 @@ func setup(
 	t.Cleanup(func() { ep.Stop() })
 
 	return ctx, tbld, backend, sc, auth
+}
+
+func setupTablelandForTwoAddresses(t *testing.T) (context.Context,
+	tableland.Tableland,
+	tableland.Tableland,
+	*backends.SimulatedBackend,
+	*ethereum.Contract,
+	*bind.TransactOpts,
+	*bind.TransactOpts) {
+	t.Helper()
+
+	url := tests.PostgresURL(t)
+
+	ctx := context.WithValue(context.Background(), middlewares.ContextKeyChainID, tableland.ChainID(1337))
+	store, err := sqlstoreimpl.New(ctx, tableland.ChainID(1337), url)
+	require.NoError(t, err)
+
+	parser := parserimpl.New([]string{"system_", "registry"}, 1337, 0, 0)
+	txnp, err := txnpimpl.NewTxnProcessor(1337, url, 0, &aclHalfMock{store})
+	require.NoError(t, err)
+
+	backend, addr, sc, txOpts1, key1 := testutil.Setup(t)
+
+	wallet1, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(key1)))
+	require.NoError(t, err)
+
+	registry, err := ethereum.NewClient(
+		backend,
+		1337,
+		addr,
+		wallet1,
+		impl.NewSimpleTracker(wallet1, backend),
+	)
+	require.NoError(t, err)
+	tbld1 := NewTablelandMesa(map[tableland.ChainID]chains.ChainStack{
+		1337: {Store: store, Registry: registry, Parser: parser},
+	})
+
+	key2, err := crypto.GenerateKey()
+	require.NoError(t, err)
+
+	wallet2, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(key2)))
+	require.NoError(t, err)
+
+	txOpts2, err := bind.NewKeyedTransactorWithChainID(key2, big.NewInt(1337)) //nolint
+	require.NoError(t, err)
+
+	requireTxn(t, backend, key1, wallet1.Address(), wallet2.Address(), big.NewInt(1000000000000000000))
+
+	registry2, err := ethereum.NewClient(
+		backend,
+		1337,
+		addr,
+		wallet2,
+		impl.NewSimpleTracker(wallet2, backend),
+	)
+	require.NoError(t, err)
+	tbld2 := NewTablelandMesa(map[tableland.ChainID]chains.ChainStack{
+		1337: {Store: store, Registry: registry2, Parser: parser},
+	})
+
+	// Spin up dependencies needed for the EventProcessor.
+	// i.e: TxnProcessor, Parser, and EventFeed (connected to the EVM chain)
+	ef, err := efimpl.New(1337, backend, addr, eventfeed.WithMinBlockDepth(0))
+	require.NoError(t, err)
+
+	// Create EventProcessor for our test.
+	ep, err := epimpl.New(parser, txnp, ef, 1337)
+	require.NoError(t, err)
+
+	err = ep.Start()
+	require.NoError(t, err)
+	t.Cleanup(func() { ep.Stop() })
+
+	return ctx, tbld1, tbld2, backend, sc, txOpts1, txOpts2
 }
 
 type aclHalfMock struct {
@@ -594,4 +682,46 @@ func requireReceipts(ctx context.Context, t *testing.T, tbld tableland.Tableland
 			require.Nil(t, r.Receipt.TableID)
 		}
 	}
+}
+
+func requireTxn(
+	t *testing.T,
+	backend *backends.SimulatedBackend,
+	key *ecdsa.PrivateKey,
+	from common.Address,
+	to common.Address,
+	amt *big.Int,
+) {
+	nonce, err := backend.PendingNonceAt(context.Background(), from)
+	require.NoError(t, err)
+
+	gasLimit := uint64(21000)
+	gasPrice, err := backend.SuggestGasPrice(context.Background())
+	require.NoError(t, err)
+
+	var data []byte
+	txnData := &types.LegacyTx{
+		Nonce:    nonce,
+		GasPrice: gasPrice,
+		Gas:      gasLimit,
+		To:       &to,
+		Data:     data,
+		Value:    amt,
+	}
+	tx := types.NewTx(txnData)
+	signedTx, err := types.SignTx(tx, types.HomesteadSigner{}, key)
+	require.NoError(t, err)
+
+	bal, err := backend.BalanceAt(context.Background(), from, nil)
+	require.NoError(t, err)
+	require.NotZero(t, bal)
+
+	err = backend.SendTransaction(context.Background(), signedTx)
+	require.NoError(t, err)
+
+	backend.Commit()
+
+	receipt, err := backend.TransactionReceipt(context.Background(), signedTx.Hash())
+	require.NoError(t, err)
+	require.NotNil(t, receipt)
 }

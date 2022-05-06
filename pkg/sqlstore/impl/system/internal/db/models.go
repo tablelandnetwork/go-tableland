@@ -35,6 +35,12 @@ type SystemAuth struct {
 	RunSqlCount      int32
 }
 
+type SystemController struct {
+	ChainID    int64
+	TableID    pgtype.Numeric
+	Controller string
+}
+
 type SystemPendingTx struct {
 	ChainID   int64
 	Address   string

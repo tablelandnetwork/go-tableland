@@ -74,7 +74,8 @@ func TestRunSQL(t *testing.T) {
 	require.True(t, event.Policy.AllowInsert)
 	require.True(t, event.Policy.AllowUpdate)
 	require.Equal(t, "", event.Policy.WhereClause)
-	require.Equal(t, []string{}, event.Policy.UpdateColumns)
+	require.Equal(t, []string{}, event.Policy.UpdatableColumns)
+	require.Equal(t, "", event.Policy.WithCheck)
 	require.Equal(t, statement, event.Statement)
 	require.True(t, event.IsOwner)
 }
@@ -111,14 +112,15 @@ func TestSetController(t *testing.T) {
 
 	require.NoError(t, err)
 
-	require.Equal(t, tokenID.Int64(), event.TokenId.Int64())
+	require.Equal(t, tokenID.Int64(), event.TableId.Int64())
 	require.Equal(t, controller, event.Controller)
 }
 
 func TestRunSQLWithBadgesAndRigsPolicy(t *testing.T) {
 	backend, _, txOpts, contract, client := setup(t)
 
-	userAddress := common.HexToAddress("0xa57b464e14671F99392ac06F4582f70C4D165607")
+	// caller must be the sender
+	callerAddress := txOpts.From
 
 	//Deploy controller contract
 	controllerAddress, _, controllerContract, err := controller.DeployContract(
@@ -155,31 +157,31 @@ func TestRunSQLWithBadgesAndRigsPolicy(t *testing.T) {
 	backend.Commit()
 
 	// You have to be the owner of the token to set the controller
-	tokenID := requireMint(t, backend, contract, txOpts, userAddress)
+	tokenID := requireMint(t, backend, contract, txOpts, callerAddress)
 	tableID, err := tableland.NewTableID(tokenID.String())
 	require.NoError(t, err)
 
-	_, err = client.SetController(context.Background(), userAddress, tableID, controllerAddress)
+	_, err = client.SetController(context.Background(), callerAddress, tableID, controllerAddress)
 	require.NoError(t, err)
 	backend.Commit()
 
 	// Mint two badges with ids 0 and 1
-	_, err = badgesContract.SafeMint(txOpts, userAddress)
+	_, err = badgesContract.SafeMint(txOpts, callerAddress)
 	require.NoError(t, err)
 	backend.Commit()
 
-	_, err = badgesContract.SafeMint(txOpts, userAddress)
+	_, err = badgesContract.SafeMint(txOpts, callerAddress)
 	require.NoError(t, err)
 	backend.Commit()
 
 	// Mint one rig with id 0
-	_, err = rigsContract.SafeMint(txOpts, userAddress)
+	_, err = rigsContract.SafeMint(txOpts, callerAddress)
 	require.NoError(t, err)
 	backend.Commit()
 
 	// execute RunSQL with a controller previously set
 	statement := "update badges_0 set position = 1"
-	txn, err := client.RunSQL(context.Background(), userAddress, tableID, statement)
+	txn, err := client.RunSQL(context.Background(), callerAddress, tableID, statement)
 	require.NoError(t, err)
 	backend.Commit()
 
@@ -202,7 +204,8 @@ func TestRunSQLWithBadgesAndRigsPolicy(t *testing.T) {
 	require.False(t, event.Policy.AllowInsert)
 	require.True(t, event.Policy.AllowUpdate)
 	require.Equal(t, "rig_id in (0) and id in (0,1)", event.Policy.WhereClause)
-	require.Equal(t, []string{"position"}, event.Policy.UpdateColumns)
+	require.Equal(t, []string{"position"}, event.Policy.UpdatableColumns)
+	require.Equal(t, "", event.Policy.WithCheck)
 	require.Equal(t, statement, event.Statement)
 }
 
