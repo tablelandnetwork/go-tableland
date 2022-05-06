@@ -108,9 +108,9 @@ func main() {
 	}, middlewares.Authentication, rateLim, middlewares.OtelHTTP("rpc"))
 
 	// Gateway configuration.
-	router.Get("/tables/{id}", systemController.GetTable, middlewares.OtelHTTP("GetTable"))
-	router.Get("/tables/{id}/{key}/{value}", userController.GetTableRow, middlewares.OtelHTTP("GetTableRow"))
-	router.Get("/tables/controller/{address}", systemController.GetTablesByController, middlewares.OtelHTTP("GetTablesByController")) //nolint
+	router.Get("/chain/{chainID}/tables/{id}", systemController.GetTable, middlewares.RESTChainID, middlewares.OtelHTTP("GetTable"))                                           //nolint
+	router.Get("/chain/{chainID}/tables/{id}/{key}/{value}", userController.GetTableRow, middlewares.RESTChainID, middlewares.OtelHTTP("GetTableRow"))                         //nolint
+	router.Get("/chain/{chainID}/tables/controller/{address}", systemController.GetTablesByController, middlewares.RESTChainID, middlewares.OtelHTTP("GetTablesByController")) //nolint
 
 	// Health endpoint configuration.
 	router.Get("/healthz", healthHandler)
