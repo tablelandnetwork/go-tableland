@@ -232,7 +232,7 @@ func (ep *EventProcessor) runBlockQueries(ctx context.Context, bqs eventfeed.Blo
 		}
 		receipts[i] = receipt
 		attrs := append([]attribute.KeyValue{
-			attribute.String("eventtype", reflect.TypeOf(e).String()),
+			attribute.String("eventtype", reflect.TypeOf(e.Event).String()),
 		}, ep.mBaseLabels...)
 		if receipt.Error != nil {
 			// Some acceptable failure happened (e.g: invalid syntax, inserting
