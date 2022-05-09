@@ -258,6 +258,10 @@ func (t *LocalTracker) checkPendingTxns() error {
 				cls()
 				break
 			}
+			if err == noncepkg.ErrPendingTxMayBeStuck {
+				cls()
+				break
+			}
 
 			t.log.Error().
 				Str("hash", pendingTx.Hash.Hex()).
