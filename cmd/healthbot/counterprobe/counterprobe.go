@@ -30,12 +30,11 @@ type CounterProbe struct {
 
 	rpcClient *rpc.Client
 
-	lock                sync.RWMutex
-	lastCounterValue    int64
-	lastCheck           time.Time
-	lastSuccessfulCheck time.Time
-
-	latencyHist syncint64.Histogram
+	lock                 sync.RWMutex
+	mLastCounterValue    int64
+	mLastCheck           time.Time
+	mLastSuccessfulCheck time.Time
+	mLatencyHist         syncint64.Histogram
 }
 
 // New returns a *CounterProbe.
@@ -71,7 +70,7 @@ func New(endpoint string,
 		tableName:      tableName,
 		receiptTimeout: receiptTimeout,
 
-		latencyHist: latencyHistogram,
+		mLatencyHist: latencyHistogram,
 	}
 
 	mLastCheck, err := meter.AsyncInt64().Gauge(metricPrefix + ".last_check")
@@ -94,9 +93,9 @@ func New(endpoint string,
 		cp.lock.RLock()
 		defer cp.lock.RUnlock()
 
-		mLastCheck.Observe(ctx, cp.lastCheck.Unix())
-		mLastSuccessfulCheck.Observe(ctx, cp.lastSuccessfulCheck.Unix())
-		mCounterValue.Observe(ctx, cp.lastCounterValue)
+		mLastCheck.Observe(ctx, cp.mLastCheck.Unix())
+		mLastSuccessfulCheck.Observe(ctx, cp.mLastSuccessfulCheck.Unix())
+		mCounterValue.Observe(ctx, cp.mLastCounterValue)
 	}); err != nil {
 		return &CounterProbe{}, fmt.Errorf("registering callback on instruments: %s", err)
 	}
@@ -122,16 +121,20 @@ func (cp *CounterProbe) Run(ctx context.Context) {
 
 func (cp *CounterProbe) execProbe(ctx context.Context) error {
 	cp.lock.Lock()
-	defer cp.lock.Unlock()
+	cp.mLastCheck = time.Now()
+	cp.lock.Unlock()
 
-	cp.lastCheck = time.Now()
 	counterValue, err := cp.healthCheck(ctx)
 	if err != nil {
 		return fmt.Errorf("health check: %s", err)
 	}
-	cp.lastSuccessfulCheck = time.Now()
-	cp.latencyHist.Record(ctx, time.Since(cp.lastCheck).Milliseconds())
-	cp.lastCounterValue = counterValue
+
+	cp.mLatencyHist.Record(ctx, time.Since(cp.mLastCheck).Milliseconds())
+	cp.lock.Lock()
+	cp.mLastSuccessfulCheck = time.Now()
+	cp.mLastCounterValue = counterValue
+	cp.lock.Unlock()
+
 	return nil
 }
 
