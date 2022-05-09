@@ -128,7 +128,7 @@ func (t *LocalTracker) GetNonce(ctx context.Context) (noncepkg.RegisterPendingTx
 				Msg("failed to store pending tx")
 		}
 
-		t.pendingTxs = append(t.pendingTxs, noncepkg.PendingTx{Hash: pendingHash, Nonce: nonce})
+		t.pendingTxs = append(t.pendingTxs, noncepkg.PendingTx{Hash: pendingHash, Nonce: nonce, CreatedAt: time.Now()})
 		t.currNonce = incrementedNonce
 	}
 
