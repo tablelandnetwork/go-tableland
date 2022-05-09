@@ -32,7 +32,11 @@ func (t *LocalTracker) initMetrics(chainID tableland.ChainID, addr common.Addres
 	}
 	mTxnConfirmationAttempts, err := meter.AsyncInt64().Gauge("tableland.wallettracker.txn.confirmation.attempts")
 	if err != nil {
-		return fmt.Errorf("creating lastconfirmed txn timestamp metric: %s", err)
+		return fmt.Errorf("creating txn confirmation attempts metric: %s", err)
+	}
+	mEthClientUnhealthy, err := meter.AsyncInt64().Gauge("tableland.wallettracker.eth.client.unhealthy")
+	if err != nil {
+		return fmt.Errorf("creating eth client unhealthy metric: %s", err)
 	}
 
 	if err = meter.RegisterCallback(
@@ -41,6 +45,7 @@ func (t *LocalTracker) initMetrics(chainID tableland.ChainID, addr common.Addres
 			mPendingTxns,
 			mBalance,
 			mTxnConfirmationAttempts,
+			mEthClientUnhealthy,
 		},
 		func(ctx context.Context) {
 			t.mu.Lock()
@@ -48,7 +53,8 @@ func (t *LocalTracker) initMetrics(chainID tableland.ChainID, addr common.Addres
 			mNonce.Observe(ctx, t.currNonce, baseLabels...)
 			mPendingTxns.Observe(ctx, int64(len(t.pendingTxs)), baseLabels...)
 			mBalance.Observe(ctx, t.currWeiBalance, baseLabels...)
-			mTxnConfirmationAttempts.Observe(ctx, t.txnTxnConfirmationAttempts, baseLabels...)
+			mTxnConfirmationAttempts.Observe(ctx, t.txnConfirmationAttempts, baseLabels...)
+			mEthClientUnhealthy.Observe(ctx, t.ethClientUnhealthy, baseLabels...)
 		}); err != nil {
 		return fmt.Errorf("registering async metric callback: %s", err)
 	}

@@ -21,11 +21,12 @@ type LocalTracker struct {
 	log    zerolog.Logger
 	wallet *wallet.Wallet
 
-	mu                         sync.Mutex
-	currNonce                  int64
-	currWeiBalance             int64
-	txnTxnConfirmationAttempts int64
-	pendingTxs                 []noncepkg.PendingTx
+	mu                      sync.Mutex
+	currNonce               int64
+	currWeiBalance          int64
+	txnConfirmationAttempts int64
+	ethClientUnhealthy      int64
+	pendingTxs              []noncepkg.PendingTx
 
 	// control attributes
 	close     chan struct{}
@@ -192,13 +193,13 @@ func (t *LocalTracker) checkIfPendingTxWasIncluded(
 				Time("createdAt", pendingTx.CreatedAt).
 				Msg("pending tx may be stuck")
 
-			t.txnTxnConfirmationAttempts++
+			t.txnConfirmationAttempts++
 			return noncepkg.ErrPendingTxMayBeStuck
 		}
 
 		return fmt.Errorf("get transaction receipt: %s", err)
 	}
-	t.txnTxnConfirmationAttempts = 0
+	t.txnConfirmationAttempts = 0
 
 	blockDiff := h.Number.Int64() - txReceipt.BlockNumber.Int64()
 	if blockDiff < int64(t.minBlockChainDepth) {
@@ -274,10 +275,15 @@ func (t *LocalTracker) checkBalance() error {
 	defer cls()
 	weiBalance, err := t.chainClient.BalanceAt(ctx, t.wallet.Address(), nil)
 	if err != nil {
+		t.mu.Lock()
+		t.ethClientUnhealthy++
+		t.mu.Unlock()
+
 		return fmt.Errorf("get balance: %s", err)
 	}
 	t.mu.Lock()
 	t.currWeiBalance = weiBalance.Int64()
+	t.ethClientUnhealthy = 0
 	t.mu.Unlock()
 
 	return nil
