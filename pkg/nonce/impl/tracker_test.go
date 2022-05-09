@@ -355,6 +355,11 @@ func (m *ChainMock) HeaderByNumber(ctx context.Context, n *big.Int) (*types.Head
 	return nil, nil
 }
 
+// this is not used by any test.
+func (m *ChainMock) BalanceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (*big.Int, error) {
+	return nil, nil
+}
+
 func setup(ctx context.Context, t *testing.T) (
 	noncepkg.NonceTracker,
 	*backends.SimulatedBackend,
