@@ -47,6 +47,7 @@ type ChainClient interface {
 	PendingNonceAt(ctx context.Context, account common.Address) (uint64, error)
 	TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
 	HeaderByNumber(ctx context.Context, n *big.Int) (*types.Header, error)
+	BalanceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (*big.Int, error)
 }
 
 // NonceStore provides the api for managing the storage of nonce and pending txs.

@@ -18,13 +18,16 @@ import (
 // LocalTracker implements a nonce tracker that stores
 // nonce and pending txs locally.
 type LocalTracker struct {
-	log        zerolog.Logger
-	currNonce  int64
-	pendingTxs []noncepkg.PendingTx
-	wallet     *wallet.Wallet
+	log    zerolog.Logger
+	wallet *wallet.Wallet
+
+	mu                         sync.Mutex
+	currNonce                  int64
+	currWeiBalance             int64
+	txnTxnConfirmationAttempts int64
+	pendingTxs                 []noncepkg.PendingTx
 
 	// control attributes
-	mu        sync.Mutex
 	close     chan struct{}
 	closeOnce sync.Once
 
@@ -64,6 +67,10 @@ func NewLocalTracker(
 		minBlockChainDepth: minBlockChainDepth,
 		stuckInterval:      stuckInterval,
 	}
+	if err := t.initMetrics(chainID, w.Address()); err != nil {
+		return nil, fmt.Errorf("init metrics: %s", err)
+	}
+
 	if err := t.initialize(ctx); err != nil {
 		return nil, fmt.Errorf("tracker initialization: %s", err)
 	}
@@ -77,6 +84,9 @@ func NewLocalTracker(
 			case <-ticker.C:
 				if err := t.checkPendingTxns(); err != nil {
 					log.Error().Err(err).Msg("checking pending txns")
+				}
+				if err := t.checkBalance(); err != nil {
+					log.Error().Err(err).Msg("checking balance")
 				}
 			case <-t.close:
 				ticker.Stop()
@@ -182,11 +192,13 @@ func (t *LocalTracker) checkIfPendingTxWasIncluded(
 				Time("createdAt", pendingTx.CreatedAt).
 				Msg("pending tx may be stuck")
 
+			t.txnTxnConfirmationAttempts++
 			return noncepkg.ErrPendingTxMayBeStuck
 		}
 
 		return fmt.Errorf("get transaction receipt: %s", err)
 	}
+	t.txnTxnConfirmationAttempts = 0
 
 	blockDiff := h.Number.Int64() - txReceipt.BlockNumber.Int64()
 	if blockDiff < int64(t.minBlockChainDepth) {
@@ -254,5 +266,19 @@ func (t *LocalTracker) checkPendingTxns() error {
 		}
 		cls()
 	}
+	return nil
+}
+
+func (t *LocalTracker) checkBalance() error {
+	ctx, cls := context.WithTimeout(context.Background(), time.Second*15)
+	defer cls()
+	weiBalance, err := t.chainClient.BalanceAt(ctx, t.wallet.Address(), nil)
+	if err != nil {
+		return fmt.Errorf("get balance: %s", err)
+	}
+	t.mu.Lock()
+	t.currWeiBalance = weiBalance.Int64()
+	t.mu.Unlock()
+
 	return nil
 }
