@@ -554,6 +554,39 @@ func (b *batch) executeWriteStmt(
 		}
 	}
 
+	if policy.WithCheck() == "" {
+		desugared, err := ws.GetDesugaredQuery()
+		if err != nil {
+			return fmt.Errorf("get desugared query: %s", err)
+		}
+		cmdTag, err := tx.Exec(ctx, desugared)
+		if err != nil {
+			if code, ok := isErrCausedByQuery(err); ok {
+				return &txn.ErrQueryExecution{
+					Code: "POSTGRES_" + code,
+					Msg:  err.Error(),
+				}
+			}
+			return fmt.Errorf("exec query: %s", err)
+		}
+
+		if err := b.checkRowCountLimit(cmdTag, beforeRowCount); err != nil {
+			return fmt.Errorf("check row limit: %w", err)
+		}
+
+		return nil
+	}
+
+	if err := ws.AddReturningClause(); err != nil {
+		if err != parsing.ErrCantAddReturningOnDELETE {
+			return &txn.ErrQueryExecution{
+				Code: "POLICY_APPLY_RETURNING_CLAUSE",
+				Msg:  err.Error(),
+			}
+		}
+		b.tp.log.Warn().Err(err).Msg("add returning clause called on delete")
+	}
+
 	desugared, err := ws.GetDesugaredQuery()
 	if err != nil {
 		return fmt.Errorf("get desugared query: %s", err)
@@ -575,25 +608,14 @@ func (b *batch) executeWriteStmt(
 		return fmt.Errorf("get rows ctids: %s", err)
 	}
 
-	rows.Close()
 	if err := b.checkRowCountLimit(rows.CommandTag(), beforeRowCount); err != nil {
 		return fmt.Errorf("check row limit: %w", err)
-	}
-
-	if len(affectedRowsCtids) == 0 {
-		return nil
-	}
-
-	// This is a safety check. The code should never enter this if.
-	// Below the if is the logic that should only be applied when a WithCheck Policy is set.
-	if !isControllerSet || policy.WithCheck() == "" {
-		return fmt.Errorf("controller and with check should be set")
 	}
 
 	// If the executed query returned ctids for the affected rows,
 	// we need to execute an auditing SQL built from the policy
 	// and match the result of this SQL to the number of affected rows
-	sql := b.buildAuditingQueryFromPolicy(ws.GetTableID().String(), affectedRowsCtids, policy)
+	sql := b.buildAuditingQueryFromPolicy(ws.GetDBTableName(), affectedRowsCtids, policy)
 	if err := b.checkAffectedRowsAgainstAuditingQuery(ctx, tx, len(affectedRowsCtids), sql); err != nil {
 		return fmt.Errorf("check affexted rows against auditing query: %w", err)
 	}
@@ -654,30 +676,16 @@ func (b *batch) applyPolicy(ws parsing.SugaredWriteStmt, policy tableland.Policy
 		}
 	}
 
-	// the withCheck policy applies to insert and update.
-	if ws.Operation() == tableland.OpInsert || ws.Operation() == tableland.OpUpdate {
-		if policy.WithCheck() != "" {
-			if err := ws.AddReturningClause(); err != nil {
-				if err != parsing.ErrCantAddReturningOnDELETE {
-					return &txn.ErrQueryExecution{
-						Code: "POLICY_APPLY_RETURNING_CLAUSE",
-						Msg:  err.Error(),
-					}
-				}
-				b.tp.log.Warn().Err(err).Msg("add returning clause called on delete")
-			}
-		}
-	}
-
 	return nil
 }
 
 func (b *batch) getRowsCtids(rows pgx.Rows) ([]string, error) {
-	affectedRowsCtids := make([]string, 0)
+	var affectedRowsCtids []string
+	defer rows.Next()
 	for rows.Next() {
 		var ctid pgtype.TID
 		if err := rows.Scan(&ctid); err != nil {
-			return []string{}, fmt.Errorf("scan row column: %s", err)
+			return nil, fmt.Errorf("scan row column: %s", err)
 		}
 
 		affectedRowsCtids = append(affectedRowsCtids, fmt.Sprintf("'(%d, %d)'", ctid.BlockNumber, ctid.OffsetNumber))
@@ -726,11 +734,10 @@ func (b *batch) checkAffectedRowsAgainstAuditingQuery(
 	return nil
 }
 
-func (b *batch) buildAuditingQueryFromPolicy(tableID string, ctids []string, policy tableland.Policy) string {
-	dbTableName := fmt.Sprintf("_%d_%s", b.tp.chainID, tableID)
+func (b *batch) buildAuditingQueryFromPolicy(tableName string, ctids []string, policy tableland.Policy) string {
 	return fmt.Sprintf(
-		"SELECT count(1) c FROM %s WHERE (%s) AND ctid in (%s) LIMIT 1",
-		dbTableName,
+		"SELECT count(1) FROM %s WHERE (%s) AND ctid in (%s) LIMIT 1",
+		tableName,
 		policy.WithCheck(),
 		strings.Join(ctids, ","),
 	)
