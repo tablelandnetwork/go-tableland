@@ -273,6 +273,10 @@ func (s *sugaredStmt) GetNamePrefix() string {
 	return s.namePrefix
 }
 
+func (s *sugaredStmt) GetDBTableName() string {
+	return s.dbTableName
+}
+
 func (s *sugaredStmt) GetTableID() tableland.TableID {
 	tid, _ := tableland.NewTableID(s.tableName[1:])
 	return tid

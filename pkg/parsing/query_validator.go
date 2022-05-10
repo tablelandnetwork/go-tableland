@@ -24,6 +24,9 @@ type SugaredStmt interface {
 	// GetTableID returns the table id. "insert into foo_100" -> 100.
 	GetTableID() tableland.TableID
 
+	// GetDBTableName returns the database table name
+	GetDBTableName() string
+
 	// Operation returns the type of the operation
 	Operation() tableland.Operation
 }
