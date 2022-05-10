@@ -896,13 +896,13 @@ func TestWriteStatementAddWhereClause(t *testing.T) {
 			name:        "no-where-clause",
 			query:       "UPDATE foo_1337 SET id = 1",
 			whereClause: "bar = 1",
-			expQuery:    "UPDATE _31337_1337 SET id = 1 WHERE bar = 1",
+			expQuery:    "UPDATE _1337_1337 SET id = 1 WHERE bar = 1",
 		},
 		{
 			name:        "with-where-clause",
 			query:       "UPDATE foo_1337 SET id = 1 WHERE bar = 1",
 			whereClause: "c in (1, 2)",
-			expQuery:    "UPDATE _31337_1337 SET id = 1 WHERE bar = 1 AND c IN (1, 2)",
+			expQuery:    "UPDATE _1337_1337 SET id = 1 WHERE bar = 1 AND c IN (1, 2)",
 		},
 	}
 
@@ -910,7 +910,7 @@ func TestWriteStatementAddWhereClause(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			parser := parser.New([]string{"system_", "registry"}, 31337, 0, 0)
+			parser := parser.New([]string{"system_", "registry"}, 1337, 0, 0)
 			rs, mss, err := parser.ValidateRunSQL(tc.query)
 			require.NoError(t, err)
 			require.Nil(t, rs)
@@ -927,6 +927,65 @@ func TestWriteStatementAddWhereClause(t *testing.T) {
 			require.Equal(t, tc.expQuery, sql)
 		})
 	}
+}
+
+func TestWriteStatementAddReturningClause(t *testing.T) {
+	t.Parallel()
+	t.Run("insert-add-returning", func(t *testing.T) {
+		t.Parallel()
+
+		parser := parser.New([]string{"system_", "registry"}, 1337, 0, 0)
+		rs, mss, err := parser.ValidateRunSQL("insert into foo_0 VALUES ('bar')")
+		require.NoError(t, err)
+		require.Nil(t, rs)
+		require.Len(t, mss, 1)
+
+		ws, ok := mss[0].(parsing.SugaredWriteStmt)
+		require.True(t, ok)
+
+		err = ws.AddReturningClause()
+		require.NoError(t, err)
+
+		sql, err := ws.GetDesugaredQuery()
+		require.NoError(t, err)
+		require.Equal(t, "INSERT INTO _1337_0 VALUES ('bar') RETURNING ctid", sql)
+	})
+
+	t.Run("update-add-returning", func(t *testing.T) {
+		t.Parallel()
+
+		parser := parser.New([]string{"system_", "registry"}, 1337, 0, 0)
+		rs, mss, err := parser.ValidateRunSQL("update foo_0 set foo = 'bar'")
+		require.NoError(t, err)
+		require.Nil(t, rs)
+		require.Len(t, mss, 1)
+
+		ws, ok := mss[0].(parsing.SugaredWriteStmt)
+		require.True(t, ok)
+
+		err = ws.AddReturningClause()
+		require.NoError(t, err)
+
+		sql, err := ws.GetDesugaredQuery()
+		require.NoError(t, err)
+		require.Equal(t, "UPDATE _1337_0 SET foo = 'bar' RETURNING ctid", sql)
+	})
+
+	t.Run("delete-add-returning-error", func(t *testing.T) {
+		t.Parallel()
+
+		parser := parser.New([]string{"system_", "registry"}, 1337, 0, 0)
+		rs, mss, err := parser.ValidateRunSQL("DELETE FROM foo_0 WHERE foo = 'bar'")
+		require.NoError(t, err)
+		require.Nil(t, rs)
+		require.Len(t, mss, 1)
+
+		ws, ok := mss[0].(parsing.SugaredWriteStmt)
+		require.True(t, ok)
+
+		err = ws.AddReturningClause()
+		require.ErrorAs(t, err, &parsing.ErrCantAddReturningOnDELETE)
+	})
 }
 
 // Helpers to have a pointer to pointer for generic test-case running.

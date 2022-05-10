@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -553,28 +554,59 @@ func (b *batch) executeWriteStmt(
 		}
 	}
 
+	if policy.WithCheck() == "" {
+		desugared, err := ws.GetDesugaredQuery()
+		if err != nil {
+			return fmt.Errorf("get desugared query: %s", err)
+		}
+		cmdTag, err := tx.Exec(ctx, desugared)
+		if err != nil {
+			if code, ok := isErrCausedByQuery(err); ok {
+				return &txn.ErrQueryExecution{
+					Code: "POSTGRES_" + code,
+					Msg:  err.Error(),
+				}
+			}
+			return fmt.Errorf("exec query: %s", err)
+		}
+
+		if err := b.checkRowCountLimit(cmdTag, beforeRowCount); err != nil {
+			return fmt.Errorf("check row limit: %w", err)
+		}
+
+		return nil
+	}
+
+	if err := ws.AddReturningClause(); err != nil {
+		if err != parsing.ErrCantAddReturningOnDELETE {
+			return &txn.ErrQueryExecution{
+				Code: "POLICY_APPLY_RETURNING_CLAUSE",
+				Msg:  err.Error(),
+			}
+		}
+		b.tp.log.Warn().Err(err).Msg("add returning clause called on delete")
+	}
+
 	desugared, err := ws.GetDesugaredQuery()
 	if err != nil {
 		return fmt.Errorf("get desugared query: %s", err)
 	}
-	cmdTag, err := tx.Exec(ctx, desugared)
+
+	affectedRowsCtids, commandTag, err := b.executeQueryAndGetAffectedRows(ctx, tx, desugared)
 	if err != nil {
-		if code, ok := isErrCausedByQuery(err); ok {
-			return &txn.ErrQueryExecution{
-				Code: "POSTGRES_" + code,
-				Msg:  err.Error(),
-			}
-		}
-		return fmt.Errorf("exec query: %s", err)
+		return fmt.Errorf("get rows ctids: %s", err)
 	}
-	if b.tp.maxTableRowCount > 0 && cmdTag.Insert() {
-		afterRowCount := beforeRowCount + int(cmdTag.RowsAffected())
-		if afterRowCount > b.tp.maxTableRowCount {
-			return &txn.ErrRowCountExceeded{
-				BeforeRowCount: beforeRowCount,
-				AfterRowCount:  afterRowCount,
-			}
-		}
+
+	if err := b.checkRowCountLimit(commandTag, beforeRowCount); err != nil {
+		return fmt.Errorf("check row limit: %w", err)
+	}
+
+	// If the executed query returned ctids for the affected rows,
+	// we need to execute an auditing SQL built from the policy
+	// and match the result of this SQL to the number of affected rows
+	sql := b.buildAuditingQueryFromPolicy(ws.GetDBTableName(), affectedRowsCtids, policy)
+	if err := b.checkAffectedRowsAgainstAuditingQuery(ctx, tx, len(affectedRowsCtids), sql); err != nil {
+		return fmt.Errorf("check affexted rows against auditing query: %w", err)
 	}
 
 	return nil
@@ -602,9 +634,9 @@ func (b *batch) applyPolicy(ws parsing.SugaredWriteStmt, policy tableland.Policy
 		}
 	}
 
+	// the updatableColumns policy only applies to update.
 	if ws.Operation() == tableland.OpUpdate {
-		// check allowed columns
-		columnsAllowed := policy.UpdateColumns()
+		columnsAllowed := policy.UpdatableColumns()
 		if len(columnsAllowed) > 0 {
 			if err := ws.CheckColumns(columnsAllowed); err != nil {
 				if err != parsing.ErrCanOnlyCheckColumnsOnUPDATE {
@@ -616,8 +648,10 @@ func (b *batch) applyPolicy(ws parsing.SugaredWriteStmt, policy tableland.Policy
 				b.tp.log.Warn().Err(err).Msg("check columns being called on insert or delete")
 			}
 		}
+	}
 
-		// apply the WHERE clauses
+	// the whereClause policy applies to update and delete.
+	if ws.Operation() == tableland.OpUpdate || ws.Operation() == tableland.OpDelete {
 		if policy.WhereClause() != "" {
 			if err := ws.AddWhereClause(policy.WhereClause()); err != nil {
 				if err != parsing.ErrCantAddWhereOnINSERT {
@@ -628,10 +662,89 @@ func (b *batch) applyPolicy(ws parsing.SugaredWriteStmt, policy tableland.Policy
 				}
 				b.tp.log.Warn().Err(err).Msg("add where clause called on insert")
 			}
-
-			return nil
 		}
 	}
 
 	return nil
+}
+
+func (b *batch) executeQueryAndGetAffectedRows(
+	ctx context.Context,
+	tx pgx.Tx,
+	query string) (affectedRowsCtids []string, commandTag pgconn.CommandTag, err error) {
+	rows, err := tx.Query(ctx, query)
+	defer func() {
+		rows.Close()
+		commandTag = rows.CommandTag()
+	}()
+
+	if err != nil {
+		if code, ok := isErrCausedByQuery(err); ok {
+			return nil, nil, &txn.ErrQueryExecution{
+				Code: "POSTGRES_" + code,
+				Msg:  err.Error(),
+			}
+		}
+		return nil, nil, fmt.Errorf("exec query: %s", err)
+	}
+
+	for rows.Next() {
+		var ctid pgtype.TID
+		if err := rows.Scan(&ctid); err != nil {
+			return nil, nil, fmt.Errorf("scan row column: %s", err)
+		}
+
+		affectedRowsCtids = append(affectedRowsCtids, fmt.Sprintf("'(%d, %d)'", ctid.BlockNumber, ctid.OffsetNumber))
+	}
+	return affectedRowsCtids, commandTag, nil
+}
+
+func (b *batch) checkRowCountLimit(cmdTag pgconn.CommandTag, beforeRowCount int) error {
+	if b.tp.maxTableRowCount > 0 && cmdTag.Insert() {
+		afterRowCount := beforeRowCount + int(cmdTag.RowsAffected())
+
+		if afterRowCount > b.tp.maxTableRowCount {
+			return &txn.ErrQueryExecution{
+				Code: "ROW_COUNT_LIMIT",
+				Msg:  fmt.Sprintf("table maximum row count exceeded (before %d, after %d)", beforeRowCount, afterRowCount),
+			}
+		}
+	}
+
+	return nil
+}
+
+func (b *batch) checkAffectedRowsAgainstAuditingQuery(
+	ctx context.Context,
+	tx pgx.Tx,
+	affectedRowsCount int,
+	sql string) error {
+	var count int
+	if err := tx.QueryRow(ctx, sql).Scan(&count); err != nil {
+		if code, ok := isErrCausedByQuery(err); ok {
+			return &txn.ErrQueryExecution{
+				Code: "POSTGRES_" + code,
+				Msg:  err.Error(),
+			}
+		}
+		return fmt.Errorf("checking affected rows query exec: %s", err)
+	}
+
+	if count != affectedRowsCount {
+		return &txn.ErrQueryExecution{
+			Code: "POLICY_WITH_CHECK",
+			Msg:  fmt.Sprintf("number of affected rows %d does not match auditing count %d", affectedRowsCount, count),
+		}
+	}
+
+	return nil
+}
+
+func (b *batch) buildAuditingQueryFromPolicy(tableName string, ctids []string, policy tableland.Policy) string {
+	return fmt.Sprintf(
+		"SELECT count(1) FROM %s WHERE (%s) AND ctid in (%s) LIMIT 1",
+		tableName,
+		policy.WithCheck(),
+		strings.Join(ctids, ","),
+	)
 }

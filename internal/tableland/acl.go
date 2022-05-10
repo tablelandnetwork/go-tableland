@@ -143,9 +143,12 @@ type Policy interface {
 	// WhereClause is SQL where clauses that restricts update and delete execution.
 	WhereClause() string
 
-	// UpdateColumns imposes restrictions on what columns can be updated.
+	// UpdatableColumns imposes restrictions on what columns can be updated.
 	// Empty means all columns are allowed.
-	UpdateColumns() []string
+	UpdatableColumns() []string
+
+	// WithCheck is a SQL where clause that restricts the execution of incoming writes.
+	WithCheck() string
 }
 
 // AllowAllPolicy is a policy that imposes no restrictions on execution of statements.
@@ -160,8 +163,11 @@ func (p AllowAllPolicy) IsUpdateAllowed() bool { return true }
 // IsDeleteAllowed rejects delete statement execution.
 func (p AllowAllPolicy) IsDeleteAllowed() bool { return true }
 
-// WhereClause is SQL where clauses that restricts update and delete execution.
+// WhereClause is a SQL where clause that restricts update and delete execution.
 func (p AllowAllPolicy) WhereClause() string { return "" }
 
-// UpdateColumns imposes restrictions on what columns can be updated.
-func (p AllowAllPolicy) UpdateColumns() []string { return []string{} }
+// UpdatableColumns imposes restrictions on what columns can be updated.
+func (p AllowAllPolicy) UpdatableColumns() []string { return []string{} }
+
+// WithCheck is a SQL where clause that restricts the execution of incoming writes.
+func (p AllowAllPolicy) WithCheck() string { return "" }
