@@ -698,9 +698,9 @@ func (b *batch) checkRowCountLimit(cmdTag pgconn.CommandTag, beforeRowCount int)
 		afterRowCount := beforeRowCount + int(cmdTag.RowsAffected())
 
 		if afterRowCount > b.tp.maxTableRowCount {
-			return &txn.ErrRowCountExceeded{
-				BeforeRowCount: beforeRowCount,
-				AfterRowCount:  afterRowCount,
+			return &txn.ErrQueryExecution{
+				Code: "ROW_COUNT_LIMIT",
+				Msg:  fmt.Sprintf("table maximum row count exceeded (before %d, after %d)", beforeRowCount, afterRowCount),
 			}
 		}
 	}
@@ -721,7 +721,7 @@ func (b *batch) checkAffectedRowsAgainstAuditingQuery(
 				Msg:  err.Error(),
 			}
 		}
-		return fmt.Errorf("exec query: %s", err)
+		return fmt.Errorf("checking affected rows query exec: %s", err)
 	}
 
 	if count != affectedRowsCount {

@@ -59,18 +59,6 @@ type Batch interface {
 	Close(context.Context) error
 }
 
-// ErrRowCountExceeded is an error returned when a table exceeds the maximum number
-// of rows.
-type ErrRowCountExceeded struct {
-	BeforeRowCount int
-	AfterRowCount  int
-}
-
-func (e *ErrRowCountExceeded) Error() string {
-	return fmt.Sprintf("table maximum row count exceeded (before %d, after %d)",
-		e.BeforeRowCount, e.AfterRowCount)
-}
-
 // ErrQueryExecution is an error returned when the query execution failed
 // with a cause related to th query itself. Retrying the execution of this query
 // will always return an error (e.g: inserting a string in an integer column).
