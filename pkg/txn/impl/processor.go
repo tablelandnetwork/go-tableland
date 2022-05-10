@@ -681,7 +681,7 @@ func (b *batch) applyPolicy(ws parsing.SugaredWriteStmt, policy tableland.Policy
 
 func (b *batch) getRowsCtids(rows pgx.Rows) ([]string, error) {
 	var affectedRowsCtids []string
-	defer rows.Next()
+	defer rows.Close()
 	for rows.Next() {
 		var ctid pgtype.TID
 		if err := rows.Scan(&ctid); err != nil {
