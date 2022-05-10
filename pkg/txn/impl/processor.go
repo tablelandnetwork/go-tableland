@@ -592,23 +592,12 @@ func (b *batch) executeWriteStmt(
 		return fmt.Errorf("get desugared query: %s", err)
 	}
 
-	rows, err := tx.Query(ctx, desugared)
-	if err != nil {
-		if code, ok := isErrCausedByQuery(err); ok {
-			return &txn.ErrQueryExecution{
-				Code: "POSTGRES_" + code,
-				Msg:  err.Error(),
-			}
-		}
-		return fmt.Errorf("exec query: %s", err)
-	}
-
-	affectedRowsCtids, err := b.getRowsCtids(rows)
+	affectedRowsCtids, commandTag, err := b.executeQueryAndGetAffectedRows(ctx, tx, desugared)
 	if err != nil {
 		return fmt.Errorf("get rows ctids: %s", err)
 	}
 
-	if err := b.checkRowCountLimit(rows.CommandTag(), beforeRowCount); err != nil {
+	if err := b.checkRowCountLimit(commandTag, beforeRowCount); err != nil {
 		return fmt.Errorf("check row limit: %w", err)
 	}
 
@@ -679,18 +668,35 @@ func (b *batch) applyPolicy(ws parsing.SugaredWriteStmt, policy tableland.Policy
 	return nil
 }
 
-func (b *batch) getRowsCtids(rows pgx.Rows) ([]string, error) {
-	var affectedRowsCtids []string
-	defer rows.Close()
+func (b *batch) executeQueryAndGetAffectedRows(
+	ctx context.Context,
+	tx pgx.Tx,
+	query string) (affectedRowsCtids []string, commandTag pgconn.CommandTag, err error) {
+	rows, err := tx.Query(ctx, query)
+	defer func() {
+		rows.Close()
+		commandTag = rows.CommandTag()
+	}()
+
+	if err != nil {
+		if code, ok := isErrCausedByQuery(err); ok {
+			return nil, nil, &txn.ErrQueryExecution{
+				Code: "POSTGRES_" + code,
+				Msg:  err.Error(),
+			}
+		}
+		return nil, nil, fmt.Errorf("exec query: %s", err)
+	}
+
 	for rows.Next() {
 		var ctid pgtype.TID
 		if err := rows.Scan(&ctid); err != nil {
-			return nil, fmt.Errorf("scan row column: %s", err)
+			return nil, nil, fmt.Errorf("scan row column: %s", err)
 		}
 
 		affectedRowsCtids = append(affectedRowsCtids, fmt.Sprintf("'(%d, %d)'", ctid.BlockNumber, ctid.OffsetNumber))
 	}
-	return affectedRowsCtids, nil
+	return affectedRowsCtids, commandTag, nil
 }
 
 func (b *batch) checkRowCountLimit(cmdTag pgconn.CommandTag, beforeRowCount int) error {
