@@ -671,6 +671,59 @@ func TestWithCheck(t *testing.T) {
 
 		require.Equal(t, 2, tableRowCountT100(t, pool, "select count(*) from _1337_100"))
 	})
+
+	t.Run("row-count-limit-withcheck", func(t *testing.T) {
+		t.Parallel()
+		ctx := context.Background()
+
+		rowLimit := 10
+		txnp, pool := newTxnProcessorWithTable(t, rowLimit)
+
+		b, err := txnp.OpenBatch(ctx)
+		require.NoError(t, err)
+
+		// set the controller to anything other than zero
+		err = b.SetController(ctx, tableland.TableID(*big.NewInt(100)), common.HexToAddress("0x1"))
+		require.NoError(t, err)
+
+		require.NoError(t, b.Close(ctx))
+
+		// Helper func to insert a row and return an error if happened.
+		insertRow := func(t *testing.T) error {
+			b, err := txnp.OpenBatch(ctx)
+			require.NoError(t, err)
+
+			policy := policyFactory(policyData{
+				isInsertAllowed: true,
+				withCheck:       "zar in ('one')",
+			})
+
+			q := mustWriteStmt(t, `insert into foo_100 values ('one')`)
+
+			err = b.ExecWriteQueries(ctx, controller, []parsing.SugaredMutatingStmt{q}, true, policy)
+			if err == nil {
+				require.NoError(t, b.Commit(ctx))
+			}
+			require.NoError(t, b.Close(ctx))
+			return err
+		}
+
+		// Insert up to 10 rows should succeed.
+		for i := 0; i < rowLimit; i++ {
+			require.NoError(t, insertRow(t))
+		}
+		require.Equal(t, rowLimit, tableRowCountT100(t, pool, "select count(*) from _1337_100"))
+
+		// The next insert should fail.
+		var errQueryExecution *txn.ErrQueryExecution
+		err = insertRow(t)
+		require.ErrorAs(t, err, &errQueryExecution)
+		require.ErrorContains(t, err,
+			fmt.Sprintf("table maximum row count exceeded (before %d, after %d)", rowLimit, rowLimit+1),
+		)
+
+		require.NoError(t, txnp.Close(ctx))
+	})
 }
 
 func tableRowCountT100(t *testing.T, pool *pgxpool.Pool, sql string) int {
