@@ -2,6 +2,7 @@ package impl
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -475,10 +476,12 @@ func TestTableRowCountLimit(t *testing.T) {
 	require.Equal(t, rowLimit, tableRowCountT100(t, pool, "select count(*) from _1337_100"))
 
 	// The next insert should fail.
-	var errRowCount *txn.ErrRowCountExceeded
-	require.ErrorAs(t, insertRow(t), &errRowCount)
-	require.Equal(t, rowLimit, errRowCount.BeforeRowCount)
-	require.Equal(t, rowLimit+1, errRowCount.AfterRowCount)
+	var errQueryExecution *txn.ErrQueryExecution
+	err := insertRow(t)
+	require.ErrorAs(t, err, &errQueryExecution)
+	require.ErrorContains(t, err,
+		fmt.Sprintf("table maximum row count exceeded (before %d, after %d)", rowLimit, rowLimit+1),
+	)
 
 	require.NoError(t, txnp.Close(ctx))
 }
