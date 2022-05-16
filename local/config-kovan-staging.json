@@ -42,7 +42,7 @@
       "EventFeed": {
         "ChainAPIBackoff": "15s",
         "NewBlockTimeout": "30s",
-        "MaxBlocksFetchSize": 1000000,
+        "MaxBlocksFetchSize": 100000,
         "MinBlockDepth": 0
       },
       "EventProcessor": {
