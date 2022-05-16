@@ -29,6 +29,8 @@
 // migrations/013_chanid_rename_tables.up.sql
 // migrations/014_system_controller.down.sql
 // migrations/014_system_controller.up.sql
+// migrations/015_chainid_block.down.sql
+// migrations/015_chainid_block.up.sql
 // migrations/migrations_test.go
 package migrations
 
@@ -601,7 +603,7 @@ func _013_chainid_rename_tablesDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "013_chainid_rename_tables.down.sql", size: 5, mode: os.FileMode(420), modTime: time.Unix(1651690126, 0)}
+	info := bindataFileInfo{name: "013_chainid_rename_tables.down.sql", size: 5, mode: os.FileMode(420), modTime: time.Unix(1651873150, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -621,7 +623,7 @@ func _013_chanid_rename_tablesUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "013_chanid_rename_tables.up.sql", size: 266, mode: os.FileMode(420), modTime: time.Unix(1651690126, 0)}
+	info := bindataFileInfo{name: "013_chanid_rename_tables.up.sql", size: 266, mode: os.FileMode(420), modTime: time.Unix(1651873150, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -641,7 +643,7 @@ func _014_system_controllerDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "014_system_controller.down.sql", size: 29, mode: os.FileMode(420), modTime: time.Unix(1651777767, 0)}
+	info := bindataFileInfo{name: "014_system_controller.down.sql", size: 29, mode: os.FileMode(420), modTime: time.Unix(1651873150, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -661,7 +663,47 @@ func _014_system_controllerUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "014_system_controller.up.sql", size: 352, mode: os.FileMode(420), modTime: time.Unix(1651870046, 0)}
+	info := bindataFileInfo{name: "014_system_controller.up.sql", size: 352, mode: os.FileMode(420), modTime: time.Unix(1651873150, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __015_chainid_blockDownSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\x72\x75\xf7\xf4\xb3\xe6\xe2\x72\xf4\x09\x71\x0d\x52\x08\x71\x74\xf2\x71\x55\x28\xae\x2c\x2e\x49\xcd\x8d\x2f\xa9\xc8\x8b\x2f\x28\xca\x4f\x4e\x2d\x2e\xce\x2f\x52\x70\x74\x71\x51\x70\xf6\xf7\x09\xf5\xf5\x53\x48\xce\x48\xcc\xcc\x8b\xcf\x4c\x51\x48\xca\x4c\xcf\xcc\x2b\xb1\xe6\x0a\x0d\x70\x71\x0c\xc1\xa1\x2f\xd8\x35\x04\xae\xc1\xd6\xcc\xd2\x9a\x08\x9b\xc0\x0a\xd0\xed\x02\x99\xe3\xe7\x1f\xa2\xe0\x17\xea\xe3\x43\x8c\x21\x2e\x2e\x0a\x01\x41\x9e\xbe\x8e\x41\x91\x0a\xde\xae\x91\x70\x73\xac\xb9\xb8\x9c\xfd\x7d\x7d\x3d\x43\xac\x01\x01\x00\x00\xff\xff\xc2\x7b\xbf\xfb\xfa\x00\x00\x00")
+
+func _015_chainid_blockDownSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__015_chainid_blockDownSql,
+		"015_chainid_block.down.sql",
+	)
+}
+
+func _015_chainid_blockDownSql() (*asset, error) {
+	bytes, err := _015_chainid_blockDownSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "015_chainid_block.down.sql", size: 250, mode: os.FileMode(420), modTime: time.Unix(1652729426, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __015_chainid_blockUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\x72\x75\xf7\xf4\xb3\xe6\xe2\x72\xf4\x09\x71\x0d\x52\x08\x71\x74\xf2\x71\x55\x28\xae\x2c\x2e\x49\xcd\x8d\x2f\xa9\xc8\x8b\x2f\x28\xca\x4f\x4e\x2d\x2e\xce\x2f\x52\x70\x74\x71\x51\x70\xf6\xf7\x09\xf5\xf5\x53\x48\xce\x48\xcc\xcc\x8b\xcf\x4c\x51\x48\xca\x4c\xcf\xcc\x2b\xb1\xe6\x0a\x0d\x70\x71\x0c\xc1\xa1\x2f\xd8\x35\x04\xae\xc1\xd6\xcc\xd2\x9a\x08\x9b\xc0\x0a\xd0\xed\x02\x99\xe3\xe7\x1f\xa2\xe0\x17\xea\xe3\x43\x8c\x21\x2e\x2e\x0a\x01\x41\x9e\xbe\x8e\x41\x91\x0a\xde\xae\x91\x0a\x1a\x30\x83\x34\xad\xb9\xb8\x9c\xfd\x7d\x7d\x3d\x43\xac\x01\x01\x00\x00\xff\xff\x88\xfb\x12\x68\xfc\x00\x00\x00")
+
+func _015_chainid_blockUpSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__015_chainid_blockUpSql,
+		"015_chainid_block.up.sql",
+	)
+}
+
+func _015_chainid_blockUpSql() (*asset, error) {
+	bytes, err := _015_chainid_blockUpSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "015_chainid_block.up.sql", size: 252, mode: os.FileMode(420), modTime: time.Unix(1652729446, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -681,7 +723,7 @@ func migrations_testGo() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "migrations_test.go", size: 1752, mode: os.FileMode(420), modTime: time.Unix(1651690126, 0)}
+	info := bindataFileInfo{name: "migrations_test.go", size: 1752, mode: os.FileMode(420), modTime: time.Unix(1651873150, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -766,6 +808,8 @@ var _bindata = map[string]func() (*asset, error){
 	"013_chanid_rename_tables.up.sql":    _013_chanid_rename_tablesUpSql,
 	"014_system_controller.down.sql":     _014_system_controllerDownSql,
 	"014_system_controller.up.sql":       _014_system_controllerUpSql,
+	"015_chainid_block.down.sql":         _015_chainid_blockDownSql,
+	"015_chainid_block.up.sql":           _015_chainid_blockUpSql,
 	"migrations_test.go":                 migrations_testGo,
 }
 
@@ -838,6 +882,8 @@ var _bintree = &bintree{nil, map[string]*bintree{
 	"013_chanid_rename_tables.up.sql":    &bintree{_013_chanid_rename_tablesUpSql, map[string]*bintree{}},
 	"014_system_controller.down.sql":     &bintree{_014_system_controllerDownSql, map[string]*bintree{}},
 	"014_system_controller.up.sql":       &bintree{_014_system_controllerUpSql, map[string]*bintree{}},
+	"015_chainid_block.down.sql":         &bintree{_015_chainid_blockDownSql, map[string]*bintree{}},
+	"015_chainid_block.up.sql":           &bintree{_015_chainid_blockUpSql, map[string]*bintree{}},
 	"migrations_test.go":                 &bintree{migrations_testGo, map[string]*bintree{}},
 }}
 
