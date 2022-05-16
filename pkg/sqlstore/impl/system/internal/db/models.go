@@ -51,6 +51,7 @@ type SystemPendingTx struct {
 
 type SystemTxnProcessor struct {
 	BlockNumber sql.NullInt64
+	ChainID     int64
 }
 
 type SystemTxnReceipt struct {

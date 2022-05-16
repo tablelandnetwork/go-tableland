@@ -303,7 +303,7 @@ func isErrCausedByQuery(err error) (string, bool) {
 func (b *batch) GetLastProcessedHeight(ctx context.Context) (int64, error) {
 	var blockNumber int64
 	f := func(tx pgx.Tx) error {
-		r := tx.QueryRow(ctx, "SELECT block_number FROM system_txn_processor LIMIT 1")
+		r := tx.QueryRow(ctx, "SELECT block_number FROM system_txn_processor WHERE chain_id=$1 LIMIT 1", b.tp.chainID)
 		if err := r.Scan(&blockNumber); err != nil {
 			if err == pgx.ErrNoRows {
 				blockNumber = 0
@@ -321,12 +321,16 @@ func (b *batch) GetLastProcessedHeight(ctx context.Context) (int64, error) {
 
 func (b *batch) SetLastProcessedHeight(ctx context.Context, height int64) error {
 	f := func(tx pgx.Tx) error {
-		tag, err := tx.Exec(ctx, "UPDATE system_txn_processor set block_number=$1", height)
+		tag, err := tx.Exec(ctx, "UPDATE system_txn_processor set block_number=$1 WHERE chain_id=$2", height, b.tp.chainID)
 		if err != nil {
 			return fmt.Errorf("update last processed block number: %s", err)
 		}
 		if tag.RowsAffected() != 1 {
-			_, err := tx.Exec(ctx, "INSERT INTO system_txn_processor VALUES ($1)", height)
+			_, err := tx.Exec(ctx,
+				"INSERT INTO system_txn_processor (block_number, chain_id) VALUES ($1, $2)",
+				height,
+				b.tp.chainID,
+			)
 			if err != nil {
 				return fmt.Errorf("inserting first processed height: %s", err)
 			}
