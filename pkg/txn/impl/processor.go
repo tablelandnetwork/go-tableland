@@ -237,7 +237,9 @@ func (b *batch) SetController(
 		} else {
 			if _, err := tx.Exec(ctx,
 				`INSERT INTO system_controller ("chain_id", "table_id", "controller") 
-				 VALUES ($1,$2, $3);`,
+				VALUES ($1, $2, $3)
+				ON CONFLICT ("chain_id", "table_id")
+				DO UPDATE set controller = $3;`,
 				b.tp.chainID,
 				dbID,
 				controller.Hex(),
@@ -420,15 +422,15 @@ func GetTableNameAndRowCountByTableID(
 	return dbName, rowCount, nil
 }
 
-// isControllerSet checks if controller is set for a given table.
-func isControllerSet(
+// getController gets the controller for a given table.
+func getController(
 	ctx context.Context,
 	tx pgx.Tx,
 	chainID tableland.ChainID,
-	tableID tableland.TableID) (bool, error) {
+	tableID tableland.TableID) (string, error) {
 	dbID := pgtype.Numeric{}
 	if err := dbID.Set(tableID.String()); err != nil {
-		return false, &txn.ErrQueryExecution{
+		return "", &txn.ErrQueryExecution{
 			Code: "CONTROLLER_TABLE_ID",
 			Msg:  fmt.Sprintf("parsing table id to numeric: %s", err),
 		}
@@ -436,16 +438,16 @@ func isControllerSet(
 
 	q := "SELECT controller FROM system_controller where chain_id=$1 AND table_id=$2"
 	r := tx.QueryRow(ctx, q, chainID, dbID)
-	var col string
-	err := r.Scan(&col)
+	var controller string
+	err := r.Scan(&controller)
 	if err == pgx.ErrNoRows {
-		return false, nil
+		return "", nil
 	}
 
 	if err != nil {
-		return false, fmt.Errorf("controller lookup: %s", err)
+		return "", fmt.Errorf("controller lookup: %s", err)
 	}
-	return true, nil
+	return controller, nil
 }
 
 func (b *batch) executeGrantStmt(
@@ -533,20 +535,20 @@ func (b *batch) executeWriteStmt(
 	ctx context.Context,
 	tx pgx.Tx,
 	ws parsing.SugaredWriteStmt,
-	controller common.Address,
+	addr common.Address,
 	policy tableland.Policy,
 	beforeRowCount int) error {
-	isControllerSet, err := isControllerSet(ctx, tx, b.tp.chainID, ws.GetTableID())
+	controller, err := getController(ctx, tx, b.tp.chainID, ws.GetTableID())
 	if err != nil {
 		return fmt.Errorf("checking controller is set: %w", err)
 	}
 
-	if isControllerSet {
+	if controller != "" {
 		if err := b.applyPolicy(ws, policy); err != nil {
 			return fmt.Errorf("not allowed to execute stmt: %w", err)
 		}
 	} else {
-		ok, err := b.tp.acl.CheckPrivileges(ctx, tx, controller, ws.GetTableID(), ws.Operation())
+		ok, err := b.tp.acl.CheckPrivileges(ctx, tx, addr, ws.GetTableID(), ws.Operation())
 		if err != nil {
 			return fmt.Errorf("error checking acl: %s", err)
 		}

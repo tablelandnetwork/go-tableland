@@ -502,9 +502,9 @@ func TestSetController(t *testing.T) {
 			AccessMode: pgx.ReadWrite,
 		})
 		require.NoError(t, err)
-		ok, err := isControllerSet(ctx, tx, tableland.ChainID(chainID), tableID)
+		controller, err := getController(ctx, tx, tableland.ChainID(chainID), tableID)
 		require.NoError(t, err)
-		require.False(t, ok)
+		require.Equal(t, "", controller)
 		require.NoError(t, tx.Commit(ctx))
 	})
 
@@ -543,9 +543,9 @@ func TestSetController(t *testing.T) {
 			AccessMode: pgx.ReadWrite,
 		})
 		require.NoError(t, err)
-		ok, err := isControllerSet(ctx, tx, tableland.ChainID(chainID), tableID)
+		controller, err := getController(ctx, tx, tableland.ChainID(chainID), tableID)
 		require.NoError(t, err)
-		require.True(t, ok)
+		require.Equal(t, "0x0000000000000000000000000000000000000001", controller)
 		require.NoError(t, tx.Commit(ctx))
 
 		// unsets
@@ -561,9 +561,44 @@ func TestSetController(t *testing.T) {
 			AccessMode: pgx.ReadWrite,
 		})
 		require.NoError(t, err)
-		ok, err = isControllerSet(ctx, tx, tableland.ChainID(chainID), tableID)
+		controller, err = getController(ctx, tx, tableland.ChainID(chainID), tableID)
 		require.NoError(t, err)
-		require.False(t, ok)
+		require.Equal(t, "", controller)
+		require.NoError(t, tx.Commit(ctx))
+
+		require.NoError(t, txnp.Close(ctx))
+	})
+
+	t.Run("upsert", func(t *testing.T) {
+		t.Parallel()
+		txnp, pgxpool := newTxnProcessorWithTable(t, 0)
+
+		{
+			b, err := txnp.OpenBatch(ctx)
+			require.NoError(t, err)
+			err = b.SetController(ctx, tableID, common.HexToAddress("0x01"))
+			require.NoError(t, b.Commit(ctx))
+			require.NoError(t, err)
+			require.NoError(t, b.Close(ctx))
+		}
+
+		{
+			b, err := txnp.OpenBatch(ctx)
+			require.NoError(t, err)
+			err = b.SetController(ctx, tableID, common.HexToAddress("0x02"))
+			require.NoError(t, b.Commit(ctx))
+			require.NoError(t, err)
+			require.NoError(t, b.Close(ctx))
+		}
+
+		tx, err := pgxpool.BeginTx(ctx, pgx.TxOptions{
+			IsoLevel:   pgx.Serializable,
+			AccessMode: pgx.ReadWrite,
+		})
+		require.NoError(t, err)
+		controller, err := getController(ctx, tx, tableland.ChainID(chainID), tableID)
+		require.NoError(t, err)
+		require.Equal(t, "0x0000000000000000000000000000000000000002", controller)
 		require.NoError(t, tx.Commit(ctx))
 
 		require.NoError(t, txnp.Close(ctx))
