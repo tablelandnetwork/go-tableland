@@ -11,7 +11,7 @@ type Table struct {
 	ID         tableland.TableID `json:"id"` // table id
 	ChainID    tableland.ChainID `json:"chain_id"`
 	Controller string            `json:"controller"` // controller address
-	Name       string            `json:"name"`
+	Prefix     string            `json:"prefix"`
 	Structure  string            `json:"structure"`
 	CreatedAt  time.Time         `json:"created_at"`
 }

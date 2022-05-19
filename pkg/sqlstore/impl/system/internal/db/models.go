@@ -14,7 +14,7 @@ type Registry struct {
 	ID         pgtype.Numeric
 	Structure  string
 	Controller string
-	Name       string
+	Prefix     string
 	ChainID    int64
 }
 
