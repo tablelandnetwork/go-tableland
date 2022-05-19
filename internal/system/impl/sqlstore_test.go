@@ -47,7 +47,7 @@ func TestSystemSQLStoreService(t *testing.T) {
 	metadata, err := svc.GetTableMetadata(ctx, id)
 	require.NoError(t, err)
 
-	require.Equal(t, "foo_42", metadata.Name)
+	require.Equal(t, "foo_1337_42", metadata.Name)
 	require.Equal(t, fmt.Sprintf("https://tableland.network/tables/%s", id), metadata.ExternalURL)
 	require.Equal(t, "https://bafkreifhuhrjhzbj4onqgbrmhpysk2mop2jimvdvfut6taiyzt2yqzt43a.ipfs.dweb.link", metadata.Image) //nolint
 	require.Equal(t, "date", metadata.Attributes[0].DisplayType)
