@@ -15,7 +15,9 @@ paths:
 
         * The `validateCreateTable` method allows you validate a CREATE TABLE query as a pre-mint check, and also calculate its corresponding structure hash.
 
-        * The `runSQL` method allows you to rely on the validator to send a runSQL SC call on your behalf for write-queries. For read-queries, it will return the query result.
+        * The `runReadQuery` method allows you execute a read-query in the validator and get the result.
+        
+        * The `relayWriteQuery` method allows you to rely on the validator to send a runSQL SC call on your behalf for write-queries.
 
         * The `getReceipt` method allows you to get the receipt of a chain transaction to know if it was executed, and the execution details.
 
@@ -29,7 +31,8 @@ paths:
           application/json:
             schema:
               oneOf:
-                - $ref: "#/components/schemas/runSQL"
+                - $ref: "#/components/schemas/runReadQuery"
+                - $ref: "#/components/schemas/relayWriteQuery"
                 - $ref: "#/components/schemas/validateCreateTable"
                 - $ref: "#/components/schemas/getReceipt"
                 - $ref: "#/components/schemas/setController"
@@ -42,13 +45,20 @@ paths:
                   params:
                     id: "0"
                     create_statement: "CREATE TABLE myname (column_a int, column_b text);"
-              runSQL:
+              runReadQuery:
                 value:
                   jsonrpc: "2.0"
-                  method: tableland_runSQL
+                  method: tableland_runReadQuery
                   id: 1
                   params:
-                    statement: SELECT * FROM myname;
+                    statement: SELECT * FROM Hello_4_10;
+              relayWriteQuery:
+                value:
+                  jsonrpc: "2.0"
+                  method: tableland_relayWriteQuery
+                  id: 1
+                  params:
+                    statement: INSERT INTO Hello_4_10 values (1);
               getReceipt:
                 value:
                   jsonrpc: "2.0"
@@ -100,7 +110,15 @@ paths:
                     id: 1
                     result:
                       structure_hash: "ef7be01282ea97380e4d3bbcba6774cbc7242c46ee51b7e611f1efdfa3623e53"
-                runSQL:
+                relayWriteQuery:
+                  value:
+                    jsonrpc: "2.0"
+                    id: 1
+                    result:
+                      data:
+                        transaction:
+                          - hash: "0xc3e7d1e81b59556f414a5f5c23760eb61b4bfaa18150d924d7d3b334941dbecd"
+                runReadQuery:
                   value:
                     jsonrpc: "2.0"
                     id: 1
@@ -261,7 +279,36 @@ components:
       scheme: bearer
       bearerFormat: SIWE
   schemas:
-    runSQL:
+   runReadQuery:
+      type: "object"
+      required:
+        - "method"
+        - "id"
+        - "jsonrpc"
+        - "params"
+      properties:
+        method:
+          type: "string"
+          description: "Method name"
+        id:
+          type: "integer"
+          default: 1
+          format: int32
+          description: "Request ID"
+        jsonrpc:
+          type: "string"
+          default: "2.0"
+          description: "JSON-RPC Version (2.0)"
+        params:
+          type: "array"
+          items:
+            type: "object"
+            required:
+              - "statement"
+            properties:
+              statement:
+                type: "string"
+    relayWriteQuery:
       type: "object"
       required:
         - "method"
