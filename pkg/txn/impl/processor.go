@@ -124,7 +124,7 @@ func (b *batch) InsertTable(
 			b.tp.chainID,
 			dbID,
 			controller,
-			createStmt.GetNamePrefix(),
+			createStmt.GetPrefix(),
 			createStmt.GetStructureHash()); err != nil {
 			return fmt.Errorf("inserting new table in system-wide registry: %s", err)
 		}
@@ -159,7 +159,7 @@ func (b *batch) InsertTable(
 func (b *batch) ExecWriteQueries(
 	ctx context.Context,
 	controller common.Address,
-	mqueries []parsing.SugaredMutatingStmt,
+	mqueries []parsing.MutatingStmt,
 	isOwner bool,
 	policy tableland.Policy) error {
 	f := func(tx pgx.Tx) error {
@@ -188,12 +188,12 @@ func (b *batch) ExecWriteQueries(
 			}
 
 			switch stmt := mq.(type) {
-			case parsing.SugaredGrantStmt:
+			case parsing.GrantStmt:
 				err := b.executeGrantStmt(ctx, tx, stmt, isOwner)
 				if err != nil {
 					return fmt.Errorf("executing grant stmt: %w", err)
 				}
-			case parsing.SugaredWriteStmt:
+			case parsing.WriteStmt:
 				if err := b.executeWriteStmt(ctx, tx, stmt, controller, policy, beforeRowCount); err != nil {
 					return fmt.Errorf("executing write stmt: %w", err)
 				}
@@ -455,7 +455,7 @@ func getController(
 func (b *batch) executeGrantStmt(
 	ctx context.Context,
 	tx pgx.Tx,
-	gs parsing.SugaredGrantStmt,
+	gs parsing.GrantStmt,
 	isOwner bool) error {
 	tableID := gs.GetTableID()
 
@@ -536,8 +536,8 @@ func (b *batch) executeGrantStmt(
 func (b *batch) executeWriteStmt(
 	ctx context.Context,
 	tx pgx.Tx,
-	ws parsing.SugaredWriteStmt,
-	addr common.Address,
+	ws parsing.WriteStmt,
+	controller common.Address,
 	policy tableland.Policy,
 	beforeRowCount int) error {
 	controller, err := getController(ctx, tx, b.tp.chainID, ws.GetTableID())
@@ -620,7 +620,7 @@ func (b *batch) executeWriteStmt(
 	return nil
 }
 
-func (b *batch) applyPolicy(ws parsing.SugaredWriteStmt, policy tableland.Policy) error {
+func (b *batch) applyPolicy(ws parsing.WriteStmt, policy tableland.Policy) error {
 	if ws.Operation() == tableland.OpInsert && !policy.IsInsertAllowed() {
 		return &txn.ErrQueryExecution{
 			Code: "POLICY",
