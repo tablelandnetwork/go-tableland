@@ -11,16 +11,114 @@ import (
 	parser "github.com/textileio/go-tableland/pkg/parsing/impl"
 )
 
-func TestRunSQL(t *testing.T) {
+func TestReadRunSQL(t *testing.T) {
 	t.Parallel()
 
 	type testCase struct {
-		name           string
-		query          string
-		tableID        *big.Int
-		namePrefix     string
-		isMutatingStmt bool
-		expErrType     interface{}
+		name        string
+		query       string
+		expRawQuery string
+		expErrType  interface{}
+	}
+
+	tests := []testCase{
+		// Malformed query.
+		{
+			name:       "malformed query",
+			query:      "shelect * from foo",
+			expErrType: ptr2ErrInvalidSyntax(),
+		},
+
+		// Valid read-queries.
+		{
+			name:        "valid all",
+			query:       "select * from _1234",
+			expRawQuery: "SELECT * FROM _1337_1234",
+			expErrType:  nil,
+		},
+		{
+			name:        "valid defined rows",
+			query:       "select row1, row2 from zoo_4321 where a = b",
+			expRawQuery: "SELECT row1, row2 FROM _1337_4321 WHERE a = b",
+			expErrType:  nil,
+		},
+
+		// Allow joins and sub-queries
+		{
+			name:        "with join",
+			query:       "select * from foo_1 join bar_2 on a=b",
+			expRawQuery: "SELECT * FROM _1337_1 JOIN _1337_2 ON a = b",
+			expErrType:  nil,
+		},
+		{
+			name:        "with subselect",
+			query:       "select * from foo_1 where a in (select b from zoo_5)",
+			expRawQuery: "SELECT * FROM _1337_1 WHERE a IN (SELECT b FROM _1337_5)",
+			expErrType:  nil,
+		},
+		{
+			name:        "column with subquery",
+			query:       "select (select * from bar_2 limit 1) from foo_3",
+			expRawQuery: "SELECT (SELECT * FROM _1337_2 LIMIT 1) FROM _1337_3",
+			expErrType:  nil,
+		},
+
+		// Single-statement check.
+		{
+			name:       "single statement fail",
+			query:      "select * from foo; select * from bar",
+			expErrType: ptr2ErrNoSingleStatement(),
+		},
+		{
+			name:       "no statements",
+			query:      "",
+			expErrType: ptr2ErrEmptyStatement(),
+		},
+
+		// Check no FROM SHARE/UPDATE
+		{
+			name:       "for share",
+			query:      "select * from foo for share",
+			expErrType: ptr2ErrNoForUpdateOrShare(),
+		},
+		{
+			name:       "for update",
+			query:      "select * from foo for update",
+			expErrType: ptr2ErrNoForUpdateOrShare(),
+		},
+	}
+
+	for _, it := range tests {
+		t.Run(it.name, func(tc testCase) func(t *testing.T) {
+			return func(t *testing.T) {
+				t.Parallel()
+
+				parser := parser.New([]string{"system_", "registry"}, 1337, 0, 0)
+				rs, _, err := parser.ValidateRunSQL(tc.query)
+
+				if tc.expErrType == nil {
+					require.NoError(t, err)
+					require.NotNil(t, rs)
+					desugared, err := rs.GetDesugaredQuery()
+					require.NoError(t, err)
+					require.Equal(t, tc.expRawQuery, desugared)
+					return
+				}
+				require.ErrorAs(t, err, tc.expErrType)
+			}
+		}(it))
+	}
+}
+
+func TestMutatingRunSQL(t *testing.T) {
+	t.Parallel()
+
+	type testCase struct {
+		name       string
+		query      string
+		tableID    *big.Int
+		namePrefix string
+		expErrType interface{}
 	}
 
 	writeQueryTests := []testCase{
@@ -131,7 +229,7 @@ func TestRunSQL(t *testing.T) {
 			expErrType: ptr2ErrStatementIsNotSupported(),
 		},
 
-		// Disallow JOINs and sub-queries
+		// Allow JOINs and sub-queries
 		{
 			name:       "insert subquery",
 			query:      "insert into foo select * from bar",
@@ -229,10 +327,6 @@ func TestRunSQL(t *testing.T) {
 			query:      "delete from foo where a=current_timestamp",
 			expErrType: ptr2ErrNonDeterministicFunction(),
 		},
-	}
-
-	for i := range writeQueryTests {
-		writeQueryTests[i].isMutatingStmt = true
 	}
 
 	grantQueryTests := []testCase{
@@ -405,101 +499,24 @@ func TestRunSQL(t *testing.T) {
 		},
 	}
 
-	for i := range grantQueryTests {
-		grantQueryTests[i].isMutatingStmt = true
-	}
-
-	readQueryTests := []testCase{
-		// Malformed query.
-		{
-			name:       "malformed query",
-			query:      "shelect * from foo",
-			expErrType: ptr2ErrInvalidSyntax(),
-		},
-
-		// Valid read-queries.
-		{
-			name:       "valid all",
-			query:      "select * from _1234",
-			tableID:    big.NewInt(1234),
-			namePrefix: "",
-			expErrType: nil,
-		},
-		{
-			name:       "valid defined rows",
-			query:      "select row1, row2 from zoo_4321 where a=b",
-			tableID:    big.NewInt(4321),
-			namePrefix: "zoo",
-			expErrType: nil,
-		},
-
-		// No JOINs
-		{
-			name:       "with join",
-			query:      "select * from foo inner join bar on a=b",
-			expErrType: ptr2ErrJoinOrSubquery(),
-		},
-		{
-			name:       "with subselect",
-			query:      "select * from foo where a in (select b from zoo)",
-			expErrType: ptr2ErrJoinOrSubquery(),
-		},
-		{
-			name:       "column with subquery",
-			query:      "select (select * from bar limit 1) from foo",
-			expErrType: ptr2ErrJoinOrSubquery(),
-		},
-
-		// Single-statement check.
-		{
-			name:       "single statement fail",
-			query:      "select * from foo; select * from bar",
-			expErrType: ptr2ErrNoSingleStatement(),
-		},
-		{
-			name:       "no statements",
-			query:      "",
-			expErrType: ptr2ErrEmptyStatement(),
-		},
-
-		// Check no FROM SHARE/UPDATE
-		{
-			name:       "for share",
-			query:      "select * from foo for share",
-			expErrType: ptr2ErrNoForUpdateOrShare(),
-		},
-		{
-			name:       "for update",
-			query:      "select * from foo for update",
-			expErrType: ptr2ErrNoForUpdateOrShare(),
-		},
-	}
-
-	tests := append(readQueryTests, writeQueryTests...)
-	tests = append(tests, grantQueryTests...)
-
+	tests := append(writeQueryTests, grantQueryTests...)
 	for _, it := range tests {
 		t.Run(it.name, func(tc testCase) func(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
 
 				parser := parser.New([]string{"system_", "registry"}, 1337, 0, 0)
-				rs, mss, err := parser.ValidateRunSQL(tc.query)
+				_, mss, err := parser.ValidateRunSQL(tc.query)
 
 				if tc.expErrType == nil {
 					require.NoError(t, err)
 
-					if tc.isMutatingStmt {
-						require.NotEmpty(t, mss)
-						for _, ms := range mss {
-							require.Equal(t, tc.tableID.String(), ms.GetTableID().String())
-							require.Equal(t, tc.namePrefix, ms.GetNamePrefix())
-						}
-					} else {
-						require.NotNil(t, rs)
-						require.Equal(t, tc.tableID.String(), rs.GetTableID().String())
-						require.Equal(t, tc.namePrefix, rs.GetNamePrefix())
+					require.NotEmpty(t, mss)
+					for _, ms := range mss {
+						require.Equal(t, tc.tableID.String(), ms.GetTableID().String())
+						require.Equal(t, tc.namePrefix, ms.GetNamePrefix())
 					}
+
 					return
 				}
 				require.ErrorAs(t, err, tc.expErrType)

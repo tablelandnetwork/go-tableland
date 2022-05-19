@@ -17,18 +17,6 @@ type SugaredStmt interface {
 	// GetDesugared query desugars the query, which means:
 	// "insert into foo_100" -> "insert _100"
 	GetDesugaredQuery() (string, error)
-	// GetNamePrefix returns the name prefix of the sugared table name
-	// if exists. e.g: "insert into foo_100" -> "foo". Since the name
-	// prefix is optional, it can return "" if none exist in the query.
-	GetNamePrefix() string
-	// GetTableID returns the table id. "insert into foo_100" -> 100.
-	GetTableID() tableland.TableID
-
-	// GetDBTableName returns the database table name
-	GetDBTableName() string
-
-	// Operation returns the type of the operation
-	Operation() tableland.Operation
 }
 
 // SugaredWriteStmt is an already parsed write statement that satisfies all
@@ -36,7 +24,7 @@ type SugaredStmt interface {
 // with correct assumptions about parsing validity and being a write statement
 // (update, insert, delete).
 type SugaredWriteStmt interface {
-	SugaredStmt
+	SugaredMutatingStmt
 
 	// AddWhereClause adds where clauses to update statement.
 	AddWhereClause(string) error
@@ -46,6 +34,8 @@ type SugaredWriteStmt interface {
 
 	// CheckColumns checks if a column that is not allowed is being touched on update.
 	CheckColumns([]string) error
+	// GetDBTableName returns the database table name
+	GetDBTableName() string
 }
 
 // SugaredGrantStmt is an already parsed grant statement that satisfies all
@@ -53,7 +43,7 @@ type SugaredWriteStmt interface {
 // with correct assumptions about parsing validity and being a write statement
 // (grant, revoke).
 type SugaredGrantStmt interface {
-	SugaredStmt
+	SugaredMutatingStmt
 	GetRoles() []common.Address
 	GetPrivileges() tableland.Privileges
 }
@@ -62,6 +52,16 @@ type SugaredGrantStmt interface {
 // a SugaredWriteStmt or a SugaredGrantStmt.
 type SugaredMutatingStmt interface {
 	SugaredStmt
+
+	// GetNamePrefix returns the name prefix of the sugared table name
+	// if exists. e.g: "insert into foo_100" -> "foo". Since the name
+	// prefix is optional, it can return "" if none exist in the query.
+	GetNamePrefix() string
+	// GetTableID returns the table id. "insert into foo_100" -> 100.
+	GetTableID() tableland.TableID
+
+	// Operation returns the type of the operation
+	Operation() tableland.Operation
 }
 
 // SugaredReadStmt is an already parsed read statement that satisfies all

@@ -3,6 +3,7 @@ package impl
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -111,20 +112,13 @@ func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.SugaredReadStmt,
 		if err := checkSingleStatement(parsed); err != nil {
 			return nil, nil, fmt.Errorf("single-statement check: %w", err)
 		}
-		refTable, err := validateReadQuery(stmt)
-		if err != nil {
+		if err := validateReadQuery(stmt); err != nil {
 			return nil, nil, fmt.Errorf("validating read-query: %w", err)
 		}
-		namePrefix, tableName, dbTableName, err := pp.deconstructRefTable(refTable)
-		if err != nil {
-			return nil, nil, fmt.Errorf("deconstructing referenced table name: %w", err)
-		}
 		return &sugaredStmt{
-			dbTableName: dbTableName,
-			node:        stmt,
-			namePrefix:  namePrefix,
-			tableName:   tableName,
-			operation:   tableland.OpSelect,
+			pp:        pp,
+			node:      stmt,
+			operation: tableland.OpSelect,
 		}, nil, nil
 	}
 
@@ -168,6 +162,7 @@ func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.SugaredReadStmt,
 	for i := range parsed.Stmts {
 		stmt := parsed.Stmts[i].Stmt
 		s := &sugaredStmt{
+			pp:          pp,
 			dbTableName: dbTableName,
 			node:        stmt,
 			namePrefix:  namePrefix,
@@ -230,6 +225,7 @@ func (pp *QueryValidator) deconstructRefTable(refTable string) (string, string, 
 }
 
 type sugaredStmt struct {
+	pp          *QueryValidator
 	node        *pg_query.Node
 	namePrefix  string // From {name}_{tableID} -> {name}
 	tableName   string // From {name}_{ID} -> _{ID}
@@ -247,12 +243,8 @@ func (s *sugaredStmt) GetDesugaredQuery() (string, error) {
 	} else if deleteStmt := s.node.GetDeleteStmt(); deleteStmt != nil {
 		deleteStmt.Relation.Relname = s.dbTableName
 	} else if selectStmt := s.node.GetSelectStmt(); selectStmt != nil {
-		for i := range selectStmt.FromClause {
-			rangeVar := selectStmt.FromClause[i].GetRangeVar()
-			if rangeVar == nil {
-				return "", fmt.Errorf("select doesn't reference a table")
-			}
-			rangeVar.Relname = s.dbTableName
+		if err := s.pp.deepSelectDesugaring(s.node); err != nil {
+			return "", fmt.Errorf("deep desugaring: %s", err)
 		}
 	} else if grantStmt := s.node.GetGrantStmt(); grantStmt != nil {
 		// It is safe to assume Objects has always one element.
@@ -267,6 +259,55 @@ func (s *sugaredStmt) GetDesugaredQuery() (string, error) {
 		return "", fmt.Errorf("deparsing statement: %s", err)
 	}
 	return wq, nil
+}
+
+func (pp *QueryValidator) deepSelectDesugaring(stmt *pg_query.Node) error {
+	if stmt == nil {
+		return nil
+	}
+
+	if selectStmt := stmt.GetSelectStmt(); selectStmt != nil {
+		buf, _ := json.MarshalIndent(selectStmt, "", "  ")
+		fmt.Printf("SELECT: %s\n", buf)
+		for _, col := range selectStmt.TargetList {
+			if err := pp.deepSelectDesugaring(col); err != nil {
+				return fmt.Errorf("desugaring column: %s", err)
+			}
+		}
+		for _, from := range selectStmt.FromClause {
+			if err := pp.deepSelectDesugaring(from); err != nil {
+				return fmt.Errorf("desugaring from: %s", err)
+			}
+		}
+		if err := pp.deepSelectDesugaring(selectStmt.WhereClause); err != nil {
+			return fmt.Errorf("desugaring where: %s", err)
+		}
+	} else if rangeVar := stmt.GetRangeVar(); rangeVar != nil {
+		if rangeVar.Relname != "" {
+			_, _, dbName, err := pp.deconstructRefTable(rangeVar.Relname)
+			if err != nil {
+				return fmt.Errorf("deconstructing table name %s: %s", rangeVar.Relname, err)
+			}
+			rangeVar.Relname = dbName
+		}
+	} else if resTarget := stmt.GetResTarget(); resTarget != nil {
+		if err := pp.deepSelectDesugaring(resTarget.GetVal()); err != nil {
+			return fmt.Errorf("desugaring res target: %s", err)
+		}
+	} else if joinExpr := stmt.GetJoinExpr(); joinExpr != nil {
+		if err := pp.deepSelectDesugaring(joinExpr.Larg); err != nil {
+			return fmt.Errorf("desugaring larg of join expr: %s", err)
+		}
+		if err := pp.deepSelectDesugaring(joinExpr.Rarg); err != nil {
+			return fmt.Errorf("desugaring rarg of join expr: %s", err)
+		}
+	} else if subLink := stmt.GetSubLink(); subLink != nil {
+		if err := pp.deepSelectDesugaring(subLink.Subselect); err != nil {
+			return fmt.Errorf("desugaring sublink subselect: %s", err)
+		}
+	}
+
+	return nil
 }
 
 func (s *sugaredStmt) GetNamePrefix() string {
@@ -484,41 +525,14 @@ func (pp *QueryValidator) validateGrantQuery(stmt *pg_query.Node) (string, error
 	return referencedTable, nil
 }
 
-func validateReadQuery(node *pg_query.Node) (string, error) {
+func validateReadQuery(node *pg_query.Node) error {
 	selectStmt := node.GetSelectStmt()
 
-	if err := checkNoJoinOrSubquery(selectStmt.WhereClause); err != nil {
-		return "", fmt.Errorf("join or subquery in where: %w", err)
-	}
-	for _, n := range selectStmt.TargetList {
-		if err := checkNoJoinOrSubquery(n); err != nil {
-			return "", fmt.Errorf("join or subquery in cols: %w", err)
-		}
-	}
-
-	var targetTable string
-	for _, n := range selectStmt.FromClause {
-		rangeVar := n.GetRangeVar()
-		if rangeVar == nil {
-			return "", fmt.Errorf("from clause doesn't reference a table: %w", &parsing.ErrJoinOrSubquery{})
-		}
-
-		if targetTable == "" {
-			targetTable = rangeVar.Relname
-			continue
-		}
-		// Second, and further FROMs should always
-		// reference the same detected table name.
-		if targetTable != rangeVar.Relname {
-			return "", &parsing.ErrMultiTableReference{}
-		}
-	}
-
 	if err := checkNoForUpdateOrShare(selectStmt); err != nil {
-		return "", fmt.Errorf("no for check: %w", err)
+		return fmt.Errorf("no for check: %w", err)
 	}
 
-	return targetTable, nil
+	return nil
 }
 
 func checkNonEmptyStatement(parsed *pg_query.ParseResult) error {
