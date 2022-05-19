@@ -54,16 +54,29 @@ func (t *InstrumentedTablelandMesa) ValidateCreateTable(ctx context.Context,
 	return resp, err
 }
 
-// RunSQL allows the user to run SQL.
-func (t *InstrumentedTablelandMesa) RunSQL(ctx context.Context,
-	req tableland.RunSQLRequest) (tableland.RunSQLResponse, error) {
+// RunReadQuery allows the user to run SQL.
+func (t *InstrumentedTablelandMesa) RunReadQuery(ctx context.Context,
+	req tableland.RunReadQueryRequest) (tableland.RunReadQueryResponse, error) {
 	start := time.Now()
-	resp, err := t.tableland.RunSQL(ctx, req)
+	resp, err := t.tableland.RunReadQuery(ctx, req)
+	latency := time.Since(start).Milliseconds()
+
+	controller, _ := ctx.Value(middlewares.ContextKeyAddress).(string)
+	t.record(ctx, recordData{"RunReadQuery", controller, "", err == nil, latency, 0})
+	return resp, err
+}
+
+// RelayWriteQuery allows the user to rely on the validator to wrap a write-query in a chain transaction.
+func (t *InstrumentedTablelandMesa) RelayWriteQuery(
+	ctx context.Context,
+	req tableland.RelayWriteQueryRequest) (tableland.RelayWriteQueryResponse, error) {
+	start := time.Now()
+	resp, err := t.tableland.RelayWriteQuery(ctx, req)
 	latency := time.Since(start).Milliseconds()
 
 	controller, _ := ctx.Value(middlewares.ContextKeyAddress).(string)
 	chainID, _ := ctx.Value(middlewares.ContextKeyChainID).(tableland.ChainID)
-	t.record(ctx, recordData{"RunSQL", controller, "", err == nil, latency, chainID})
+	t.record(ctx, recordData{"RelayWriteQuery", controller, "", err == nil, latency, chainID})
 	return resp, err
 }
 

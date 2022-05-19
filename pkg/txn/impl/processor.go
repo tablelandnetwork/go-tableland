@@ -179,7 +179,7 @@ func (b *batch) ExecWriteQueries(
 		}
 
 		for _, mq := range mqueries {
-			mqName := mq.GetNamePrefix()
+			mqName := mq.GetPrefix()
 			if mqName != "" && tableName != mqName {
 				return &txn.ErrQueryExecution{
 					Code: "TABLE_PREFIX",
@@ -563,7 +563,7 @@ func (b *batch) executeWriteStmt(
 	}
 
 	if policy.WithCheck() == "" {
-		desugared, err := ws.GetDesugaredQuery()
+		desugared, err := ws.GetQuery()
 		if err != nil {
 			return fmt.Errorf("get desugared query: %s", err)
 		}
@@ -595,7 +595,7 @@ func (b *batch) executeWriteStmt(
 		b.tp.log.Warn().Err(err).Msg("add returning clause called on delete")
 	}
 
-	desugared, err := ws.GetDesugaredQuery()
+	desugared, err := ws.GetQuery()
 	if err != nil {
 		return fmt.Errorf("get desugared query: %s", err)
 	}

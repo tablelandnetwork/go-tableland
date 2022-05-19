@@ -40,11 +40,11 @@ func (c *UserController) GetTableRow(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req := tableland.RunSQLRequest{
+	req := tableland.RunReadQueryRequest{
 		Statement: fmt.Sprintf("SELECT * FROM _%s WHERE %s=%s LIMIT 1",
 			id.String(), vars["key"], vars["value"]),
 	}
-	res, err := c.runner.RunSQL(ctx, req)
+	res, err := c.runner.RunReadQuery(ctx, req)
 	if err != nil {
 		rw.WriteHeader(http.StatusBadRequest)
 		log.Ctx(ctx).

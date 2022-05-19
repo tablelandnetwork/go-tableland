@@ -322,7 +322,7 @@ func (ep *EventProcessor) executeCreateTableEvent(
 		BlockNumber: blockNumber,
 		TxnHash:     be.TxnHash.String(),
 	}
-	createStmt, err := ep.parser.ValidateCreateTable(e.Statement)
+	createStmt, err := ep.parser.ValidateCreateTable(e.Statement, ep.chainID)
 	if err != nil {
 		err := fmt.Sprintf("query validation: %s", err)
 		receipt.Error = &err
@@ -361,14 +361,9 @@ func (ep *EventProcessor) executeRunSQLEvent(
 		BlockNumber: blockNumber,
 		TxnHash:     be.TxnHash.String(),
 	}
-	readStmt, mutatingStmts, err := ep.parser.ValidateRunSQL(e.Statement)
+	mutatingStmts, err := ep.parser.ValidateMutatingQuery(e.Statement, ep.chainID)
 	if err != nil {
 		err := fmt.Sprintf("parsing query: %s", err)
-		receipt.Error = &err
-		return receipt, nil
-	}
-	if readStmt != nil {
-		err := "this is a read query, skipping"
 		receipt.Error = &err
 		return receipt, nil
 	}
