@@ -11,11 +11,18 @@ paths:
         - bearerAuth: []
       summary: Lets you interact with Tableland's JSON-RPC calls
       description: >
-        There are two available JSON-RPC methods: `createdTable` and `runSQL`.
+        There are four available JSON-RPC methods:
 
-        * The `createdTable` method allows you to create a table that was already minted.
+        * The `validateCreateTable` method allows you validate a CREATE TABLE query as a pre-mint check, and also calculate its corresponding structure hash.
 
-        * The `runSQL` method allows you to run SQL statements on an existing table."
+        * The `runSQL` method allows you to rely on the validator to send a runSQL SC call on your behalf for write-queries. For read-queries, it will return the query result.
+
+        * The `getReceipt` method allows you to get the receipt of a chain transaction to know if it was executed, and the execution details.
+
+        * The `setController` method allows you to rely on the validator to send a setController SC call on your behalf for a table.
+
+        All the above RPC calls expect an Authorization header value with a signed SIWE message.
+
       requestBody:
         required: true
         content:
@@ -23,25 +30,17 @@ paths:
             schema:
               oneOf:
                 - $ref: "#/components/schemas/runSQL"
-                - $ref: "#/components/schemas/createTable"
+                - $ref: "#/components/schemas/validateCreateTable"
+                - $ref: "#/components/schemas/getReceipt"
+                - $ref: "#/components/schemas/setController"
             examples:
-              createTable:
+              validateCreateTable:
                 value:
                   jsonrpc: "2.0"
-                  method: tableland_createTable
+                  method: tableland_validateCreateTable
                   id: 1
                   params:
                     id: "0"
-                    description: "tableland rocks!"
-                    controller: "0xbAb12215Ed94713A290e0c618fa8177fAb5eFd2D"
-                    statement: "CREATE TABLE myname (column_a int, column_b text);"
-                    dryrun: "false"
-              calculateTableHash:
-                value:
-                  jsonrpc: "2.0"
-                  method: tableland_calculateTableHash
-                  id: 1
-                  params:
                     create_statement: "CREATE TABLE myname (column_a int, column_b text);"
               runSQL:
                 value:
@@ -49,8 +48,23 @@ paths:
                   method: tableland_runSQL
                   id: 1
                   params:
-                    controller: "0xbAb12215Ed94713A290e0c618fa8177fAb5eFd2D"
                     statement: SELECT * FROM myname;
+              getReceipt:
+                value:
+                  jsonrpc: "2.0"
+                  method: tableland_getReceipt
+                  id: 1
+                  params:
+                    txn_hash: "0xc3e7d1e81b59556f414a5f5c23760eb61b4bfaa18150d924d7d3b334941dbecd"
+              setController:
+                value:
+                  jsonrpc: "2.0"
+                  method: tableland_setController
+                  id: 1
+                  params:
+                    Caller: "0x6887246668a3b87f54deb3b94ba47a6f63f32985"
+                    Controller: "0x5e4e65926ba27467555eb562121fac00d24e9dd2"
+                    token_id: "10"
       responses:
         "200":
           description: OK
@@ -80,14 +94,7 @@ paths:
               schema:
                 type: object
               examples:
-                createTable:
-                  value:
-                    jsonrpc: "2.0"
-                    id: 1
-                    result:
-                      name: "myname_0"
-                      structure_hash: "ef7be01282ea97380e4d3bbcba6774cbc7242c46ee51b7e611f1efdfa3623e53"
-                calculateTableHash:
+                validateCreateTable:
                   value:
                     jsonrpc: "2.0"
                     id: 1
@@ -105,10 +112,28 @@ paths:
                         rows:
                           - ["e11", "e12"]
                           - ["e21", "e22"]
-  /tables/controller/{ethAddress}:
+                getReceipt:
+                  value:
+                    jsonrpc: "2.0"
+                    id: 1
+                    result:
+                      ok: "true"
+                      receipt:
+                        chain_id: 4
+                        txn_hash: "0xc3e7d1e81b59556f414a5f5c23760eb61b4bfaa18150d924d7d3b334941dbecd"
+                        block_number: 1000
+                        error: ""
+                        table_id: 102
+  /chain/{chainID}/tables/controller/{ethAddress}:
     get:
       summary: Get all tables controlled by an ETH address
       parameters:
+        - in: path
+          name: chainID
+          schema:
+            type: int
+          required: true
+          description: The ChainID of the targeted chain.
         - in: path
           name: ethAddress
           schema:
@@ -146,10 +171,16 @@ paths:
                     description: "tableland rocks!"
                     structure: "be1eb905f03347a439ecf9b612632fd53839b7f082dc2f9be6ef7da5dfddd660"
                     created_at: "2022-02-07T22:57:41.606803Z"
-  /tables/{id}:
+  /chain/{chainID}/tables/{id}:
     get:
       summary: Get the metadata associated with a table
       parameters:
+        - in: path
+          name: chainID
+          schema:
+            type: int
+          required: true
+          description: The ChainID of the targeted chain.
         - in: path
           name: id
           schema:
@@ -228,7 +259,7 @@ components:
     bearerAuth: # arbitrary name for the security scheme
       type: http
       scheme: bearer
-      bearerFormat: JWT
+      bearerFormat: SIWE
   schemas:
     runSQL:
       type: "object"
@@ -255,14 +286,11 @@ components:
           items:
             type: "object"
             required:
-              - "controller"
               - "statement"
             properties:
-              controller:
-                type: "string"
               statement:
                 type: "string"
-    createTable:
+    validateCreateTable:
       type: "object"
       required:
         - "method"
@@ -287,16 +315,71 @@ components:
           items:
             type: "object"
             required:
-              - "id"
-              - "controller"
-              - "statement"
-              - "description"
+              - "create_statement"
             properties:
-              id:
+              create_statement:
+                type: "string"
+    getReceipt:
+      type: "object"
+      required:
+        - "method"
+        - "id"
+        - "jsonrpc"
+        - "params"
+      properties:
+        method:
+          type: "string"
+          description: "Method name"
+        id:
+          type: "integer"
+          default: 1
+          format: int32
+          description: "Request ID"
+        jsonrpc:
+          type: "string"
+          default: "2.0"
+          description: "JSON-RPC Version (2.0)"
+        params:
+          type: "array"
+          items:
+            type: "object"
+            required:
+              - "txn_hash"
+            properties:
+              txn_hash:
+                type: "string"
+    setController:
+      type: "object"
+      required:
+        - "method"
+        - "id"
+        - "jsonrpc"
+        - "params"
+      properties:
+        method:
+          type: "string"
+          description: "Method name"
+        id:
+          type: "integer"
+          default: 1
+          format: int32
+          description: "Request ID"
+        jsonrpc:
+          type: "string"
+          default: "2.0"
+          description: "JSON-RPC Version (2.0)"
+        params:
+          type: "array"
+          items:
+            type: "object"
+            required:
+              - "caller"
+              - "controller"
+              - "token_id"
+            properties:
+              txn_hash:
                 type: "string"
               controller:
                 type: "string"
-              statement:
-                type: "string"
-              description:
+              token_id:
                 type: "string"
