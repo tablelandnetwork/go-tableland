@@ -147,9 +147,6 @@ func (t *TablelandMesa) SetController(
 	if !ok {
 		return tableland.SetControllerResponse{}, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
 	}
-	if !ok {
-		return tableland.SetControllerResponse{}, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
-	}
 
 	tx, err := stack.Registry.SetController(
 		ctx, common.HexToAddress(req.Caller), tableID, common.HexToAddress(req.Controller))
