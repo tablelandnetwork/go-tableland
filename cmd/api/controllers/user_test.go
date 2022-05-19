@@ -115,10 +115,10 @@ func TestUserControllerRowNotFound(t *testing.T) {
 
 type runnerMock struct{}
 
-func (*runnerMock) RunSQL(
+func (*runnerMock) RunReadQuery(
 	ctx context.Context,
-	req tableland.RunSQLRequest) (tableland.RunSQLResponse, error) {
-	return tableland.RunSQLResponse{
+	req tableland.RunReadQueryRequest) (tableland.RunReadQueryResponse, error) {
+	return tableland.RunReadQueryResponse{
 		Result: sqlstore.UserRows{
 			Columns: []sqlstore.UserColumn{
 				{Name: "id"},
@@ -184,20 +184,20 @@ func (*runnerMock) RunSQL(
 
 type badRequestRunnerMock struct{}
 
-func (*badRequestRunnerMock) RunSQL(
+func (*badRequestRunnerMock) RunReadQuery(
 	ctx context.Context,
-	req tableland.RunSQLRequest) (tableland.RunSQLResponse, error) {
-	return tableland.RunSQLResponse{
+	req tableland.RunReadQueryRequest) (tableland.RunReadQueryResponse, error) {
+	return tableland.RunReadQueryResponse{
 		Result: "bad result",
 	}, nil
 }
 
 type notFoundRunnerMock struct{}
 
-func (*notFoundRunnerMock) RunSQL(
+func (*notFoundRunnerMock) RunReadQuery(
 	ctx context.Context,
-	req tableland.RunSQLRequest) (tableland.RunSQLResponse, error) {
-	return tableland.RunSQLResponse{
+	req tableland.RunReadQueryRequest) (tableland.RunReadQueryResponse, error) {
+	return tableland.RunReadQueryResponse{
 		Result: sqlstore.UserRows{
 			Columns: []sqlstore.UserColumn{
 				{Name: "id"},

@@ -159,10 +159,10 @@ func (cp *CounterProbe) healthCheck(ctx context.Context) (int64, error) {
 }
 
 func (cp *CounterProbe) increaseCounterValue(ctx context.Context) error {
-	updateCounterReq := tableland.RunSQLRequest{
+	updateCounterReq := tableland.RelayWriteQueryRequest{
 		Statement: fmt.Sprintf("update %s set counter=counter+1", cp.tableName),
 	}
-	var updateCounterRes tableland.RunSQLResponse
+	var updateCounterRes tableland.RelayWriteQueryResponse
 	if err := cp.rpcClient.CallContext(ctx, &updateCounterRes, "tableland_runSQL", updateCounterReq); err != nil {
 		return fmt.Errorf("calling tableland_runSQL: %s", err)
 	}
@@ -190,7 +190,7 @@ func (cp *CounterProbe) increaseCounterValue(ctx context.Context) error {
 }
 
 func (cp *CounterProbe) getCurrentCounterValue(ctx context.Context) (int64, error) {
-	getCounterReq := tableland.RunSQLRequest{
+	getCounterReq := tableland.RunReadQueryRequest{
 		Statement: fmt.Sprintf("select * from %s", cp.tableName),
 	}
 

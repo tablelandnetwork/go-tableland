@@ -16,11 +16,18 @@ func (t *TablelandMock) ValidateCreateTable(
 	return tableland.ValidateCreateTableResponse{}, nil
 }
 
-// RunSQL implements RunSQL.
+// RunReadQuery implements RunReadQuery.
+func (t *TablelandMock) RunReadQuery(
+	ctx context.Context,
+	req tableland.RunReadQueryRequest) (tableland.RunReadQueryResponse, error) {
+	return tableland.RunReadQueryResponse{}, nil
+}
+
+// RelayWriteQuery implements RelayWriteQuery.
 func (t *TablelandMock) RunSQL(
 	ctx context.Context,
-	req tableland.RunSQLRequest) (tableland.RunSQLResponse, error) {
-	return tableland.RunSQLResponse{}, nil
+	req tableland.RelayWriteQueryRequest) (tableland.RelayWriteQueryResponse, error) {
+	return tableland.RelayWriteQueryResponse{}, nil
 }
 
 // GetReceipt implements GetRrceipt.

@@ -409,7 +409,7 @@ func TestExecWriteQueriesWithPolicies(t *testing.T) {
 }
 
 func TestRegisterTable(t *testing.T) {
-	parser := parserimpl.New([]string{}, 1337, 0, 0)
+	parser := parserimpl.New([]string{}, 0, 0)
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
@@ -421,7 +421,7 @@ func TestRegisterTable(t *testing.T) {
 
 		id, err := tableland.NewTableID("100")
 		require.NoError(t, err)
-		createStmt, err := parser.ValidateCreateTable("create table bar (zar text)")
+		createStmt, err := parser.ValidateCreateTable("create table bar_1337 (zar text)", 1337)
 		require.NoError(t, err)
 		err = b.InsertTable(ctx, id, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", createStmt)
 		require.NoError(t, err)
@@ -816,8 +816,8 @@ func newTxnProcessorWithTable(t *testing.T, rowsLimit int) (*TblTxnProcessor, *p
 	require.NoError(t, err)
 	id, err := tableland.NewTableID("100")
 	require.NoError(t, err)
-	parser := parserimpl.New([]string{}, 1337, 0, 0)
-	createStmt, err := parser.ValidateCreateTable("create table foo (zar text)")
+	parser := parserimpl.New([]string{}, 0, 0)
+	createStmt, err := parser.ValidateCreateTable("create table foo (zar text)", 1337)
 	require.NoError(t, err)
 	err = b.InsertTable(ctx, id, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", createStmt)
 	require.NoError(t, err)
@@ -830,8 +830,8 @@ func newTxnProcessorWithTable(t *testing.T, rowsLimit int) (*TblTxnProcessor, *p
 
 func mustWriteStmt(t *testing.T, q string) parsing.MutatingStmt {
 	t.Helper()
-	p := parserimpl.New([]string{"system_", "registry"}, 1337, 0, 0)
-	_, wss, err := p.ValidateRunSQL(q)
+	p := parserimpl.New([]string{"system_", "registry"}, 0, 0)
+	wss, err := p.ValidateMutatingQuery(q, 1337)
 	require.NoError(t, err)
 	require.Len(t, wss, 1)
 	return wss[0]
@@ -839,8 +839,8 @@ func mustWriteStmt(t *testing.T, q string) parsing.MutatingStmt {
 
 func mustGrantStmt(t *testing.T, q string) parsing.MutatingStmt {
 	t.Helper()
-	p := parserimpl.New([]string{"system_", "registry"}, 1337, 0, 0)
-	_, wss, err := p.ValidateRunSQL(q)
+	p := parserimpl.New([]string{"system_", "registry"}, 0, 0)
+	wss, err := p.ValidateMutatingQuery(q, 1337)
 	require.NoError(t, err)
 	require.Len(t, wss, 1)
 	return wss[0]

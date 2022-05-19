@@ -28,7 +28,7 @@ func New(pool *pgxpool.Pool, chainID tableland.ChainID) *UserStore {
 func (db *UserStore) Read(ctx context.Context, rq parsing.ReadStmt) (interface{}, error) {
 	var ret interface{}
 	f := func(tx pgx.Tx) error {
-		desugared, err := rq.GetDesugaredQuery()
+		desugared, err := rq.GetQuery()
 		if err != nil {
 			return fmt.Errorf("get desugared query: %s", err)
 		}

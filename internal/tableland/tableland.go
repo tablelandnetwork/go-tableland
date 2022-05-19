@@ -6,17 +6,26 @@ import (
 	"math/big"
 )
 
-// RunSQLRequest is a user RunSQL request.
-type RunSQLRequest struct {
+// RelayWriteQueryRequest is a user RelayWriteQuery request.
+type RelayWriteQueryRequest struct {
 	Statement string `json:"statement"`
 }
 
-// RunSQLResponse is a RunSQL response.
-type RunSQLResponse struct {
-	Result      interface{} `json:"data"`
+// RelayWriteQueryResponse is a RelayWriteQuery response.
+type RelayWriteQueryResponse struct {
 	Transaction struct {
 		Hash string `json:"hash"`
 	} `json:"tx"`
+}
+
+// RunReadQueryRequest is a user RunReadQuery request.
+type RunReadQueryRequest struct {
+	Statement string `json:"statement"`
+}
+
+// RunReadQueryResponse is a RunReadQuery response.
+type RunReadQueryResponse struct {
+	Result interface{} `json:"data"`
 }
 
 // GetReceiptRequest is a GetTxnReceipt request.
@@ -65,13 +74,14 @@ type SetControllerResponse struct {
 
 // SQLRunner defines the run SQL interface of Tableland.
 type SQLRunner interface {
-	RunSQL(context.Context, RunSQLRequest) (RunSQLResponse, error)
+	RunReadQuery(context.Context, RunReadQueryRequest) (RunReadQueryResponse, error)
 }
 
 // Tableland defines the interface of Tableland.
 type Tableland interface {
 	SQLRunner
 	ValidateCreateTable(context.Context, ValidateCreateTableRequest) (ValidateCreateTableResponse, error)
+	RelayWriteQuery(context.Context, RelayWriteQueryRequest) (RelayWriteQueryResponse, error)
 	GetReceipt(context.Context, GetReceiptRequest) (GetReceiptResponse, error)
 	SetController(context.Context, SetControllerRequest) (SetControllerResponse, error)
 }
