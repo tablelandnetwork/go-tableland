@@ -169,7 +169,8 @@ func (b *batch) ExecWriteQueries(
 		}
 
 		dbTableName := mqueries[0].GetDBTableName()
-		tableName, beforeRowCount, err := GetTableNameAndRowCountByTableID(ctx, tx, b.tp.chainID, mqueries[0].GetTableID(), dbTableName)
+		tableName, beforeRowCount, err := GetTableNameAndRowCountByTableID(
+			ctx, tx, b.tp.chainID, mqueries[0].GetTableID(), dbTableName)
 		if err != nil {
 			return &txn.ErrQueryExecution{
 				Code: "TABLE_LOOKUP",

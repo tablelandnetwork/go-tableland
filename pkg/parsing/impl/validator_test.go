@@ -251,7 +251,7 @@ func TestMutatingRunSQL(t *testing.T) {
 			expErrType: ptr2ErrStatementIsNotSupported(),
 		},
 
-		// Allow JOINs and sub-queries
+		// Disallow JOINs and sub-queries
 		{
 			name:       "insert subquery",
 			query:      "insert into foo select * from bar",
