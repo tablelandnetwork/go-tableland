@@ -613,6 +613,18 @@ func TestCreateTableChecks(t *testing.T) {
 			chainID:    69,
 			expErrType: ptr2ErrInvalidSyntax(),
 		},
+		{
+			name:       "prefix starts with sqlite_",
+			query:      "create table sqlite_test_69 (foo int)",
+			chainID:    69,
+			expErrType: ptr2ErrInvalidTableName(),
+		},
+		{
+			name:       "prefix starts with system_",
+			query:      "create table system_test_69 (foo int)",
+			chainID:    69,
+			expErrType: ptr2ErrInvalidTableName(),
+		},
 
 		// Single-statement check.
 		{
@@ -749,7 +761,7 @@ func TestCreateTableChecks(t *testing.T) {
 		t.Run(it.name, func(tc testCase) func(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
-				parser := parser.New([]string{"system_", "registry"}, 0, 0)
+				parser := parser.New([]string{"system_", "registry", "sqlite_"}, 0, 0)
 				_, err := parser.ValidateCreateTable(tc.query, tc.chainID)
 				if tc.expErrType == nil {
 					require.NoError(t, err)

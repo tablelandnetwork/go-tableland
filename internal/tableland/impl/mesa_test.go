@@ -543,7 +543,7 @@ func setup(
 	store, err := sqlstoreimpl.New(ctx, tableland.ChainID(1337), url)
 	require.NoError(t, err)
 
-	parser := parserimpl.New([]string{"system_", "registry"}, 0, 0)
+	parser := parserimpl.New([]string{"system_", "registry", "sqlite_"}, 0, 0)
 	txnp, err := txnpimpl.NewTxnProcessor(1337, url, 0, &aclHalfMock{store})
 	require.NoError(t, err)
 
