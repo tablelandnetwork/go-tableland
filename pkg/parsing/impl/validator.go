@@ -148,11 +148,15 @@ func (pp *QueryValidator) ValidateMutatingQuery(
 	ret := make([]parsing.MutatingStmt, len(parsed.Stmts))
 	for i := range parsed.Stmts {
 		stmt := parsed.Stmts[i].Stmt
+		tblID, err := tableland.NewTableID(tableID)
+		if err != nil {
+			return nil, &parsing.ErrInvalidTableName{}
+		}
 		s := &mutatingStmt{
 			node:        stmt,
 			dbTableName: targetTable,
 			prefix:      prefix,
-			tableID:     tableID,
+			tableID:     tblID,
 		}
 
 		switch {
@@ -244,9 +248,9 @@ func (pp *QueryValidator) deconstructRefTable(refTable string) (string, tablelan
 
 type mutatingStmt struct {
 	node        *pg_query.Node
-	prefix      string // From {prefix}_{chainID}_{tableID} -> {prefix}
-	tableID     string // From {prefix}_{chainID}_{tableID} -> {tableID}
-	dbTableName string // {prefix}_{chainID}_{tableID}
+	prefix      string            // From {prefix}_{chainID}_{tableID} -> {prefix}
+	tableID     tableland.TableID // From {prefix}_{chainID}_{tableID} -> {tableID}
+	dbTableName string            // {prefix}_{chainID}_{tableID}
 	operation   tableland.Operation
 }
 
@@ -268,9 +272,7 @@ func (s *mutatingStmt) GetPrefix() string {
 }
 
 func (s *mutatingStmt) GetTableID() tableland.TableID {
-	// TODO(jsign): maybe use TableID type in mutatingStmt field?
-	tid, _ := tableland.NewTableID(s.tableID)
-	return tid
+	return s.tableID
 }
 
 func (s *mutatingStmt) Operation() tableland.Operation {
