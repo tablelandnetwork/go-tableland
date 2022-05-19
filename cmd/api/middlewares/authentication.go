@@ -43,8 +43,8 @@ func Authentication(next http.Handler) http.Handler {
 			_ = json.NewEncoder(w).Encode(errors.ServiceError{Message: "request body doesn't have a method field"})
 			return
 		}
-		if requiresAuthentication(rpcMethod.Method) {
-			r.Body = io.NopCloser(bytes.NewReader(fullBody))
+		r.Body = io.NopCloser(bytes.NewReader(fullBody))
+		if !requiresAuthentication(rpcMethod.Method) {
 			next.ServeHTTP(w, r)
 			return
 		}
