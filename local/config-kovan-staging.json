@@ -53,6 +53,32 @@
          "StuckInterval": "10m",
          "MinBlockDepth": 0
       }
-   }
+   },
+   {
+    "Name": "Arbitrum Rinkeby",
+    "ChainID": 421611,
+    "Registry": {
+      "EthEndpoint": "wss://arb-rinkeby.g.alchemy.com/v2/${ALCHEMY_ARBITRUM_RINKEBY_API_KEY}",
+      "ChainID": 69,
+      "ContractAddress": "0x9Fe7609b0a9F8d72030443d5402aF2749A8b7B1C"
+    },
+    "Signer": {
+      "PrivateKey": "${ALCHEMY_ARBITRUM_SIGNER_PRIVATE_KEY}"
+    },
+    "EventFeed": {
+      "ChainAPIBackoff": "15s",
+      "NewBlockTimeout": "30s",
+      "MaxBlocksFetchSize": 100000,
+      "MinBlockDepth": 0
+    },
+    "EventProcessor": {
+      "BlockFailedExecutionBackoff": "10s"
+    },
+    "NonceTracker": {
+       "CheckInterval": "10s",
+       "StuckInterval": "10m",
+       "MinBlockDepth": 0
+    }
+ }
  ]
 }

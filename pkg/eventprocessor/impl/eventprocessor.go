@@ -24,7 +24,14 @@ import (
 var (
 	// eventTypes are the event types that the event processor is interested to process
 	// and thus have execution logic for them.
-	eventTypes = []eventfeed.EventType{eventfeed.RunSQL, eventfeed.CreateTable, eventfeed.SetController}
+	eventTypes = []eventfeed.EventType{
+		eventfeed.RunSQL,
+		eventfeed.CreateTable,
+		eventfeed.SetController,
+		eventfeed.TableTransfer,
+	}
+
+	tableIDisEmpty = "table id is empty"
 )
 
 // EventProcessor processes new events detected by an event feed.
@@ -230,7 +237,9 @@ func (ep *EventProcessor) runBlockQueries(ctx context.Context, bqs eventfeed.Blo
 			// and retry later.
 			return fmt.Errorf("executing query: %s", err)
 		}
+
 		receipts[i] = receipt
+
 		attrs := append([]attribute.KeyValue{
 			attribute.String("eventtype", reflect.TypeOf(e.Event).String()),
 		}, ep.mBaseLabels...)
@@ -306,6 +315,18 @@ func (ep *EventProcessor) executeEvent(
 			return eventprocessor.Receipt{}, fmt.Errorf("executing set-controller event: %s", err)
 		}
 		return receipt, nil
+	case *ethereum.ContractTableTransfer:
+		ep.log.Debug().
+			Str("from", e.From.Hex()).
+			Str("to", e.To.Hex()).
+			Str("tableId", e.TableId.String()).
+			Msgf("executing table transfer event")
+
+		receipt, err := ep.executeTransferEvent(ctx, b, blockNumber, be, e)
+		if err != nil {
+			return eventprocessor.Receipt{}, fmt.Errorf("executing transfer event: %s", err)
+		}
+		return receipt, nil
 	default:
 		return eventprocessor.Receipt{}, fmt.Errorf("unknown event type %t", e)
 	}
@@ -330,8 +351,7 @@ func (ep *EventProcessor) executeCreateTableEvent(
 	}
 
 	if e.TableId == nil {
-		err := "token id is empty"
-		receipt.Error = &err
+		receipt.Error = &tableIDisEmpty
 		return receipt, nil
 	}
 	tableID := tableland.TableID(*e.TableId)
@@ -402,8 +422,7 @@ func (ep *EventProcessor) executeSetControllerEvent(
 	}
 
 	if e.TableId == nil {
-		err := "token id is empty"
-		receipt.Error = &err
+		receipt.Error = &tableIDisEmpty
 		return receipt, nil
 	}
 	tableID := tableland.TableID(*e.TableId)
@@ -420,6 +439,48 @@ func (ep *EventProcessor) executeSetControllerEvent(
 
 	receipt.TableID = &tableID
 
+	return receipt, nil
+}
+
+func (ep *EventProcessor) executeTransferEvent(
+	ctx context.Context,
+	b txn.Batch,
+	blockNumber int64,
+	be eventfeed.BlockEvent,
+	e *ethereum.ContractTableTransfer) (eventprocessor.Receipt, error) {
+	receipt := eventprocessor.Receipt{
+		ChainID:     ep.chainID,
+		BlockNumber: blockNumber,
+		TxnHash:     be.TxnHash.String(),
+	}
+
+	if e.TableId == nil {
+		receipt.Error = &tableIDisEmpty
+		return receipt, nil
+	}
+	tableID := tableland.TableID(*e.TableId)
+
+	privileges := tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate, tableland.PrivDelete}
+	if err := b.RevokePrivileges(ctx, tableID, e.From, privileges); err != nil {
+		var pgErr *txn.ErrQueryExecution
+		if errors.As(err, &pgErr) {
+			err := fmt.Sprintf("revoke privileges execution failed (code: %s, msg: %s)", pgErr.Code, pgErr.Msg)
+			receipt.Error = &err
+			return receipt, nil
+		}
+		return eventprocessor.Receipt{}, fmt.Errorf("executing revoke privileges: %s", err)
+	}
+	if err := b.GrantPrivileges(ctx, tableID, e.To, privileges); err != nil {
+		var pgErr *txn.ErrQueryExecution
+		if errors.As(err, &pgErr) {
+			err := fmt.Sprintf("grant privileges execution failed (code: %s, msg: %s)", pgErr.Code, pgErr.Msg)
+			receipt.Error = &err
+			return receipt, nil
+		}
+		return eventprocessor.Receipt{}, fmt.Errorf("executing grant privileges: %s", err)
+	}
+
+	receipt.TableID = &tableID
 	return receipt, nil
 }
 
