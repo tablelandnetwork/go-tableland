@@ -47,6 +47,8 @@ const (
 	CreateTable = "CreateTable"
 	// SetController is a SetController event fired by the SC.
 	SetController = "SetController"
+	// TableTransfer is a TableTransfer event fired by the SC.
+	TableTransfer = "TableTransfer"
 )
 
 var (
@@ -62,6 +64,7 @@ var (
 		RunSQL:        reflect.TypeOf(tbleth.ContractRunSQL{}),
 		CreateTable:   reflect.TypeOf(tbleth.ContractCreateTable{}),
 		SetController: reflect.TypeOf(tbleth.ContractSetController{}),
+		TableTransfer: reflect.TypeOf(tbleth.ContractTableTransfer{}),
 	}
 )
 
