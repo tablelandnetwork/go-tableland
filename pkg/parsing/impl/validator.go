@@ -467,6 +467,12 @@ func (pp *QueryValidator) deepSelectDesugaring(stmt *pg_query.Node) error {
 		if err := pp.deepSelectDesugaring(subLink.Subselect); err != nil {
 			return fmt.Errorf("desugaring sublink subselect: %s", err)
 		}
+	} else if funcCall := stmt.GetFuncCall(); funcCall != nil {
+		for _, arg := range funcCall.Args {
+			if err := pp.deepSelectDesugaring(arg); err != nil {
+				return fmt.Errorf("desugaring func arg: %s", err)
+			}
+		}
 	}
 
 	return nil
