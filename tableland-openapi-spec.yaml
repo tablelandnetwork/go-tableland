@@ -23,7 +23,9 @@ paths:
 
         * The `setController` method allows you to rely on the validator to send a setController SC call on your behalf for a table.
 
-        All the above RPC calls, with the exception of `runReadQuery`, expect an Authorization header value with a signed SIWE message.
+        All the above RPC calls expect an Authorization header with a signed SIWE except:
+        - runReadQuery
+        - getReceipt
 
       requestBody:
         required: true
