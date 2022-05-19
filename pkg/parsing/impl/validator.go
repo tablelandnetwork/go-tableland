@@ -266,6 +266,10 @@ func (s *sugaredMutatingStmt) Operation() tableland.Operation {
 	return s.operation
 }
 
+func (ws *sugaredMutatingStmt) GetDBTableName() string {
+	return ws.dbTableName
+}
+
 type sugaredWriteStmt struct {
 	*sugaredMutatingStmt
 }
@@ -367,10 +371,6 @@ func (ws *sugaredWriteStmt) CheckColumns(allowedColumns []string) error {
 	}
 
 	return nil
-}
-
-func (ws *sugaredWriteStmt) GetDBTableName() string {
-	return ws.dbTableName
 }
 
 type sugaredGrantStmt struct {
