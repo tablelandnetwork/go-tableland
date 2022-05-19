@@ -18,7 +18,7 @@ import (
 	"github.com/textileio/go-tableland/internal/tableland"
 	noncepkg "github.com/textileio/go-tableland/pkg/nonce"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
-	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
+	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/testutil"
 	"github.com/textileio/go-tableland/pkg/wallet"
@@ -125,7 +125,7 @@ func TestInitialization(t *testing.T) {
 	wallet, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(key)))
 	require.NoError(t, err)
 
-	sqlstore, err := sqlstoreimpl.New(ctx, tableland.ChainID(1337), url)
+	sqlstore, err := system.New(url, tableland.ChainID(1337))
 	require.NoError(t, err)
 
 	// initialize without pending txs
@@ -195,7 +195,7 @@ func TestMinBlockDepth(t *testing.T) {
 	wallet, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(key)))
 	require.NoError(t, err)
 
-	sqlstore, err := sqlstoreimpl.New(ctx, tableland.ChainID(1337), url)
+	sqlstore, err := system.New(url, tableland.ChainID(1337))
 	require.NoError(t, err)
 
 	testAddress := wallet.Address()
@@ -282,7 +282,7 @@ func TestCheckIfPendingTxIsStuck(t *testing.T) {
 	wallet, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(key)))
 	require.NoError(t, err)
 
-	sqlstore, err := sqlstoreimpl.New(ctx, tableland.ChainID(1337), url)
+	sqlstore, err := system.New(url, tableland.ChainID(1337))
 	require.NoError(t, err)
 
 	testAddress := wallet.Address()
@@ -366,7 +366,7 @@ func setup(ctx context.Context, t *testing.T) (
 	*ethereum.Contract,
 	*bind.TransactOpts,
 	*wallet.Wallet,
-	sqlstore.SQLStore) {
+	sqlstore.SystemStore) {
 	url := tests.PostgresURL(t)
 
 	backend, _, contract, txOptsFrom, sk := testutil.Setup(t)
@@ -382,7 +382,7 @@ func setup(ctx context.Context, t *testing.T) (
 	wallet, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(key)))
 	require.NoError(t, err)
 
-	sqlstore, err := sqlstoreimpl.New(ctx, tableland.ChainID(1337), url)
+	sqlstore, err := system.New(url, tableland.ChainID(1337))
 	require.NoError(t, err)
 
 	tracker, err := NewLocalTracker(

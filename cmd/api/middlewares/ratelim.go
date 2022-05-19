@@ -1,7 +1,6 @@
 package middlewares
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -17,7 +16,7 @@ func RateLimitController(maxRPI uint64, interval time.Duration) (mux.MiddlewareF
 		address := r.Context().Value(ContextKeyAddress)
 		ctrlAddress, ok := address.(string)
 		if !ok || ctrlAddress == "" {
-			return "", errors.New("no controller address found in context")
+			return r.RemoteAddr, nil
 		}
 		return ctrlAddress, nil
 	}

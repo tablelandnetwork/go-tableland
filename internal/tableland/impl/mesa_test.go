@@ -30,7 +30,8 @@ import (
 	"github.com/textileio/go-tableland/pkg/nonce/impl"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
-	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
+	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
+	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/testutil"
 	txnpimpl "github.com/textileio/go-tableland/pkg/txn/impl"
@@ -540,7 +541,7 @@ func setup(
 	url := tests.PostgresURL(t)
 
 	ctx := context.WithValue(context.Background(), middlewares.ContextKeyChainID, tableland.ChainID(1337))
-	store, err := sqlstoreimpl.New(ctx, tableland.ChainID(1337), url)
+	store, err := system.New(url, tableland.ChainID(1337))
 	require.NoError(t, err)
 
 	parser := parserimpl.New([]string{"system_", "registry", "sqlite_"}, 0, 0)
@@ -560,8 +561,13 @@ func setup(
 		impl.NewSimpleTracker(wallet, backend),
 	)
 	require.NoError(t, err)
+
+	userStore, err := user.New(url)
+	require.NoError(t, err)
+
 	tbld := NewTablelandMesa(
 		parser,
+		userStore,
 		map[tableland.ChainID]chains.ChainStack{
 			1337: {Store: store, Registry: registry},
 		})
@@ -594,7 +600,7 @@ func setupTablelandForTwoAddresses(t *testing.T) (context.Context,
 	url := tests.PostgresURL(t)
 
 	ctx := context.WithValue(context.Background(), middlewares.ContextKeyChainID, tableland.ChainID(1337))
-	store, err := sqlstoreimpl.New(ctx, tableland.ChainID(1337), url)
+	store, err := system.New(url, tableland.ChainID(1337))
 	require.NoError(t, err)
 
 	parser := parserimpl.New([]string{"system_", "registry"}, 0, 0)
@@ -614,8 +620,11 @@ func setupTablelandForTwoAddresses(t *testing.T) (context.Context,
 		impl.NewSimpleTracker(wallet1, backend),
 	)
 	require.NoError(t, err)
+	userStore, err := user.New(url)
+	require.NoError(t, err)
 	tbld1 := NewTablelandMesa(
 		parser,
+		userStore,
 		map[tableland.ChainID]chains.ChainStack{
 			1337: {Store: store, Registry: registry},
 		})
@@ -641,6 +650,7 @@ func setupTablelandForTwoAddresses(t *testing.T) (context.Context,
 	require.NoError(t, err)
 	tbld2 := NewTablelandMesa(
 		parser,
+		userStore,
 		map[tableland.ChainID]chains.ChainStack{
 			1337: {Store: store, Registry: registry2},
 		})
@@ -662,7 +672,7 @@ func setupTablelandForTwoAddresses(t *testing.T) (context.Context,
 }
 
 type aclHalfMock struct {
-	sqlStore sqlstore.SQLStore
+	sqlStore sqlstore.SystemStore
 }
 
 func (acl *aclHalfMock) CheckPrivileges(
