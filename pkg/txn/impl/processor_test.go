@@ -35,7 +35,7 @@ func TestExecWriteQueries(t *testing.T) {
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
 
-		wq1 := mustWriteStmt(t, `insert into foo_100 values ('one')`)
+		wq1 := mustWriteStmt(t, `insert into foo_1337_100 values ('one')`)
 		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq1}, true, tableland.AllowAllPolicy{})
 		require.NoError(t, err)
 
@@ -43,7 +43,7 @@ func TestExecWriteQueries(t *testing.T) {
 		require.NoError(t, b.Close(ctx))
 		require.NoError(t, txnp.Close(ctx))
 
-		require.Equal(t, 1, tableRowCountT100(t, pool, "select count(*) from _1337_100"))
+		require.Equal(t, 1, tableRowCountT100(t, pool, "select count(*) from foo_1337_100"))
 	})
 
 	t.Run("multiple queries", func(t *testing.T) {
@@ -56,18 +56,18 @@ func TestExecWriteQueries(t *testing.T) {
 		require.NoError(t, err)
 
 		{
-			wq1 := mustWriteStmt(t, `insert into foo_100 values ('wq1one')`)
+			wq1 := mustWriteStmt(t, `insert into foo_1337_100 values ('wq1one')`)
 			err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq1}, true, tableland.AllowAllPolicy{})
 			require.NoError(t, err)
 		}
 		{
-			wq1 := mustWriteStmt(t, `insert into foo_100 values ('wq1two')`)
-			wq2 := mustWriteStmt(t, `insert into foo_100 values ('wq2three')`)
+			wq1 := mustWriteStmt(t, `insert into foo_1337_100 values ('wq1two')`)
+			wq2 := mustWriteStmt(t, `insert into foo_1337_100 values ('wq2three')`)
 			err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq1, wq2}, true, tableland.AllowAllPolicy{})
 			require.NoError(t, err)
 		}
 		{
-			wq1 := mustWriteStmt(t, `insert into foo_100 values ('wq1four')`)
+			wq1 := mustWriteStmt(t, `insert into foo_1337_100 values ('wq1four')`)
 			err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq1}, true, tableland.AllowAllPolicy{})
 			require.NoError(t, err)
 		}
@@ -76,7 +76,7 @@ func TestExecWriteQueries(t *testing.T) {
 		require.NoError(t, b.Close(ctx))
 		require.NoError(t, txnp.Close(ctx))
 
-		require.Equal(t, 4, tableRowCountT100(t, pool, "select count(*) from _1337_100"))
+		require.Equal(t, 4, tableRowCountT100(t, pool, "select count(*) from foo_1337_100"))
 	})
 
 	t.Run("multiple with single failure", func(t *testing.T) {
@@ -89,18 +89,18 @@ func TestExecWriteQueries(t *testing.T) {
 		require.NoError(t, err)
 
 		{
-			wq1_1 := mustWriteStmt(t, `insert into foo_100 values ('onez')`)
+			wq1_1 := mustWriteStmt(t, `insert into foo_1337_100 values ('onez')`)
 			err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq1_1}, true, tableland.AllowAllPolicy{})
 			require.NoError(t, err)
 		}
 		{
-			wq2_1 := mustWriteStmt(t, `insert into foo_100 values ('twoz')`)
-			wq2_2 := mustWriteStmt(t, `insert into foo_101 values ('threez')`)
+			wq2_1 := mustWriteStmt(t, `insert into foo_1337_100 values ('twoz')`)
+			wq2_2 := mustWriteStmt(t, `insert into foo_1337_101 values ('threez')`)
 			err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq2_1, wq2_2}, true, tableland.AllowAllPolicy{}) // nolint
 			require.Error(t, err)
 		}
 		{
-			wq3_1 := mustWriteStmt(t, `insert into foo_100 values ('fourz')`)
+			wq3_1 := mustWriteStmt(t, `insert into foo_1337_100 values ('fourz')`)
 			err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq3_1}, true, tableland.AllowAllPolicy{})
 			require.NoError(t, err)
 		}
@@ -116,7 +116,7 @@ func TestExecWriteQueries(t *testing.T) {
 		// 1. wq1_1 and wq3_1 should survive the whole batch commit.
 		// 2. despite wq2_1 apparently should succeed, wq2_2 failure should rollback
 		//    both wq2_* statements.
-		require.Equal(t, 2, tableRowCountT100(t, pool, "select count(*) from _1337_100"))
+		require.Equal(t, 2, tableRowCountT100(t, pool, "select count(*) from foo_1337_100"))
 	})
 
 	t.Run("with abrupt close", func(t *testing.T) {
@@ -129,13 +129,13 @@ func TestExecWriteQueries(t *testing.T) {
 		require.NoError(t, err)
 
 		{
-			wq1_1 := mustWriteStmt(t, `insert into foo_100 values ('one')`)
+			wq1_1 := mustWriteStmt(t, `insert into foo_1337_100 values ('one')`)
 			err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq1_1}, true, tableland.AllowAllPolicy{})
 			require.NoError(t, err)
 		}
 		{
-			wq2_1 := mustWriteStmt(t, `insert into foo_100 values ('two')`)
-			wq2_2 := mustWriteStmt(t, `insert into foo_100 values ('three')`)
+			wq2_1 := mustWriteStmt(t, `insert into foo_1337_100 values ('two')`)
+			wq2_2 := mustWriteStmt(t, `insert into foo_1337_100 values ('three')`)
 			err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq2_1, wq2_2}, true, tableland.AllowAllPolicy{}) // nolint
 			require.NoError(t, err)
 		}
@@ -147,7 +147,7 @@ func TestExecWriteQueries(t *testing.T) {
 		// The opened batch wasn't txnp.CloseBatch(), but we simply
 		// closed the whole store. This should rollback any ongoing
 		// opened batch and leave db state correctly.
-		require.Equal(t, 0, tableRowCountT100(t, pool, "select count(*) from _1337_100"))
+		require.Equal(t, 0, tableRowCountT100(t, pool, "select count(*) from foo_1337_100"))
 	})
 
 	t.Run("single-query grant", func(t *testing.T) {
@@ -159,7 +159,7 @@ func TestExecWriteQueries(t *testing.T) {
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
 
-		wq1 := mustGrantStmt(t, "grant insert, update, delete on foo_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\", \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"") //nolint
+		wq1 := mustGrantStmt(t, "grant insert, update, delete on foo_1337_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\", \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"") //nolint
 		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq1}, true, tableland.AllowAllPolicy{})
 		require.NoError(t, err)
 
@@ -189,11 +189,11 @@ func TestExecWriteQueries(t *testing.T) {
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
 
-		wq1 := mustGrantStmt(t, "grant insert on foo_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\", \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"") //nolint
+		wq1 := mustGrantStmt(t, "grant insert on foo_1337_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\", \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"") //nolint
 		// add the update privilege for role 0xd43c59d5694ec111eb9e986c233200b14249558d
-		wq2 := mustGrantStmt(t, "grant update on foo_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\"")
+		wq2 := mustGrantStmt(t, "grant update on foo_1337_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\"")
 		// add the delete privilege (and mistakenly the insert) grant for role 0x4afe8e30db4549384b0a05bb796468b130c7d6e0
-		wq3 := mustGrantStmt(t, "grant insert, delete on foo_100 to \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"")
+		wq3 := mustGrantStmt(t, "grant insert, delete on foo_1337_100 to \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"")
 		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq1, wq2, wq3}, true, tableland.AllowAllPolicy{}) //nolint
 		require.NoError(t, err)
 
@@ -237,8 +237,8 @@ func TestExecWriteQueries(t *testing.T) {
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
 
-		wq1 := mustGrantStmt(t, "grant insert, update, delete on foo_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\"")
-		wq2 := mustGrantStmt(t, "revoke insert, delete on foo_100 from \"0xd43c59d5694ec111eb9e986c233200b14249558d\"")
+		wq1 := mustGrantStmt(t, "grant insert, update, delete on foo_1337_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\"")
+		wq2 := mustGrantStmt(t, "revoke insert, delete on foo_1337_100 from \"0xd43c59d5694ec111eb9e986c233200b14249558d\"")
 		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq1, wq2}, true, tableland.AllowAllPolicy{})
 		require.NoError(t, err)
 
@@ -279,7 +279,7 @@ func TestExecWriteQueriesWithPolicies(t *testing.T) {
 			isInsertAllowed: false,
 		})
 
-		wq := mustWriteStmt(t, `insert into foo_100 values ('one');`)
+		wq := mustWriteStmt(t, `insert into foo_1337_100 values ('one');`)
 
 		// set the controller to anything other than zero
 		err = b.SetController(ctx, wq.GetTableID(), common.HexToAddress("0x1"))
@@ -304,7 +304,7 @@ func TestExecWriteQueriesWithPolicies(t *testing.T) {
 			isUpdateAllowed: false,
 		})
 
-		wq := mustWriteStmt(t, `update foo_100 set zar = 'three';`)
+		wq := mustWriteStmt(t, `update foo_1337_100 set zar = 'three';`)
 
 		// set the controller to anything other than zero
 		err = b.SetController(ctx, wq.GetTableID(), common.HexToAddress("0x1"))
@@ -329,7 +329,7 @@ func TestExecWriteQueriesWithPolicies(t *testing.T) {
 			isDeleteAllowed: false,
 		})
 
-		wq := mustWriteStmt(t, `DELETE FROM foo_100`)
+		wq := mustWriteStmt(t, `DELETE FROM foo_1337_100`)
 
 		// set the controller to anything other than zero
 		err = b.SetController(ctx, wq.GetTableID(), common.HexToAddress("0x1"))
@@ -356,7 +356,7 @@ func TestExecWriteQueriesWithPolicies(t *testing.T) {
 		})
 
 		// tries to update zar and not zaz
-		wq := mustWriteStmt(t, `update foo_100 set zar = 'three';`)
+		wq := mustWriteStmt(t, `update foo_1337_100 set zar = 'three';`)
 
 		// set the controller to anything other than zero
 		err = b.SetController(ctx, wq.GetTableID(), common.HexToAddress("0x1"))
@@ -378,8 +378,8 @@ func TestExecWriteQueriesWithPolicies(t *testing.T) {
 		require.NoError(t, err)
 
 		// start with two rows
-		wq1 := mustWriteStmt(t, `insert into foo_100 values ('one');`)
-		wq2 := mustWriteStmt(t, `insert into foo_100 values ('two');`)
+		wq1 := mustWriteStmt(t, `insert into foo_1337_100 values ('one');`)
+		wq2 := mustWriteStmt(t, `insert into foo_1337_100 values ('two');`)
 
 		// set the controller to anything other than zero
 		err = b.SetController(ctx, wq2.GetTableID(), common.HexToAddress("0x1"))
@@ -395,7 +395,7 @@ func TestExecWriteQueriesWithPolicies(t *testing.T) {
 		})
 
 		// send an update that updates all rows with a policy to restricts the update
-		wq3 := mustWriteStmt(t, `update foo_100 set zar = 'three'`)
+		wq3 := mustWriteStmt(t, `update foo_1337_100 set zar = 'three'`)
 		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq3}, true, policy)
 		require.NoError(t, err)
 
@@ -404,7 +404,7 @@ func TestExecWriteQueriesWithPolicies(t *testing.T) {
 		require.NoError(t, txnp.Close(ctx))
 
 		// there should be only one row updated
-		require.Equal(t, 1, tableRowCountT100(t, pool, "select count(*) from _1337_100 WHERE zar = 'three'"))
+		require.Equal(t, 1, tableRowCountT100(t, pool, "select count(*) from foo_1337_100 WHERE zar = 'three'"))
 	})
 }
 
@@ -443,7 +443,7 @@ func TestRegisterTable(t *testing.T) {
 		require.NotEqual(t, new(time.Time), table.CreatedAt) // CreatedAt is not the zero value
 
 		// Check that the user table was created.
-		ok := existsTableWithName(t, pool, "_1337_100")
+		ok := existsTableWithName(t, pool, "bar_1337_100")
 		require.True(t, ok)
 	})
 }
@@ -460,7 +460,7 @@ func TestTableRowCountLimit(t *testing.T) {
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
 
-		q := mustWriteStmt(t, `insert into foo_100 values ('one')`)
+		q := mustWriteStmt(t, `insert into foo_1337_100 values ('one')`)
 		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{q}, true, tableland.AllowAllPolicy{})
 		if err == nil {
 			require.NoError(t, b.Commit(ctx))
@@ -473,7 +473,7 @@ func TestTableRowCountLimit(t *testing.T) {
 	for i := 0; i < rowLimit; i++ {
 		require.NoError(t, insertRow(t))
 	}
-	require.Equal(t, rowLimit, tableRowCountT100(t, pool, "select count(*) from _1337_100"))
+	require.Equal(t, rowLimit, tableRowCountT100(t, pool, "select count(*) from foo_1337_100"))
 
 	// The next insert should fail.
 	var errQueryExecution *txn.ErrQueryExecution
@@ -621,7 +621,7 @@ func TestWithCheck(t *testing.T) {
 			withCheck:       "zar = 'two'",
 		})
 
-		wq := mustWriteStmt(t, `insert into foo_100 values ('one')`)
+		wq := mustWriteStmt(t, `insert into foo_1337_100 values ('one')`)
 
 		// set the controller to anything other than zero
 		err = b.SetController(ctx, wq.GetTableID(), common.HexToAddress("0x1"))
@@ -636,7 +636,7 @@ func TestWithCheck(t *testing.T) {
 		require.NoError(t, b.Close(ctx))
 		require.NoError(t, txnp.Close(ctx))
 
-		require.Equal(t, 0, tableRowCountT100(t, pool, "select count(*) from _1337_100"))
+		require.Equal(t, 0, tableRowCountT100(t, pool, "select count(*) from foo_1337_100"))
 	})
 
 	t.Run("update-with-check-not-satistifed", func(t *testing.T) {
@@ -648,7 +648,7 @@ func TestWithCheck(t *testing.T) {
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
 
-		wq1 := mustWriteStmt(t, `insert into foo_100 values ('one')`)
+		wq1 := mustWriteStmt(t, `insert into foo_1337_100 values ('one')`)
 
 		// set the controller to anything other than zero
 		err = b.SetController(ctx, wq1.GetTableID(), common.HexToAddress("0x1"))
@@ -657,7 +657,7 @@ func TestWithCheck(t *testing.T) {
 		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq1}, true, &tableland.AllowAllPolicy{})
 		require.Nil(t, err)
 
-		wq2 := mustWriteStmt(t, `update foo_100 SET zar = 'three'`)
+		wq2 := mustWriteStmt(t, `update foo_1337_100 SET zar = 'three'`)
 		policy := policyFactory(policyData{
 			isUpdateAllowed: true,
 			withCheck:       "zar = 'two'",
@@ -672,8 +672,8 @@ func TestWithCheck(t *testing.T) {
 		require.NoError(t, b.Close(ctx))
 		require.NoError(t, txnp.Close(ctx))
 
-		require.Equal(t, 1, tableRowCountT100(t, pool, "select count(*) from _1337_100 WHERE zar = 'one'"))
-		require.Equal(t, 0, tableRowCountT100(t, pool, "select count(*) from _1337_100 WHERE zar = 'three'"))
+		require.Equal(t, 1, tableRowCountT100(t, pool, "select count(*) from foo_1337_100 WHERE zar = 'one'"))
+		require.Equal(t, 0, tableRowCountT100(t, pool, "select count(*) from foo_1337_100 WHERE zar = 'three'"))
 	})
 
 	t.Run("insert-with-check-satistifed", func(t *testing.T) {
@@ -690,8 +690,8 @@ func TestWithCheck(t *testing.T) {
 			withCheck:       "zar in ('one', 'two')",
 		})
 
-		wq1 := mustWriteStmt(t, `insert into foo_100 values ('one')`)
-		wq2 := mustWriteStmt(t, `insert into foo_100 values ('two')`)
+		wq1 := mustWriteStmt(t, `insert into foo_1337_100 values ('one')`)
+		wq2 := mustWriteStmt(t, `insert into foo_1337_100 values ('two')`)
 
 		// set the controller to anything other than zero
 		err = b.SetController(ctx, wq1.GetTableID(), common.HexToAddress("0x1"))
@@ -704,7 +704,7 @@ func TestWithCheck(t *testing.T) {
 		require.NoError(t, b.Close(ctx))
 		require.NoError(t, txnp.Close(ctx))
 
-		require.Equal(t, 2, tableRowCountT100(t, pool, "select count(*) from _1337_100"))
+		require.Equal(t, 2, tableRowCountT100(t, pool, "select count(*) from foo_1337_100"))
 	})
 
 	t.Run("row-count-limit-withcheck", func(t *testing.T) {
@@ -733,7 +733,7 @@ func TestWithCheck(t *testing.T) {
 				withCheck:       "zar in ('one')",
 			})
 
-			q := mustWriteStmt(t, `insert into foo_100 values ('one')`)
+			q := mustWriteStmt(t, `insert into foo_1337_100 values ('one')`)
 
 			err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{q}, true, policy)
 			if err == nil {
@@ -747,7 +747,7 @@ func TestWithCheck(t *testing.T) {
 		for i := 0; i < rowLimit; i++ {
 			require.NoError(t, insertRow(t))
 		}
-		require.Equal(t, rowLimit, tableRowCountT100(t, pool, "select count(*) from _1337_100"))
+		require.Equal(t, rowLimit, tableRowCountT100(t, pool, "select count(*) from foo_1337_100"))
 
 		// The next insert should fail.
 		var errQueryExecution *txn.ErrQueryExecution
@@ -817,7 +817,7 @@ func newTxnProcessorWithTable(t *testing.T, rowsLimit int) (*TblTxnProcessor, *p
 	id, err := tableland.NewTableID("100")
 	require.NoError(t, err)
 	parser := parserimpl.New([]string{}, 0, 0)
-	createStmt, err := parser.ValidateCreateTable("create table foo (zar text)", 1337)
+	createStmt, err := parser.ValidateCreateTable("create table foo_1337 (zar text)", 1337)
 	require.NoError(t, err)
 	err = b.InsertTable(ctx, id, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", createStmt)
 	require.NoError(t, err)
