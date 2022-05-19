@@ -10,7 +10,7 @@ import (
 )
 
 const getTable = `-- name: GetTable :one
-SELECT created_at, id, structure, controller, name, chain_id FROM registry WHERE chain_id =$1 AND id = $2
+SELECT created_at, id, structure, controller, prefix, chain_id FROM registry WHERE chain_id =$1 AND id = $2
 `
 
 type GetTableParams struct {
@@ -26,14 +26,14 @@ func (q *Queries) GetTable(ctx context.Context, arg GetTableParams) (Registry, e
 		&i.ID,
 		&i.Structure,
 		&i.Controller,
-		&i.Name,
+		&i.Prefix,
 		&i.ChainID,
 	)
 	return i, err
 }
 
 const getTablesByController = `-- name: GetTablesByController :many
-SELECT created_at, id, structure, controller, name, chain_id FROM registry WHERE chain_id=$1 AND controller ILIKE $2
+SELECT created_at, id, structure, controller, prefix, chain_id FROM registry WHERE chain_id=$1 AND controller ILIKE $2
 `
 
 type GetTablesByControllerParams struct {
@@ -55,7 +55,7 @@ func (q *Queries) GetTablesByController(ctx context.Context, arg GetTablesByCont
 			&i.ID,
 			&i.Structure,
 			&i.Controller,
-			&i.Name,
+			&i.Prefix,
 			&i.ChainID,
 		); err != nil {
 			return nil, err
