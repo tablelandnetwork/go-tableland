@@ -59,8 +59,8 @@ func (ip *InstrumentedSQLValidator) ValidateCreateTable(query string) (parsing.C
 
 // ValidateRunSQL register metrics for its corresponding wrapped parser.
 func (ip *InstrumentedSQLValidator) ValidateRunSQL(query string) (
-	parsing.SugaredReadStmt,
-	[]parsing.SugaredMutatingStmt,
+	parsing.ReadStmt,
+	[]parsing.MutatingStmt,
 	error) {
 	log.Debug().Str("query", query).Msg("call ValidateRunSQL")
 	start := time.Now()

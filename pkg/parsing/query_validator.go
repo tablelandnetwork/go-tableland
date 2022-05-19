@@ -9,22 +9,43 @@ import (
 	"github.com/textileio/go-tableland/internal/tableland"
 )
 
-// SugaredStmt is a structured statement. It's "sugared" since the table
-// references are {name}_t{ID} ({name)_ is optional).
-// It provides methods that helps with validations and execution in the real Tableland
-// database, since sugared queries should be desugared for correct execution.
-type SugaredStmt interface {
-	// GetDesugared query desugars the query, which means:
-	// "insert into {tableName}_{tableID}" -> "insert _{chainID}_{tableID}"
-	GetDesugaredQuery() (string, error)
+// Stmt represents any valid read or mutating query.
+type Stmt interface {
+	GetQuery() string
 }
 
-// SugaredWriteStmt is an already parsed write statement that satisfies all
+// MutatingStmt represents mutating statement, that is either
+// a SugaredWriteStmt or a SugaredGrantStmt.
+type MutatingStmt interface {
+	Stmt
+
+	// GetPrefix returns the prefix of the table, if any.  e.g: "insert into foo_4_100" -> "foo".
+	// Since the prefix is optional, it can return "".
+	GetPrefix() string
+	// GetTableID returns the table id. "insert into foo_100" -> 100.
+	GetTableID() tableland.TableID
+
+	// Operation returns the type of the operation.
+	Operation() tableland.Operation
+
+	// GetDBTableName returns the database table name.
+	GetDBTableName() string
+}
+
+// ReadStmt is an already parsed read statement that satisfies all
+// the parser validations. It provides a safe type to use in the business logic
+// with correct assumptions about parsing validity and being a read statement
+// (select).
+type ReadStmt interface {
+	Stmt
+}
+
+// WriteStmt is an already parsed write statement that satisfies all
 // the parser validations. It provides a safe type to use in the business logic
 // with correct assumptions about parsing validity and being a write statement
 // (update, insert, delete).
-type SugaredWriteStmt interface {
-	SugaredMutatingStmt
+type WriteStmt interface {
+	MutatingStmt
 
 	// AddWhereClause adds where clauses to update statement.
 	AddWhereClause(string) error
@@ -36,41 +57,15 @@ type SugaredWriteStmt interface {
 	CheckColumns([]string) error
 }
 
-// SugaredGrantStmt is an already parsed grant statement that satisfies all
+// GrantStmt is an already parsed grant statement that satisfies all
 // the parser validations. It provides a safe type to use in the business logic
 // with correct assumptions about parsing validity and being a write statement
 // (grant, revoke).
-type SugaredGrantStmt interface {
-	SugaredMutatingStmt
+type GrantStmt interface {
+	MutatingStmt
+
 	GetRoles() []common.Address
 	GetPrivileges() tableland.Privileges
-}
-
-// SugaredMutatingStmt represents mutating statement, that is either
-// a SugaredWriteStmt or a SugaredGrantStmt.
-type SugaredMutatingStmt interface {
-	SugaredStmt
-
-	// GetNamePrefix returns the name prefix of the sugared table name
-	// if exists. e.g: "insert into foo_100" -> "foo". Since the name
-	// prefix is optional, it can return "" if none exist in the query.
-	GetNamePrefix() string
-	// GetTableID returns the table id. "insert into foo_100" -> 100.
-	GetTableID() tableland.TableID
-
-	// Operation returns the type of the operation
-	Operation() tableland.Operation
-
-	// GetDBTableName returns the database table name
-	GetDBTableName() string
-}
-
-// SugaredReadStmt is an already parsed read statement that satisfies all
-// the parser validations. It provides a safe type to use in the business logic
-// with correct assumptions about parsing validity and being a read statement
-// (select).
-type SugaredReadStmt interface {
-	SugaredStmt
 }
 
 // CreateStmt is a structured create statement. It provides methods to
@@ -82,15 +77,14 @@ type CreateStmt interface {
 	// GetRawQueryForTableID transforms a parsed create statement
 	// from the user, and replaces the referenced table name with
 	// the correct name from an id.
-	// e.g: "create table Person (...)"(100) -> "create table t100 (...)".
+	// e.g: "create table Person_69 (...)"(100) -> "create table Person_69_100 (...)".
 	GetRawQueryForTableID(tableland.TableID) (string, error)
 	// GetStructureHash returns a structure fingerprint of the table, considering
 	// the ordered set of columns and types as defined in the spec.
 	GetStructureHash() string
-	// GetNamePrefix returns the sugared name from the user query.
-	// e.g: "create Person (...)" -> "Person". This helps to feed the
-	// system tables "name" corresponding column.
-	GetNamePrefix() string
+	// GetPrefix returns the prefix of the create table.
+	// e.g: "create Person_69 (...)" -> "Person".
+	GetPrefix() string
 }
 
 // SQLValidator parses and validate a SQL query for different supported scenarios.
@@ -98,10 +92,11 @@ type SQLValidator interface {
 	// ValidateCreateTable validates the provided query and returns an error
 	// if the CREATE statement isn't allowed. Returns nil otherwise.
 	ValidateCreateTable(query string) (CreateStmt, error)
-	// ValidateRunSQL validates the query and returns an error if isn't allowed.
-	// It returns the table ID extracted from the query, and a read *or* write
-	// statement depending on the query type.
-	ValidateRunSQL(query string) (SugaredReadStmt, []SugaredMutatingStmt, error)
+	// ValidateReadQuery validates a read-query, and returns a structured representation of it.
+	ValidateReadQuery(query string) (ReadStmt, error)
+	// ValidateMutatingQuery validates a mutating-query, and a list of mutating statements
+	// contained in it.
+	ValidateMutatingQuery(query string, chainID tableland.ChainID) ([]MutatingStmt, error)
 }
 
 // TablelandColumnType represents an accepted column type for user-tables.

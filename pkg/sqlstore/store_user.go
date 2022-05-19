@@ -19,5 +19,5 @@ type UserRows struct {
 
 // UserStore defines the methods for interacting with user data.
 type UserStore interface {
-	Read(context.Context, parsing.SugaredReadStmt) (interface{}, error)
+	Read(context.Context, parsing.ReadStmt) (interface{}, error)
 }

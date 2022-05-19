@@ -110,7 +110,7 @@ func (s *InstrumentedSQLStorePGX) GetACLOnTableByController(
 }
 
 // Read executes a read statement on the db.
-func (s *InstrumentedSQLStorePGX) Read(ctx context.Context, stmt parsing.SugaredReadStmt) (interface{}, error) {
+func (s *InstrumentedSQLStorePGX) Read(ctx context.Context, stmt parsing.ReadStmt) (interface{}, error) {
 	start := time.Now()
 	data, err := s.store.Read(ctx, stmt)
 	latency := time.Since(start).Milliseconds()

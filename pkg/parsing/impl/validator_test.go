@@ -15,10 +15,9 @@ func TestReadRunSQL(t *testing.T) {
 	t.Parallel()
 
 	type testCase struct {
-		name        string
-		query       string
-		expRawQuery string
-		expErrType  interface{}
+		name       string
+		query      string
+		expErrType interface{}
 	}
 
 	tests := []testCase{
@@ -31,36 +30,31 @@ func TestReadRunSQL(t *testing.T) {
 
 		// Valid read-queries.
 		{
-			name:        "valid all",
-			query:       "select * from _1234",
-			expRawQuery: "SELECT * FROM _1337_1234",
-			expErrType:  nil,
+			name:       "valid all",
+			query:      "select * from Hello_4_1234",
+			expErrType: nil,
 		},
 		{
-			name:        "valid defined rows",
-			query:       "select row1, row2 from zoo_4321 where a = b",
-			expRawQuery: "SELECT row1, row2 FROM _1337_4321 WHERE a = b",
-			expErrType:  nil,
+			name:       "valid defined rows",
+			query:      "select row1, row2 from zoo_4321 where a = b",
+			expErrType: nil,
 		},
 
 		// Allow joins and sub-queries
 		{
-			name:        "with join",
-			query:       "select * from foo_1 join bar_2 on a=b",
-			expRawQuery: "SELECT * FROM _1337_1 JOIN _1337_2 ON a = b",
-			expErrType:  nil,
+			name:       "with join",
+			query:      "select * from foo_1 join bar_2 on a=b",
+			expErrType: nil,
 		},
 		{
-			name:        "with subselect",
-			query:       "select * from foo_1 where a in (select b from zoo_5)",
-			expRawQuery: "SELECT * FROM _1337_1 WHERE a IN (SELECT b FROM _1337_5)",
-			expErrType:  nil,
+			name:       "with subselect",
+			query:      "select * from foo_1 where a in (select b from zoo_5)",
+			expErrType: nil,
 		},
 		{
-			name:        "column with subquery",
-			query:       "select (select * from bar_2 limit 1) from foo_3",
-			expRawQuery: "SELECT (SELECT * FROM _1337_2 LIMIT 1) FROM _1337_3",
-			expErrType:  nil,
+			name:       "column with subquery",
+			query:      "select (select * from bar_2 limit 1) from foo_3",
+			expErrType: nil,
 		},
 		{
 			name: "select with complex subqueries in function arguments",
@@ -81,8 +75,7 @@ func TestReadRunSQL(t *testing.T) {
 				  )
 			  )
 			  from rigs_1;`,
-			expRawQuery: `SELECT json_build_object('name', concat('#', rigs.id), 'external_url', concat('https://rigs.tableland.xyz/', rigs.id), 'attributes', json_build_array(json_build_object('trait_type', 'Fleet', 'value', rigs.fleet), json_build_object('trait_type', 'Chassis', 'value', rigs.chassis), json_build_object('trait_type', 'Wheels', 'value', rigs.wheels), json_build_object('trait_type', 'Background', 'value', rigs.background), json_build_object('trait_type', (SELECT name FROM _1337_2 WHERE badges.rig_id = rigs.id AND "position" = 1 LIMIT 1), 'value', (SELECT image FROM _1337_2 WHERE badges.rig_id = rigs.id AND "position" = 1 LIMIT 1)))) FROM _1337_1`, //nolint
-			expErrType:  nil,
+			expErrType: nil,
 		},
 
 		// Single-statement check.
@@ -116,14 +109,12 @@ func TestReadRunSQL(t *testing.T) {
 				t.Parallel()
 
 				parser := parser.New([]string{"system_", "registry"}, 1337, 0, 0)
-				rs, _, err := parser.ValidateRunSQL(tc.query)
+				rs, _, err := parser.ValidateReadQuery(tc.query)
 
 				if tc.expErrType == nil {
 					require.NoError(t, err)
 					require.NotNil(t, rs)
-					desugared, err := rs.GetDesugaredQuery()
-					require.NoError(t, err)
-					require.Equal(t, tc.expRawQuery, desugared)
+					require.Equal(t, tc.query, rs.GetQuery())
 					return
 				}
 				require.ErrorAs(t, err, tc.expErrType)
@@ -132,13 +123,14 @@ func TestReadRunSQL(t *testing.T) {
 	}
 }
 
-func TestMutatingRunSQL(t *testing.T) {
+func TestWriteQuery(t *testing.T) {
 	t.Parallel()
 
 	type testCase struct {
 		name       string
 		query      string
 		tableID    *big.Int
+		chainID    tableland.ChainID
 		namePrefix string
 		expErrType interface{}
 	}
@@ -168,54 +160,72 @@ func TestMutatingRunSQL(t *testing.T) {
 
 		// Invalid table name format.
 		{
-			name:       "suffix is not an integer",
-			query:      "delete from oops_z123 where a=2",
+			name:       "table id or chain id is missing",
+			query:      "delete from Hello_4 where a=2",
 			expErrType: ptr2ErrInvalidTableName(),
 		},
 		{
-			name:       "suffix cannot include 't' even in long names",
-			query:      "delete from person_t123 where a=2",
+			name:       "unprefixed table is missing underscore",
+			query:      "delete from 4_10 where a=2",
 			expErrType: ptr2ErrInvalidTableName(),
 		},
 		{
-			name:       "non-numeric id",
-			query:      "delete from person_tWrong where a=2",
+			name:       "non-numeric table id",
+			query:      "delete from person_4_wrong where a=2",
+			expErrType: ptr2ErrInvalidTableName(),
+		},
+		{
+			name:       "non-numeric chain id",
+			query:      "delete from _wrong_4 where a=2",
 			expErrType: ptr2ErrInvalidTableName(),
 		},
 
 		// Valid insert and updates.
 		{
-			name:       "valid insert",
-			query:      "insert into duke_3333 values ('hello', 1, 2)",
+			name:       "valid insert with prefix",
+			query:      "insert into duke_4_3333 values ('hello', 1, 2)",
 			tableID:    big.NewInt(3333),
+			chainID:    4,
 			namePrefix: "duke",
 			expErrType: nil,
 		},
 		{
-			name:       "valid simple update without name prefix needing '_' prefix",
-			query:      "update _0 set a=1 where b='hello'",
-			tableID:    big.NewInt(0),
+			name:       "valid insert without prefix",
+			query:      "insert into _4_3333 values ('hello', 1, 2)",
+			tableID:    big.NewInt(3333),
+			chainID:    4,
 			namePrefix: "",
 			expErrType: nil,
 		},
 		{
-			name:       "valid delete",
-			query:      "delete from i_like_border_cases_10 where a=2",
+			name:       "prefix with multiple underscores",
+			query:      "delete from i_like_border_cases_4_10 where a=2",
 			tableID:    big.NewInt(10),
+			chainID:    4,
 			namePrefix: "i_like_border_cases",
 			expErrType: nil,
 		},
 		{
+			name:       "prefix with multiple underscores and numbers",
+			query:      "delete from i_like_100_border_cases_4_10 where a=2",
+			tableID:    big.NewInt(10),
+			chainID:    4,
+			namePrefix: "i_like_100_border_cases",
+			expErrType: nil,
+		},
+		{
 			name:       "valid custom func call",
-			query:      "insert into hoop_3 values (myfunc(1))",
+			query:      "insert into hoop_69_3 values (myfunc(1))",
 			tableID:    big.NewInt(3),
+			chainID:    69,
 			namePrefix: "hoop",
 			expErrType: nil,
 		},
 		{
 			name:       "multi statement",
-			query:      "update a_10 set a=1; update a_10 set b=1;",
+			query:      "update a_4_10 set a=1; update a_4_10 set b=1;",
 			tableID:    big.NewInt(10),
+			chainID:    4,
 			namePrefix: "a",
 			expErrType: nil,
 		},
@@ -223,7 +233,7 @@ func TestMutatingRunSQL(t *testing.T) {
 		// Only reference a single table
 		{
 			name:       "update different tables",
-			query:      "update foo set a=1;update bar set a=2",
+			query:      "update foo_4_10 set a=1;update bar_4_12 set a=2",
 			expErrType: ptr2ErrMultiTableReference(),
 		},
 
@@ -275,8 +285,9 @@ func TestMutatingRunSQL(t *testing.T) {
 
 		// Disallow RETURNING clauses
 		{
-			name:  "update returning",
-			query: "update foo set a=a+1 returning a", expErrType: ptr2ErrReturningClause(),
+			name:       "update returning",
+			query:      "update foo set a=a+1 returning a",
+			expErrType: ptr2ErrReturningClause(),
 		},
 		{
 			name:       "insert returning",
@@ -355,15 +366,17 @@ func TestMutatingRunSQL(t *testing.T) {
 		// Valid grant statement
 		{
 			name:       "grant statement",
-			query:      "grant insert, update, delete on a_10 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\",  \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"", //nolint
+			query:      "grant insert, update, delete on a_5_10 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\",  \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"", //nolint
 			tableID:    big.NewInt(10),
+			chainID:    5,
 			namePrefix: "a",
 			expErrType: nil,
 		},
 		{
 			name:       "revoke statement",
-			query:      "revoke insert, update, delete on a_10 from \"0xd43c59d5694ec111eb9e986c233200b14249558d\",  \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"", //nolint
+			query:      "revoke insert, update, delete on a_8_10 from \"0xd43c59d5694ec111eb9e986c233200b14249558d\",  \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"", //nolint
 			tableID:    big.NewInt(10),
+			chainID:    8,
 			namePrefix: "a",
 			expErrType: nil,
 		},
@@ -378,23 +391,26 @@ func TestMutatingRunSQL(t *testing.T) {
 		// disallow privileges
 		{
 			name:       "grant statement all privileges",
-			query:      "grant all privileges on a_10 to role",
+			query:      "grant all privileges on a_4_10 to role",
 			tableID:    big.NewInt(10),
+			chainID:    4,
 			namePrefix: "a",
 			expErrType: ptr2ErrAllPrivilegesNotAllowed(),
 		},
 		{
 			name:       "revoke statement all privileges",
-			query:      "revoke all on a_10 from role",
+			query:      "revoke all on a_4_10 from role",
 			tableID:    big.NewInt(10),
+			chainID:    4,
 			namePrefix: "a",
 			expErrType: ptr2ErrAllPrivilegesNotAllowed(),
 		},
 
 		{
 			name:       "grant statement connect",
-			query:      "grant connect on a_10 to role",
+			query:      "grant connect on a_4_10 to role",
 			tableID:    big.NewInt(10),
+			chainID:    4,
 			namePrefix: "a",
 			expErrType: ptr2ErrNoInsertUpdateDeletePrivilege(),
 		},
@@ -402,7 +418,7 @@ func TestMutatingRunSQL(t *testing.T) {
 		// disallow grant on multiple objects
 		{
 			name:       "grant statement multiple table",
-			query:      "grant insert, update, delete on a_10, a_11 to role",
+			query:      "grant insert, update, delete on a_4_10, a_4_11 to role",
 			tableID:    big.NewInt(10),
 			namePrefix: "a",
 			expErrType: ptr2ErrNoSingleTableReference(),
@@ -528,7 +544,7 @@ func TestMutatingRunSQL(t *testing.T) {
 				t.Parallel()
 
 				parser := parser.New([]string{"system_", "registry"}, 1337, 0, 0)
-				_, mss, err := parser.ValidateRunSQL(tc.query)
+				mss, err := parser.ValidateMutatingQuery(tc.query, tc.chainID)
 
 				if tc.expErrType == nil {
 					require.NoError(t, err)
@@ -536,7 +552,7 @@ func TestMutatingRunSQL(t *testing.T) {
 					require.NotEmpty(t, mss)
 					for _, ms := range mss {
 						require.Equal(t, tc.tableID.String(), ms.GetTableID().String())
-						require.Equal(t, tc.namePrefix, ms.GetNamePrefix())
+						require.Equal(t, tc.namePrefix, ms.GetPrefix())
 					}
 
 					return
@@ -909,7 +925,7 @@ func TestGetGrantStatementRolesAndPrivileges(t *testing.T) {
 				require.Nil(t, rs)
 
 				for i := range stmts {
-					gs, ok := stmts[i].(parsing.SugaredGrantStmt)
+					gs, ok := stmts[i].(parsing.GrantStmt)
 					require.True(t, ok)
 					desugared, err := gs.GetDesugaredQuery()
 					require.NoError(t, err)
@@ -955,7 +971,7 @@ func TestWriteStatementAddWhereClause(t *testing.T) {
 			require.Nil(t, rs)
 			require.Len(t, mss, 1)
 
-			ws, ok := mss[0].(parsing.SugaredWriteStmt)
+			ws, ok := mss[0].(parsing.WriteStmt)
 			require.True(t, ok)
 
 			err = ws.AddWhereClause(tc.whereClause)
@@ -979,7 +995,7 @@ func TestWriteStatementAddReturningClause(t *testing.T) {
 		require.Nil(t, rs)
 		require.Len(t, mss, 1)
 
-		ws, ok := mss[0].(parsing.SugaredWriteStmt)
+		ws, ok := mss[0].(parsing.WriteStmt)
 		require.True(t, ok)
 
 		err = ws.AddReturningClause()
@@ -999,7 +1015,7 @@ func TestWriteStatementAddReturningClause(t *testing.T) {
 		require.Nil(t, rs)
 		require.Len(t, mss, 1)
 
-		ws, ok := mss[0].(parsing.SugaredWriteStmt)
+		ws, ok := mss[0].(parsing.WriteStmt)
 		require.True(t, ok)
 
 		err = ws.AddReturningClause()
@@ -1019,7 +1035,7 @@ func TestWriteStatementAddReturningClause(t *testing.T) {
 		require.Nil(t, rs)
 		require.Len(t, mss, 1)
 
-		ws, ok := mss[0].(parsing.SugaredWriteStmt)
+		ws, ok := mss[0].(parsing.WriteStmt)
 		require.True(t, ok)
 
 		err = ws.AddReturningClause()

@@ -25,7 +25,7 @@ func New(pool *pgxpool.Pool, chainID tableland.ChainID) *UserStore {
 }
 
 // Read executes a read statement on the db.
-func (db *UserStore) Read(ctx context.Context, rq parsing.SugaredReadStmt) (interface{}, error) {
+func (db *UserStore) Read(ctx context.Context, rq parsing.ReadStmt) (interface{}, error) {
 	var ret interface{}
 	f := func(tx pgx.Tx) error {
 		desugared, err := rq.GetDesugaredQuery()

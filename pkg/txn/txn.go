@@ -44,7 +44,7 @@ type Batch interface {
 	ExecWriteQueries(
 		ctx context.Context,
 		controller common.Address,
-		query []parsing.SugaredMutatingStmt,
+		query []parsing.MutatingStmt,
 		isOwner bool,
 		policy tableland.Policy) error
 	SetController(
