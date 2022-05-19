@@ -14,6 +14,7 @@ import (
 // It provides methods that helps with validations and execution in the real Tableland
 // database, since sugared queries should be desugared for correct execution.
 type SugaredStmt interface {
+	// TODO(jsign): fix comments.
 	// GetDesugared query desugars the query, which means:
 	// "insert into foo_100" -> "insert _100"
 	GetDesugaredQuery() (string, error)
@@ -34,6 +35,7 @@ type SugaredWriteStmt interface {
 
 	// CheckColumns checks if a column that is not allowed is being touched on update.
 	CheckColumns([]string) error
+
 	// GetDBTableName returns the database table name
 	GetDBTableName() string
 }
