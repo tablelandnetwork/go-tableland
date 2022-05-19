@@ -163,8 +163,8 @@ func (cp *CounterProbe) increaseCounterValue(ctx context.Context) error {
 		Statement: fmt.Sprintf("update %s set counter=counter+1", cp.tableName),
 	}
 	var updateCounterRes tableland.RelayWriteQueryResponse
-	if err := cp.rpcClient.CallContext(ctx, &updateCounterRes, "tableland_runSQL", updateCounterReq); err != nil {
-		return fmt.Errorf("calling tableland_runSQL: %s", err)
+	if err := cp.rpcClient.CallContext(ctx, &updateCounterRes, "tableland_relayWriteQuery", updateCounterReq); err != nil {
+		return fmt.Errorf("calling tableland_runReadQuery: %s", err)
 	}
 
 	getReceiptRequest := tableland.GetReceiptRequest{
@@ -200,7 +200,7 @@ func (cp *CounterProbe) getCurrentCounterValue(ctx context.Context) (int64, erro
 	var getCounterRes struct {
 		Result data `json:"data"`
 	}
-	if err := cp.rpcClient.CallContext(ctx, &getCounterRes, "tableland_runSQL", getCounterReq); err != nil {
+	if err := cp.rpcClient.CallContext(ctx, &getCounterRes, "tableland_runReadQuery", getCounterReq); err != nil {
 		return 0, fmt.Errorf("calling tableland_runSQL: %s", err)
 	}
 	if len(getCounterRes.Result.Rows) != 1 || len(getCounterRes.Result.Rows[0]) != 1 {
