@@ -44,34 +44,31 @@ func Authentication(next http.Handler) http.Handler {
 			return
 		}
 		r.Body = io.NopCloser(bytes.NewReader(fullBody))
-		if !requiresAuthentication(rpcMethod.Method) {
-			next.ServeHTTP(w, r)
-			return
-		}
+		if requiresAuthentication(rpcMethod.Method) {
+			authorization := r.Header.Get("Authorization")
+			if authorization == "" {
+				w.WriteHeader(http.StatusUnauthorized)
+				_ = json.NewEncoder(w).Encode(errors.ServiceError{Message: "no authorization header provided"})
+				return
+			}
 
-		authorization := r.Header.Get("Authorization")
-		if authorization == "" {
-			w.WriteHeader(http.StatusUnauthorized)
-			_ = json.NewEncoder(w).Encode(errors.ServiceError{Message: "no authorization header provided"})
-			return
-		}
+			parts := strings.Split(authorization, "Bearer ")
+			if len(parts) != 2 {
+				w.WriteHeader(http.StatusBadRequest)
+				_ = json.NewEncoder(w).Encode(errors.ServiceError{Message: "malformed authorization header provided"})
+				return
+			}
 
-		parts := strings.Split(authorization, "Bearer ")
-		if len(parts) != 2 {
-			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(errors.ServiceError{Message: "malformed authorization header provided"})
-			return
-		}
+			chainID, issuer, err := parseAuth(parts[1])
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				_ = json.NewEncoder(w).Encode(errors.ServiceError{Message: fmt.Sprintf("parsing authorization: %v", err)})
+				return
+			}
 
-		chainID, issuer, err := parseAuth(parts[1])
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(errors.ServiceError{Message: fmt.Sprintf("parsing authorization: %v", err)})
-			return
+			r = r.WithContext(context.WithValue(r.Context(), ContextKeyAddress, strings.ToLower(issuer)))
+			r = r.WithContext(context.WithValue(r.Context(), ContextKeyChainID, chainID))
 		}
-
-		r = r.WithContext(context.WithValue(r.Context(), ContextKeyAddress, strings.ToLower(issuer)))
-		r = r.WithContext(context.WithValue(r.Context(), ContextKeyChainID, chainID))
 
 		next.ServeHTTP(w, r)
 	})
