@@ -10,20 +10,24 @@ import (
 	"github.com/textileio/go-tableland/internal/chains"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
+	"github.com/textileio/go-tableland/pkg/sqlstore"
 )
 
 // TablelandMesa is the main implementation of Tableland spec.
 type TablelandMesa struct {
 	parser      parsing.SQLValidator
+	userStore   sqlstore.UserStore
 	chainStacks map[tableland.ChainID]chains.ChainStack
 }
 
 // NewTablelandMesa creates a new TablelandMesa.
 func NewTablelandMesa(
 	parser parsing.SQLValidator,
+	userStore sqlstore.UserStore,
 	chainStacks map[tableland.ChainID]chains.ChainStack) tableland.Tableland {
 	return &TablelandMesa{
 		parser:      parser,
+		userStore:   userStore,
 		chainStacks: chainStacks,
 	}
 }
@@ -83,22 +87,12 @@ func (t *TablelandMesa) RelayWriteQuery(
 func (t *TablelandMesa) RunReadQuery(
 	ctx context.Context,
 	req tableland.RunReadQueryRequest) (tableland.RunReadQueryResponse, error) {
-	ctxController := ctx.Value(middlewares.ContextKeyAddress)
-	controller, ok := ctxController.(string)
-	if !ok || controller == "" {
-		return tableland.RunReadQueryResponse{}, errors.New("no controller address found in context")
-	}
-	ctxChainID := ctx.Value(middlewares.ContextKeyChainID)
-	chainID, ok := ctxChainID.(tableland.ChainID)
-	if !ok {
-		return tableland.RunReadQueryResponse{}, errors.New("no chain id found in context")
-	}
 	readStmt, err := t.parser.ValidateReadQuery(req.Statement)
 	if err != nil {
 		return tableland.RunReadQueryResponse{}, fmt.Errorf("validating query: %s", err)
 	}
 
-	queryResult, err := t.runSelect(ctx, chainID, readStmt)
+	queryResult, err := t.runSelect(ctx, readStmt)
 	if err != nil {
 		return tableland.RunReadQueryResponse{}, fmt.Errorf("running read statement: %s", err)
 	}
@@ -179,13 +173,8 @@ func (t *TablelandMesa) SetController(
 
 func (t *TablelandMesa) runSelect(
 	ctx context.Context,
-	chainID tableland.ChainID,
 	stmt parsing.ReadStmt) (interface{}, error) {
-	stack, ok := t.chainStacks[chainID]
-	if !ok {
-		return nil, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
-	}
-	queryResult, err := stack.Store.Read(ctx, stmt)
+	queryResult, err := t.userStore.Read(ctx, stmt)
 	if err != nil {
 		return nil, fmt.Errorf("executing read-query: %s", err)
 	}

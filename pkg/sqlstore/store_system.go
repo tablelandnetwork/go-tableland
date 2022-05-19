@@ -21,4 +21,5 @@ type SystemStore interface {
 	WithTx(tx pgx.Tx) SystemStore
 	Begin(context.Context) (pgx.Tx, error)
 	GetReceipt(context.Context, string) (eventprocessor.Receipt, bool, error)
+	Close() error
 }
