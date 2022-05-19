@@ -35,9 +35,6 @@ type SugaredWriteStmt interface {
 
 	// CheckColumns checks if a column that is not allowed is being touched on update.
 	CheckColumns([]string) error
-
-	// GetDBTableName returns the database table name
-	GetDBTableName() string
 }
 
 // SugaredGrantStmt is an already parsed grant statement that satisfies all
@@ -64,6 +61,9 @@ type SugaredMutatingStmt interface {
 
 	// Operation returns the type of the operation
 	Operation() tableland.Operation
+
+	// GetDBTableName returns the database table name
+	GetDBTableName() string
 }
 
 // SugaredReadStmt is an already parsed read statement that satisfies all

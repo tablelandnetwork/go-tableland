@@ -168,7 +168,8 @@ func (b *batch) ExecWriteQueries(
 			return nil
 		}
 
-		dbName, beforeRowCount, err := GetTableNameAndRowCountByTableID(ctx, tx, b.tp.chainID, mqueries[0].GetTableID())
+		dbTableName := mqueries[0].GetDBTableName()
+		tableName, beforeRowCount, err := GetTableNameAndRowCountByTableID(ctx, tx, b.tp.chainID, mqueries[0].GetTableID(), dbTableName)
 		if err != nil {
 			return &txn.ErrQueryExecution{
 				Code: "TABLE_LOOKUP",
@@ -178,10 +179,10 @@ func (b *batch) ExecWriteQueries(
 
 		for _, mq := range mqueries {
 			mqName := mq.GetNamePrefix()
-			if mqName != "" && dbName != mqName {
+			if mqName != "" && tableName != mqName {
 				return &txn.ErrQueryExecution{
 					Code: "TABLE_PREFIX",
-					Msg:  fmt.Sprintf("table name prefix doesn't match (exp %s, got %s)", dbName, mqName),
+					Msg:  fmt.Sprintf("table name prefix doesn't match (exp %s, got %s)", tableName, mqName),
 				}
 			}
 
@@ -400,27 +401,26 @@ func GetTableNameAndRowCountByTableID(
 	ctx context.Context,
 	tx pgx.Tx,
 	chainID tableland.ChainID,
-	tableID tableland.TableID) (string, int, error) {
+	tableID tableland.TableID,
+	dbTableName string) (string, int, error) {
 	dbID := pgtype.Numeric{}
 	if err := dbID.Set(tableID.String()); err != nil {
 		return "", 0, fmt.Errorf("parsing table id to numeric: %s", err)
 	}
 
-	// TODO(jsign): use new method.
-	dbTableName := fmt.Sprintf("_%d_%s", chainID, tableID)
 	q := fmt.Sprintf(
 		"SELECT (SELECT name FROM registry where chain_id=$1 AND id=$2), (SELECT count(*) FROM %s)", dbTableName)
 	r := tx.QueryRow(ctx, q, chainID, dbID)
-	var dbName string
+	var tableName string
 	var rowCount int
-	err := r.Scan(&dbName, &rowCount)
+	err := r.Scan(&tableName, &rowCount)
 	if err == pgx.ErrNoRows {
 		return "", 0, fmt.Errorf("the table id doesn't exist")
 	}
 	if err != nil {
 		return "", 0, fmt.Errorf("table name lookup: %s", err)
 	}
-	return dbName, rowCount, nil
+	return tableName, rowCount, nil
 }
 
 // getController gets the controller for a given table.
