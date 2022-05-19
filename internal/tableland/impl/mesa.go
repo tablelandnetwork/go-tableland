@@ -162,7 +162,7 @@ func (t *TablelandMesa) SetController(
 func (t *TablelandMesa) runSelect(
 	ctx context.Context,
 	chainID tableland.ChainID,
-	stmt parsing.SugaredReadStmt) (interface{}, error) {
+	stmt parsing.ReadStmt) (interface{}, error) {
 	stack, ok := t.chainStacks[chainID]
 	if !ok {
 		return nil, fmt.Errorf("chain id %d isn't supported in the validator", chainID)

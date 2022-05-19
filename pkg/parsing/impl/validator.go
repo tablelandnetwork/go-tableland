@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -93,34 +94,19 @@ func (pp *QueryValidator) ValidateCreateTable(query string) (parsing.CreateStmt,
 	return genCreateStmt(stmt, colNameTypes, pp.chainID), nil
 }
 
-// ValidateRunSQL validates the query and returns an error if isn't allowed.
-// If the query validates correctly, it returns the query type and nil.
-func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.SugaredReadStmt, []parsing.SugaredMutatingStmt, error) {
+// ValidateMutatingQuery validates a mutating-query, and a list of mutating statements
+// contained in it.
+func (pp *QueryValidator) ValidateMutatingQuery(
+	query string,
+	chainID tableland.ChainID) ([]parsing.MutatingStmt, error) {
 	parsed, err := pg_query.Parse(query)
 	if err != nil {
-		return nil, nil, &parsing.ErrInvalidSyntax{InternalError: err}
+		return nil, &parsing.ErrInvalidSyntax{InternalError: err}
 	}
 
 	if err := checkNonEmptyStatement(parsed); err != nil {
-		return nil, nil, fmt.Errorf("empty-statement check: %w", err)
+		return nil, fmt.Errorf("empty-statement check: %w", err)
 	}
-
-	stmt := parsed.Stmts[0].Stmt
-
-	if selectStmt := stmt.GetSelectStmt(); selectStmt != nil {
-		if err := checkSingleStatement(parsed); err != nil {
-			return nil, nil, fmt.Errorf("single-statement check: %w", err)
-		}
-		if err := validateReadQuery(stmt); err != nil {
-			return nil, nil, fmt.Errorf("validating read-query: %w", err)
-		}
-		return &sugaredReadStmt{
-			pp:   pp,
-			node: stmt,
-		}, nil, nil
-	}
-
-	// It's a write-query or a grant-query.
 
 	// Since we support write queries with more than one statement,
 	// do the write/grant-query validation in each of them. Also, check
@@ -133,37 +119,41 @@ func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.SugaredReadStmt,
 		case isWrite(stmt):
 			refTable, err = pp.validateWriteQuery(stmt)
 			if err != nil {
-				return nil, nil, fmt.Errorf("validating write-query: %w", err)
+				return nil, fmt.Errorf("validating write-query: %w", err)
 			}
 		case isGrant(stmt):
 			refTable, err = pp.validateGrantQuery(stmt)
 			if err != nil {
-				return nil, nil, fmt.Errorf("validating grant-query: %w", err)
+				return nil, fmt.Errorf("validating grant-query: %w", err)
 			}
 		default:
-			return nil, nil, &parsing.ErrStatementIsNotSupported{}
+			return nil, &parsing.ErrStatementIsNotSupported{}
 		}
 
 		if targetTable == "" {
 			targetTable = refTable
 		} else if targetTable != refTable {
-			return nil, nil, &parsing.ErrMultiTableReference{Ref1: targetTable, Ref2: refTable}
+			return nil, &parsing.ErrMultiTableReference{Ref1: targetTable, Ref2: refTable}
 		}
 	}
 
-	namePrefix, tableName, dbTableName, err := pp.deconstructRefTable(targetTable)
+	prefix, queryChainID, tableID, err := pp.deconstructRefTable(targetTable)
 	if err != nil {
-		return nil, nil, fmt.Errorf("deconstructing referenced table name: %w", err)
+		return nil, fmt.Errorf("deconstructing referenced table name: %w", err)
+	}
+	if queryChainID != chainID {
+		return nil, fmt.Errorf("the query references chain-id %d but expected %d", queryChainID, chainID)
 	}
 
-	ret := make([]parsing.SugaredMutatingStmt, len(parsed.Stmts))
+	ret := make([]parsing.MutatingStmt, len(parsed.Stmts))
 	for i := range parsed.Stmts {
 		stmt := parsed.Stmts[i].Stmt
-		s := &sugaredMutatingStmt{
-			dbTableName: dbTableName,
+		s := &mutatingStmt{
 			node:        stmt,
-			namePrefix:  namePrefix,
-			tableName:   tableName,
+			dbTableName: targetTable,
+			prefix:      prefix,
+			tableID:     tableID,
+			query:       query,
 		}
 
 		switch {
@@ -177,7 +167,7 @@ func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.SugaredReadStmt,
 			if stmt.GetDeleteStmt() != nil {
 				s.operation = tableland.OpDelete
 			}
-			ret[i] = &sugaredWriteStmt{s}
+			ret[i] = &writeStmt{s}
 		case isGrant(stmt):
 			if stmt.GetGrantStmt().IsGrant {
 				s.operation = tableland.OpGrant
@@ -185,96 +175,117 @@ func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.SugaredReadStmt,
 				s.operation = tableland.OpRevoke
 			}
 
-			ret[i] = &sugaredGrantStmt{s}
+			ret[i] = &grantStmt{s}
 		default:
-			return nil, nil, &parsing.ErrStatementIsNotSupported{}
+			return nil, &parsing.ErrStatementIsNotSupported{}
 		}
 	}
 
-	return nil, ret, nil
+	return ret, nil
+
+}
+
+// ValidateReadQuery validates a read-query, and returns a structured representation of it.
+func (pp *QueryValidator) ValidateReadQuery(query string) (parsing.ReadStmt, error) {
+	parsed, err := pg_query.Parse(query)
+	if err != nil {
+		return nil, &parsing.ErrInvalidSyntax{InternalError: err}
+	}
+
+	if err := checkNonEmptyStatement(parsed); err != nil {
+		return nil, fmt.Errorf("empty-statement check: %w", err)
+	}
+
+	stmt := parsed.Stmts[0].Stmt
+	if selectStmt := stmt.GetSelectStmt(); selectStmt == nil {
+		return nil, errors.New("the query isn't a read-query")
+	}
+	if err := checkSingleStatement(parsed); err != nil {
+		return nil, fmt.Errorf("single-statement check: %w", err)
+	}
+	if err := validateReadQuery(stmt); err != nil {
+		return nil, fmt.Errorf("validating read-query: %w", err)
+	}
+
+	return &readStmt{
+		query: query,
+	}, nil
 }
 
 // deconstructRefTable returns three main deconstructions of the reference table name in the query:
-// 1) The {name} of {name}_{ID}
-// 2) The _{ID} of {name}_{ID}
-// 3) A chain-scoped corresponding real name of the table, from {name}_{ID} -> _{chanID}_{ID}, which will be used
-//    for desugaring the query.
-// It covers the special case of the query referencing system tables, and acting accordingly.
-func (pp *QueryValidator) deconstructRefTable(refTable string) (string, string, string, error) {
+// 1) The {prefix}  of {prefix}_{chainID}_{ID}, if any.
+// 2) The {chainID} of {prefix}_{chainID}_{ID}.
+// 3) The {tableID} of {prefix}_{chainID}_{ID}.
+// If the referenced table is a system table, it will only return.
+func (pp *QueryValidator) deconstructRefTable(refTable string) (string, tableland.ChainID, string, error) {
 	if hasPrefix(refTable, pp.systemTablePrefixes) {
-		return "", refTable, refTable, nil
+		return "", 0, refTable, nil
 	}
+	// TODO(jsign): fix this.
 	if !pp.rawTablenameRegEx.MatchString(refTable) {
-		return "", "", "", &parsing.ErrInvalidTableName{}
+		return "", 0, "", &parsing.ErrInvalidTableName{}
 	}
 
-	var namePrefix, tableID string
-	sepIdx := strings.LastIndex(refTable, "_")
-	if sepIdx == -1 {
-		tableID = refTable // No name prefix case, _{ID}.
-	} else {
-		namePrefix = refTable[:sepIdx] // If sepIdx==0, this is correct too.
-		tableID = refTable[sepIdx:]    // {name}_{id} -> _{id}
+	parts := strings.Split(refTable, "_")
+	// This validation is redundant considering that refTable matches the expected regex,
+	// so we're being a bit paranoid here since it's an easy check.
+	if len(parts) < 2 {
+		return "", 0, "", &parsing.ErrInvalidTableName{}
 	}
-	dbTableName := fmt.Sprintf("_%d%s", pp.chainID, tableID)
 
-	return namePrefix, tableID, dbTableName, nil
-}
+	tableID := parts[len(parts)-1]
+	partChainID := parts[len(parts)-2]
+	prefix := strings.Join(parts[:len(parts)-2], "_")
 
-type sugaredMutatingStmt struct {
-	node        *pg_query.Node
-	namePrefix  string // From {name}_{tableID} -> {name}
-	tableName   string // From {name}_{ID} -> _{ID}
-	dbTableName string // From {name}_{ID} -> _{chainID}_{ID}
-	operation   tableland.Operation
-}
-
-func (s *sugaredMutatingStmt) GetDesugaredQuery() (string, error) {
-	parsedTree := &pg_query.ParseResult{}
-
-	if insertStmt := s.node.GetInsertStmt(); insertStmt != nil {
-		insertStmt.Relation.Relname = s.dbTableName
-	} else if updateStmt := s.node.GetUpdateStmt(); updateStmt != nil {
-		updateStmt.Relation.Relname = s.dbTableName
-	} else if deleteStmt := s.node.GetDeleteStmt(); deleteStmt != nil {
-		deleteStmt.Relation.Relname = s.dbTableName
-	} else if grantStmt := s.node.GetGrantStmt(); grantStmt != nil {
-		// It is safe to assume Objects has always one element.
-		// This is validated in the checkPrivileges call.
-
-		grantStmt.Objects[0].GetRangeVar().Relname = s.dbTableName
-	}
-	rs := &pg_query.RawStmt{Stmt: s.node}
-	parsedTree.Stmts = []*pg_query.RawStmt{rs}
-	wq, err := pg_query.Deparse(parsedTree)
+	chainID, err := strconv.ParseInt(partChainID, 10, 64)
 	if err != nil {
-		return "", fmt.Errorf("deparsing statement: %s", err)
+		return "", 0, "", &parsing.ErrInvalidTableName{}
 	}
-	return wq, nil
+
+	return prefix, tableland.ChainID(chainID), tableID, nil
 }
 
-func (s *sugaredMutatingStmt) GetNamePrefix() string {
-	return s.namePrefix
+type mutatingStmt struct {
+	node        *pg_query.Node
+	prefix      string // From {prefix}_{chainID}_{tableID} -> {prefix}
+	tableID     string // From {prefix}_{chainID}_{tableID} -> {tableID}
+	dbTableName string // {prefix}_{chainID}_{tableID}
+	operation   tableland.Operation
+
+	query string
 }
 
-func (s *sugaredMutatingStmt) GetTableID() tableland.TableID {
-	tid, _ := tableland.NewTableID(s.tableName[1:])
+var _ parsing.MutatingStmt = (*mutatingStmt)(nil)
+
+func (s *mutatingStmt) GetQuery() string {
+	return s.query
+}
+
+func (s *mutatingStmt) GetPrefix() string {
+	return s.prefix
+}
+
+func (s *mutatingStmt) GetTableID() tableland.TableID {
+	// TODO(jsign): maybe use TableID type in mutatingStmt field?
+	tid, _ := tableland.NewTableID(s.tableID)
 	return tid
 }
 
-func (s *sugaredMutatingStmt) Operation() tableland.Operation {
+func (s *mutatingStmt) Operation() tableland.Operation {
 	return s.operation
 }
 
-func (s *sugaredMutatingStmt) GetDBTableName() string {
+func (s *mutatingStmt) GetDBTableName() string {
 	return s.dbTableName
 }
 
-type sugaredWriteStmt struct {
-	*sugaredMutatingStmt
+type writeStmt struct {
+	*mutatingStmt
 }
 
-func (ws *sugaredWriteStmt) AddWhereClause(whereClauses string) error {
+var _ parsing.WriteStmt = (*writeStmt)(nil)
+
+func (ws *writeStmt) AddWhereClause(whereClauses string) error {
 	// this does not apply to insert
 	if ws.Operation() == tableland.OpInsert {
 		return parsing.ErrCantAddWhereOnINSERT
@@ -308,7 +319,7 @@ func (ws *sugaredWriteStmt) AddWhereClause(whereClauses string) error {
 	return nil
 }
 
-func (ws *sugaredWriteStmt) AddReturningClause() error {
+func (ws *writeStmt) AddReturningClause() error {
 	// this does not apply to delete
 	if ws.Operation() == tableland.OpDelete {
 		return parsing.ErrCantAddReturningOnDELETE
@@ -347,7 +358,7 @@ func (ws *sugaredWriteStmt) AddReturningClause() error {
 	return nil
 }
 
-func (ws *sugaredWriteStmt) CheckColumns(allowedColumns []string) error {
+func (ws *writeStmt) CheckColumns(allowedColumns []string) error {
 	if ws.Operation() != tableland.OpUpdate {
 		return parsing.ErrCanOnlyCheckColumnsOnUPDATE
 	}
@@ -373,15 +384,17 @@ func (ws *sugaredWriteStmt) CheckColumns(allowedColumns []string) error {
 	return nil
 }
 
-type sugaredGrantStmt struct {
-	*sugaredMutatingStmt
+type grantStmt struct {
+	*mutatingStmt
 }
 
-func (gs *sugaredGrantStmt) GetRoles() []common.Address {
+var _ parsing.GrantStmt = (*grantStmt)(nil)
+
+func (gs *grantStmt) GetRoles() []common.Address {
 	// The rolenames of grantees are safe to use.
 	// They were already validated in the previous checkRoles call.
 
-	grantees := gs.sugaredMutatingStmt.node.GetGrantStmt().GetGrantees()
+	grantees := gs.mutatingStmt.node.GetGrantStmt().GetGrantees()
 	roles := make([]common.Address, len(grantees))
 	for i, grantee := range grantees {
 		roles[i] = common.HexToAddress(grantee.GetRoleSpec().GetRolename())
@@ -390,8 +403,8 @@ func (gs *sugaredGrantStmt) GetRoles() []common.Address {
 	return roles
 }
 
-func (gs *sugaredGrantStmt) GetPrivileges() tableland.Privileges {
-	privilegesNodes := gs.sugaredMutatingStmt.node.GetGrantStmt().GetPrivileges()
+func (gs *grantStmt) GetPrivileges() tableland.Privileges {
+	privilegesNodes := gs.mutatingStmt.node.GetGrantStmt().GetPrivileges()
 	privileges := make(tableland.Privileges, len(privilegesNodes))
 	for i, privilegeNode := range privilegesNodes {
 		// error is safe to ignore here because the SQL strings were validated before
@@ -403,80 +416,14 @@ func (gs *sugaredGrantStmt) GetPrivileges() tableland.Privileges {
 	return privileges
 }
 
-type sugaredReadStmt struct {
-	pp   *QueryValidator
-	node *pg_query.Node
+type readStmt struct {
+	query string
 }
 
-func (s *sugaredReadStmt) GetDesugaredQuery() (string, error) {
-	parsedTree := &pg_query.ParseResult{}
+var _ parsing.ReadStmt = (*readStmt)(nil)
 
-	if selectStmt := s.node.GetSelectStmt(); selectStmt != nil {
-		if err := s.pp.deepSelectDesugaring(s.node); err != nil {
-			return "", fmt.Errorf("deep desugaring: %s", err)
-		}
-	}
-
-	rs := &pg_query.RawStmt{Stmt: s.node}
-	parsedTree.Stmts = []*pg_query.RawStmt{rs}
-	wq, err := pg_query.Deparse(parsedTree)
-	if err != nil {
-		return "", fmt.Errorf("deparsing statement: %s", err)
-	}
-	return wq, nil
-}
-
-func (pp *QueryValidator) deepSelectDesugaring(stmt *pg_query.Node) error {
-	if stmt == nil {
-		return nil
-	}
-
-	if selectStmt := stmt.GetSelectStmt(); selectStmt != nil {
-		for _, col := range selectStmt.TargetList {
-			if err := pp.deepSelectDesugaring(col); err != nil {
-				return fmt.Errorf("desugaring column: %s", err)
-			}
-		}
-		for _, from := range selectStmt.FromClause {
-			if err := pp.deepSelectDesugaring(from); err != nil {
-				return fmt.Errorf("desugaring from: %s", err)
-			}
-		}
-		if err := pp.deepSelectDesugaring(selectStmt.WhereClause); err != nil {
-			return fmt.Errorf("desugaring where: %s", err)
-		}
-	} else if rangeVar := stmt.GetRangeVar(); rangeVar != nil {
-		if rangeVar.Relname != "" {
-			_, _, dbName, err := pp.deconstructRefTable(rangeVar.Relname)
-			if err != nil {
-				return fmt.Errorf("deconstructing table name %s: %s", rangeVar.Relname, err)
-			}
-			rangeVar.Relname = dbName
-		}
-	} else if resTarget := stmt.GetResTarget(); resTarget != nil {
-		if err := pp.deepSelectDesugaring(resTarget.GetVal()); err != nil {
-			return fmt.Errorf("desugaring res target: %s", err)
-		}
-	} else if joinExpr := stmt.GetJoinExpr(); joinExpr != nil {
-		if err := pp.deepSelectDesugaring(joinExpr.Larg); err != nil {
-			return fmt.Errorf("desugaring larg of join expr: %s", err)
-		}
-		if err := pp.deepSelectDesugaring(joinExpr.Rarg); err != nil {
-			return fmt.Errorf("desugaring rarg of join expr: %s", err)
-		}
-	} else if subLink := stmt.GetSubLink(); subLink != nil {
-		if err := pp.deepSelectDesugaring(subLink.Subselect); err != nil {
-			return fmt.Errorf("desugaring sublink subselect: %s", err)
-		}
-	} else if funcCall := stmt.GetFuncCall(); funcCall != nil {
-		for _, arg := range funcCall.Args {
-			if err := pp.deepSelectDesugaring(arg); err != nil {
-				return fmt.Errorf("desugaring func arg: %s", err)
-			}
-		}
-	}
-
-	return nil
+func (s *readStmt) GetQuery() string {
+	return s.query
 }
 
 func (pp *QueryValidator) validateWriteQuery(stmt *pg_query.Node) (string, error) {
@@ -1034,7 +981,7 @@ func genCreateStmt(cNode *pg_query.Node, cols []colNameType, chainID tableland.C
 		chainID:       chainID,
 		cNode:         cNode,
 		structureHash: hex.EncodeToString(hash),
-		namePrefix:    cNode.GetCreateStmt().Relation.Relname,
+		prefix:        cNode.GetCreateStmt().Relation.Relname,
 	}
 }
 
@@ -1052,7 +999,7 @@ type createStmt struct {
 	chainID       tableland.ChainID
 	cNode         *pg_query.Node
 	structureHash string
-	namePrefix    string
+	prefix        string
 }
 
 var _ parsing.CreateStmt = (*createStmt)(nil)
@@ -1072,6 +1019,6 @@ func (cs *createStmt) GetRawQueryForTableID(id tableland.TableID) (string, error
 func (cs *createStmt) GetStructureHash() string {
 	return cs.structureHash
 }
-func (cs *createStmt) GetNamePrefix() string {
-	return cs.namePrefix
+func (cs *createStmt) GetPrefix() string {
+	return cs.prefix
 }
