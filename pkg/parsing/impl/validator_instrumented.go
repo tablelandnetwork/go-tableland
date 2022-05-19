@@ -41,7 +41,9 @@ func NewInstrumentedSQLValidator(p parsing.SQLValidator) (*InstrumentedSQLValida
 }
 
 // ValidateCreateTable register metrics for its corresponding wrapped parser.
-func (ip *InstrumentedSQLValidator) ValidateCreateTable(query string, chainID tableland.ChainID) (parsing.CreateStmt, error) {
+func (ip *InstrumentedSQLValidator) ValidateCreateTable(
+	query string,
+	chainID tableland.ChainID) (parsing.CreateStmt, error) {
 	log.Debug().Str("query", query).Msg("call ValidateCreateTable")
 	start := time.Now()
 	cs, err := ip.parser.ValidateCreateTable(query, chainID)
