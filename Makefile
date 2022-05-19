@@ -9,7 +9,7 @@ HTTP_PORT ?= 8080
 GCP_PROJECT=textile-310716
 
 GO_BINDATA=go run github.com/go-bindata/go-bindata/v3/go-bindata@v3.1.3
-SQLC=go run github.com/kyleconroy/sqlc/cmd/sqlc@v1.11.0
+SQLC=go run github.com/kyleconroy/sqlc/cmd/sqlc@v1.13.0
 GOVVV=go run github.com/ahmetb/govvv@v0.3.0 
 
 GOVVV_FLAGS=$(shell $(GOVVV) -flags -version $(BIN_VERSION) -pkg $(shell go list ./buildinfo))
@@ -69,5 +69,5 @@ test:
 # Lint
 
 lint:
-	go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.45.2 run
+	go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.46.2 run
 .PHONYY: lint
