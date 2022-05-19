@@ -30,6 +30,8 @@ import (
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
+	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
+	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/txn"
 	txnimpl "github.com/textileio/go-tableland/pkg/txn/impl"
@@ -81,13 +83,22 @@ func main() {
 		chainStacks[chainCfg.ChainID] = chainStack
 	}
 
-	svc := getTablelandService(parser, chainStacks)
+	userStore, err := user.New(databaseURL)
+	if err != nil {
+		log.Fatal().Err(err).Msg("creating user store")
+	}
+	instrUserStore, err := sqlstoreimpl.NewInstrumentedUserStore(userStore)
+	if err != nil {
+		log.Fatal().Err(err).Msg("creating instrumented user store")
+	}
+
+	svc := getTablelandService(parser, instrUserStore, chainStacks)
 	if err := server.RegisterName("tableland", svc); err != nil {
 		log.Fatal().Err(err).Msg("failed to register a json-rpc service")
 	}
 	userController := controllers.NewUserController(svc)
 
-	stores := make(map[tableland.ChainID]sqlstore.SQLStore, len(chainStacks))
+	stores := make(map[tableland.ChainID]sqlstore.SystemStore, len(chainStacks))
 	for chainID, stack := range chainStacks {
 		stores[chainID] = stack.Store
 	}
@@ -172,8 +183,9 @@ func main() {
 
 func getTablelandService(
 	parser parsing.SQLValidator,
+	userStore sqlstore.UserStore,
 	chainStacks map[tableland.ChainID]chains.ChainStack) tableland.Tableland {
-	mesa := impl.NewTablelandMesa(parser, chainStacks)
+	mesa := impl.NewTablelandMesa(parser, userStore, chainStacks)
 	instrumentedMesa, err := impl.NewInstrumentedTablelandMesa(mesa)
 	if err != nil {
 		log.Fatal().Err(err).Msg("instrumenting mesa")
@@ -191,16 +203,14 @@ func createChainIDStack(
 	parser parsing.SQLValidator,
 	tableConstraints TableConstraints,
 ) (chains.ChainStack, error) {
-	ctxSQLStore, clsSQLStore := context.WithTimeout(context.Background(), time.Second*10)
-	defer clsSQLStore()
-	store, err := sqlstoreimpl.New(ctxSQLStore, config.ChainID, databaseURL)
+	store, err := system.New(databaseURL, config.ChainID)
 	if err != nil {
 		return chains.ChainStack{}, fmt.Errorf("failed initialize sqlstore: %s", err)
 	}
 
-	store, err = sqlstoreimpl.NewInstrumentedSQLStorePGX(config.ChainID, store)
+	systemStore, err := sqlstoreimpl.NewInstrumentedSystemStore(config.ChainID, store)
 	if err != nil {
-		return chains.ChainStack{}, fmt.Errorf("instrumenting sql store pgx: %s", err)
+		return chains.ChainStack{}, fmt.Errorf("instrumenting system store pgx: %s", err)
 	}
 
 	conn, err := ethclient.Dial(config.Registry.EthEndpoint)
@@ -230,7 +240,7 @@ func createChainIDStack(
 	tracker, err := nonceimpl.NewLocalTracker(
 		ctxLocalTracker,
 		wallet,
-		nonceimpl.NewNonceStore(store),
+		nonceimpl.NewNonceStore(systemStore),
 		config.ChainID,
 		conn,
 		checkInterval,
@@ -253,7 +263,7 @@ func createChainIDStack(
 		return chains.ChainStack{}, fmt.Errorf("failed to create ethereum client: %s", err)
 	}
 
-	acl := impl.NewACL(store, registry)
+	acl := impl.NewACL(systemStore, registry)
 
 	var txnp txn.TxnProcessor
 	txnp, err = txnimpl.NewTxnProcessor(config.ChainID, databaseURL, tableConstraints.MaxRowCount, acl)
@@ -294,7 +304,7 @@ func createChainIDStack(
 	}
 
 	return chains.ChainStack{
-		Store:    store,
+		Store:    systemStore,
 		Registry: registry,
 		Close: func(ctx context.Context) error {
 			log.Info().Int64("chainId", int64(config.ChainID)).Msg("closing stack...")
@@ -302,7 +312,7 @@ func createChainIDStack(
 
 			ep.Stop()
 			conn.Close()
-			store.Close()
+			systemStore.Close()
 			return nil
 		},
 	}, nil

@@ -9,7 +9,7 @@ import (
 
 // ChainStack contains components running for a specific ChainID.
 type ChainStack struct {
-	Store    sqlstore.SQLStore
+	Store    sqlstore.SystemStore
 	Registry tableregistry.TableRegistry
 
 	// close gracefully closes all the chain stack components.

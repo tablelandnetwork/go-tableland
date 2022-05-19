@@ -11,11 +11,11 @@ import (
 
 // NonceStore relies on the SQLStore implementation for now.
 type NonceStore struct {
-	systemStore sqlstore.SQLStore
+	systemStore sqlstore.SystemStore
 }
 
 // NewNonceStore creates a new nonce store.
-func NewNonceStore(systemStore sqlstore.SQLStore) nonce.NonceStore {
+func NewNonceStore(systemStore sqlstore.SystemStore) nonce.NonceStore {
 	return &NonceStore{systemStore: systemStore}
 }
 

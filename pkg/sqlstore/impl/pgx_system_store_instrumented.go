@@ -10,34 +10,33 @@ import (
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/nonce"
-	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
 )
 
-// InstrumentedSQLStorePGX implements a instrumented SQLStore interface using pgx.
-type InstrumentedSQLStorePGX struct {
+// InstrumentedSystemStore implements a instrumented SQLStore interface using pgx.
+type InstrumentedSystemStore struct {
 	chainID          tableland.ChainID
-	store            sqlstore.SQLStore
+	store            sqlstore.SystemStore
 	callCount        syncint64.Counter
 	latencyHistogram syncint64.Histogram
 }
 
-// NewInstrumentedSQLStorePGX creates a new pgx pool and instantiate both the user and system stores.
-func NewInstrumentedSQLStorePGX(chainID tableland.ChainID, store sqlstore.SQLStore) (sqlstore.SQLStore, error) {
+// NewInstrumentedSystemStore creates a new pgx pool and instantiate both the user and system stores.
+func NewInstrumentedSystemStore(chainID tableland.ChainID, store sqlstore.SystemStore) (sqlstore.SystemStore, error) {
 	meter := global.MeterProvider().Meter("tableland")
 	callCount, err := meter.SyncInt64().Counter("tableland.sqlstore.call.count")
 	if err != nil {
-		return &InstrumentedSQLStorePGX{}, fmt.Errorf("registering call counter: %s", err)
+		return &InstrumentedSystemStore{}, fmt.Errorf("registering call counter: %s", err)
 	}
 	latencyHistogram, err := meter.SyncInt64().Histogram("tableland.sqlstore.call.latency")
 	if err != nil {
-		return &InstrumentedSQLStorePGX{}, fmt.Errorf("registering latency histogram: %s", err)
+		return &InstrumentedSystemStore{}, fmt.Errorf("registering latency histogram: %s", err)
 	}
 
-	return &InstrumentedSQLStorePGX{
+	return &InstrumentedSystemStore{
 		chainID:          chainID,
 		store:            store,
 		callCount:        callCount,
@@ -46,7 +45,7 @@ func NewInstrumentedSQLStorePGX(chainID tableland.ChainID, store sqlstore.SQLSto
 }
 
 // GetTable fetchs a table from its UUID.
-func (s *InstrumentedSQLStorePGX) GetTable(ctx context.Context, id tableland.TableID) (sqlstore.Table, error) {
+func (s *InstrumentedSystemStore) GetTable(ctx context.Context, id tableland.TableID) (sqlstore.Table, error) {
 	start := time.Now()
 	table, err := s.store.GetTable(ctx, id)
 	latency := time.Since(start).Milliseconds()
@@ -65,7 +64,7 @@ func (s *InstrumentedSQLStorePGX) GetTable(ctx context.Context, id tableland.Tab
 }
 
 // GetTablesByController fetchs a table from controller address.
-func (s *InstrumentedSQLStorePGX) GetTablesByController(
+func (s *InstrumentedSystemStore) GetTablesByController(
 	ctx context.Context,
 	controller string) ([]sqlstore.Table, error) {
 	start := time.Now()
@@ -87,7 +86,7 @@ func (s *InstrumentedSQLStorePGX) GetTablesByController(
 }
 
 // GetACLOnTableByController increments the counter.
-func (s *InstrumentedSQLStorePGX) GetACLOnTableByController(
+func (s *InstrumentedSystemStore) GetACLOnTableByController(
 	ctx context.Context,
 	table tableland.TableID,
 	address string) (sqlstore.SystemACL, error) {
@@ -109,26 +108,8 @@ func (s *InstrumentedSQLStorePGX) GetACLOnTableByController(
 	return systemACL, err
 }
 
-// Read executes a read statement on the db.
-func (s *InstrumentedSQLStorePGX) Read(ctx context.Context, stmt parsing.ReadStmt) (interface{}, error) {
-	start := time.Now()
-	data, err := s.store.Read(ctx, stmt)
-	latency := time.Since(start).Milliseconds()
-
-	attributes := []attribute.KeyValue{
-		{Key: "method", Value: attribute.StringValue("Read")},
-		{Key: "success", Value: attribute.BoolValue(err == nil)},
-		{Key: "chainID", Value: attribute.Int64Value(int64(s.chainID))},
-	}
-
-	s.callCount.Add(ctx, 1, attributes...)
-	s.latencyHistogram.Record(ctx, latency, attributes...)
-
-	return data, err
-}
-
 // ListPendingTx lists all pendings txs.
-func (s *InstrumentedSQLStorePGX) ListPendingTx(
+func (s *InstrumentedSystemStore) ListPendingTx(
 	ctx context.Context,
 	addr common.Address) ([]nonce.PendingTx, error) {
 	start := time.Now()
@@ -148,7 +129,7 @@ func (s *InstrumentedSQLStorePGX) ListPendingTx(
 }
 
 // InsertPendingTx insert a new pending tx.
-func (s *InstrumentedSQLStorePGX) InsertPendingTx(
+func (s *InstrumentedSystemStore) InsertPendingTx(
 	ctx context.Context,
 	addr common.Address,
 	nonce int64,
@@ -170,7 +151,7 @@ func (s *InstrumentedSQLStorePGX) InsertPendingTx(
 }
 
 // DeletePendingTxByHash deletes a pending tx.
-func (s *InstrumentedSQLStorePGX) DeletePendingTxByHash(ctx context.Context, hash common.Hash) error {
+func (s *InstrumentedSystemStore) DeletePendingTxByHash(ctx context.Context, hash common.Hash) error {
 	start := time.Now()
 	err := s.store.DeletePendingTxByHash(ctx, hash)
 	latency := time.Since(start).Milliseconds()
@@ -188,22 +169,22 @@ func (s *InstrumentedSQLStorePGX) DeletePendingTxByHash(ctx context.Context, has
 }
 
 // Close closes the connection pool.
-func (s *InstrumentedSQLStorePGX) Close() {
-	s.store.Close()
+func (s *InstrumentedSystemStore) Close() error {
+	return s.store.Close()
 }
 
 // WithTx returns a copy of the current InstrumentedSQLStorePGX with a tx attached.
-func (s *InstrumentedSQLStorePGX) WithTx(tx pgx.Tx) sqlstore.SystemStore {
+func (s *InstrumentedSystemStore) WithTx(tx pgx.Tx) sqlstore.SystemStore {
 	return s.store.WithTx(tx)
 }
 
 // Begin returns a new tx.
-func (s *InstrumentedSQLStorePGX) Begin(ctx context.Context) (pgx.Tx, error) {
+func (s *InstrumentedSystemStore) Begin(ctx context.Context) (pgx.Tx, error) {
 	return s.store.Begin(ctx)
 }
 
 // GetReceipt returns the receipt of a processed event by txn hash.
-func (s *InstrumentedSQLStorePGX) GetReceipt(
+func (s *InstrumentedSystemStore) GetReceipt(
 	ctx context.Context,
 	txnHash string) (eventprocessor.Receipt, bool, error) {
 	start := time.Now()
