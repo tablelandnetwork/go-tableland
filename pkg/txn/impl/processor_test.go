@@ -30,7 +30,7 @@ func TestExecWriteQueries(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, pool := newTxnProcessorWithTable(t, 0)
+		txnp, _, pool := newTxnProcessorWithTable(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -50,7 +50,7 @@ func TestExecWriteQueries(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, pool := newTxnProcessorWithTable(t, 0)
+		txnp, _, pool := newTxnProcessorWithTable(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -83,7 +83,7 @@ func TestExecWriteQueries(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, pool := newTxnProcessorWithTable(t, 0)
+		txnp, _, pool := newTxnProcessorWithTable(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -123,7 +123,7 @@ func TestExecWriteQueries(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, pool := newTxnProcessorWithTable(t, 0)
+		txnp, _, pool := newTxnProcessorWithTable(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -154,7 +154,7 @@ func TestExecWriteQueries(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, pool := newTxnProcessorWithTable(t, 0)
+		txnp, dbURL, _ := newTxnProcessorWithTable(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -170,7 +170,7 @@ func TestExecWriteQueries(t *testing.T) {
 		ss := wq1.(parsing.GrantStmt)
 		for _, role := range ss.GetRoles() {
 			// Check that an entry was inserted in the system_acl table for each row.
-			systemStore, err := system.New(pool, tableland.ChainID(chainID))
+			systemStore, err := system.New(dbURL, tableland.ChainID(chainID))
 			require.NoError(t, err)
 			aclRow, err := systemStore.GetACLOnTableByController(ctx, ss.GetTableID(), role.String())
 			require.NoError(t, err)
@@ -184,7 +184,7 @@ func TestExecWriteQueries(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, pool := newTxnProcessorWithTable(t, 0)
+		txnp, dbURL, _ := newTxnProcessorWithTable(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -201,7 +201,7 @@ func TestExecWriteQueries(t *testing.T) {
 		require.NoError(t, b.Close(ctx))
 		require.NoError(t, txnp.Close(ctx))
 
-		systemStore, err := system.New(pool, tableland.ChainID(chainID))
+		systemStore, err := system.New(dbURL, tableland.ChainID(chainID))
 		require.NoError(t, err)
 
 		ss := wq1.(parsing.GrantStmt)
@@ -232,7 +232,7 @@ func TestExecWriteQueries(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, pool := newTxnProcessorWithTable(t, 0)
+		txnp, dbURL, _ := newTxnProcessorWithTable(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -246,7 +246,7 @@ func TestExecWriteQueries(t *testing.T) {
 		require.NoError(t, b.Close(ctx))
 		require.NoError(t, txnp.Close(ctx))
 
-		systemStore, err := system.New(pool, tableland.ChainID(chainID))
+		systemStore, err := system.New(dbURL, tableland.ChainID(chainID))
 		require.NoError(t, err)
 
 		ss := wq1.(parsing.GrantStmt)
@@ -270,7 +270,7 @@ func TestExecWriteQueriesWithPolicies(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, _ := newTxnProcessorWithTable(t, 0)
+		txnp, _, _ := newTxnProcessorWithTable(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -295,7 +295,7 @@ func TestExecWriteQueriesWithPolicies(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, _ := newTxnProcessorWithTable(t, 0)
+		txnp, _, _ := newTxnProcessorWithTable(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -320,7 +320,7 @@ func TestExecWriteQueriesWithPolicies(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, _ := newTxnProcessorWithTable(t, 0)
+		txnp, _, _ := newTxnProcessorWithTable(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -345,7 +345,7 @@ func TestExecWriteQueriesWithPolicies(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, _ := newTxnProcessorWithTable(t, 0)
+		txnp, _, _ := newTxnProcessorWithTable(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -372,7 +372,7 @@ func TestExecWriteQueriesWithPolicies(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, pool := newTxnProcessorWithTable(t, 0)
+		txnp, _, pool := newTxnProcessorWithTable(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -414,7 +414,7 @@ func TestRegisterTable(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, pool := newTxnProcessor(t, 0)
+		txnp, dbURL := newTxnProcessor(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -431,7 +431,7 @@ func TestRegisterTable(t *testing.T) {
 		require.NoError(t, txnp.Close(ctx))
 
 		// Check that the table was registered in the system-table.
-		systemStore, err := system.New(pool, tableland.ChainID(chainID))
+		systemStore, err := system.New(dbURL, tableland.ChainID(chainID))
 		require.NoError(t, err)
 		table, err := systemStore.GetTable(ctx, id)
 		require.NoError(t, err)
@@ -443,7 +443,7 @@ func TestRegisterTable(t *testing.T) {
 		require.NotEqual(t, new(time.Time), table.CreatedAt) // CreatedAt is not the zero value
 
 		// Check that the user table was created.
-		ok := existsTableWithName(t, pool, "bar_1337_100")
+		ok := existsTableWithName(t, dbURL, "bar_1337_100")
 		require.True(t, ok)
 	})
 }
@@ -453,7 +453,7 @@ func TestTableRowCountLimit(t *testing.T) {
 	ctx := context.Background()
 
 	rowLimit := 10
-	txnp, pool := newTxnProcessorWithTable(t, rowLimit)
+	txnp, _, pool := newTxnProcessorWithTable(t, rowLimit)
 
 	// Helper func to insert a row and return an error if happened.
 	insertRow := func(t *testing.T) error {
@@ -494,7 +494,7 @@ func TestSetController(t *testing.T) {
 
 	t.Run("controller-is-not-set-default", func(t *testing.T) {
 		t.Parallel()
-		_, pgxpool := newTxnProcessorWithTable(t, 0)
+		_, _, pgxpool := newTxnProcessorWithTable(t, 0)
 
 		// Let's test first that the controller is not set (it's the default behavior)
 		tx, err := pgxpool.BeginTx(ctx, pgx.TxOptions{
@@ -510,7 +510,7 @@ func TestSetController(t *testing.T) {
 
 	t.Run("foreign-key-constraint", func(t *testing.T) {
 		t.Parallel()
-		txnp, _ := newTxnProcessorWithTable(t, 0)
+		txnp, _, _ := newTxnProcessorWithTable(t, 0)
 
 		// table id different than 100 violates foreign key
 		b, err := txnp.OpenBatch(ctx)
@@ -528,7 +528,7 @@ func TestSetController(t *testing.T) {
 
 	t.Run("set-unset-controller", func(t *testing.T) {
 		t.Parallel()
-		txnp, pgxpool := newTxnProcessorWithTable(t, 0)
+		txnp, _, pgxpool := newTxnProcessorWithTable(t, 0)
 
 		// sets
 		b, err := txnp.OpenBatch(ctx)
@@ -571,7 +571,7 @@ func TestSetController(t *testing.T) {
 
 	t.Run("upsert", func(t *testing.T) {
 		t.Parallel()
-		txnp, pgxpool := newTxnProcessorWithTable(t, 0)
+		txnp, _, pgxpool := newTxnProcessorWithTable(t, 0)
 
 		{
 			b, err := txnp.OpenBatch(ctx)
@@ -611,7 +611,7 @@ func TestWithCheck(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, pool := newTxnProcessorWithTable(t, 0)
+		txnp, _, pool := newTxnProcessorWithTable(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -643,7 +643,7 @@ func TestWithCheck(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, pool := newTxnProcessorWithTable(t, 0)
+		txnp, _, pool := newTxnProcessorWithTable(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -680,7 +680,7 @@ func TestWithCheck(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, pool := newTxnProcessorWithTable(t, 0)
+		txnp, _, pool := newTxnProcessorWithTable(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -712,7 +712,7 @@ func TestWithCheck(t *testing.T) {
 		ctx := context.Background()
 
 		rowLimit := 10
-		txnp, pool := newTxnProcessorWithTable(t, rowLimit)
+		txnp, _, pool := newTxnProcessorWithTable(t, rowLimit)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -775,12 +775,17 @@ func tableRowCountT100(t *testing.T, pool *pgxpool.Pool, sql string) int {
 	return rowCount
 }
 
-func existsTableWithName(t *testing.T, pool *pgxpool.Pool, tableName string) bool {
+func existsTableWithName(t *testing.T, dbURL string, tableName string) bool {
 	t.Helper()
+
+	ctx, cls := context.WithTimeout(context.Background(), time.Second*15)
+	defer cls()
+	pool, err := pgxpool.Connect(ctx, dbURL)
+	require.NoError(t, err)
 	q := `SELECT 1 FROM information_schema.tables  WHERE table_name = $1`
 	row := pool.QueryRow(context.Background(), q, tableName)
 	var dummy int
-	err := row.Scan(&dummy)
+	err = row.Scan(&dummy)
 	if err == pgx.ErrNoRows {
 		return false
 	}
@@ -788,7 +793,7 @@ func existsTableWithName(t *testing.T, pool *pgxpool.Pool, tableName string) boo
 	return true
 }
 
-func newTxnProcessor(t *testing.T, rowsLimit int) (*TblTxnProcessor, *pgxpool.Pool) {
+func newTxnProcessor(t *testing.T, rowsLimit int) (*TblTxnProcessor, string) {
 	t.Helper()
 
 	url := tests.PostgresURL(t)
@@ -796,20 +801,16 @@ func newTxnProcessor(t *testing.T, rowsLimit int) (*TblTxnProcessor, *pgxpool.Po
 	txnp, err := NewTxnProcessor(1337, url, rowsLimit, &aclMock{})
 	require.NoError(t, err)
 
-	ctx := context.Background()
-	pool, err := pgxpool.Connect(ctx, url)
-	require.NoError(t, err)
-
 	// Boostrap system store to run the db migrations.
-	_, err = system.New(pool, tableland.ChainID(chainID))
+	_, err = system.New(url, tableland.ChainID(chainID))
 	require.NoError(t, err)
-	return txnp, pool
+	return txnp, url
 }
 
-func newTxnProcessorWithTable(t *testing.T, rowsLimit int) (*TblTxnProcessor, *pgxpool.Pool) {
+func newTxnProcessorWithTable(t *testing.T, rowsLimit int) (*TblTxnProcessor, string, *pgxpool.Pool) {
 	t.Helper()
 
-	txnp, pool := newTxnProcessor(t, rowsLimit)
+	txnp, dbURL := newTxnProcessor(t, rowsLimit)
 	ctx := context.Background()
 
 	b, err := txnp.OpenBatch(ctx)
@@ -825,7 +826,10 @@ func newTxnProcessorWithTable(t *testing.T, rowsLimit int) (*TblTxnProcessor, *p
 	require.NoError(t, b.Commit(ctx))
 	require.NoError(t, b.Close(ctx))
 
-	return txnp, pool
+	pool, err := pgxpool.Connect(ctx, dbURL)
+	require.NoError(t, err)
+
+	return txnp, dbURL, pool
 }
 
 func mustWriteStmt(t *testing.T, q string) parsing.MutatingStmt {

@@ -17,7 +17,8 @@ import (
 	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
-	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
+	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
+	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/testutil"
 	txnpimpl "github.com/textileio/go-tableland/pkg/txn/impl"
 	"github.com/textileio/go-tableland/tests"
@@ -313,13 +314,16 @@ func setup(t *testing.T) (
 		return txn.Hash()
 	}
 
-	sqlstr, err := sqlstoreimpl.New(ctx, tableland.ChainID(chainID), url)
+	systemStore, err := system.New(url, tableland.ChainID(chainID))
 	require.NoError(t, err)
+	userStore, err := user.New(url)
+	require.NoError(t, err)
+
 	tableReader := func(readQuery string) []int {
 		rq, err := parser.ValidateReadQuery(readQuery)
 		require.NoError(t, err)
 		require.NotNil(t, rq)
-		res, err := sqlstr.Read(ctx, rq)
+		res, err := userStore.Read(ctx, rq)
 		require.NoError(t, err)
 
 		queryRes := res.(sqlstore.UserRows)
@@ -333,7 +337,7 @@ func setup(t *testing.T) (
 	checkReceipts := func(t *testing.T, rs ...eventprocessor.Receipt) func() bool {
 		return func() bool {
 			for _, expReceipt := range rs {
-				gotReceipt, found, err := sqlstr.GetReceipt(context.Background(), expReceipt.TxnHash)
+				gotReceipt, found, err := systemStore.GetReceipt(context.Background(), expReceipt.TxnHash)
 				if !found {
 					return false
 				}

@@ -33,7 +33,7 @@ func TestMultichainMigration(t *testing.T) {
 	require.Equal(t, 518, oldNamesCountBeforeMigration)
 
 	// 2. Boostrap system store to run the db migrations.
-	_, err = system.New(pool, tableland.ChainID(1337))
+	_, err = system.New(url, tableland.ChainID(1337))
 	require.NoError(t, err)
 
 	// 3. Check that:
