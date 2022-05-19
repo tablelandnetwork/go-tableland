@@ -14,9 +14,8 @@ import (
 // It provides methods that helps with validations and execution in the real Tableland
 // database, since sugared queries should be desugared for correct execution.
 type SugaredStmt interface {
-	// TODO(jsign): fix comments.
 	// GetDesugared query desugars the query, which means:
-	// "insert into foo_100" -> "insert _100"
+	// "insert into {tableName}_{tableID}" -> "insert _{chainID}_{tableID}"
 	GetDesugaredQuery() (string, error)
 }
 
