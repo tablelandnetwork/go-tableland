@@ -439,7 +439,7 @@ func TestRegisterTable(t *testing.T) {
 		require.Equal(t, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", table.Controller)
 		// sha256(zar:text) = 926b64e777db62e4d9e9007dc51e3974fce37c50f456177bec98cd797bc819f8
 		require.Equal(t, "926b64e777db62e4d9e9007dc51e3974fce37c50f456177bec98cd797bc819f8", table.Structure)
-		require.Equal(t, "bar", table.Name)
+		require.Equal(t, "bar", table.Prefix)
 		require.NotEqual(t, new(time.Time), table.CreatedAt) // CreatedAt is not the zero value
 
 		// Check that the user table was created.

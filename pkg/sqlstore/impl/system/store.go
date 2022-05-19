@@ -290,7 +290,7 @@ func tableFromSQLToDTO(table db.Registry) (sqlstore.Table, error) {
 		ID:         id,
 		ChainID:    tableland.ChainID(table.ChainID),
 		Controller: table.Controller,
-		Name:       table.Name,
+		Prefix:     table.Prefix,
 		Structure:  table.Structure,
 		CreatedAt:  table.CreatedAt,
 	}, nil

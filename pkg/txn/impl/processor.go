@@ -119,7 +119,7 @@ func (b *batch) InsertTable(
 		}
 
 		if _, err := tx.Exec(ctx,
-			`INSERT INTO registry ("chain_id", "id","controller","name", "structure") 
+			`INSERT INTO registry ("chain_id", "id","controller","prefix", "structure") 
 			 VALUES ($1,$2,$3,$4, $5);`,
 			b.tp.chainID,
 			dbID,
@@ -169,21 +169,21 @@ func (b *batch) ExecWriteQueries(
 		}
 
 		dbTableName := mqueries[0].GetDBTableName()
-		tableName, beforeRowCount, err := GetTableNameAndRowCountByTableID(
+		tablePrefix, beforeRowCount, err := GetTablePrefixAndRowCountByTableID(
 			ctx, tx, b.tp.chainID, mqueries[0].GetTableID(), dbTableName)
 		if err != nil {
 			return &txn.ErrQueryExecution{
 				Code: "TABLE_LOOKUP",
-				Msg:  fmt.Sprintf("table name lookup for table id: %s", err),
+				Msg:  fmt.Sprintf("table prefix lookup for table id: %s", err),
 			}
 		}
 
 		for _, mq := range mqueries {
-			mqName := mq.GetPrefix()
-			if mqName != "" && tableName != mqName {
+			mqPrefix := mq.GetPrefix()
+			if mqPrefix != "" && tablePrefix != mqPrefix {
 				return &txn.ErrQueryExecution{
 					Code: "TABLE_PREFIX",
-					Msg:  fmt.Sprintf("table name prefix doesn't match (exp %s, got %s)", tableName, mqName),
+					Msg:  fmt.Sprintf("table prefix doesn't match (exp %s, got %s)", tablePrefix, mqPrefix),
 				}
 			}
 
@@ -396,9 +396,9 @@ func (b *batch) Commit(ctx context.Context) error {
 	return nil
 }
 
-// GetTableNameAndRowCountByTableID returns the table name and current row count for a TableID
+// GetTablePrefixAndRowCountByTableID returns the table prefix and current row count for a TableID
 // within the provided transaction.
-func GetTableNameAndRowCountByTableID(
+func GetTablePrefixAndRowCountByTableID(
 	ctx context.Context,
 	tx pgx.Tx,
 	chainID tableland.ChainID,
@@ -410,18 +410,18 @@ func GetTableNameAndRowCountByTableID(
 	}
 
 	q := fmt.Sprintf(
-		"SELECT (SELECT name FROM registry where chain_id=$1 AND id=$2), (SELECT count(*) FROM %s)", dbTableName)
+		"SELECT (SELECT prefix FROM registry where chain_id=$1 AND id=$2), (SELECT count(*) FROM %s)", dbTableName)
 	r := tx.QueryRow(ctx, q, chainID, dbID)
-	var tableName string
+	var tablePrefix string
 	var rowCount int
-	err := r.Scan(&tableName, &rowCount)
+	err := r.Scan(&tablePrefix, &rowCount)
 	if err == pgx.ErrNoRows {
 		return "", 0, fmt.Errorf("the table id doesn't exist")
 	}
 	if err != nil {
-		return "", 0, fmt.Errorf("table name lookup: %s", err)
+		return "", 0, fmt.Errorf("table prefix lookup: %s", err)
 	}
-	return tableName, rowCount, nil
+	return tablePrefix, rowCount, nil
 }
 
 // getController gets the controller for a given table.
@@ -748,10 +748,10 @@ func (b *batch) checkAffectedRowsAgainstAuditingQuery(
 	return nil
 }
 
-func (b *batch) buildAuditingQueryFromPolicy(tableName string, ctids []string, policy tableland.Policy) string {
+func (b *batch) buildAuditingQueryFromPolicy(dbTableName string, ctids []string, policy tableland.Policy) string {
 	return fmt.Sprintf(
 		"SELECT count(1) FROM %s WHERE (%s) AND ctid in (%s) LIMIT 1",
-		tableName,
+		dbTableName,
 		policy.WithCheck(),
 		strings.Join(ctids, ","),
 	)
