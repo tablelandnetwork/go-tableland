@@ -1,11 +1,13 @@
 package middlewares
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
@@ -14,15 +16,42 @@ import (
 	"github.com/textileio/go-tableland/pkg/errors"
 )
 
-var errSIWEWrongDomain = stderrors.New("SIWE domain isn't Tableland")
+var (
+	errSIWEWrongDomain        = stderrors.New("SIWE domain isn't Tableland")
+	unauthenticatedRPCMethods = []string{
+		"tableland_getReceipt",
+		"tableland_runReadQuery",
+	}
+)
 
 // Authentication is middleware that provides JWT authentication.
 func Authentication(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-type", "application/json")
+
+		fullBody, err := io.ReadAll(r.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(errors.ServiceError{Message: "reading request body"})
+			return
+		}
+		var rpcMethod struct {
+			Method string `json:"method"`
+		}
+		if err := json.Unmarshal(fullBody, &rpcMethod); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(errors.ServiceError{Message: "request body doesn't have a method field"})
+			return
+		}
+		if requiresAuthentication(rpcMethod.Method) {
+			r.Body = io.NopCloser(bytes.NewReader(fullBody))
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		authorization := r.Header.Get("Authorization")
 		if authorization == "" {
-			w.WriteHeader(http.StatusBadRequest)
+			w.WriteHeader(http.StatusUnauthorized)
 			_ = json.NewEncoder(w).Encode(errors.ServiceError{Message: "no authorization header provided"})
 			return
 		}
@@ -71,4 +100,13 @@ func parseAuth(bearerToken string) (tableland.ChainID, string, error) {
 		return 0, "", fmt.Errorf("checking siwe validity: %w", err)
 	}
 	return tableland.ChainID(msg.GetChainID()), msg.GetAddress().String(), nil
+}
+
+func requiresAuthentication(rpcMethodName string) bool {
+	for _, methodName := range unauthenticatedRPCMethods {
+		if methodName == rpcMethodName {
+			return false
+		}
+	}
+	return true
 }
