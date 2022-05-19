@@ -3,6 +3,7 @@ package impl
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -186,15 +187,20 @@ func (t *LocalTracker) checkIfPendingTxWasIncluded(
 
 	txReceipt, err := t.chainClient.TransactionReceipt(ctx, pendingTx.Hash)
 	if err != nil {
-		if time.Since(pendingTx.CreatedAt) > t.stuckInterval {
-			t.log.Error().
-				Str("hash", pendingTx.Hash.Hex()).
-				Int64("nonce", pendingTx.Nonce).
-				Time("createdAt", pendingTx.CreatedAt).
-				Msg("pending tx may be stuck")
+		isNotFound := strings.Contains(err.Error(), "not found")
 
-			t.txnConfirmationAttempts++
-			return noncepkg.ErrPendingTxMayBeStuck
+		if isNotFound {
+			if time.Since(pendingTx.CreatedAt) > t.stuckInterval {
+				t.log.Error().
+					Str("hash", pendingTx.Hash.Hex()).
+					Int64("nonce", pendingTx.Nonce).
+					Time("createdAt", pendingTx.CreatedAt).
+					Msg("pending tx may be stuck")
+
+				t.txnConfirmationAttempts++
+				return noncepkg.ErrPendingTxMayBeStuck
+			}
+			return noncepkg.ErrReceiptNotFound
 		}
 
 		return fmt.Errorf("get transaction receipt: %s", err)
@@ -259,6 +265,15 @@ func (t *LocalTracker) checkPendingTxns() error {
 				break
 			}
 			if err == noncepkg.ErrPendingTxMayBeStuck {
+				cls()
+				break
+			}
+			if err == noncepkg.ErrReceiptNotFound {
+				t.log.Info().
+					Str("hash", pendingTx.Hash.Hex()).
+					Int64("nonce", pendingTx.Nonce).
+					Msg("receipt not found")
+
 				cls()
 				break
 			}
