@@ -72,12 +72,11 @@ func TestOptionality(t *testing.T) {
 			h.ServeHTTP(rw, r)
 
 			if tc.isAuthorized {
-				require.Equal(t, http.StatusOK, rw.Code)
-				require.True(t, called)
-			} else {
 				require.Equal(t, http.StatusUnauthorized, rw.Code)
-				require.False(t, called)
+			} else {
+				require.Equal(t, http.StatusOK, rw.Code)
 			}
+			require.Equal(t, tc.isAuthorized, !called)
 		})
 	}
 }
