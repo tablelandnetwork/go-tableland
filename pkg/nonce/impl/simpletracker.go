@@ -45,3 +45,8 @@ func (t *SimpleTracker) GetNonce(ctx context.Context) (nonce.RegisterPendingTx, 
 func (t *SimpleTracker) GetPendingCount(ctx context.Context) int {
 	return 0
 }
+
+// Resync resyncs nonce tracker state with the network.
+func (t *SimpleTracker) Resync(ctx context.Context) error {
+	return nil
+}
