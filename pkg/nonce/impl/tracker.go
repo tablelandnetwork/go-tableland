@@ -187,22 +187,19 @@ func (t *LocalTracker) checkIfPendingTxWasIncluded(
 
 	txReceipt, err := t.chainClient.TransactionReceipt(ctx, pendingTx.Hash)
 	if err != nil {
-		isNotFound := strings.Contains(err.Error(), "not found")
+		if time.Since(pendingTx.CreatedAt) > t.stuckInterval {
+			t.log.Error().
+				Str("hash", pendingTx.Hash.Hex()).
+				Int64("nonce", pendingTx.Nonce).
+				Time("createdAt", pendingTx.CreatedAt).
+				Msg("pending tx may be stuck")
 
-		if isNotFound {
-			if time.Since(pendingTx.CreatedAt) > t.stuckInterval {
-				t.log.Error().
-					Str("hash", pendingTx.Hash.Hex()).
-					Int64("nonce", pendingTx.Nonce).
-					Time("createdAt", pendingTx.CreatedAt).
-					Msg("pending tx may be stuck")
-
-				t.txnConfirmationAttempts++
-				return noncepkg.ErrPendingTxMayBeStuck
-			}
+			t.txnConfirmationAttempts++
+			return noncepkg.ErrPendingTxMayBeStuck
+		}
+		if strings.Contains(err.Error(), "not found") {
 			return noncepkg.ErrReceiptNotFound
 		}
-
 		return fmt.Errorf("get transaction receipt: %s", err)
 	}
 	t.txnConfirmationAttempts = 0
