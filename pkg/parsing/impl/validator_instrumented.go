@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
+	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/global"
@@ -40,10 +41,10 @@ func NewInstrumentedSQLValidator(p parsing.SQLValidator) (*InstrumentedSQLValida
 }
 
 // ValidateCreateTable register metrics for its corresponding wrapped parser.
-func (ip *InstrumentedSQLValidator) ValidateCreateTable(query string) (parsing.CreateStmt, error) {
+func (ip *InstrumentedSQLValidator) ValidateCreateTable(query string, chainID tableland.ChainID) (parsing.CreateStmt, error) {
 	log.Debug().Str("query", query).Msg("call ValidateCreateTable")
 	start := time.Now()
-	cs, err := ip.parser.ValidateCreateTable(query)
+	cs, err := ip.parser.ValidateCreateTable(query, chainID)
 	latency := time.Since(start).Milliseconds()
 
 	attributes := []attribute.KeyValue{
@@ -57,28 +58,40 @@ func (ip *InstrumentedSQLValidator) ValidateCreateTable(query string) (parsing.C
 	return cs, err
 }
 
-// ValidateRunSQL register metrics for its corresponding wrapped parser.
-func (ip *InstrumentedSQLValidator) ValidateRunSQL(query string) (
-	parsing.ReadStmt,
-	[]parsing.MutatingStmt,
-	error) {
-	log.Debug().Str("query", query).Msg("call ValidateRunSQL")
+// ValidateMutatingQuery register metrics for its corresponding wrapped parser.
+func (ip *InstrumentedSQLValidator) ValidateMutatingQuery(
+	query string,
+	chainID tableland.ChainID) ([]parsing.MutatingStmt, error) {
+	log.Debug().Str("query", query).Msg("call ValidateMutatingQuery")
 	start := time.Now()
-	readStmt, mutatingStmts, err := ip.parser.ValidateRunSQL(query)
+	mutatingStmts, err := ip.parser.ValidateMutatingQuery(query, chainID)
 	latency := time.Since(start).Milliseconds()
 
-	queryType := "write"
-	if readStmt != nil {
-		queryType = "read"
-	}
 	attributes := []attribute.KeyValue{
-		{Key: "method", Value: attribute.StringValue("ValidateRunSQL")},
+		{Key: "method", Value: attribute.StringValue("ValidateMutatingQuery")},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
-		{Key: "type", Value: attribute.StringValue(queryType)},
 	}
 
 	ip.callCount.Add(context.Background(), 1, attributes...)
 	ip.latencyHistogram.Record(context.Background(), latency, attributes...)
 
-	return readStmt, mutatingStmts, err
+	return mutatingStmts, err
+}
+
+// ValidateReadQuery register metrics for its corresponding wrapped parser.
+func (ip *InstrumentedSQLValidator) ValidateReadQuery(query string) (parsing.ReadStmt, error) {
+	log.Debug().Str("query", query).Msg("call ValidateReadQuery")
+	start := time.Now()
+	readStmt, err := ip.parser.ValidateReadQuery(query)
+	latency := time.Since(start).Milliseconds()
+
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("ValidateReadQuery")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
+
+	ip.callCount.Add(context.Background(), 1, attributes...)
+	ip.latencyHistogram.Record(context.Background(), latency, attributes...)
+
+	return readStmt, err
 }
