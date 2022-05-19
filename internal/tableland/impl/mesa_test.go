@@ -45,7 +45,7 @@ func TestTodoAppWorkflow(t *testing.T) {
 
 	caller := txOpts.From
 	_, err := sc.CreateTable(txOpts, caller,
-		`CREATE TABLE todoapp (
+		`CREATE TABLE todoapp_1337 (
 			complete BOOLEAN DEFAULT false,
 			name     VARCHAR DEFAULT '',
 			deleted  BOOLEAN DEFAULT false,
@@ -66,7 +66,7 @@ func TestInsertOnConflict(t *testing.T) {
 	caller := txOpts.From
 
 	_, err := sc.CreateTable(txOpts, caller,
-		`CREATE TABLE foo (
+		`CREATE TABLE foo_1337 (
 			name text unique,
 			count int);`)
 	require.NoError(t, err)
@@ -77,14 +77,14 @@ func TestInsertOnConflict(t *testing.T) {
 	req := baseReq
 	var txnHashes []string
 	for i := 0; i < 10; i++ {
-		req.Statement = `INSERT INTO _0 VALUES ('bar', 0) ON CONFLICT (name) DO UPDATE SET count=_0.count+1`
+		req.Statement = `INSERT INTO foo_1337_0 VALUES ('bar', 0) ON CONFLICT (name) DO UPDATE SET count=_0.count+1`
 		r, err := tbld.RelayWriteQuery(ctx, req)
 		require.NoError(t, err)
 		backend.Commit()
 		txnHashes = append(txnHashes, r.Transaction.Hash)
 	}
 
-	readReq := tableland.RunReadQueryRequest{Statement: "SELECT count FROM _0"}
+	readReq := tableland.RunReadQueryRequest{Statement: "SELECT count FROM foo_1337_0"}
 	require.Eventually(
 		t,
 		jsonEq(ctx, t, tbld, readReq, `{"columns":[{"name":"count"}],"rows":[[9]]}`),
@@ -101,20 +101,20 @@ func TestMultiStatement(t *testing.T) {
 	caller := txOpts.From
 
 	_, err := sc.CreateTable(txOpts, caller,
-		`CREATE TABLE foo (
+		`CREATE TABLE foo_1337 (
 			name text unique
 		);`)
 	require.NoError(t, err)
 
 	ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller.Hex())
 	req := tableland.RelayWriteQueryRequest{
-		Statement: `INSERT INTO foo_0 values ('bar'); UPDATE foo_0 SET name='zoo'`,
+		Statement: `INSERT INTO foo_1337_0 values ('bar'); UPDATE foo_1337_0 SET name='zoo'`,
 	}
 	r, err := tbld.RelayWriteQuery(ctx, req)
 	require.NoError(t, err)
 	backend.Commit()
 
-	readReq := tableland.RunReadQueryRequest{Statement: "SELECT name from _0"}
+	readReq := tableland.RunReadQueryRequest{Statement: "SELECT name from foo_1337_0"}
 	require.Eventually(
 		t,
 		jsonEq(ctx, t, tbld, readReq, `{"columns":[{"name":"name"}],"rows":[["zoo"]]}`),
@@ -130,7 +130,7 @@ func TestReadSystemTable(t *testing.T) {
 	ctx, tbld, _, sc, txOpts := setup(t)
 	caller := txOpts.From
 
-	_, err := sc.CreateTable(txOpts, caller, `CREATE TABLE foo (myjson JSON);`)
+	_, err := sc.CreateTable(txOpts, caller, `CREATE TABLE foo_1337 (myjson JSON);`)
 	require.NoError(t, err)
 
 	res, err := runReadQuery(ctx, t, tbld, "select * from registry", caller.Hex())
@@ -145,7 +145,7 @@ func TestJSON(t *testing.T) {
 	ctx, tbld, backend, sc, txOpts := setup(t)
 	caller := txOpts.From
 
-	_, err := sc.CreateTable(txOpts, caller, `CREATE TABLE foo (myjson JSON);`)
+	_, err := sc.CreateTable(txOpts, caller, `CREATE TABLE foo_1337 (myjson JSON);`)
 	require.NoError(t, err)
 
 	processCSV(ctx, t, caller, tbld, "testdata/json_queries.csv", backend)
@@ -165,20 +165,20 @@ func TestCheckInsertPrivileges(t *testing.T) {
 	}
 
 	tests := []testCase{
-		{"INSERT INTO foo_%s (bar) VALUES ('Hello')", tableland.Privileges{}, false},
-		{"INSERT INTO foo_%s (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivInsert}, true},
-		{"INSERT INTO foo_%s (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivUpdate}, false},
-		{"INSERT INTO foo_%s (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivDelete}, false},
-		{"INSERT INTO foo_%s (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate}, true},                       //nolint
-		{"INSERT INTO foo_%s (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivInsert, tableland.PrivDelete}, true},                       //nolint
-		{"INSERT INTO foo_%s (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivUpdate, tableland.PrivDelete}, false},                      //nolint
-		{"INSERT INTO foo_%s (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate, tableland.PrivDelete}, true}, //nolint
+		{"INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", tableland.Privileges{}, false},
+		{"INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivInsert}, true},
+		{"INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivUpdate}, false},
+		{"INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivDelete}, false},
+		{"INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate}, true},                       //nolint
+		{"INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivInsert, tableland.PrivDelete}, true},                       //nolint
+		{"INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivUpdate, tableland.PrivDelete}, false},                      //nolint
+		{"INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate, tableland.PrivDelete}, true}, //nolint
 	}
 
 	for i, test := range tests {
 		testCase := fmt.Sprint(i)
 		t.Run(testCase, func(t *testing.T) {
-			_, err := sc.CreateTable(txOptsGranter, common.HexToAddress(granter), `CREATE TABLE foo (bar text);`)
+			_, err := sc.CreateTable(txOptsGranter, common.HexToAddress(granter), `CREATE TABLE foo_1337 (bar text);`)
 			require.NoError(t, err)
 			backend.Commit()
 
@@ -190,7 +190,7 @@ func TestCheckInsertPrivileges(t *testing.T) {
 				}
 
 				// execute grant statement according to test case
-				grantQuery := fmt.Sprintf("GRANT %s ON foo_%s TO \"%s\"", strings.Join(privileges, ","), testCase, grantee)
+				grantQuery := fmt.Sprintf("GRANT %s ON foo_1337_%s TO \"%s\"", strings.Join(privileges, ","), testCase, grantee)
 				r, err := relayWriteQuery(ctx, t, tbldGranter, grantQuery, granter)
 				require.NoError(t, err)
 				backend.Commit()
@@ -201,7 +201,7 @@ func TestCheckInsertPrivileges(t *testing.T) {
 			require.NoError(t, err)
 			backend.Commit()
 
-			testQuery := fmt.Sprintf("SELECT * FROM foo_%s WHERE bar ='Hello';", testCase)
+			testQuery := fmt.Sprintf("SELECT * FROM foo_1337_%s WHERE bar ='Hello';", testCase)
 			if test.isAllowed {
 				require.Eventually(t,
 					runSQLCountEq(ctx, t, tbldGrantee, testQuery, grantee, 1),
@@ -233,26 +233,26 @@ func TestCheckUpdatePrivileges(t *testing.T) {
 	}
 
 	tests := []testCase{
-		{"UPDATE foo_%s SET bar = 'Hello 2'", tableland.Privileges{}, false},
-		{"UPDATE foo_%s SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivInsert}, false},
-		{"UPDATE foo_%s SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivUpdate}, true},
-		{"UPDATE foo_%s SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivDelete}, false},
-		{"UPDATE foo_%s SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate}, true},
-		{"UPDATE foo_%s SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivInsert, tableland.PrivDelete}, false},
-		{"UPDATE foo_%s SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivUpdate, tableland.PrivDelete}, true},
-		{"UPDATE foo_%s SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate, tableland.PrivDelete}, true}, //nolint
+		{"UPDATE foo_1337_%s SET bar = 'Hello 2'", tableland.Privileges{}, false},
+		{"UPDATE foo_1337_%s SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivInsert}, false},
+		{"UPDATE foo_1337_%s SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivUpdate}, true},
+		{"UPDATE foo_1337_%s SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivDelete}, false},
+		{"UPDATE foo_1337_%s SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate}, true},
+		{"UPDATE foo_1337_%s SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivInsert, tableland.PrivDelete}, false},
+		{"UPDATE foo_1337_%s SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivUpdate, tableland.PrivDelete}, true},
+		{"UPDATE foo_1337_%s SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate, tableland.PrivDelete}, true}, //nolint
 	}
 
 	for i, test := range tests {
 		testCase := fmt.Sprint(i)
 		t.Run(testCase, func(t *testing.T) {
-			_, err := sc.CreateTable(txOptsGranter, common.HexToAddress(granter), `CREATE TABLE foo (bar text);`)
+			_, err := sc.CreateTable(txOptsGranter, common.HexToAddress(granter), `CREATE TABLE foo_1337 (bar text);`)
 			require.NoError(t, err)
 			backend.Commit()
 			var successfulTxnHashes []string
 
 			// we initilize the table with a row to be updated
-			r, err := relayWriteQuery(ctx, t, tbldGranter, fmt.Sprintf("INSERT INTO foo_%s (bar) VALUES ('Hello')", testCase), granter)
+			r, err := relayWriteQuery(ctx, t, tbldGranter, fmt.Sprintf("INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", testCase), granter)
 			require.NoError(t, err)
 			backend.Commit()
 			successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
@@ -264,7 +264,7 @@ func TestCheckUpdatePrivileges(t *testing.T) {
 				}
 
 				// execute grant statement according to test case
-				grantQuery := fmt.Sprintf("GRANT %s ON foo_%s TO \"%s\"", strings.Join(privileges, ","), testCase, grantee)
+				grantQuery := fmt.Sprintf("GRANT %s ON foo_1337_%s TO \"%s\"", strings.Join(privileges, ","), testCase, grantee)
 				r, err := relayWriteQuery(ctx, t, tbldGranter, grantQuery, granter)
 				require.NoError(t, err)
 				backend.Commit()
@@ -275,7 +275,7 @@ func TestCheckUpdatePrivileges(t *testing.T) {
 			require.NoError(t, err)
 			backend.Commit()
 
-			testQuery := fmt.Sprintf("SELECT * FROM foo_%s WHERE bar ='Hello 2';", testCase)
+			testQuery := fmt.Sprintf("SELECT * FROM foo_1337_%s WHERE bar ='Hello 2';", testCase)
 			if test.isAllowed {
 				require.Eventually(t,
 					runSQLCountEq(ctx, t, tbldGrantee, testQuery, grantee, 1),
@@ -307,25 +307,25 @@ func TestCheckDeletePrivileges(t *testing.T) {
 	}
 
 	tests := []testCase{
-		{"DELETE FROM foo_%s", tableland.Privileges{}, false},
-		{"DELETE FROM foo_%s", tableland.Privileges{tableland.PrivInsert}, false},
-		{"DELETE FROM foo_%s", tableland.Privileges{tableland.PrivUpdate}, false},
-		{"DELETE FROM foo_%s", tableland.Privileges{tableland.PrivDelete}, true},
-		{"DELETE FROM foo_%s", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate}, false},
-		{"DELETE FROM foo_%s", tableland.Privileges{tableland.PrivInsert, tableland.PrivDelete}, true},
-		{"DELETE FROM foo_%s", tableland.Privileges{tableland.PrivUpdate, tableland.PrivDelete}, true},
-		{"DELETE FROM foo_%s", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate, tableland.PrivDelete}, true}, //nolint
+		{"DELETE FROM foo_1337_%s", tableland.Privileges{}, false},
+		{"DELETE FROM foo_1337_%s", tableland.Privileges{tableland.PrivInsert}, false},
+		{"DELETE FROM foo_1337_%s", tableland.Privileges{tableland.PrivUpdate}, false},
+		{"DELETE FROM foo_1337_%s", tableland.Privileges{tableland.PrivDelete}, true},
+		{"DELETE FROM foo_1337_%s", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate}, false},
+		{"DELETE FROM foo_1337_%s", tableland.Privileges{tableland.PrivInsert, tableland.PrivDelete}, true},
+		{"DELETE FROM foo_1337_%s", tableland.Privileges{tableland.PrivUpdate, tableland.PrivDelete}, true},
+		{"DELETE FROM foo_1337_%s", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate, tableland.PrivDelete}, true}, //nolint
 	}
 
 	for i, test := range tests {
 		testCase := fmt.Sprint(i)
 		t.Run(testCase, func(t *testing.T) {
-			_, err := sc.CreateTable(txOptsGranter, common.HexToAddress(granter), `CREATE TABLE foo (bar text);`)
+			_, err := sc.CreateTable(txOptsGranter, common.HexToAddress(granter), `CREATE TABLE foo_1337 (bar text);`)
 			require.NoError(t, err)
 			var successfulTxnHashes []string
 
 			// we initilize the table with a row to be delete
-			_, err = runReadQuery(ctx, t, tbldGranter, fmt.Sprintf("INSERT INTO foo_%s (bar) VALUES ('Hello')", testCase), granter)
+			_, err = relayWriteQuery(ctx, t, tbldGranter, fmt.Sprintf("INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", testCase), granter)
 			require.NoError(t, err)
 			backend.Commit()
 
@@ -336,7 +336,7 @@ func TestCheckDeletePrivileges(t *testing.T) {
 				}
 
 				// execute grant statement according to test case
-				grantQuery := fmt.Sprintf("GRANT %s ON foo_%s TO \"%s\"", strings.Join(privileges, ","), testCase, grantee)
+				grantQuery := fmt.Sprintf("GRANT %s ON foo_1337_%s TO \"%s\"", strings.Join(privileges, ","), testCase, grantee)
 				r, err := relayWriteQuery(ctx, t, tbldGranter, grantQuery, granter)
 				require.NoError(t, err)
 				backend.Commit()
@@ -347,7 +347,7 @@ func TestCheckDeletePrivileges(t *testing.T) {
 			require.NoError(t, err)
 			backend.Commit()
 
-			testQuery := fmt.Sprintf("SELECT * FROM foo_%s", testCase)
+			testQuery := fmt.Sprintf("SELECT * FROM foo_1337_%s", testCase)
 			if test.isAllowed {
 				require.Eventually(t,
 					runSQLCountEq(ctx, t, tbldGrantee, testQuery, grantee, 0),
@@ -370,20 +370,20 @@ func TestOwnerRevokesItsPrivilegeInsideMultipleStatements(t *testing.T) {
 	ctx, tbld, backend, sc, txOpts := setup(t)
 	caller := txOpts.From.Hex()
 
-	_, err := sc.CreateTable(txOpts, common.HexToAddress(caller), `CREATE TABLE foo (bar text);`)
+	_, err := sc.CreateTable(txOpts, common.HexToAddress(caller), `CREATE TABLE foo_1337 (bar text);`)
 	require.NoError(t, err)
 
 	multiStatements := `
-		INSERT INTO foo_0 (bar) VALUES ('Hello');
-		UPDATE foo_0 SET bar = 'Hello 2';
-		REVOKE update ON foo_0 FROM "` + caller + `";
-		UPDATE foo_0 SET bar = 'Hello 3';
+		INSERT INTO foo_1337_0 (bar) VALUES ('Hello');
+		UPDATE foo_1337_0 SET bar = 'Hello 2';
+		REVOKE update ON foo_1337_0 FROM "` + caller + `";
+		UPDATE foo_1337_0 SET bar = 'Hello 3';
 	`
 	r, err := relayWriteQuery(ctx, t, tbld, multiStatements, caller)
 	require.NoError(t, err)
 	backend.Commit()
 
-	testQuery := "SELECT * FROM foo_0;"
+	testQuery := "SELECT * FROM foo_1337_0;"
 	cond := runSQLCountEq(ctx, t, tbld, testQuery, caller, 1)
 	require.Never(t, cond, 5*time.Second, 100*time.Millisecond)
 	requireReceipts(ctx, t, tbld, []string{r.Transaction.Hash}, false)
