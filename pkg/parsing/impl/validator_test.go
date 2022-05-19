@@ -62,6 +62,28 @@ func TestReadRunSQL(t *testing.T) {
 			expRawQuery: "SELECT (SELECT * FROM _1337_2 LIMIT 1) FROM _1337_3",
 			expErrType:  nil,
 		},
+		{
+			name: "select with complex subqueries in function arguments",
+			query: `select
+				json_build_object(
+				  'name', concat('#', rigs.id),
+				  'external_url', concat('https://rigs.tableland.xyz/', rigs.id),
+				  'attributes', json_build_array(
+					  json_build_object('trait_type', 'Fleet', 'value', rigs.fleet),
+					  json_build_object('trait_type', 'Chassis', 'value', rigs.chassis),
+					  json_build_object('trait_type', 'Wheels', 'value', rigs.wheels),
+					  json_build_object('trait_type', 'Background', 'value', rigs.background),
+					  json_build_object('trait_type', (
+						select name from badges_2 where badges.rig_id = rigs.id and position = 1 limit 1
+					  ), 'value', (
+						select image from badges_2 where badges.rig_id = rigs.id and position = 1 limit 1
+					  ))
+				  )
+			  )
+			  from rigs_1;`,
+			expRawQuery: `SELECT json_build_object('name', concat('#', rigs.id), 'external_url', concat('https://rigs.tableland.xyz/', rigs.id), 'attributes', json_build_array(json_build_object('trait_type', 'Fleet', 'value', rigs.fleet), json_build_object('trait_type', 'Chassis', 'value', rigs.chassis), json_build_object('trait_type', 'Wheels', 'value', rigs.wheels), json_build_object('trait_type', 'Background', 'value', rigs.background), json_build_object('trait_type', (SELECT name FROM _1337_2 WHERE badges.rig_id = rigs.id AND "position" = 1 LIMIT 1), 'value', (SELECT image FROM _1337_2 WHERE badges.rig_id = rigs.id AND "position" = 1 LIMIT 1)))) FROM _1337_1`, //nolint
+			expErrType:  nil,
+		},
 
 		// Single-statement check.
 		{
