@@ -178,6 +178,10 @@ func main() {
 		if err := router.Close(ctx); err != nil {
 			log.Error().Err(err).Msg("closing http server")
 		}
+
+		if err := userStore.Close(); err != nil {
+			log.Error().Err(err).Msg("closing user store")
+		}
 	})
 }
 
@@ -312,7 +316,9 @@ func createChainIDStack(
 
 			ep.Stop()
 			conn.Close()
-			systemStore.Close()
+			if err := systemStore.Close(); err != nil {
+				log.Error().Int64("chainId", int64(config.ChainID)).Err(err).Msg("closing system store")
+			}
 			return nil
 		},
 	}, nil
