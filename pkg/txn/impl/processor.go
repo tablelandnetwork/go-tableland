@@ -537,7 +537,7 @@ func (b *batch) executeWriteStmt(
 	ctx context.Context,
 	tx pgx.Tx,
 	ws parsing.WriteStmt,
-	controller common.Address,
+	addr common.Address,
 	policy tableland.Policy,
 	beforeRowCount int) error {
 	controller, err := getController(ctx, tx, b.tp.chainID, ws.GetTableID())
