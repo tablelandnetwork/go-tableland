@@ -406,6 +406,7 @@ func GetTableNameAndRowCountByTableID(
 		return "", 0, fmt.Errorf("parsing table id to numeric: %s", err)
 	}
 
+	// TODO(jsign): use new method.
 	dbTableName := fmt.Sprintf("_%d_%s", chainID, tableID)
 	q := fmt.Sprintf(
 		"SELECT (SELECT name FROM registry where chain_id=$1 AND id=$2), (SELECT count(*) FROM %s)", dbTableName)

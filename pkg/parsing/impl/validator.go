@@ -3,7 +3,6 @@ package impl
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -370,6 +369,10 @@ func (ws *sugaredWriteStmt) CheckColumns(allowedColumns []string) error {
 	return nil
 }
 
+func (ws *sugaredWriteStmt) GetDBTableName() string {
+	return ws.dbTableName
+}
+
 type sugaredGrantStmt struct {
 	*sugaredMutatingStmt
 }
@@ -429,8 +432,8 @@ func (pp *QueryValidator) deepSelectDesugaring(stmt *pg_query.Node) error {
 	}
 
 	if selectStmt := stmt.GetSelectStmt(); selectStmt != nil {
-		buf, _ := json.MarshalIndent(selectStmt, "", "  ")
-		fmt.Printf("SELECT: %s\n", buf)
+		//buf, _ := json.MarshalIndent(selectStmt, "", "  ")
+		//fmt.Printf("SELECT: %s\n", buf)
 		for _, col := range selectStmt.TargetList {
 			if err := pp.deepSelectDesugaring(col); err != nil {
 				return fmt.Errorf("desugaring column: %s", err)
