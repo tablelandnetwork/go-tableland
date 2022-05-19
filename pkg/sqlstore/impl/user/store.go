@@ -8,7 +8,6 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
-	txnimpl "github.com/textileio/go-tableland/pkg/txn/impl"
 )
 
 // UserStore provides access to the db store.
@@ -29,17 +28,6 @@ func New(pool *pgxpool.Pool, chainID tableland.ChainID) *UserStore {
 func (db *UserStore) Read(ctx context.Context, rq parsing.SugaredReadStmt) (interface{}, error) {
 	var ret interface{}
 	f := func(tx pgx.Tx) error {
-		wqName := rq.GetNamePrefix()
-		if wqName != "" {
-			dbName, _, err := txnimpl.GetTableNameAndRowCountByTableID(ctx, tx, db.chainID, rq.GetTableID())
-			if err != nil {
-				return fmt.Errorf("table name lookup for table id: %s", err)
-			}
-			if dbName != wqName {
-				return fmt.Errorf("table name prefix doesn't match (exp %s, got %s)", dbName, wqName)
-			}
-		}
-
 		desugared, err := rq.GetDesugaredQuery()
 		if err != nil {
 			return fmt.Errorf("get desugared query: %s", err)

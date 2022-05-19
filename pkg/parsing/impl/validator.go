@@ -115,10 +115,9 @@ func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.SugaredReadStmt,
 		if err := validateReadQuery(stmt); err != nil {
 			return nil, nil, fmt.Errorf("validating read-query: %w", err)
 		}
-		return &sugaredStmt{
-			pp:        pp,
-			node:      stmt,
-			operation: tableland.OpSelect,
+		return &sugaredReadStmt{
+			pp:   pp,
+			node: stmt,
 		}, nil, nil
 	}
 
@@ -161,8 +160,7 @@ func (pp *QueryValidator) ValidateRunSQL(query string) (parsing.SugaredReadStmt,
 	ret := make([]parsing.SugaredMutatingStmt, len(parsed.Stmts))
 	for i := range parsed.Stmts {
 		stmt := parsed.Stmts[i].Stmt
-		s := &sugaredStmt{
-			pp:          pp,
+		s := &sugaredMutatingStmt{
 			dbTableName: dbTableName,
 			node:        stmt,
 			namePrefix:  namePrefix,
@@ -224,8 +222,7 @@ func (pp *QueryValidator) deconstructRefTable(refTable string) (string, string, 
 	return namePrefix, tableID, dbTableName, nil
 }
 
-type sugaredStmt struct {
-	pp          *QueryValidator
+type sugaredMutatingStmt struct {
 	node        *pg_query.Node
 	namePrefix  string // From {name}_{tableID} -> {name}
 	tableName   string // From {name}_{ID} -> _{ID}
@@ -233,7 +230,7 @@ type sugaredStmt struct {
 	operation   tableland.Operation
 }
 
-func (s *sugaredStmt) GetDesugaredQuery() (string, error) {
+func (s *sugaredMutatingStmt) GetDesugaredQuery() (string, error) {
 	parsedTree := &pg_query.ParseResult{}
 
 	if insertStmt := s.node.GetInsertStmt(); insertStmt != nil {
@@ -242,10 +239,6 @@ func (s *sugaredStmt) GetDesugaredQuery() (string, error) {
 		updateStmt.Relation.Relname = s.dbTableName
 	} else if deleteStmt := s.node.GetDeleteStmt(); deleteStmt != nil {
 		deleteStmt.Relation.Relname = s.dbTableName
-	} else if selectStmt := s.node.GetSelectStmt(); selectStmt != nil {
-		if err := s.pp.deepSelectDesugaring(s.node); err != nil {
-			return "", fmt.Errorf("deep desugaring: %s", err)
-		}
 	} else if grantStmt := s.node.GetGrantStmt(); grantStmt != nil {
 		// It is safe to assume Objects has always one element.
 		// This is validated in the checkPrivileges call.
@@ -261,74 +254,21 @@ func (s *sugaredStmt) GetDesugaredQuery() (string, error) {
 	return wq, nil
 }
 
-func (pp *QueryValidator) deepSelectDesugaring(stmt *pg_query.Node) error {
-	if stmt == nil {
-		return nil
-	}
-
-	if selectStmt := stmt.GetSelectStmt(); selectStmt != nil {
-		buf, _ := json.MarshalIndent(selectStmt, "", "  ")
-		fmt.Printf("SELECT: %s\n", buf)
-		for _, col := range selectStmt.TargetList {
-			if err := pp.deepSelectDesugaring(col); err != nil {
-				return fmt.Errorf("desugaring column: %s", err)
-			}
-		}
-		for _, from := range selectStmt.FromClause {
-			if err := pp.deepSelectDesugaring(from); err != nil {
-				return fmt.Errorf("desugaring from: %s", err)
-			}
-		}
-		if err := pp.deepSelectDesugaring(selectStmt.WhereClause); err != nil {
-			return fmt.Errorf("desugaring where: %s", err)
-		}
-	} else if rangeVar := stmt.GetRangeVar(); rangeVar != nil {
-		if rangeVar.Relname != "" {
-			_, _, dbName, err := pp.deconstructRefTable(rangeVar.Relname)
-			if err != nil {
-				return fmt.Errorf("deconstructing table name %s: %s", rangeVar.Relname, err)
-			}
-			rangeVar.Relname = dbName
-		}
-	} else if resTarget := stmt.GetResTarget(); resTarget != nil {
-		if err := pp.deepSelectDesugaring(resTarget.GetVal()); err != nil {
-			return fmt.Errorf("desugaring res target: %s", err)
-		}
-	} else if joinExpr := stmt.GetJoinExpr(); joinExpr != nil {
-		if err := pp.deepSelectDesugaring(joinExpr.Larg); err != nil {
-			return fmt.Errorf("desugaring larg of join expr: %s", err)
-		}
-		if err := pp.deepSelectDesugaring(joinExpr.Rarg); err != nil {
-			return fmt.Errorf("desugaring rarg of join expr: %s", err)
-		}
-	} else if subLink := stmt.GetSubLink(); subLink != nil {
-		if err := pp.deepSelectDesugaring(subLink.Subselect); err != nil {
-			return fmt.Errorf("desugaring sublink subselect: %s", err)
-		}
-	}
-
-	return nil
-}
-
-func (s *sugaredStmt) GetNamePrefix() string {
+func (s *sugaredMutatingStmt) GetNamePrefix() string {
 	return s.namePrefix
 }
 
-func (s *sugaredStmt) GetDBTableName() string {
-	return s.dbTableName
-}
-
-func (s *sugaredStmt) GetTableID() tableland.TableID {
+func (s *sugaredMutatingStmt) GetTableID() tableland.TableID {
 	tid, _ := tableland.NewTableID(s.tableName[1:])
 	return tid
 }
 
-func (s *sugaredStmt) Operation() tableland.Operation {
+func (s *sugaredMutatingStmt) Operation() tableland.Operation {
 	return s.operation
 }
 
 type sugaredWriteStmt struct {
-	*sugaredStmt
+	*sugaredMutatingStmt
 }
 
 func (ws *sugaredWriteStmt) AddWhereClause(whereClauses string) error {
@@ -431,14 +371,14 @@ func (ws *sugaredWriteStmt) CheckColumns(allowedColumns []string) error {
 }
 
 type sugaredGrantStmt struct {
-	*sugaredStmt
+	*sugaredMutatingStmt
 }
 
 func (gs *sugaredGrantStmt) GetRoles() []common.Address {
 	// The rolenames of grantees are safe to use.
 	// They were already validated in the previous checkRoles call.
 
-	grantees := gs.sugaredStmt.node.GetGrantStmt().GetGrantees()
+	grantees := gs.sugaredMutatingStmt.node.GetGrantStmt().GetGrantees()
 	roles := make([]common.Address, len(grantees))
 	for i, grantee := range grantees {
 		roles[i] = common.HexToAddress(grantee.GetRoleSpec().GetRolename())
@@ -448,7 +388,7 @@ func (gs *sugaredGrantStmt) GetRoles() []common.Address {
 }
 
 func (gs *sugaredGrantStmt) GetPrivileges() tableland.Privileges {
-	privilegesNodes := gs.sugaredStmt.node.GetGrantStmt().GetPrivileges()
+	privilegesNodes := gs.sugaredMutatingStmt.node.GetGrantStmt().GetPrivileges()
 	privileges := make(tableland.Privileges, len(privilegesNodes))
 	for i, privilegeNode := range privilegesNodes {
 		// error is safe to ignore here because the SQL strings were validated before
@@ -458,6 +398,78 @@ func (gs *sugaredGrantStmt) GetPrivileges() tableland.Privileges {
 	}
 
 	return privileges
+}
+
+type sugaredReadStmt struct {
+	pp   *QueryValidator
+	node *pg_query.Node
+}
+
+func (s *sugaredReadStmt) GetDesugaredQuery() (string, error) {
+	parsedTree := &pg_query.ParseResult{}
+
+	if selectStmt := s.node.GetSelectStmt(); selectStmt != nil {
+		if err := s.pp.deepSelectDesugaring(s.node); err != nil {
+			return "", fmt.Errorf("deep desugaring: %s", err)
+		}
+	}
+
+	rs := &pg_query.RawStmt{Stmt: s.node}
+	parsedTree.Stmts = []*pg_query.RawStmt{rs}
+	wq, err := pg_query.Deparse(parsedTree)
+	if err != nil {
+		return "", fmt.Errorf("deparsing statement: %s", err)
+	}
+	return wq, nil
+}
+
+func (pp *QueryValidator) deepSelectDesugaring(stmt *pg_query.Node) error {
+	if stmt == nil {
+		return nil
+	}
+
+	if selectStmt := stmt.GetSelectStmt(); selectStmt != nil {
+		buf, _ := json.MarshalIndent(selectStmt, "", "  ")
+		fmt.Printf("SELECT: %s\n", buf)
+		for _, col := range selectStmt.TargetList {
+			if err := pp.deepSelectDesugaring(col); err != nil {
+				return fmt.Errorf("desugaring column: %s", err)
+			}
+		}
+		for _, from := range selectStmt.FromClause {
+			if err := pp.deepSelectDesugaring(from); err != nil {
+				return fmt.Errorf("desugaring from: %s", err)
+			}
+		}
+		if err := pp.deepSelectDesugaring(selectStmt.WhereClause); err != nil {
+			return fmt.Errorf("desugaring where: %s", err)
+		}
+	} else if rangeVar := stmt.GetRangeVar(); rangeVar != nil {
+		if rangeVar.Relname != "" {
+			_, _, dbName, err := pp.deconstructRefTable(rangeVar.Relname)
+			if err != nil {
+				return fmt.Errorf("deconstructing table name %s: %s", rangeVar.Relname, err)
+			}
+			rangeVar.Relname = dbName
+		}
+	} else if resTarget := stmt.GetResTarget(); resTarget != nil {
+		if err := pp.deepSelectDesugaring(resTarget.GetVal()); err != nil {
+			return fmt.Errorf("desugaring res target: %s", err)
+		}
+	} else if joinExpr := stmt.GetJoinExpr(); joinExpr != nil {
+		if err := pp.deepSelectDesugaring(joinExpr.Larg); err != nil {
+			return fmt.Errorf("desugaring larg of join expr: %s", err)
+		}
+		if err := pp.deepSelectDesugaring(joinExpr.Rarg); err != nil {
+			return fmt.Errorf("desugaring rarg of join expr: %s", err)
+		}
+	} else if subLink := stmt.GetSubLink(); subLink != nil {
+		if err := pp.deepSelectDesugaring(subLink.Subselect); err != nil {
+			return fmt.Errorf("desugaring sublink subselect: %s", err)
+		}
+	}
+
+	return nil
 }
 
 func (pp *QueryValidator) validateWriteQuery(stmt *pg_query.Node) (string, error) {
