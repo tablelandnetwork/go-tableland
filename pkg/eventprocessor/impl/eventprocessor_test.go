@@ -275,12 +275,12 @@ func setup(t *testing.T) (
 
 	// Spin up dependencies needed for the EventProcessor.
 	// i.e: TxnProcessor, Parser, and EventFeed (connected to the EVM chain)
-	ef, err := efimpl.New(1337, backend, addr, eventfeed.WithMinBlockDepth(0))
+	ef, err := efimpl.New(chainID, backend, addr, eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
 	url := tests.PostgresURL(t)
-	txnp, err := txnpimpl.NewTxnProcessor(1337, url, 0, &aclMock{})
+	txnp, err := txnpimpl.NewTxnProcessor(chainID, url, 0, &aclMock{})
 	require.NoError(t, err)
-	parser := parserimpl.New([]string{"system_", "registry"}, 1337, 0, 0)
+	parser := parserimpl.New([]string{"system_", "registry"}, 0, 0)
 
 	// Create EventProcessor for our test.
 	ep, err := New(parser, txnp, ef, chainID)
@@ -313,10 +313,10 @@ func setup(t *testing.T) (
 		return txn.Hash()
 	}
 
-	sqlstr, err := sqlstoreimpl.New(ctx, tableland.ChainID(1337), url)
+	sqlstr, err := sqlstoreimpl.New(ctx, tableland.ChainID(chainID), url)
 	require.NoError(t, err)
 	tableReader := func(readQuery string) []int {
-		rq, _, err := parser.ValidateRunSQL(readQuery)
+		rq, err := parser.ValidateReadQuery(readQuery)
 		require.NoError(t, err)
 		require.NotNil(t, rq)
 		res, err := sqlstr.Read(ctx, rq)
@@ -351,7 +351,7 @@ func setup(t *testing.T) (
 	b, err := txnp.OpenBatch(ctx)
 	require.NoError(t, err)
 
-	createStmt, err := parser.ValidateCreateTable("CREATE TABLE test (foo int)")
+	createStmt, err := parser.ValidateCreateTable("CREATE TABLE test_1337 (foo int)", chainID)
 	require.NoError(t, err)
 	err = b.InsertTable(ctx, tableland.TableID(*big.NewInt(1000)), "ctrl-1", createStmt)
 	require.NoError(t, err)

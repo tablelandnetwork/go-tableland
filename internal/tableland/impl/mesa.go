@@ -14,12 +14,16 @@ import (
 
 // TablelandMesa is the main implementation of Tableland spec.
 type TablelandMesa struct {
+	parser      parsing.SQLValidator
 	chainStacks map[tableland.ChainID]chains.ChainStack
 }
 
 // NewTablelandMesa creates a new TablelandMesa.
-func NewTablelandMesa(chainStacks map[tableland.ChainID]chains.ChainStack) tableland.Tableland {
+func NewTablelandMesa(
+	parser parsing.SQLValidator,
+	chainStacks map[tableland.ChainID]chains.ChainStack) tableland.Tableland {
 	return &TablelandMesa{
+		parser:      parser,
 		chainStacks: chainStacks,
 	}
 }
@@ -34,57 +38,71 @@ func (t *TablelandMesa) ValidateCreateTable(
 	if !ok {
 		return tableland.ValidateCreateTableResponse{}, errors.New("no chain id found in context")
 	}
-	stack, ok := t.chainStacks[chainID]
-	if !ok {
-		return tableland.ValidateCreateTableResponse{}, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
-	}
-	createStmt, err := stack.Parser.ValidateCreateTable(req.CreateStatement)
+	createStmt, err := t.parser.ValidateCreateTable(req.CreateStatement, chainID)
 	if err != nil {
 		return tableland.ValidateCreateTableResponse{}, fmt.Errorf("parsing create table statement: %s", err)
 	}
 	return tableland.ValidateCreateTableResponse{StructureHash: createStmt.GetStructureHash()}, nil
 }
 
-// RunSQL allows the user to run SQL.
-func (t *TablelandMesa) RunSQL(ctx context.Context, req tableland.RunSQLRequest) (tableland.RunSQLResponse, error) {
+// RelayWriteQuery allows the user to rely on the validator wrapping the query in a chain transaction.
+func (t *TablelandMesa) RelayWriteQuery(
+	ctx context.Context,
+	req tableland.RelayWriteQueryRequest) (tableland.RelayWriteQueryResponse, error) {
 	ctxController := ctx.Value(middlewares.ContextKeyAddress)
 	controller, ok := ctxController.(string)
 	if !ok || controller == "" {
-		return tableland.RunSQLResponse{}, errors.New("no controller address found in context")
+		return tableland.RelayWriteQueryResponse{}, errors.New("no controller address found in context")
 	}
 	ctxChainID := ctx.Value(middlewares.ContextKeyChainID)
 	chainID, ok := ctxChainID.(tableland.ChainID)
 	if !ok {
-		return tableland.RunSQLResponse{}, errors.New("no chain id found in context")
+		return tableland.RelayWriteQueryResponse{}, errors.New("no chain id found in context")
 	}
 	stack, ok := t.chainStacks[chainID]
 	if !ok {
-		return tableland.RunSQLResponse{}, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
+		return tableland.RelayWriteQueryResponse{}, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
 	}
-	readStmt, mutatingStmts, err := stack.Parser.ValidateRunSQL(req.Statement)
+	mutatingStmts, err := t.parser.ValidateMutatingQuery(req.Statement, chainID)
 	if err != nil {
-		return tableland.RunSQLResponse{}, fmt.Errorf("validating query: %s", err)
+		return tableland.RelayWriteQueryResponse{}, fmt.Errorf("validating query: %s", err)
 	}
 
-	// Read statement
-	if readStmt != nil {
-		queryResult, err := t.runSelect(ctx, chainID, readStmt)
-		if err != nil {
-			return tableland.RunSQLResponse{}, fmt.Errorf("running read statement: %s", err)
-		}
-		return tableland.RunSQLResponse{Result: queryResult}, nil
-	}
-
-	// Mutating statements
 	tableID := mutatingStmts[0].GetTableID()
 	tx, err := stack.Registry.RunSQL(ctx, common.HexToAddress(controller), tableID, req.Statement)
 	if err != nil {
-		return tableland.RunSQLResponse{}, fmt.Errorf("sending tx: %s", err)
+		return tableland.RelayWriteQueryResponse{}, fmt.Errorf("sending tx: %s", err)
 	}
 
-	response := tableland.RunSQLResponse{}
+	response := tableland.RelayWriteQueryResponse{}
 	response.Transaction.Hash = tx.Hash().String()
 	return response, nil
+}
+
+// RunReadQuery allows the user to run SQL.
+func (t *TablelandMesa) RunReadQuery(
+	ctx context.Context,
+	req tableland.RunReadQueryRequest) (tableland.RunReadQueryResponse, error) {
+	ctxController := ctx.Value(middlewares.ContextKeyAddress)
+	controller, ok := ctxController.(string)
+	if !ok || controller == "" {
+		return tableland.RunReadQueryResponse{}, errors.New("no controller address found in context")
+	}
+	ctxChainID := ctx.Value(middlewares.ContextKeyChainID)
+	chainID, ok := ctxChainID.(tableland.ChainID)
+	if !ok {
+		return tableland.RunReadQueryResponse{}, errors.New("no chain id found in context")
+	}
+	readStmt, err := t.parser.ValidateReadQuery(req.Statement)
+	if err != nil {
+		return tableland.RunReadQueryResponse{}, fmt.Errorf("validating query: %s", err)
+	}
+
+	queryResult, err := t.runSelect(ctx, chainID, readStmt)
+	if err != nil {
+		return tableland.RunReadQueryResponse{}, fmt.Errorf("running read statement: %s", err)
+	}
+	return tableland.RunReadQueryResponse{Result: queryResult}, nil
 }
 
 // GetReceipt returns the receipt of a processed event by txn hash.

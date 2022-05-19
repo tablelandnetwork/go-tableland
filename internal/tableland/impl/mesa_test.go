@@ -73,21 +73,21 @@ func TestInsertOnConflict(t *testing.T) {
 	backend.Commit()
 
 	ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller.Hex())
-	baseReq := tableland.RunSQLRequest{}
+	baseReq := tableland.RelayWriteQueryRequest{}
 	req := baseReq
 	var txnHashes []string
 	for i := 0; i < 10; i++ {
 		req.Statement = `INSERT INTO _0 VALUES ('bar', 0) ON CONFLICT (name) DO UPDATE SET count=_0.count+1`
-		r, err := tbld.RunSQL(ctx, req)
+		r, err := tbld.RelayWriteQuery(ctx, req)
 		require.NoError(t, err)
 		backend.Commit()
 		txnHashes = append(txnHashes, r.Transaction.Hash)
 	}
 
-	req.Statement = "SELECT count FROM _0"
+	readReq := tableland.RunReadQueryRequest{Statement: "SELECT count FROM _0"}
 	require.Eventually(
 		t,
-		jsonEq(ctx, t, tbld, req, `{"columns":[{"name":"count"}],"rows":[[9]]}`),
+		jsonEq(ctx, t, tbld, readReq, `{"columns":[{"name":"count"}],"rows":[[9]]}`),
 		time.Second*5,
 		time.Millisecond*100,
 	)
@@ -107,17 +107,17 @@ func TestMultiStatement(t *testing.T) {
 	require.NoError(t, err)
 
 	ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller.Hex())
-	req := tableland.RunSQLRequest{
+	req := tableland.RelayWriteQueryRequest{
 		Statement: `INSERT INTO foo_0 values ('bar'); UPDATE foo_0 SET name='zoo'`,
 	}
-	r, err := tbld.RunSQL(ctx, req)
+	r, err := tbld.RelayWriteQuery(ctx, req)
 	require.NoError(t, err)
 	backend.Commit()
 
-	req.Statement = "SELECT name from _0"
+	readReq := tableland.RunReadQueryRequest{Statement: "SELECT name from _0"}
 	require.Eventually(
 		t,
-		jsonEq(ctx, t, tbld, req, `{"columns":[{"name":"name"}],"rows":[["zoo"]]}`),
+		jsonEq(ctx, t, tbld, readReq, `{"columns":[{"name":"name"}],"rows":[["zoo"]]}`),
 		time.Second*5,
 		time.Millisecond*100,
 	)
@@ -133,7 +133,7 @@ func TestReadSystemTable(t *testing.T) {
 	_, err := sc.CreateTable(txOpts, caller, `CREATE TABLE foo (myjson JSON);`)
 	require.NoError(t, err)
 
-	res, err := runSQL(ctx, t, tbld, "select * from registry", caller.Hex())
+	res, err := runReadQuery(ctx, t, tbld, "select * from registry", caller.Hex())
 	require.NoError(t, err)
 	_, err = json.Marshal(res.Result)
 	require.NoError(t, err)
@@ -191,13 +191,13 @@ func TestCheckInsertPrivileges(t *testing.T) {
 
 				// execute grant statement according to test case
 				grantQuery := fmt.Sprintf("GRANT %s ON foo_%s TO \"%s\"", strings.Join(privileges, ","), testCase, grantee)
-				r, err := runSQL(ctx, t, tbldGranter, grantQuery, granter)
+				r, err := relayWriteQuery(ctx, t, tbldGranter, grantQuery, granter)
 				require.NoError(t, err)
 				backend.Commit()
 				successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
 			}
 
-			r, err := runSQL(ctx, t, tbldGrantee, fmt.Sprintf(test.query, testCase), grantee)
+			r, err := relayWriteQuery(ctx, t, tbldGrantee, fmt.Sprintf(test.query, testCase), grantee)
 			require.NoError(t, err)
 			backend.Commit()
 
@@ -252,7 +252,7 @@ func TestCheckUpdatePrivileges(t *testing.T) {
 			var successfulTxnHashes []string
 
 			// we initilize the table with a row to be updated
-			r, err := runSQL(ctx, t, tbldGranter, fmt.Sprintf("INSERT INTO foo_%s (bar) VALUES ('Hello')", testCase), granter)
+			r, err := relayWriteQuery(ctx, t, tbldGranter, fmt.Sprintf("INSERT INTO foo_%s (bar) VALUES ('Hello')", testCase), granter)
 			require.NoError(t, err)
 			backend.Commit()
 			successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
@@ -265,13 +265,13 @@ func TestCheckUpdatePrivileges(t *testing.T) {
 
 				// execute grant statement according to test case
 				grantQuery := fmt.Sprintf("GRANT %s ON foo_%s TO \"%s\"", strings.Join(privileges, ","), testCase, grantee)
-				r, err := runSQL(ctx, t, tbldGranter, grantQuery, granter)
+				r, err := relayWriteQuery(ctx, t, tbldGranter, grantQuery, granter)
 				require.NoError(t, err)
 				backend.Commit()
 				successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
 			}
 
-			r, err = runSQL(ctx, t, tbldGrantee, fmt.Sprintf(test.query, testCase), grantee)
+			r, err = relayWriteQuery(ctx, t, tbldGrantee, fmt.Sprintf(test.query, testCase), grantee)
 			require.NoError(t, err)
 			backend.Commit()
 
@@ -325,7 +325,7 @@ func TestCheckDeletePrivileges(t *testing.T) {
 			var successfulTxnHashes []string
 
 			// we initilize the table with a row to be delete
-			_, err = runSQL(ctx, t, tbldGranter, fmt.Sprintf("INSERT INTO foo_%s (bar) VALUES ('Hello')", testCase), granter)
+			_, err = runReadQuery(ctx, t, tbldGranter, fmt.Sprintf("INSERT INTO foo_%s (bar) VALUES ('Hello')", testCase), granter)
 			require.NoError(t, err)
 			backend.Commit()
 
@@ -337,13 +337,13 @@ func TestCheckDeletePrivileges(t *testing.T) {
 
 				// execute grant statement according to test case
 				grantQuery := fmt.Sprintf("GRANT %s ON foo_%s TO \"%s\"", strings.Join(privileges, ","), testCase, grantee)
-				r, err := runSQL(ctx, t, tbldGranter, grantQuery, granter)
+				r, err := relayWriteQuery(ctx, t, tbldGranter, grantQuery, granter)
 				require.NoError(t, err)
 				backend.Commit()
 				successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
 			}
 
-			r, err := runSQL(ctx, t, tbldGrantee, fmt.Sprintf(test.query, testCase), grantee)
+			r, err := relayWriteQuery(ctx, t, tbldGrantee, fmt.Sprintf(test.query, testCase), grantee)
 			require.NoError(t, err)
 			backend.Commit()
 
@@ -379,7 +379,7 @@ func TestOwnerRevokesItsPrivilegeInsideMultipleStatements(t *testing.T) {
 		REVOKE update ON foo_0 FROM "` + caller + `";
 		UPDATE foo_0 SET bar = 'Hello 3';
 	`
-	r, err := runSQL(ctx, t, tbld, multiStatements, caller)
+	r, err := relayWriteQuery(ctx, t, tbld, multiStatements, caller)
 	require.NoError(t, err)
 	backend.Commit()
 
@@ -399,16 +399,14 @@ func processCSV(
 	t.Helper()
 
 	ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller.Hex())
-	baseReq := tableland.RunSQLRequest{}
 	records := readCsvFile(t, csvPath)
 	for _, record := range records {
-		req := baseReq
-		req.Statement = record[1]
-
 		if record[0] == "r" {
+			req := tableland.RunReadQueryRequest{Statement: record[1]}
 			require.Eventually(t, jsonEq(ctx, t, tbld, req, record[2]), time.Second*5, time.Millisecond*100)
 		} else {
-			_, err := tbld.RunSQL(ctx, req)
+			req := tableland.RelayWriteQueryRequest{Statement: record[1]}
+			_, err := tbld.RelayWriteQuery(ctx, req)
 			require.NoError(t, err)
 			backend.Commit()
 		}
@@ -419,10 +417,10 @@ func jsonEq(
 	ctx context.Context,
 	t *testing.T,
 	tbld tableland.Tableland,
-	req tableland.RunSQLRequest,
+	req tableland.RunReadQueryRequest,
 	expJSON string) func() bool {
 	return func() bool {
-		r, err := tbld.RunSQL(ctx, req)
+		r, err := tbld.RunReadQuery(ctx, req)
 		// if we get a table undefined error, try again
 		if err != nil && strings.Contains(err.Error(), "SQLSTATE 42P01") {
 			return false
@@ -458,7 +456,7 @@ func runSQLCountEq(
 	address string,
 	expCount int) func() bool {
 	return func() bool {
-		response, err := runSQL(ctx, t, tbld, sql, address)
+		response, err := runReadQuery(ctx, t, tbld, sql, address)
 		// if we get a table undefined error, try again
 		if err != nil && strings.Contains(err.Error(), "SQLSTATE 42P01") {
 			return false
@@ -481,20 +479,36 @@ func runSQLCountEq(
 	}
 }
 
-func runSQL(
+func runReadQuery(
 	ctx context.Context,
 	t *testing.T,
 	tbld tableland.Tableland,
 	sql string,
-	controller string) (tableland.RunSQLResponse, error) {
+	controller string) (tableland.RunReadQueryResponse, error) {
 	t.Helper()
 
 	ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, controller)
-	req := tableland.RunSQLRequest{
+	req := tableland.RunReadQueryRequest{
 		Statement: sql,
 	}
 
-	return tbld.RunSQL(ctx, req)
+	return tbld.RunReadQuery(ctx, req)
+}
+
+func relayWriteQuery(
+	ctx context.Context,
+	t *testing.T,
+	tbld tableland.Tableland,
+	sql string,
+	controller string) (tableland.RelayWriteQueryResponse, error) {
+	t.Helper()
+
+	ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, controller)
+	req := tableland.RelayWriteQueryRequest{
+		Statement: sql,
+	}
+
+	return tbld.RelayWriteQuery(ctx, req)
 }
 
 func readCsvFile(t *testing.T, filePath string) [][]string {
@@ -529,7 +543,7 @@ func setup(
 	store, err := sqlstoreimpl.New(ctx, tableland.ChainID(1337), url)
 	require.NoError(t, err)
 
-	parser := parserimpl.New([]string{"system_", "registry"}, 1337, 0, 0)
+	parser := parserimpl.New([]string{"system_", "registry"}, 0, 0)
 	txnp, err := txnpimpl.NewTxnProcessor(1337, url, 0, &aclHalfMock{store})
 	require.NoError(t, err)
 
@@ -546,9 +560,11 @@ func setup(
 		impl.NewSimpleTracker(wallet, backend),
 	)
 	require.NoError(t, err)
-	tbld := NewTablelandMesa(map[tableland.ChainID]chains.ChainStack{
-		1337: {Store: store, Registry: registry, Parser: parser},
-	})
+	tbld := NewTablelandMesa(
+		parser,
+		map[tableland.ChainID]chains.ChainStack{
+			1337: {Store: store, Registry: registry},
+		})
 
 	// Spin up dependencies needed for the EventProcessor.
 	// i.e: TxnProcessor, Parser, and EventFeed (connected to the EVM chain)
@@ -581,7 +597,7 @@ func setupTablelandForTwoAddresses(t *testing.T) (context.Context,
 	store, err := sqlstoreimpl.New(ctx, tableland.ChainID(1337), url)
 	require.NoError(t, err)
 
-	parser := parserimpl.New([]string{"system_", "registry"}, 1337, 0, 0)
+	parser := parserimpl.New([]string{"system_", "registry"}, 0, 0)
 	txnp, err := txnpimpl.NewTxnProcessor(1337, url, 0, &aclHalfMock{store})
 	require.NoError(t, err)
 
@@ -598,9 +614,11 @@ func setupTablelandForTwoAddresses(t *testing.T) (context.Context,
 		impl.NewSimpleTracker(wallet1, backend),
 	)
 	require.NoError(t, err)
-	tbld1 := NewTablelandMesa(map[tableland.ChainID]chains.ChainStack{
-		1337: {Store: store, Registry: registry, Parser: parser},
-	})
+	tbld1 := NewTablelandMesa(
+		parser,
+		map[tableland.ChainID]chains.ChainStack{
+			1337: {Store: store, Registry: registry},
+		})
 
 	key2, err := crypto.GenerateKey()
 	require.NoError(t, err)
@@ -621,9 +639,11 @@ func setupTablelandForTwoAddresses(t *testing.T) (context.Context,
 		impl.NewSimpleTracker(wallet2, backend),
 	)
 	require.NoError(t, err)
-	tbld2 := NewTablelandMesa(map[tableland.ChainID]chains.ChainStack{
-		1337: {Store: store, Registry: registry2, Parser: parser},
-	})
+	tbld2 := NewTablelandMesa(
+		parser,
+		map[tableland.ChainID]chains.ChainStack{
+			1337: {Store: store, Registry: registry2},
+		})
 
 	// Spin up dependencies needed for the EventProcessor.
 	// i.e: TxnProcessor, Parser, and EventFeed (connected to the EVM chain)
