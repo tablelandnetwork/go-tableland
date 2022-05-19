@@ -944,9 +944,9 @@ func TestGetWriteStatements(t *testing.T) {
 				require.NoError(t, err)
 
 				for i := range stmts {
-					desugared, err := stmts[i].GetQuery()
+					query, err := stmts[i].GetQuery()
 					require.NoError(t, err)
-					require.Equal(t, tc.expectedStmts[i], desugared)
+					require.Equal(t, tc.expectedStmts[i], query)
 				}
 			}
 		}(it))
