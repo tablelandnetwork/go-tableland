@@ -43,7 +43,7 @@ func TestMultichainMigration(t *testing.T) {
 	require.Equal(t, 0, oldNamesCountAfterMigration)
 
 	queryNewFormat :=
-		`SELECT count(*) FROM information_schema.tables WHERE table_name ~ '^_4_[0-9]+$' and table_type='BASE TABLE'`
+		`SELECT count(*) FROM information_schema.tables WHERE table_name ~ '^\w+_4_[0-9]+$' and table_type='BASE TABLE'`
 	newNamesCountAfterMigration := execQueryCount(queryNewFormat)
 	require.Equal(t, oldNamesCountBeforeMigration, newNamesCountAfterMigration)
 }
