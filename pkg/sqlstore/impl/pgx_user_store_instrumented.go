@@ -12,14 +12,14 @@ import (
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
 )
 
-// InstrumentedSystemStore implements a instrumented SQLStore interface using pgx.
+// InstrumentedUserStore implements a instrumented SQLStore interface using pgx.
 type InstrumentedUserStore struct {
 	store            sqlstore.UserStore
 	callCount        syncint64.Counter
 	latencyHistogram syncint64.Histogram
 }
 
-// NewInstrumentedUserStore creates a new pgx pool and instantiate system stores.
+// NewInstrumentedUserStore creates a new pgx pool and instantiate user store.
 func NewInstrumentedUserStore(store sqlstore.UserStore) (sqlstore.UserStore, error) {
 	meter := global.MeterProvider().Meter("tableland")
 	callCount, err := meter.SyncInt64().Counter("tableland.sqlstore.call.count")

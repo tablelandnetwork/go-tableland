@@ -48,6 +48,7 @@ func (db *UserStore) Read(ctx context.Context, rq parsing.ReadStmt) (interface{}
 	return ret, nil
 }
 
+// Close closes the store.
 func (db *UserStore) Close() error {
 	db.pool.Close()
 	return nil

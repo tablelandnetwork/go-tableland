@@ -251,6 +251,7 @@ func (s *SystemStore) GetReceipt(
 	return receipt, true, nil
 }
 
+// Close closes the store.
 func (s *SystemStore) Close() error {
 	s.pool.Close()
 	return nil
