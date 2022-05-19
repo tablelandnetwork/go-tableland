@@ -155,6 +155,13 @@ func (t *LocalTracker) GetPendingCount(_ context.Context) int {
 	return len(t.pendingTxs)
 }
 
+// Resync resyncs nonce tracker state with the network.
+func (t *LocalTracker) Resync(ctx context.Context) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.initialize(ctx)
+}
+
 func (t *LocalTracker) initialize(ctx context.Context) error {
 	// Get the nonce from the network
 	networkNonce, err := t.chainClient.PendingNonceAt(ctx, t.wallet.Address())

@@ -43,6 +43,9 @@ type NonceTracker interface {
 
 	// GetPendingCount returns the number of pendings txs.
 	GetPendingCount(context.Context) int
+
+	// Resync resyncs nonce tracker state with the network.
+	Resync(context.Context) error
 }
 
 // ChainClient provides the basic api the a chain needs to provide for an NonceTracker.
