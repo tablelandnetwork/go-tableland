@@ -266,8 +266,8 @@ func (s *sugaredMutatingStmt) Operation() tableland.Operation {
 	return s.operation
 }
 
-func (ws *sugaredMutatingStmt) GetDBTableName() string {
-	return ws.dbTableName
+func (s *sugaredMutatingStmt) GetDBTableName() string {
+	return s.dbTableName
 }
 
 type sugaredWriteStmt struct {
@@ -432,8 +432,6 @@ func (pp *QueryValidator) deepSelectDesugaring(stmt *pg_query.Node) error {
 	}
 
 	if selectStmt := stmt.GetSelectStmt(); selectStmt != nil {
-		//buf, _ := json.MarshalIndent(selectStmt, "", "  ")
-		//fmt.Printf("SELECT: %s\n", buf)
 		for _, col := range selectStmt.TargetList {
 			if err := pp.deepSelectDesugaring(col); err != nil {
 				return fmt.Errorf("desugaring column: %s", err)
