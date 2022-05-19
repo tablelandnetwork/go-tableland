@@ -563,11 +563,11 @@ func (b *batch) executeWriteStmt(
 	}
 
 	if policy.WithCheck() == "" {
-		desugared, err := ws.GetQuery()
+		query, err := ws.GetQuery()
 		if err != nil {
-			return fmt.Errorf("get desugared query: %s", err)
+			return fmt.Errorf("get query query: %s", err)
 		}
-		cmdTag, err := tx.Exec(ctx, desugared)
+		cmdTag, err := tx.Exec(ctx, query)
 		if err != nil {
 			if code, ok := isErrCausedByQuery(err); ok {
 				return &txn.ErrQueryExecution{
@@ -595,12 +595,12 @@ func (b *batch) executeWriteStmt(
 		b.tp.log.Warn().Err(err).Msg("add returning clause called on delete")
 	}
 
-	desugared, err := ws.GetQuery()
+	query, err := ws.GetQuery()
 	if err != nil {
-		return fmt.Errorf("get desugared query: %s", err)
+		return fmt.Errorf("get query: %s", err)
 	}
 
-	affectedRowsCtids, commandTag, err := b.executeQueryAndGetAffectedRows(ctx, tx, desugared)
+	affectedRowsCtids, commandTag, err := b.executeQueryAndGetAffectedRows(ctx, tx, query)
 	if err != nil {
 		return fmt.Errorf("get rows ctids: %s", err)
 	}

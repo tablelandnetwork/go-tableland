@@ -32,11 +32,11 @@ func New(postgresURI string) (*UserStore, error) {
 func (db *UserStore) Read(ctx context.Context, rq parsing.ReadStmt) (interface{}, error) {
 	var ret interface{}
 	f := func(tx pgx.Tx) error {
-		desugared, err := rq.GetQuery()
+		query, err := rq.GetQuery()
 		if err != nil {
-			return fmt.Errorf("get desugared query: %s", err)
+			return fmt.Errorf("get query: %s", err)
 		}
-		ret, err = execReadQuery(ctx, tx, desugared)
+		ret, err = execReadQuery(ctx, tx, query)
 		if err != nil {
 			return fmt.Errorf("parsing result to json: %s", err)
 		}
