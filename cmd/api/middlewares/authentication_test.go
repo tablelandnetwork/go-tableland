@@ -1,6 +1,10 @@
 package middlewares
 
 import (
+	"bytes"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/spruceid/siwe-go"
@@ -35,4 +39,45 @@ func TestSIWE(t *testing.T) {
 		var expErr *siwe.ExpiredMessage
 		require.ErrorAs(t, err, &expErr)
 	})
+}
+
+func TestOptionality(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		rpcMethodName string
+		isAuthorized  bool
+	}{
+		{rpcMethodName: "tableland_runReadQuery", isAuthorized: false},
+		{rpcMethodName: "tableland_relayWriteQuery", isAuthorized: true},
+		{rpcMethodName: "tableland_validateCreateTable", isAuthorized: true},
+		{rpcMethodName: "tableland_getReceipt", isAuthorized: false},
+		{rpcMethodName: "tableland_setController", isAuthorized: true},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.rpcMethodName, func(t *testing.T) {
+			t.Parallel()
+			called := false
+			next := http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+				called = true
+			})
+
+			body := bytes.NewReader([]byte(fmt.Sprintf(`{"method": "%s"}`, tc.rpcMethodName)))
+			r := httptest.NewRequest("POST", "/rpc", body)
+			rw := httptest.NewRecorder()
+
+			h := Authentication(next)
+			h.ServeHTTP(rw, r)
+
+			if tc.isAuthorized {
+				require.Equal(t, http.StatusOK, rw.Code)
+				require.True(t, called)
+			} else {
+				require.Equal(t, http.StatusUnauthorized, rw.Code)
+				require.False(t, called)
+			}
+		})
+	}
 }
