@@ -34,7 +34,7 @@
       "Registry": {
         "EthEndpoint": "wss://opt-kovan.g.alchemy.com/v2/${ALCHEMY_KOVAN_API_KEY}",
         "ChainID": 69,
-        "ContractAddress": "0x2C40Fd55A5f996BBb96B238536B4d31372B23802"
+        "ContractAddress": "0xDE231D5774e79F039B84d82325b4e5d20F7FdFfF"
       },
       "Signer": {
         "PrivateKey": "${KOVAN_SIGNER_PRIVATE_KEY}"
