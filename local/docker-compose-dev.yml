@@ -8,22 +8,13 @@ services:
     platform: linux/{{platform}}
     entrypoint: ["./with-postgres.sh", "./api"]
     environment:
-      - IMPL=mesa
-      - HTTP_PORT=8080
       - DB_HOST=database 
     # - DB_HOST=localhost # Linux
       - DB_POST=5432
       - DB_USER=dev_user
       - DB_PASS=dev_password
       - DB_NAME=dev_database
-      - REGISTRY_ETHENDPOINT=ws://host.docker.internal:8545
     # - REGISTRY_ETHENDPOINT=ws://127.0.0.1:8545 # Linux
-      - REGISTRY_CHAINID=31337
-      - REGISTRY_CONTRACTADDRESS=[***FILL_ME***] # Current supported SC is `eth-tableland@c43b49a`.
-      - SIGNER_PRIVATEKEY=689af8efa8c651a91ad287602527f3af2fe9f6501a7ac4b061667b5a93e037fd
-      - EVENTFEED_MINBLOCKDEPTH=0
-      - NONCETRACKER_MINBLOCKDEPTH=0
-      - METRICS_PORT=9090
       - LOG_HUMAN=true
       - LOG_DEBUG=true
       - ADMINAPI_USERNAME=admin_user
@@ -34,6 +25,8 @@ services:
     ports: # Remove in Linux
       - "127.0.0.1:8080:8080" 
       - "127.0.0.1:9090:9090"
+    volumes:
+      - ${PWD}/config-dev.json:/app/config.json
     security_opt:
       - "seccomp:unconfined"
     cap_add:
