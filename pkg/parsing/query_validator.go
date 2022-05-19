@@ -11,7 +11,7 @@ import (
 
 // Stmt represents any valid read or mutating query.
 type Stmt interface {
-	GetQuery() string
+	GetQuery() (string, error)
 }
 
 // MutatingStmt represents mutating statement, that is either
@@ -89,9 +89,8 @@ type CreateStmt interface {
 
 // SQLValidator parses and validate a SQL query for different supported scenarios.
 type SQLValidator interface {
-	// ValidateCreateTable validates the provided query and returns an error
-	// if the CREATE statement isn't allowed. Returns nil otherwise.
-	ValidateCreateTable(query string) (CreateStmt, error)
+	// ValidateCreateTable validates a CREATE TABLE statement.
+	ValidateCreateTable(query string, chainID tableland.ChainID) (CreateStmt, error)
 	// ValidateReadQuery validates a read-query, and returns a structured representation of it.
 	ValidateReadQuery(query string) (ReadStmt, error)
 	// ValidateMutatingQuery validates a mutating-query, and a list of mutating statements
