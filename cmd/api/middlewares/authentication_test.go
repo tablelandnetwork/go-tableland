@@ -46,13 +46,13 @@ func TestOptionality(t *testing.T) {
 
 	tests := []struct {
 		rpcMethodName string
-		isAuthorized  bool
+		expStatusCode int
 	}{
-		{rpcMethodName: "tableland_runReadQuery", isAuthorized: false},
-		{rpcMethodName: "tableland_relayWriteQuery", isAuthorized: true},
-		{rpcMethodName: "tableland_validateCreateTable", isAuthorized: true},
-		{rpcMethodName: "tableland_getReceipt", isAuthorized: true},
-		{rpcMethodName: "tableland_setController", isAuthorized: true},
+		{rpcMethodName: "tableland_runReadQuery", expStatusCode: http.StatusOK},
+		{rpcMethodName: "tableland_relayWriteQuery", expStatusCode: http.StatusUnauthorized},
+		{rpcMethodName: "tableland_validateCreateTable", expStatusCode: http.StatusUnauthorized},
+		{rpcMethodName: "tableland_getReceipt", expStatusCode: http.StatusUnauthorized},
+		{rpcMethodName: "tableland_setController", expStatusCode: http.StatusUnauthorized},
 	}
 
 	for _, tc := range tests {
@@ -71,12 +71,8 @@ func TestOptionality(t *testing.T) {
 			h := Authentication(next)
 			h.ServeHTTP(rw, r)
 
-			if tc.isAuthorized {
-				require.Equal(t, http.StatusUnauthorized, rw.Code)
-			} else {
-				require.Equal(t, http.StatusOK, rw.Code)
-			}
-			require.Equal(t, tc.isAuthorized, !called)
+			require.Equal(t, tc.expStatusCode, rw.Code)
+			require.Equal(t, requiresAuthentication(tc.rpcMethodName), !called)
 		})
 	}
 }
