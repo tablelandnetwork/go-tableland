@@ -983,6 +983,10 @@ func (pp *QueryValidator) genCreateStmt(
 	}
 
 	prefix := strings.Join(parts[:len(parts)-1], "_")
+	if hasPrefix(prefix, pp.systemTablePrefixes) {
+		return nil, &parsing.ErrInvalidTableName{}
+	}
+
 	strChainID := parts[len(parts)-1]
 	tableChainID, err := strconv.ParseInt(strChainID, 10, 64)
 	if err != nil {
