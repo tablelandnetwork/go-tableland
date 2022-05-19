@@ -25,7 +25,6 @@ paths:
 
         All the above RPC calls expect an Authorization header with a signed SIWE except:
         - runReadQuery
-        - getReceipt
 
       requestBody:
         required: true

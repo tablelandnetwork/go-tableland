@@ -51,7 +51,7 @@ func TestOptionality(t *testing.T) {
 		{rpcMethodName: "tableland_runReadQuery", isAuthorized: false},
 		{rpcMethodName: "tableland_relayWriteQuery", isAuthorized: true},
 		{rpcMethodName: "tableland_validateCreateTable", isAuthorized: true},
-		{rpcMethodName: "tableland_getReceipt", isAuthorized: false},
+		{rpcMethodName: "tableland_getReceipt", isAuthorized: true},
 		{rpcMethodName: "tableland_setController", isAuthorized: true},
 	}
 

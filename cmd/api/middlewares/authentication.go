@@ -19,7 +19,6 @@ import (
 var (
 	errSIWEWrongDomain        = stderrors.New("SIWE domain isn't Tableland")
 	unauthenticatedRPCMethods = []string{
-		"tableland_getReceipt",
 		"tableland_runReadQuery",
 	}
 )
