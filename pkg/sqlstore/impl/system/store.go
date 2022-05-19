@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog/log"
@@ -36,13 +37,18 @@ type SystemStore struct {
 }
 
 // New returns a new SystemStore backed by `pgxpool.Pool`.
-func New(pool *pgxpool.Pool, chainID tableland.ChainID) (*SystemStore, error) {
+func New(postgresURI string, chainID tableland.ChainID) (*SystemStore, error) {
+	ctx, cls := context.WithTimeout(context.Background(), time.Second*15)
+	defer cls()
+	pool, err := pgxpool.Connect(ctx, postgresURI)
+	if err != nil {
+		return nil, fmt.Errorf("connecting to postgres: %s", err)
+	}
 	as := bindata.Resource(migrations.AssetNames(),
 		func(name string) ([]byte, error) {
 			return migrations.Asset(name)
 		})
-	err := executeMigration(pool.Config().ConnString(), as)
-	if err != nil {
+	if err := executeMigration(pool.Config().ConnString(), as); err != nil {
 		return nil, fmt.Errorf("initializing db connection: %s", err)
 	}
 
@@ -243,6 +249,11 @@ func (s *SystemStore) GetReceipt(
 	}
 
 	return receipt, true, nil
+}
+
+func (s *SystemStore) Close() error {
+	s.pool.Close()
+	return nil
 }
 
 // executeMigration run db migrations and return a ready to use connection to the Postgres database.

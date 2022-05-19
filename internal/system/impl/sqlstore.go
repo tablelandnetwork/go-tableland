@@ -25,12 +25,12 @@ const (
 // SystemSQLStoreService implements the SystemService interface using SQLStore.
 type SystemSQLStoreService struct {
 	extURLPrefix string
-	stores       map[tableland.ChainID]sqlstore.SQLStore
+	stores       map[tableland.ChainID]sqlstore.SystemStore
 }
 
 // NewSystemSQLStoreService creates a new SystemSQLStoreService.
 func NewSystemSQLStoreService(
-	stores map[tableland.ChainID]sqlstore.SQLStore,
+	stores map[tableland.ChainID]sqlstore.SystemStore,
 	extURLPrefix string) (system.SystemService, error) {
 	if _, err := url.ParseRequestURI(extURLPrefix); err != nil {
 		return nil, fmt.Errorf("invalid external url prefix: %s", err)
