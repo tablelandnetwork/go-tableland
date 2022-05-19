@@ -237,7 +237,7 @@ func TestExecWriteQueries(t *testing.T) {
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
 
-		wq1 := mustGrantStmt(t, "grant insert, update, delete on foo_1337_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\"")
+		wq1 := mustGrantStmt(t, "grant insert, update, delete on foo_1337_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\"") //nolint
 		wq2 := mustGrantStmt(t, "revoke insert, delete on foo_1337_100 from \"0xd43c59d5694ec111eb9e986c233200b14249558d\"")
 		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq1, wq2}, true, tableland.AllowAllPolicy{})
 		require.NoError(t, err)
