@@ -22,12 +22,12 @@ var (
 
 // QueryValidator enforces PostgresSQL constraints for Tableland.
 type QueryValidator struct {
-	chainID             tableland.ChainID
-	systemTablePrefixes []string
-	acceptedTypesNames  []string
-	rawTablenameRegEx   *regexp.Regexp
-	maxAllowedColumns   int
-	maxTextLength       int
+	systemTablePrefixes  []string
+	acceptedTypesNames   []string
+	createTableNameRegEx *regexp.Regexp
+	queryTableNameRegEx  *regexp.Regexp
+	maxAllowedColumns    int
+	maxTextLength        int
 }
 
 var _ parsing.SQLValidator = (*QueryValidator)(nil)
@@ -35,7 +35,6 @@ var _ parsing.SQLValidator = (*QueryValidator)(nil)
 // New returns a Tableland query validator.
 func New(
 	systemTablePrefixes []string,
-	chainID tableland.ChainID,
 	maxAllowedColumns int,
 	maxTextLength int) *QueryValidator {
 	// We create here a flattened slice of all the accepted type names from
@@ -46,21 +45,22 @@ func New(
 		acceptedTypesNames = append(acceptedTypesNames, at.Names...)
 	}
 
-	rawTablenameRegEx, _ := regexp.Compile(`^\w*_[0-9]+$`)
+	tablePrefixRegex := "([A-Za-z]+[A-Za-z0-9_]*)"
+	queryTableNameRegEx, _ := regexp.Compile(fmt.Sprintf("%s*_[0-9]+_[0-9]+$", tablePrefixRegex))
+	createTableNameRegEx, _ := regexp.Compile(fmt.Sprintf("%s*_[0-9]+$", tablePrefixRegex))
 
 	return &QueryValidator{
-		systemTablePrefixes: systemTablePrefixes,
-		acceptedTypesNames:  acceptedTypesNames,
-		rawTablenameRegEx:   rawTablenameRegEx,
-		maxAllowedColumns:   maxAllowedColumns,
-		maxTextLength:       maxTextLength,
-		chainID:             chainID,
+		systemTablePrefixes:  systemTablePrefixes,
+		acceptedTypesNames:   acceptedTypesNames,
+		createTableNameRegEx: createTableNameRegEx,
+		queryTableNameRegEx:  queryTableNameRegEx,
+		maxAllowedColumns:    maxAllowedColumns,
+		maxTextLength:        maxTextLength,
 	}
 }
 
-// ValidateCreateTable validates the provided query and returns an error
-// if the CREATE statement isn't allowed. Returns nil otherwise.
-func (pp *QueryValidator) ValidateCreateTable(query string) (parsing.CreateStmt, error) {
+// ValidateCreateTable validates a CREATE TABLE statement.
+func (pp *QueryValidator) ValidateCreateTable(query string, chainID tableland.ChainID) (parsing.CreateStmt, error) {
 	parsed, err := pg_query.Parse(query)
 	if err != nil {
 		return nil, &parsing.ErrInvalidSyntax{InternalError: err}
@@ -91,7 +91,7 @@ func (pp *QueryValidator) ValidateCreateTable(query string) (parsing.CreateStmt,
 		}
 	}
 
-	return genCreateStmt(stmt, colNameTypes, pp.chainID), nil
+	return pp.genCreateStmt(stmt, colNameTypes, chainID)
 }
 
 // ValidateMutatingQuery validates a mutating-query, and a list of mutating statements
@@ -153,7 +153,6 @@ func (pp *QueryValidator) ValidateMutatingQuery(
 			dbTableName: targetTable,
 			prefix:      prefix,
 			tableID:     tableID,
-			query:       query,
 		}
 
 		switch {
@@ -221,8 +220,7 @@ func (pp *QueryValidator) deconstructRefTable(refTable string) (string, tablelan
 	if hasPrefix(refTable, pp.systemTablePrefixes) {
 		return "", 0, refTable, nil
 	}
-	// TODO(jsign): fix this.
-	if !pp.rawTablenameRegEx.MatchString(refTable) {
+	if !pp.queryTableNameRegEx.MatchString(refTable) {
 		return "", 0, "", &parsing.ErrInvalidTableName{}
 	}
 
@@ -251,14 +249,19 @@ type mutatingStmt struct {
 	tableID     string // From {prefix}_{chainID}_{tableID} -> {tableID}
 	dbTableName string // {prefix}_{chainID}_{tableID}
 	operation   tableland.Operation
-
-	query string
 }
 
 var _ parsing.MutatingStmt = (*mutatingStmt)(nil)
 
-func (s *mutatingStmt) GetQuery() string {
-	return s.query
+func (s *mutatingStmt) GetQuery() (string, error) {
+	rs := &pg_query.RawStmt{Stmt: s.node}
+	parsedTree := &pg_query.ParseResult{}
+	parsedTree.Stmts = []*pg_query.RawStmt{rs}
+	wq, err := pg_query.Deparse(parsedTree)
+	if err != nil {
+		return "", fmt.Errorf("deparsing statement: %s", err)
+	}
+	return wq, nil
 }
 
 func (s *mutatingStmt) GetPrefix() string {
@@ -422,8 +425,8 @@ type readStmt struct {
 
 var _ parsing.ReadStmt = (*readStmt)(nil)
 
-func (s *readStmt) GetQuery() string {
-	return s.query
+func (s *readStmt) GetQuery() (string, error) {
+	return s.query, nil
 }
 
 func (pp *QueryValidator) validateWriteQuery(stmt *pg_query.Node) (string, error) {
@@ -967,7 +970,27 @@ func checkCreateColTypes(createStmt *pg_query.CreateStmt, acceptedTypesNames []s
 	return colNameTypes, nil
 }
 
-func genCreateStmt(cNode *pg_query.Node, cols []colNameType, chainID tableland.ChainID) *createStmt {
+func (pp *QueryValidator) genCreateStmt(cNode *pg_query.Node, cols []colNameType, chainID tableland.ChainID) (*createStmt, error) {
+	createTableName := cNode.GetCreateStmt().Relation.Relname
+	if !pp.createTableNameRegEx.MatchString(createTableName) {
+		return nil, &parsing.ErrInvalidTableName{}
+	}
+	parts := strings.Split(createTableName, "_")
+	if len(parts) < 2 {
+		return nil, fmt.Errorf("table name isn't referencing the chain id")
+	}
+
+	prefix := strings.Join(parts[:len(parts)-1], "_")
+	strChainID := parts[len(parts)-1]
+	tableChainID, err := strconv.ParseInt(strChainID, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("parsing chain id in table name: %s", err)
+	}
+	if tableChainID != int64(chainID) {
+		return nil, &parsing.ErrInvalidTableName{}
+	}
+
+	// Calculate table structure hash.
 	strCols := make([]string, len(cols))
 	for i := range cols {
 		strCols[i] = fmt.Sprintf("%s:%s", cols[i].colName, cols[i].typeName)
@@ -981,8 +1004,8 @@ func genCreateStmt(cNode *pg_query.Node, cols []colNameType, chainID tableland.C
 		chainID:       chainID,
 		cNode:         cNode,
 		structureHash: hex.EncodeToString(hash),
-		prefix:        cNode.GetCreateStmt().Relation.Relname,
-	}
+		prefix:        prefix,
+	}, nil
 }
 
 func hasPrefix(s string, prefixes []string) bool {
@@ -1007,7 +1030,7 @@ var _ parsing.CreateStmt = (*createStmt)(nil)
 func (cs *createStmt) GetRawQueryForTableID(id tableland.TableID) (string, error) {
 	parsedTree := &pg_query.ParseResult{}
 
-	cs.cNode.GetCreateStmt().Relation.Relname = fmt.Sprintf("_%d_%s", cs.chainID, id)
+	cs.cNode.GetCreateStmt().Relation.Relname = fmt.Sprintf("%s_%d_%s", cs.prefix, cs.chainID, id)
 	rs := &pg_query.RawStmt{Stmt: cs.cNode}
 	parsedTree.Stmts = []*pg_query.RawStmt{rs}
 	wq, err := pg_query.Deparse(parsedTree)

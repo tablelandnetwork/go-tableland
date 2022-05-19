@@ -108,13 +108,15 @@ func TestReadRunSQL(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
 
-				parser := parser.New([]string{"system_", "registry"}, 1337, 0, 0)
-				rs, _, err := parser.ValidateReadQuery(tc.query)
+				parser := parser.New([]string{"system_", "registry"}, 0, 0)
+				rs, err := parser.ValidateReadQuery(tc.query)
 
 				if tc.expErrType == nil {
 					require.NoError(t, err)
 					require.NotNil(t, rs)
-					require.Equal(t, tc.query, rs.GetQuery())
+					q, err := rs.GetQuery()
+					require.NoError(t, err)
+					require.Equal(t, tc.query, q)
 					return
 				}
 				require.ErrorAs(t, err, tc.expErrType)
@@ -167,7 +169,7 @@ func TestWriteQuery(t *testing.T) {
 		{
 			name:       "unprefixed table is missing underscore",
 			query:      "delete from 4_10 where a=2",
-			expErrType: ptr2ErrInvalidTableName(),
+			expErrType: ptr2ErrInvalidSyntax(),
 		},
 		{
 			name:       "non-numeric table id",
@@ -543,7 +545,7 @@ func TestWriteQuery(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
 
-				parser := parser.New([]string{"system_", "registry"}, 1337, 0, 0)
+				parser := parser.New([]string{"system_", "registry"}, 0, 0)
 				mss, err := parser.ValidateMutatingQuery(tc.query, tc.chainID)
 
 				if tc.expErrType == nil {
@@ -569,6 +571,7 @@ func TestCreateTableChecks(t *testing.T) {
 	type testCase struct {
 		name       string
 		query      string
+		chainID    tableland.ChainID
 		expErrType interface{}
 	}
 	tests := []testCase{
@@ -579,10 +582,43 @@ func TestCreateTableChecks(t *testing.T) {
 			expErrType: ptr2ErrInvalidSyntax(),
 		},
 
+		// Wrong chain id reference
+		{
+			name:       "wrong chain id without prefix",
+			query:      "create table _69 (foo int)",
+			chainID:    68,
+			expErrType: ptr2ErrInvalidTableName(),
+		},
+		{
+			name:       "wrong chain id with prefix",
+			query:      "create table i_am_a_prefix_69 (foo int)",
+			chainID:    68,
+			expErrType: ptr2ErrInvalidTableName(),
+		},
+		{
+			name:       "missing chain id",
+			query:      "create table Hello (foo int)",
+			chainID:    68,
+			expErrType: ptr2ErrInvalidTableName(),
+		},
+		{
+			name:       "missing underscore",
+			query:      "create table 69 (foo int)",
+			chainID:    69,
+			expErrType: ptr2ErrInvalidSyntax(),
+		},
+		{
+			name:       "prefix starting with a number",
+			query:      "create table 0Hello_69 (foo int)",
+			chainID:    69,
+			expErrType: ptr2ErrInvalidSyntax(),
+		},
+
 		// Single-statement check.
 		{
 			name:       "two creates",
-			query:      "create table foo (a int); create table bar (a int);",
+			query:      "create table foo_4 (a int); create table bar_4 (a int);",
+			chainID:    4,
 			expErrType: ptr2ErrNoSingleStatement(),
 		},
 		{
@@ -594,24 +630,28 @@ func TestCreateTableChecks(t *testing.T) {
 		// Check CREATE OF semantics.
 		{
 			name:       "create of",
-			query:      "create table foo of other;",
+			query:      "create table foo_69 of other;",
+			chainID:    69,
 			expErrType: nil,
 		},
 		{
 			name:       "create of constraint",
-			query:      "create table foo of other ( primary key (id) );",
+			query:      "create table foo_4 of other ( primary key (id) );",
+			chainID:    4,
 			expErrType: nil,
 		},
 
 		// Check CREATE with column CONSTRAINTS
 		{
 			name:       "create with constraint",
-			query:      "create table foo ( id int not null, name text );",
+			query:      "create table foo_4 ( id int not null, name text );",
+			chainID:    4,
 			expErrType: nil,
 		},
 		{
 			name:       "create with extra constraint",
-			query:      "create table foo ( id int not null, constraint foo_pk primary key (id) );",
+			query:      "create table foo_4 ( id int not null, constraint foo_pk primary key (id) );",
+			chainID:    4,
 			expErrType: nil,
 		},
 
@@ -645,7 +685,7 @@ func TestCreateTableChecks(t *testing.T) {
 		// Valid table with all accepted types.
 		{
 			name: "valid all",
-			query: `create table foo (
+			query: `create table foo_69 (
 				   zint  int,
 				   zint2 int2,
 				   zint4 int4,
@@ -674,28 +714,33 @@ func TestCreateTableChecks(t *testing.T) {
 
 				   zjson json
 			       )`,
+			chainID:    69,
 			expErrType: nil,
 		},
 
 		// Tables with invalid columns.
 		{
 			name:       "xml column",
-			query:      "create table foo (foo xml)",
+			query:      "create table foo_4 (foo xml)",
+			chainID:    4,
 			expErrType: ptr2ErrInvalidColumnType(),
 		},
 		{
 			name:       "money column",
-			query:      "create table foo (foo money)",
+			query:      "create table foo_4 (foo money)",
+			chainID:    4,
 			expErrType: ptr2ErrInvalidColumnType(),
 		},
 		{
 			name:       "polygon column",
-			query:      "create table foo (foo polygon)",
+			query:      "create table foo_4 (foo polygon)",
+			chainID:    4,
 			expErrType: ptr2ErrInvalidColumnType(),
 		},
 		{
 			name:       "jsonb column",
-			query:      "create table foo (foo jsonb)",
+			query:      "create table foo_4 (foo jsonb)",
+			chainID:    4,
 			expErrType: ptr2ErrInvalidColumnType(),
 		},
 	}
@@ -704,8 +749,8 @@ func TestCreateTableChecks(t *testing.T) {
 		t.Run(it.name, func(tc testCase) func(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
-				parser := parser.New([]string{"system_", "registry"}, 1337, 0, 0)
-				_, err := parser.ValidateCreateTable(tc.query)
+				parser := parser.New([]string{"system_", "registry"}, 0, 0)
+				_, err := parser.ValidateCreateTable(tc.query, tc.chainID)
 				if tc.expErrType == nil {
 					require.NoError(t, err)
 					return
@@ -727,40 +772,53 @@ func TestCreateTableResult(t *testing.T) {
 	type testCase struct {
 		name             string
 		query            string
-		expNamePrefix    string
+		expPrefix        string
 		expStructureHash string
 
 		expRawQueries []rawQueryTableID
 	}
 	tests := []testCase{
 		{
-			name: "single col",
-			query: `create table foo (
+			name: "single col with prefix",
+			query: `create table my_10_nth_table_1337 (
 				   bar int
 			       )`,
-			expNamePrefix: "foo",
+			expPrefix: "my_10_nth_table",
+			// sha256(bar int4)
+			expStructureHash: "60b0e90a94273211e4836dc11d8eebd96e8020ce3408dd112ba9c42e762fe3cc",
+			expRawQueries: []rawQueryTableID{
+				{id: 1, rawQuery: "CREATE TABLE my_10_nth_table_1337_1 (bar int)"},
+				{id: 42, rawQuery: "CREATE TABLE my_10_nth_table_1337_42 (bar int)"},
+				{id: 2929392, rawQuery: "CREATE TABLE my_10_nth_table_1337_2929392 (bar int)"},
+			},
+		},
+		{
+			name: "single col without prefix",
+			query: `create table _1337 (
+				   bar int
+			       )`,
+			expPrefix: "",
 			// sha256(bar int4)
 			expStructureHash: "60b0e90a94273211e4836dc11d8eebd96e8020ce3408dd112ba9c42e762fe3cc",
 			expRawQueries: []rawQueryTableID{
 				{id: 1, rawQuery: "CREATE TABLE _1337_1 (bar int)"},
 				{id: 42, rawQuery: "CREATE TABLE _1337_42 (bar int)"},
-				{id: 2929392, rawQuery: "CREATE TABLE _1337_2929392 (bar int)"},
 			},
 		},
 		{
 			name: "multiple cols",
-			query: `create table person (
+			query: `create table person_1337 (
 				   name text,
 				   age int,
 				   fav_color varchar(10)
 			       )`,
-			expNamePrefix: "person",
+			expPrefix: "person",
 			// sha256(name:text,age:int4,fav_color:varchar)
 			expStructureHash: "3e846cb815f96b1a572246e1bf5eb5eec8a93598aa4a9741e7dade425ff2dc69",
 			expRawQueries: []rawQueryTableID{
-				{id: 1, rawQuery: "CREATE TABLE _1337_1 (name text, age int, fav_color varchar(10))"},
-				{id: 42, rawQuery: "CREATE TABLE _1337_42 (name text, age int, fav_color varchar(10))"},
-				{id: 2929392, rawQuery: "CREATE TABLE _1337_2929392 (name text, age int, fav_color varchar(10))"},
+				{id: 1, rawQuery: "CREATE TABLE person_1337_1 (name text, age int, fav_color varchar(10))"},
+				{id: 42, rawQuery: "CREATE TABLE person_1337_42 (name text, age int, fav_color varchar(10))"},
+				{id: 2929392, rawQuery: "CREATE TABLE person_1337_2929392 (name text, age int, fav_color varchar(10))"},
 			},
 		},
 	}
@@ -769,11 +827,11 @@ func TestCreateTableResult(t *testing.T) {
 		t.Run(it.name, func(tc testCase) func(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
-				parser := parser.New([]string{"system_", "registry"}, 1337, 0, 0)
-				cs, err := parser.ValidateCreateTable(tc.query)
+				parser := parser.New([]string{"system_", "registry"}, 0, 0)
+				cs, err := parser.ValidateCreateTable(tc.query, 1337)
 				require.NoError(t, err)
 
-				require.Equal(t, tc.expNamePrefix, cs.GetNamePrefix())
+				require.Equal(t, tc.expPrefix, cs.GetPrefix())
 				require.Equal(t, tc.expStructureHash, cs.GetStructureHash())
 				for _, erq := range tc.expRawQueries {
 					rq, err := cs.GetRawQueryForTableID(tableland.TableID(*big.NewInt(erq.id)))
@@ -789,18 +847,18 @@ func TestCreateTableColLimit(t *testing.T) {
 	t.Parallel()
 
 	maxAllowedColumns := 3
-	parser := parser.New([]string{"system_", "registry"}, 1337, maxAllowedColumns, 0)
+	parser := parser.New([]string{"system_", "registry"}, maxAllowedColumns, 0)
 
 	t.Run("success one column", func(t *testing.T) {
-		_, err := parser.ValidateCreateTable("create table foo (a int)")
+		_, err := parser.ValidateCreateTable("create table foo_1337 (a int)", 1337)
 		require.NoError(t, err)
 	})
 	t.Run("success exact max columns", func(t *testing.T) {
-		_, err := parser.ValidateCreateTable("create table foo (a int, b text,c int)")
+		_, err := parser.ValidateCreateTable("create table foo_1337 (a int, b text,c int)", 1337)
 		require.NoError(t, err)
 	})
 	t.Run("failure max columns exceeded", func(t *testing.T) {
-		_, err := parser.ValidateCreateTable("create table foo (a int, b text,c int, d int)")
+		_, err := parser.ValidateCreateTable("create table foo_1337 (a int, b text,c int, d int)", 1337)
 		var expErr *parsing.ErrTooManyColumns
 		require.ErrorAs(t, err, &expErr)
 		require.Equal(t, 4, expErr.ColumnCount)
@@ -812,25 +870,25 @@ func TestCreateTableTextLength(t *testing.T) {
 	t.Parallel()
 
 	textMaxLength := 4
-	parser := parser.New([]string{"system_", "registry"}, 1337, 0, textMaxLength)
+	parser := parser.New([]string{"system_", "registry"}, 0, textMaxLength)
 
 	t.Run("success half limit", func(t *testing.T) {
-		_, _, err := parser.ValidateRunSQL(`insert into _0 values ('aa')`)
+		_, err := parser.ValidateMutatingQuery(`insert into _1337_1 values ('aa')`, 1337)
 		require.NoError(t, err)
 	})
 	t.Run("success exact max length", func(t *testing.T) {
-		_, _, err := parser.ValidateRunSQL(`insert into _0 values ('aaaa')`)
+		_, err := parser.ValidateMutatingQuery(`insert into _1337_1 values ('aaaa')`, 1337)
 		require.NoError(t, err)
 	})
 	t.Run("failure insert max length exceeded", func(t *testing.T) {
-		_, _, err := parser.ValidateRunSQL(`insert into _0 values ('aaaaa')`)
+		_, err := parser.ValidateMutatingQuery(`insert into _1337_1 values ('aaaaa')`, 1337)
 		var expErr *parsing.ErrTextTooLong
 		require.ErrorAs(t, err, &expErr)
 		require.Equal(t, 5, expErr.Length)
 		require.Equal(t, textMaxLength, expErr.MaxAllowed)
 	})
 	t.Run("failure update max length exceeded", func(t *testing.T) {
-		_, _, err := parser.ValidateRunSQL(`update _0 set a='aaaaa'`)
+		_, err := parser.ValidateMutatingQuery(`update _1337_1 set a='aaaaa'`, 1337)
 		var expErr *parsing.ErrTextTooLong
 		require.ErrorAs(t, err, &expErr)
 		require.Equal(t, 5, expErr.Length)
@@ -849,18 +907,18 @@ func TestGetWriteStatements(t *testing.T) {
 	tests := []testCase{
 		{
 			name:  "double update",
-			query: "update foo_100 set a=1;update foo_100 set b=2;",
+			query: "update foo_1337_100 set a=1;update foo_1337_100 set b=2;",
 			expectedStmts: []string{
-				"UPDATE _1337_100 SET a = 1",
-				"UPDATE _1337_100 SET b = 2",
+				"UPDATE foo_1337_100 SET a = 1",
+				"UPDATE foo_1337_100 SET b = 2",
 			},
 		},
 		{
 			name:  "insert update",
-			query: "insert into foo_0 values (1);update foo_0 set b=2;",
+			query: "insert into foo_1337_0 values (1);update foo_1337_0 set b=2;",
 			expectedStmts: []string{
-				"INSERT INTO _1337_0 VALUES (1)",
-				"UPDATE _1337_0 SET b = 2",
+				"INSERT INTO foo_1337_0 VALUES (1)",
+				"UPDATE foo_1337_0 SET b = 2",
 			},
 		},
 	}
@@ -869,13 +927,12 @@ func TestGetWriteStatements(t *testing.T) {
 		t.Run(it.name, func(tc testCase) func(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
-				parser := parser.New([]string{"system_", "registry"}, 1337, 0, 0)
-				rs, stmts, err := parser.ValidateRunSQL(tc.query)
+				parser := parser.New([]string{"system_", "registry"}, 0, 0)
+				stmts, err := parser.ValidateMutatingQuery(tc.query, 1337)
 				require.NoError(t, err)
-				require.Nil(t, rs)
 
 				for i := range stmts {
-					desugared, err := stmts[i].GetDesugaredQuery()
+					desugared, err := stmts[i].GetQuery()
 					require.NoError(t, err)
 					require.Equal(t, tc.expectedStmts[i], desugared)
 				}
@@ -897,21 +954,21 @@ func TestGetGrantStatementRolesAndPrivileges(t *testing.T) {
 	tests := []testCase{
 		{
 			name:         "grant",
-			query:        "grant insert, UPDATE on a_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\";",
+			query:        "grant insert, UPDATE on a_1337_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\";",
 			roles:        []common.Address{common.HexToAddress("0xd43c59d5694ec111eb9e986c233200b14249558d")},
 			privileges:   []tableland.Privilege{tableland.PrivInsert, tableland.PrivUpdate},
-			expectedStmt: "GRANT insert, update ON _1337_100 TO \"0xd43c59d5694ec111eb9e986c233200b14249558d\"",
+			expectedStmt: "GRANT insert, update ON a_1337_100 TO \"0xd43c59d5694ec111eb9e986c233200b14249558d\"",
 		},
 
 		{
 			name:  "revoke",
-			query: "revoke delete on a_100 from \"0xd43c59d5694ec111eb9e986c233200b14249558d\", \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\";", // nolint
+			query: "revoke delete on a_1337_100 from \"0xd43c59d5694ec111eb9e986c233200b14249558d\", \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\";", // nolint
 			roles: []common.Address{
 				common.HexToAddress("0xd43c59d5694ec111eb9e986c233200b14249558d"),
 				common.HexToAddress("0x4afe8e30db4549384b0a05bb796468b130c7d6e0"),
 			},
 			privileges:   []tableland.Privilege{tableland.PrivDelete},
-			expectedStmt: "REVOKE delete ON _1337_100 FROM \"0xd43c59d5694ec111eb9e986c233200b14249558d\", \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"", // nolint
+			expectedStmt: "REVOKE delete ON a_1337_100 FROM \"0xd43c59d5694ec111eb9e986c233200b14249558d\", \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"", // nolint
 		},
 	}
 
@@ -919,17 +976,16 @@ func TestGetGrantStatementRolesAndPrivileges(t *testing.T) {
 		t.Run(it.name, func(tc testCase) func(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
-				parser := parser.New([]string{"system_", "registry"}, 1337, 0, 0)
-				rs, stmts, err := parser.ValidateRunSQL(tc.query)
+				parser := parser.New([]string{"system_", "registry"}, 0, 0)
+				stmts, err := parser.ValidateMutatingQuery(tc.query, 1337)
 				require.NoError(t, err)
-				require.Nil(t, rs)
 
 				for i := range stmts {
 					gs, ok := stmts[i].(parsing.GrantStmt)
 					require.True(t, ok)
-					desugared, err := gs.GetDesugaredQuery()
+					q, err := gs.GetQuery()
 					require.NoError(t, err)
-					require.Equal(t, tc.expectedStmt, desugared)
+					require.Equal(t, tc.expectedStmt, q)
 					require.Equal(t, tc.roles, gs.GetRoles())
 					require.Equal(t, tc.privileges, gs.GetPrivileges())
 				}
@@ -949,15 +1005,15 @@ func TestWriteStatementAddWhereClause(t *testing.T) {
 	}{
 		{
 			name:        "no-where-clause",
-			query:       "UPDATE foo_1337 SET id = 1",
+			query:       "UPDATE foo_1337_10 SET id = 1",
 			whereClause: "bar = 1",
-			expQuery:    "UPDATE _1337_1337 SET id = 1 WHERE bar = 1",
+			expQuery:    "UPDATE foo_1337_10 SET id = 1 WHERE bar = 1",
 		},
 		{
 			name:        "with-where-clause",
-			query:       "UPDATE foo_1337 SET id = 1 WHERE bar = 1",
+			query:       "UPDATE foo_1337_10 SET id = 1 WHERE bar = 1",
 			whereClause: "c in (1, 2)",
-			expQuery:    "UPDATE _1337_1337 SET id = 1 WHERE bar = 1 AND c IN (1, 2)",
+			expQuery:    "UPDATE foo_1337_10 SET id = 1 WHERE bar = 1 AND c IN (1, 2)",
 		},
 	}
 
@@ -965,10 +1021,9 @@ func TestWriteStatementAddWhereClause(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			parser := parser.New([]string{"system_", "registry"}, 1337, 0, 0)
-			rs, mss, err := parser.ValidateRunSQL(tc.query)
+			parser := parser.New([]string{"system_", "registry"}, 0, 0)
+			mss, err := parser.ValidateMutatingQuery(tc.query, 1337)
 			require.NoError(t, err)
-			require.Nil(t, rs)
 			require.Len(t, mss, 1)
 
 			ws, ok := mss[0].(parsing.WriteStmt)
@@ -977,7 +1032,7 @@ func TestWriteStatementAddWhereClause(t *testing.T) {
 			err = ws.AddWhereClause(tc.whereClause)
 			require.NoError(t, err)
 
-			sql, err := ws.GetDesugaredQuery()
+			sql, err := ws.GetQuery()
 			require.NoError(t, err)
 			require.Equal(t, tc.expQuery, sql)
 		})
@@ -989,10 +1044,9 @@ func TestWriteStatementAddReturningClause(t *testing.T) {
 	t.Run("insert-add-returning", func(t *testing.T) {
 		t.Parallel()
 
-		parser := parser.New([]string{"system_", "registry"}, 1337, 0, 0)
-		rs, mss, err := parser.ValidateRunSQL("insert into foo_0 VALUES ('bar')")
+		parser := parser.New([]string{"system_", "registry"}, 0, 0)
+		mss, err := parser.ValidateMutatingQuery("insert into foo_1337_0 VALUES ('bar')", 1337)
 		require.NoError(t, err)
-		require.Nil(t, rs)
 		require.Len(t, mss, 1)
 
 		ws, ok := mss[0].(parsing.WriteStmt)
@@ -1001,18 +1055,17 @@ func TestWriteStatementAddReturningClause(t *testing.T) {
 		err = ws.AddReturningClause()
 		require.NoError(t, err)
 
-		sql, err := ws.GetDesugaredQuery()
+		sql, err := ws.GetQuery()
 		require.NoError(t, err)
-		require.Equal(t, "INSERT INTO _1337_0 VALUES ('bar') RETURNING ctid", sql)
+		require.Equal(t, "INSERT INTO foo_1337_0 VALUES ('bar') RETURNING ctid", sql)
 	})
 
 	t.Run("update-add-returning", func(t *testing.T) {
 		t.Parallel()
 
-		parser := parser.New([]string{"system_", "registry"}, 1337, 0, 0)
-		rs, mss, err := parser.ValidateRunSQL("update foo_0 set foo = 'bar'")
+		parser := parser.New([]string{"system_", "registry"}, 0, 0)
+		mss, err := parser.ValidateMutatingQuery("update foo_1337_0 set foo = 'bar'", 1337)
 		require.NoError(t, err)
-		require.Nil(t, rs)
 		require.Len(t, mss, 1)
 
 		ws, ok := mss[0].(parsing.WriteStmt)
@@ -1021,18 +1074,17 @@ func TestWriteStatementAddReturningClause(t *testing.T) {
 		err = ws.AddReturningClause()
 		require.NoError(t, err)
 
-		sql, err := ws.GetDesugaredQuery()
+		sql, err := ws.GetQuery()
 		require.NoError(t, err)
-		require.Equal(t, "UPDATE _1337_0 SET foo = 'bar' RETURNING ctid", sql)
+		require.Equal(t, "UPDATE foo_1337_0 SET foo = 'bar' RETURNING ctid", sql)
 	})
 
 	t.Run("delete-add-returning-error", func(t *testing.T) {
 		t.Parallel()
 
-		parser := parser.New([]string{"system_", "registry"}, 1337, 0, 0)
-		rs, mss, err := parser.ValidateRunSQL("DELETE FROM foo_0 WHERE foo = 'bar'")
+		parser := parser.New([]string{"system_", "registry"}, 0, 0)
+		mss, err := parser.ValidateMutatingQuery("DELETE FROM foo_1337_0 WHERE foo = 'bar'", 1337)
 		require.NoError(t, err)
-		require.Nil(t, rs)
 		require.Len(t, mss, 1)
 
 		ws, ok := mss[0].(parsing.WriteStmt)
