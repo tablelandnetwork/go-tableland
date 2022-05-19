@@ -34,7 +34,7 @@ func TestRunSQLBlockProcessing(t *testing.T) {
 	expWrongTypeErr := "db query execution failed (code: POSTGRES_22P02, msg: ERROR: invalid input syntax for type integer: \"abc\" (SQLSTATE 22P02))" //nolint
 	cond := func(dr dbReader, exp []int) func() bool {
 		return func() bool {
-			got := dr("select * from test_1000")
+			got := dr("select * from test_1337_1000")
 			if len(exp) != len(got) {
 				return false
 			}
@@ -51,7 +51,7 @@ func TestRunSQLBlockProcessing(t *testing.T) {
 		t.Parallel()
 
 		_, contractSendRunSQL, _, checkReceipts, dbReader := setup(t)
-		queries := []string{"insert into test_1000 values (1001)"}
+		queries := []string{"insert into test_1337_1000 values (1001)"}
 		txnHashes := contractSendRunSQL(queries)
 
 		expReceipt := eventprocessor.Receipt{
@@ -69,7 +69,7 @@ func TestRunSQLBlockProcessing(t *testing.T) {
 		t.Parallel()
 
 		_, contractSendRunSQL, _, checkReceipts, dbReader := setup(t)
-		queries := []string{"insert into test_1000 values ('abc')"}
+		queries := []string{"insert into test_1337_1000 values ('abc')"}
 		txnHashes := contractSendRunSQL(queries)
 
 		expReceipt := eventprocessor.Receipt{
@@ -86,7 +86,7 @@ func TestRunSQLBlockProcessing(t *testing.T) {
 	t.Run("success-success", func(t *testing.T) {
 		t.Parallel()
 		_, contractSendRunSQL, _, checkReceipts, dbReader := setup(t)
-		queries := []string{"insert into test_1000 values (1001)", "insert into test_1000 values (1002)"}
+		queries := []string{"insert into test_1337_1000 values (1001)", "insert into test_1337_1000 values (1002)"}
 		txnHashes := contractSendRunSQL(queries)
 
 		expReceipts := make([]eventprocessor.Receipt, len(txnHashes))
@@ -106,7 +106,7 @@ func TestRunSQLBlockProcessing(t *testing.T) {
 	t.Run("failure-success", func(t *testing.T) {
 		t.Parallel()
 		_, contractSendRunSQL, _, checkReceipts, dbReader := setup(t)
-		queries := []string{"insert into test_1000 values ('abc')", "insert into test_1000 values (1002)"}
+		queries := []string{"insert into test_1337_1000 values ('abc')", "insert into test_1337_1000 values (1002)"}
 		txnHashes := contractSendRunSQL(queries)
 
 		expReceipts := make([]eventprocessor.Receipt, len(txnHashes))
@@ -130,7 +130,7 @@ func TestRunSQLBlockProcessing(t *testing.T) {
 	t.Run("success-failure", func(t *testing.T) {
 		t.Parallel()
 		_, contractSendRunSQL, _, checkReceipts, dbReader := setup(t)
-		queries := []string{"insert into test_1000 values (1001)", "insert into test_1000 values ('abc')"}
+		queries := []string{"insert into test_1337_1000 values (1001)", "insert into test_1337_1000 values ('abc')"}
 		txnHashes := contractSendRunSQL(queries)
 
 		expReceipts := make([]eventprocessor.Receipt, len(txnHashes))
@@ -163,7 +163,7 @@ func TestCreateTableBlockProcessing(t *testing.T) {
 		createTable, _, _, checkReceipts, _ := setup(t)
 
 		for i := 0; i < 2; i++ {
-			txnHash := createTable("CREATE TABLE Foo (bar bigint)")
+			txnHash := createTable("CREATE TABLE Foo_1337 (bar bigint)")
 			tableID, err := tableland.NewTableID(strconv.Itoa(i))
 			require.NoError(t, err)
 			expReceipt := eventprocessor.Receipt{
@@ -179,7 +179,7 @@ func TestCreateTableBlockProcessing(t *testing.T) {
 		t.Parallel()
 
 		createTable, _, _, checkReceipts, _ := setup(t)
-		txnHash := createTable("CREATEZ TABLE Foo (bar bigint)")
+		txnHash := createTable("CREATEZ TABLE Foo_1337 (bar bigint)")
 
 		expReceipt := eventprocessor.Receipt{
 			ChainID: chainID,
@@ -197,7 +197,7 @@ func TestQueryWithWrongTableTarget(t *testing.T) {
 	_, contractSendRunSQL, _, checkReceipts, _ := setup(t)
 	// Note that we make a query for table 9999 instead of 1000 which was
 	// provided in the SC runSQL call.
-	queries := []string{"insert into test_9999 values (1001)"}
+	queries := []string{"insert into test_1337_9999 values (1001)"}
 	txnHashes := contractSendRunSQL(queries)
 
 	expErr := "query targets table id 9999 and not 1000"
@@ -215,7 +215,7 @@ func TestSetController(t *testing.T) {
 
 	createTable, _, contractSendSetController, checkReceipts, _ := setup(t)
 
-	txnHash := createTable("CREATE TABLE Foo (bar bigint)")
+	txnHash := createTable("CREATE TABLE Foo_1337 (bar bigint)")
 	tableID, err := tableland.NewTableID("0")
 	require.NoError(t, err)
 	expReceipt := eventprocessor.Receipt{
