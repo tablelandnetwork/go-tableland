@@ -25,7 +25,7 @@ var ErrBlockDiffNotEnough = errors.New("the block number is not old enough to be
 // ErrPendingTxMayBeStuck indicates that the pending tx may be stuck.
 var ErrPendingTxMayBeStuck = errors.New("pending tx may be stuck")
 
-// ErrReceiptNotFound indicates that the receipt wasn't found
+// ErrReceiptNotFound indicates that the receipt wasn't found.
 var ErrReceiptNotFound = errors.New("receipt not found")
 
 // RegisterPendingTx registers a pending tx in the nonce tracker.

@@ -252,7 +252,7 @@ func TestCheckUpdatePrivileges(t *testing.T) {
 			var successfulTxnHashes []string
 
 			// we initilize the table with a row to be updated
-			r, err := relayWriteQuery(ctx, t, tbldGranter, fmt.Sprintf("INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", testCase), granter)
+			r, err := relayWriteQuery(ctx, t, tbldGranter, fmt.Sprintf("INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", testCase), granter) //nolint
 			require.NoError(t, err)
 			backend.Commit()
 			successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
@@ -325,7 +325,7 @@ func TestCheckDeletePrivileges(t *testing.T) {
 			var successfulTxnHashes []string
 
 			// we initilize the table with a row to be delete
-			_, err = relayWriteQuery(ctx, t, tbldGranter, fmt.Sprintf("INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", testCase), granter)
+			_, err = relayWriteQuery(ctx, t, tbldGranter, fmt.Sprintf("INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", testCase), granter) //nolint
 			require.NoError(t, err)
 			backend.Commit()
 

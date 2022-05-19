@@ -181,7 +181,6 @@ func (pp *QueryValidator) ValidateMutatingQuery(
 	}
 
 	return ret, nil
-
 }
 
 // ValidateReadQuery validates a read-query, and returns a structured representation of it.
@@ -970,7 +969,10 @@ func checkCreateColTypes(createStmt *pg_query.CreateStmt, acceptedTypesNames []s
 	return colNameTypes, nil
 }
 
-func (pp *QueryValidator) genCreateStmt(cNode *pg_query.Node, cols []colNameType, chainID tableland.ChainID) (*createStmt, error) {
+func (pp *QueryValidator) genCreateStmt(
+	cNode *pg_query.Node,
+	cols []colNameType,
+	chainID tableland.ChainID) (*createStmt, error) {
 	createTableName := cNode.GetCreateStmt().Relation.Relname
 	if !pp.createTableNameRegEx.MatchString(createTableName) {
 		return nil, &parsing.ErrInvalidTableName{}
