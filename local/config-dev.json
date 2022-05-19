@@ -1,0 +1,29 @@
+{
+  "Chains": [
+    {
+      "Name": "Local Hardhat",
+      "ChainID": 1337,
+      "Registry": {
+        "EthEndpoint": "ws://host.docker.internal:8545",
+        "ContractAddress": "[FILL ME]"
+      },
+      "Signer": {
+        "PrivateKey": "689af8efa8c651a91ad287602527f3af2fe9f6501a7ac4b061667b5a93e037fd"
+      },
+      "EventFeed": {
+        "ChainAPIBackoff": "15s",
+        "NewBlockTimeout": "30s",
+        "MaxBlocksFetchSize": 1000000,
+        "MinBlockDepth": 0
+      },
+      "EventProcessor": {
+        "BlockFailedExecutionBackoff": "10s"
+      },
+      "NonceTracker": {
+         "CheckInterval": "10s",
+         "StuckInterval": "10m",
+         "MinBlockDepth": 0
+      }
+   }
+ ]
+}
