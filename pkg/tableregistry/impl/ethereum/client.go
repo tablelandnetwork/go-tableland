@@ -5,9 +5,11 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/nonce"
@@ -70,24 +72,29 @@ func (c *Client) RunSQL(
 		return nil, fmt.Errorf("creating keyed transactor: %s", err)
 	}
 
-	registerPendingTx, unlock, nonce := c.tracker.GetNonce(ctx)
-	defer unlock()
+	tx, err := c.callWithRetry(ctx, func() (*types.Transaction, error) {
+		registerPendingTx, unlock, nonce := c.tracker.GetNonce(ctx)
+		defer unlock()
 
-	opts := &bind.TransactOpts{
-		Context:  ctx,
-		Signer:   auth.Signer,
-		From:     auth.From,
-		Nonce:    big.NewInt(0).SetInt64(nonce),
-		GasPrice: gasPrice,
-	}
+		opts := &bind.TransactOpts{
+			Context:  ctx,
+			Signer:   auth.Signer,
+			From:     auth.From,
+			Nonce:    big.NewInt(0).SetInt64(nonce),
+			GasPrice: gasPrice,
+		}
 
-	tx, err := c.contract.RunSQL(opts, addr, table.ToBigInt(), statement)
+		tx, err := c.contract.RunSQL(opts, addr, table.ToBigInt(), statement)
+		if err != nil {
+			return nil, err
+		}
+		registerPendingTx(tx.Hash())
+		return tx, nil
+	})
+
 	if err != nil {
-		log.Warn().Err(err).Msg("sending RunSQL transaction")
-		return nil, fmt.Errorf("calling RunSQL: %v", err)
+		return nil, fmt.Errorf("retryable RunSQL call: %s", err)
 	}
-	registerPendingTx(tx.Hash())
-
 	return tx, nil
 }
 
@@ -107,22 +114,55 @@ func (c *Client) SetController(
 		return nil, fmt.Errorf("creating keyed transactor: %s", err)
 	}
 
-	registerPendingTx, unlock, nonce := c.tracker.GetNonce(ctx)
-	defer unlock()
+	tx, err := c.callWithRetry(ctx, func() (*types.Transaction, error) {
+		registerPendingTx, unlock, nonce := c.tracker.GetNonce(ctx)
+		defer unlock()
 
-	opts := &bind.TransactOpts{
-		Context:  ctx,
-		Signer:   auth.Signer,
-		From:     auth.From,
-		Nonce:    big.NewInt(0).SetInt64(nonce),
-		GasPrice: gasPrice,
-	}
+		opts := &bind.TransactOpts{
+			Context:  ctx,
+			Signer:   auth.Signer,
+			From:     auth.From,
+			Nonce:    big.NewInt(0).SetInt64(nonce),
+			GasPrice: gasPrice,
+		}
 
-	tx, err := c.contract.SetController(opts, caller, table.ToBigInt(), controller)
+		tx, err := c.contract.SetController(opts, caller, table.ToBigInt(), controller)
+		if err != nil {
+			return nil, err
+		}
+		registerPendingTx(tx.Hash())
+
+		return tx, nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("calling SetController: %v", err)
+		return nil, fmt.Errorf("retryable SetController call: %v", err)
 	}
-	registerPendingTx(tx.Hash())
+
+	return tx, nil
+}
+
+func (c *Client) callWithRetry(ctx context.Context, f func() (*types.Transaction, error)) (*types.Transaction, error) {
+	tx, err := f()
+
+	possibleErrMgs := []string{"nonce too low", "invalid transaction nonce"}
+	if err != nil {
+		for _, errMsg := range possibleErrMgs {
+			if strings.Contains(err.Error(), errMsg) {
+				log.Warn().Err(err).Msg("retrying smart contract call")
+				if err := c.tracker.Resync(ctx); err != nil {
+					return nil, fmt.Errorf("resync: %s", err)
+				}
+				tx, err = f()
+				if err != nil {
+					return nil, fmt.Errorf("retry contract call: %s", err)
+				}
+
+				return tx, nil
+			}
+		}
+
+		return nil, fmt.Errorf("contract call: %s", err)
+	}
 
 	return tx, nil
 }

@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -19,10 +20,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/tableland"
 	nonceimpl "github.com/textileio/go-tableland/pkg/nonce/impl"
+	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum/badges"
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum/controller"
 	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum/rigs"
 	"github.com/textileio/go-tableland/pkg/wallet"
+	"github.com/textileio/go-tableland/tests"
 )
 
 func TestIsOwner(t *testing.T) {
@@ -209,6 +212,49 @@ func TestRunSQLWithBadgesAndRigsPolicy(t *testing.T) {
 	require.Equal(t, statement, event.Statement)
 }
 
+func TestNonceTooLow(t *testing.T) {
+	t.Parallel()
+
+	// requireMint does a contract call to create a table.
+	// In that process the nonce is increase but the tracker is not aware of it.
+	// This simulates an out of sync nonce.
+	// Try running this test with go test -v to see the retry happening.
+
+	t.Run("run-sql", func(t *testing.T) {
+		t.Parallel()
+
+		backend, txOpts, contract, client := setupWithLocalTracker(t)
+
+		tokenID := requireMint(t, backend, contract, txOpts, txOpts.From)
+
+		tableID, err := tableland.NewTableID(tokenID.String())
+		require.NoError(t, err)
+
+		statement := "insert into foo_0 values (1,2,3)"
+
+		_, err = client.RunSQL(context.Background(), txOpts.From, tableID, statement)
+		require.NoError(t, err)
+		backend.Commit()
+	})
+
+	t.Run("set-controller", func(t *testing.T) {
+		t.Parallel()
+
+		backend, txOpts, contract, client := setupWithLocalTracker(t)
+
+		tokenID := requireMint(t, backend, contract, txOpts, txOpts.From)
+
+		tableID, err := tableland.NewTableID(tokenID.String())
+		require.NoError(t, err)
+
+		// Use the high-level Ethereum client to make the call.
+		controller := common.HexToAddress("0x848D5C7d4bB9E4613B6bd2C421f88Db0D7F46C58")
+		_, err = client.SetController(context.Background(), txOpts.From, tableID, controller)
+		require.NoError(t, err)
+		backend.Commit()
+	})
+}
+
 func requireMint(
 	t *testing.T,
 	backend *backends.SimulatedBackend,
@@ -322,4 +368,58 @@ func setup(t *testing.T) (*backends.SimulatedBackend, *ecdsa.PrivateKey, *bind.T
 	require.NoError(t, err)
 
 	return backend, key, auth, contract, client
+}
+
+func setupWithLocalTracker(t *testing.T) (
+	*backends.SimulatedBackend,
+	*bind.TransactOpts,
+	*Contract,
+	*Client) {
+	key, auth := requireNewAuth(t)
+
+	alloc := make(core.GenesisAlloc)
+	alloc[auth.From] = core.GenesisAccount{Balance: big.NewInt(math.MaxInt64)}
+	backend := backends.NewSimulatedBackend(alloc, math.MaxInt64)
+
+	requireAuthGas(t, backend, auth)
+
+	//Deploy contract
+	address, _, contract, err := DeployContract(
+		auth,
+		backend,
+	)
+
+	// commit all pending transactions
+	backend.Commit()
+
+	require.NoError(t, err)
+
+	if len(address.Bytes()) == 0 {
+		t.Error("Expected a valid deployment address. Received empty address byte array instead")
+	}
+
+	w, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(key)))
+	require.NoError(t, err)
+
+	url := tests.PostgresURL(t)
+
+	systemStore, err := system.New(url, tableland.ChainID(1337))
+	require.NoError(t, err)
+
+	tracker, err := nonceimpl.NewLocalTracker(
+		context.Background(),
+		w,
+		nonceimpl.NewNonceStore(systemStore),
+		tableland.ChainID(1337),
+		backend,
+		5*time.Second,
+		0,
+		3*time.Microsecond,
+	)
+	require.NoError(t, err)
+
+	client, err := NewClient(backend, 1337, address, w, tracker)
+	require.NoError(t, err)
+
+	return backend, auth, contract, client
 }
