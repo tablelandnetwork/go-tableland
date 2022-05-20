@@ -31,7 +31,7 @@ var (
 		eventfeed.TableTransfer,
 	}
 
-	tableIDisEmpty = "table id is empty"
+	tableIDIsEmpty = "table id is empty"
 )
 
 // EventProcessor processes new events detected by an event feed.
@@ -351,7 +351,7 @@ func (ep *EventProcessor) executeCreateTableEvent(
 	}
 
 	if e.TableId == nil {
-		receipt.Error = &tableIDisEmpty
+		receipt.Error = &tableIDIsEmpty
 		return receipt, nil
 	}
 	tableID := tableland.TableID(*e.TableId)
@@ -422,7 +422,7 @@ func (ep *EventProcessor) executeSetControllerEvent(
 	}
 
 	if e.TableId == nil {
-		receipt.Error = &tableIDisEmpty
+		receipt.Error = &tableIDIsEmpty
 		return receipt, nil
 	}
 	tableID := tableland.TableID(*e.TableId)
@@ -455,7 +455,7 @@ func (ep *EventProcessor) executeTransferEvent(
 	}
 
 	if e.TableId == nil {
-		receipt.Error = &tableIDisEmpty
+		receipt.Error = &tableIDIsEmpty
 		return receipt, nil
 	}
 	tableID := tableland.TableID(*e.TableId)
