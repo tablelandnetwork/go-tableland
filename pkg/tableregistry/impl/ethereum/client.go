@@ -150,12 +150,19 @@ func (c *Client) callWithRetry(ctx context.Context, f func() (*types.Transaction
 			if strings.Contains(err.Error(), errMsg) {
 				log.Warn().Err(err).Msg("retrying smart contract call")
 				if err := c.tracker.Resync(ctx); err != nil {
-					return nil, err
+					return nil, fmt.Errorf("resync: %s", err)
 				}
 				tx, err = f()
+				if err != nil {
+					return nil, fmt.Errorf("retry contract call: %s", err)
+				}
+
+				return tx, nil
 			}
 		}
+
+		return nil, fmt.Errorf("contract call: %s", err)
 	}
 
-	return tx, err
+	return tx, nil
 }

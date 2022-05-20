@@ -218,7 +218,7 @@ func TestNonceTooLow(t *testing.T) {
 	// requireMint does a contract call to create a table.
 	// In that process the nonce is increase but the tracker is not aware of it.
 	// This simulates an out of sync nonce.
-	// Try running this test go test -v to see the retry happening.
+	// Try running this test with go test -v to see the retry happening.
 
 	t.Run("run-sql", func(t *testing.T) {
 		t.Parallel()

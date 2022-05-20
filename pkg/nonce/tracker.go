@@ -45,6 +45,7 @@ type NonceTracker interface {
 	GetPendingCount(context.Context) int
 
 	// Resync resyncs nonce tracker state with the network.
+	// NOTICE: must not call `Resync(..)` if there are still an "open call" to the method `GetNonce(...)`.
 	Resync(context.Context) error
 }
 

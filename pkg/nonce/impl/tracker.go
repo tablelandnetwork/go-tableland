@@ -156,6 +156,7 @@ func (t *LocalTracker) GetPendingCount(_ context.Context) int {
 }
 
 // Resync resyncs nonce tracker state with the network.
+// NOTICE: must not call `Resync(..)` if there are still an "open call" to the method `GetNonce(...)`.
 func (t *LocalTracker) Resync(ctx context.Context) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
