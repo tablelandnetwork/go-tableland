@@ -46,7 +46,7 @@ func (t *SimpleTracker) GetPendingCount(ctx context.Context) int {
 	return 0
 }
 
-// Resync resyncs nonce tracker state with the network.
+// Resync is a noop for SimpleTracker.
 func (t *SimpleTracker) Resync(ctx context.Context) error {
 	return nil
 }
