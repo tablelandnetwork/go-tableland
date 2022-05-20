@@ -2,7 +2,7 @@
   "Chains": [
     {
       "Name": "Local Hardhat",
-      "ChainID": 1337,
+      "ChainID": 31337,
       "Registry": {
         "EthEndpoint": "ws://host.docker.internal:8545",
         "ContractAddress": "[FILL ME]"
