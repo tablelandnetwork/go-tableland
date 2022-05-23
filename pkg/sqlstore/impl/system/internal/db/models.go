@@ -44,11 +44,12 @@ type SystemController struct {
 }
 
 type SystemPendingTx struct {
-	ChainID   int64
-	Address   string
-	Hash      string
-	Nonce     int64
-	CreatedAt time.Time
+	ChainID        int64
+	Address        string
+	Hash           string
+	Nonce          int64
+	CreatedAt      time.Time
+	BumpPriceCount int32
 }
 
 type SystemTxnProcessor struct {

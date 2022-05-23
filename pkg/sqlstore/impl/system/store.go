@@ -145,11 +145,12 @@ func (s *SystemStore) ListPendingTx(ctx context.Context, addr common.Address) ([
 	pendingTxs := make([]nonce.PendingTx, 0)
 	for _, r := range res {
 		tx := nonce.PendingTx{
-			Address:   common.HexToAddress(r.Address),
-			Nonce:     r.Nonce,
-			Hash:      common.HexToHash(r.Hash),
-			ChainID:   r.ChainID,
-			CreatedAt: r.CreatedAt,
+			Address:        common.HexToAddress(r.Address),
+			Nonce:          r.Nonce,
+			Hash:           common.HexToHash(r.Hash),
+			ChainID:        r.ChainID,
+			BumpPriceCount: int(r.BumpPriceCount),
+			CreatedAt:      r.CreatedAt,
 		}
 
 		pendingTxs = append(pendingTxs, tx)
@@ -186,6 +187,20 @@ func (s *SystemStore) DeletePendingTxByHash(ctx context.Context, hash common.Has
 	})
 	if err != nil {
 		return fmt.Errorf("delete pending tx: %s", err)
+	}
+
+	return nil
+}
+
+// ReplacePendingTxByHash replaces the txn hash of a pending txn and bumps the counter of how many times this happened.
+func (s *SystemStore) ReplacePendingTxByHash(ctx context.Context, oldHash common.Hash, newHash common.Hash) error {
+	err := s.db.queries().ReplacePendingTxByHash(ctx, db.ReplacePendingTxByHashParams{
+		ChainID: int64(s.chainID),
+		Hash:    oldHash.Hex(),
+		Hash_2:  newHash.Hex(),
+	})
+	if err != nil {
+		return fmt.Errorf("replace pending tx: %s", err)
 	}
 
 	return nil

@@ -168,6 +168,27 @@ func (s *InstrumentedSystemStore) DeletePendingTxByHash(ctx context.Context, has
 	return err
 }
 
+// ReplacePendingTxByHash replaces a pending txn hash and bumps the counter on how many times this happened.
+func (s *InstrumentedSQLStorePGX) ReplacePendingTxByHash(
+	ctx context.Context,
+	oldHash common.Hash,
+	newHash common.Hash) error {
+	start := time.Now()
+	err := s.store.ReplacePendingTxByHash(ctx, oldHash, newHash)
+	latency := time.Since(start).Milliseconds()
+
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("ReplacePendingTxByHash")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+		{Key: "chainID", Value: attribute.Int64Value(int64(s.chainID))},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return err
+}
+
 // Close closes the connection pool.
 func (s *InstrumentedSystemStore) Close() error {
 	return s.store.Close()

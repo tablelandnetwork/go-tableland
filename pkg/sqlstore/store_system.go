@@ -18,6 +18,7 @@ type SystemStore interface {
 	ListPendingTx(context.Context, common.Address) ([]nonce.PendingTx, error)
 	InsertPendingTx(context.Context, common.Address, int64, common.Hash) error
 	DeletePendingTxByHash(context.Context, common.Hash) error
+	ReplacePendingTxByHash(context.Context, common.Hash, common.Hash) error
 	WithTx(tx pgx.Tx) SystemStore
 	Begin(context.Context) (pgx.Tx, error)
 	GetReceipt(context.Context, string) (eventprocessor.Receipt, bool, error)
