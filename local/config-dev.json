@@ -5,7 +5,7 @@
       "ChainID": 31337,
       "Registry": {
         "EthEndpoint": "ws://host.docker.internal:8545",
-        "ContractAddress": "0x5fbdb2315678afecb367f032d93f642f64180aa3"
+        "ContractAddress": "[FILL ME]"
       },
       "Signer": {
         "PrivateKey": "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
