@@ -42,6 +42,10 @@ func (t *LocalTracker) initMetrics(chainID tableland.ChainID, addr common.Addres
 	if err != nil {
 		return fmt.Errorf("creating unconfirmed txn deletions metric: %s", err)
 	}
+	t.mGasBump, err = meter.SyncInt64().Counter("tableland.wallettracker.gas.bumps")
+	if err != nil {
+		return fmt.Errorf("creating gas bump counter metric: %s", err)
+	}
 
 	if err = meter.RegisterCallback(
 		[]instrument.Asynchronous{

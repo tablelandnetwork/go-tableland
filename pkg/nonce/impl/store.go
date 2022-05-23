@@ -52,3 +52,14 @@ func (s *NonceStore) DeletePendingTxByHash(ctx context.Context, hash common.Hash
 
 	return nil
 }
+
+// ReplacePendingTxByHash replaces a pending tx hash with another and also bumps the counter
+// to track how many times this happened for this nonce.
+func (s *NonceStore) ReplacePendingTxByHash(ctx context.Context, oldHash common.Hash, newHash common.Hash) error {
+	err := s.systemStore.ReplacePendingTxByHash(ctx, oldHash, newHash)
+	if err != nil {
+		return fmt.Errorf("replacing pending tx: %s", err)
+	}
+
+	return nil
+}

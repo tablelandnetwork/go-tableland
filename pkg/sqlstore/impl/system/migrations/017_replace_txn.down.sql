@@ -1,0 +1,1 @@
+ALTER TABLE system_pending_tx DROP COLUMN bump_price_count;

@@ -5,7 +5,9 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"math/big"
+	"os"
 	"testing"
 	"time"
 
@@ -14,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/tableland"
 	noncepkg "github.com/textileio/go-tableland/pkg/nonce"
@@ -282,6 +285,74 @@ func TestMinBlockDepth(t *testing.T) {
 	require.Equal(t, 0, len(txs))
 }
 
+func TestRinkebyUnblockingTx(t *testing.T) {
+	t.Parallel()
+	t.SkipNow()
+	ctx := context.Background()
+
+	infuraAPI := os.Getenv("INFURA_API")
+	if infuraAPI == "" {
+		t.Skipf("no Infura API present in env INFURA_API")
+	}
+
+	// This private key has some funds in rinkeby. It isn't a big deal to have it harcoded here.
+	// Please change with another private key if htis got out of funds.
+	pk := "5cbcf344cb1fd8209e185474fd75cd5995789a79e5e9a0f113e4bc98ec0973e9"
+	key, err := crypto.HexToECDSA(pk)
+	require.NoError(t, err)
+	pub := crypto.PubkeyToAddress(key.PublicKey)
+	wallet, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(key)))
+	require.NoError(t, err)
+	conn, err := ethclient.Dial(infuraAPI)
+	require.NoError(t, err)
+	tracker := LocalTracker{
+		chainClient: conn,
+		chainID:     4,
+		wallet:      wallet,
+	}
+
+	stuckTxnHash := common.HexToHash("0x7ac889df162b8f93a768e278c8b90d31093cf278fee263b17532288831315930")
+
+	if stuckTxnHash.Big().Cmp(big.NewInt(0)) == 0 {
+		nonce, err := conn.PendingNonceAt(context.Background(), pub)
+		require.NoError(t, err)
+
+		gasLimit := uint64(21000)
+		gasPrice, err := conn.SuggestGasPrice(context.Background())
+		require.NoError(t, err)
+
+		var data []byte
+		txnData := &types.LegacyTx{
+			Nonce:    nonce,
+			GasPrice: big.NewInt(0).Div(gasPrice, big.NewInt(2)),
+			Gas:      gasLimit,
+			To:       &pub,
+			Data:     data,
+			Value:    big.NewInt(1000),
+		}
+		tx := types.NewTx(txnData)
+		signedTx, err := types.SignTx(tx, types.HomesteadSigner{}, key)
+		require.NoError(t, err)
+
+		err = conn.SendTransaction(context.Background(), signedTx)
+		require.NoError(t, err)
+		fmt.Printf("Low gas txn sent: %s\n", signedTx.Hash())
+
+		time.Sleep(time.Second * 20)
+
+		stuckTxnHash = signedTx.Hash()
+	}
+
+	_, isPending, err := conn.TransactionByHash(ctx, stuckTxnHash)
+	require.NoError(t, err)
+	require.True(t, isPending)
+
+	newHash, err := tracker.bumpTxnGas(ctx, stuckTxnHash)
+	require.NoError(t, err)
+
+	fmt.Printf("New txn hash: %s\n", newHash.Hex())
+}
+
 func TestCheckIfPendingTxIsStuck(t *testing.T) {
 	ctx := context.Background()
 	url := tests.PostgresURL(t)
@@ -375,6 +446,11 @@ func (m *ChainMock) TransactionByHash(
 	ctx context.Context,
 	hash common.Hash) (tx *types.Transaction, isPending bool, err error) {
 	return nil, true, nil
+}
+
+// this is not used by any test.
+func (m *ChainMock) SendTransaction(ctx context.Context, tx *types.Transaction) error {
+	return nil
 }
 
 func setup(ctx context.Context, t *testing.T) (
