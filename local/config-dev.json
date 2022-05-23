@@ -8,13 +8,13 @@
         "ContractAddress": "[FILL ME]"
       },
       "Signer": {
-        "PrivateKey": "689af8efa8c651a91ad287602527f3af2fe9f6501a7ac4b061667b5a93e037fd"
+        "PrivateKey": "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
       },
       "EventFeed": {
         "ChainAPIBackoff": "15s",
         "NewBlockTimeout": "30s",
         "MaxBlocksFetchSize": 1000000,
-        "MinBlockDepth": 0
+        "MinBlockDepth": 1
       },
       "EventProcessor": {
         "BlockFailedExecutionBackoff": "10s"
@@ -22,7 +22,7 @@
       "NonceTracker": {
          "CheckInterval": "10s",
          "StuckInterval": "10m",
-         "MinBlockDepth": 0
+         "MinBlockDepth": 1
       }
    }
  ]
