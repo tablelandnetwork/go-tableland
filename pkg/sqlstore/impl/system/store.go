@@ -202,7 +202,6 @@ func (s *SystemStore) ReplacePendingTxByHash(ctx context.Context, oldHash common
 	if err != nil {
 		return fmt.Errorf("replace pending tx: %s", err)
 	}
-
 	return nil
 }
 

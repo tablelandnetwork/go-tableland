@@ -286,7 +286,7 @@ func TestRinkebyUnblockingTx(t *testing.T) {
 	}
 
 	// This private key has some funds in rinkeby. It isn't a big deal to have it harcoded here.
-	// Please change with another private key if htis got out of funds.
+	// Please change with another private key if this got out of funds.
 	pk := "5cbcf344cb1fd8209e185474fd75cd5995789a79e5e9a0f113e4bc98ec0973e9"
 	key, err := crypto.HexToECDSA(pk)
 	require.NoError(t, err)
@@ -437,7 +437,9 @@ func (m *ChainMock) SendTransaction(ctx context.Context, tx *types.Transaction) 
 }
 
 // this is not used by any test.
-func (m *ChainMock) TransactionByHash(ctx context.Context, hash common.Hash) (tx *types.Transaction, isPending bool, err error) {
+func (m *ChainMock) TransactionByHash(
+	ctx context.Context,
+	hash common.Hash) (tx *types.Transaction, isPending bool, err error) {
 	return nil, false, nil
 }
 

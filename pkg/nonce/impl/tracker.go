@@ -214,7 +214,7 @@ func (t *LocalTracker) checkIfPendingTxWasIncluded(
 				Int64("bumpPriceCount", int64(pendingTx.BumpPriceCount)).
 				Msg("pending tx may be stuck")
 
-			return noncepkg.ErrReceiptNotFound
+			return noncepkg.ErrPendingTxMayBeStuck
 		}
 		if strings.Contains(err.Error(), "not found") {
 			return noncepkg.ErrReceiptNotFound
@@ -236,7 +236,7 @@ func (t *LocalTracker) checkIfPendingTxWasIncluded(
 	}
 
 	if err := t.deletePendingTxByHash(ctx, pendingTx.Hash); err != nil {
-		return err
+		return fmt.Errorf("deleting pending txn by hash: %s", err)
 	}
 
 	return nil
@@ -284,7 +284,6 @@ func (t *LocalTracker) checkPendingTxns() error {
 					Str("hash", pendingTx.Hash.Hex()).
 					Int64("nonce", pendingTx.Nonce).
 					Msg("receipt not found")
-
 				cls()
 				break
 			}
@@ -293,7 +292,6 @@ func (t *LocalTracker) checkPendingTxns() error {
 				// Did we already bump this txn fees enough times?
 				// If that's the case, stop since something more weird can be happening.
 				if pendingTx.BumpPriceCount > maxGasBumpAttempts {
-					t.mGasBump.Add(ctx, 1, t.mBaseLabels...)
 					t.txnConfirmationAttempts++
 					cls()
 					break
@@ -302,6 +300,7 @@ func (t *LocalTracker) checkPendingTxns() error {
 
 				// The pending txn seems to be stuck, and we have quota for bumping
 				// the gas prices. Let's do that.
+				t.mGasBump.Add(ctx, 1, t.mBaseLabels...)
 				bumpedTxnHash, err := t.bumpTxnGas(ctx, pendingTx.Hash)
 				if err != nil {
 					t.log.Error().
@@ -366,8 +365,6 @@ func (t *LocalTracker) bumpTxnGas(ctx context.Context, txnHash common.Hash) (com
 	if !isPending {
 		return common.Hash{}, fmt.Errorf("the transaction hash %s isn't pending", txnHash)
 	}
-
-	fmt.Printf("pendingTxn: %v\n", pendingTxn.GasPrice())
 
 	ltxn := &types.LegacyTx{
 		Nonce:    pendingTxn.Nonce(),
