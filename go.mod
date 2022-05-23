@@ -8,6 +8,7 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.15.2
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
+	github.com/hetiansu5/urlquery v1.2.7
 	github.com/jackc/pgconn v1.12.0
 	github.com/jackc/pgproto3/v2 v2.3.0
 	github.com/jackc/pgtype v1.11.0

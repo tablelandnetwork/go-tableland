@@ -19,6 +19,7 @@ services:
     ports:
       - "127.0.0.1:8080:8080" 
       - "127.0.0.1:9090:9090"
+      - "127.0.0.1:40000:40000"
     volumes:
       - ${PWD}/${CONFIG_FILE}:/app/config.json
     security_opt:
