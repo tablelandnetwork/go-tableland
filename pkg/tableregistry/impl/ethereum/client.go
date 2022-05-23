@@ -9,7 +9,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/nonce"
@@ -17,15 +16,10 @@ import (
 	"github.com/textileio/go-tableland/pkg/wallet"
 )
 
-type EthClient interface {
-	bind.ContractBackend
-	TransactionByHash(ctx context.Context, txHash common.Hash) (*types.Transaction, bool, error)
-}
-
 // Client is the Ethereum implementation of the registry client.
 type Client struct {
 	contract *Contract
-	backend  EthClient
+	backend  bind.ContractBackend
 	wallet   *wallet.Wallet
 	chainID  tableland.ChainID
 	tracker  nonce.NonceTracker
@@ -33,7 +27,7 @@ type Client struct {
 
 // NewClient creates a new Client.
 func NewClient(
-	backend EthClient,
+	backend bind.ContractBackend,
 	chainID tableland.ChainID,
 	contractAddr common.Address,
 	wallet *wallet.Wallet,
@@ -170,37 +164,4 @@ func (c *Client) callWithRetry(ctx context.Context, f func() (*types.Transaction
 	}
 
 	return tx, nil
-}
-
-func (c *Client) BumpTxnGas(ctx context.Context, txnHash common.Hash) (common.Hash, error) {
-	pendingTxn, isPending, err := c.backend.TransactionByHash(ctx, txnHash)
-	if err != nil {
-		return common.Hash{}, fmt.Errorf("get pending txn from the mempool: %s", err)
-	}
-	if !isPending {
-		return common.Hash{}, fmt.Errorf("the transaction hash %s isn't pending", txnHash)
-	}
-
-	fmt.Printf("pendingTxn: %v\n", pendingTxn.GasPrice())
-
-	ltxn := &types.LegacyTx{
-		Nonce:    pendingTxn.Nonce(),
-		GasPrice: big.NewInt(0).Div(big.NewInt(0).Mul(pendingTxn.GasPrice(), big.NewInt(125)), big.NewInt(100)),
-		Gas:      pendingTxn.Gas(),
-		To:       pendingTxn.To(),
-		Value:    pendingTxn.Value(),
-		Data:     pendingTxn.Data(),
-	}
-
-	signer := types.NewLondonSigner(big.NewInt(int64(c.chainID)))
-	txn, err := types.SignTx(types.NewTx(ltxn), signer, c.wallet.PrivateKey())
-	if err != nil {
-		return common.Hash{}, fmt.Errorf("signing txn: %s", err)
-	}
-
-	if err := c.backend.SendTransaction(ctx, txn); err != nil {
-		return common.Hash{}, fmt.Errorf("sending txn: %s", err)
-	}
-
-	return txn.Hash(), nil
 }

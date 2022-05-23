@@ -12,11 +12,12 @@ import (
 
 // PendingTx represents a pending tx.
 type PendingTx struct {
-	ChainID   int64
-	Hash      common.Hash
-	Nonce     int64
-	Address   common.Address
-	CreatedAt time.Time
+	ChainID        int64
+	Hash           common.Hash
+	Nonce          int64
+	Address        common.Address
+	BumpPriceCount int
+	CreatedAt      time.Time
 }
 
 // ErrBlockDiffNotEnough indicates that the pending block is not old enough.
@@ -56,6 +57,7 @@ type ChainClient interface {
 	HeaderByNumber(ctx context.Context, n *big.Int) (*types.Header, error)
 	BalanceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (*big.Int, error)
 	TransactionByHash(ctx context.Context, hash common.Hash) (tx *types.Transaction, isPending bool, err error)
+	SendTransaction(ctx context.Context, tx *types.Transaction) error
 }
 
 // NonceStore provides the api for managing the storage of nonce and pending txs.
@@ -63,4 +65,5 @@ type NonceStore interface {
 	ListPendingTx(context.Context, common.Address) ([]PendingTx, error)
 	InsertPendingTx(context.Context, common.Address, int64, common.Hash) error
 	DeletePendingTxByHash(context.Context, common.Hash) error
+	ReplacePendingTxByHash(context.Context, common.Hash, common.Hash) error
 }

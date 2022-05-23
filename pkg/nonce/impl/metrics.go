@@ -13,7 +13,7 @@ import (
 
 func (t *LocalTracker) initMetrics(chainID tableland.ChainID, addr common.Address) error {
 	meter := global.MeterProvider().Meter("tableland")
-	baseLabels := []attribute.KeyValue{
+	t.mBaseLabels = []attribute.KeyValue{
 		attribute.Int64("chain_id", int64(chainID)),
 		attribute.String("wallet_address", addr.String()),
 	}
@@ -38,6 +38,10 @@ func (t *LocalTracker) initMetrics(chainID tableland.ChainID, addr common.Addres
 	if err != nil {
 		return fmt.Errorf("creating eth client unhealthy metric: %s", err)
 	}
+	t.mGasBump, err = meter.SyncInt64().Counter("tableland.wallettracker.gas.bumps")
+	if err != nil {
+		return fmt.Errorf("creating gas bump counter metric: %s", err)
+	}
 
 	if err = meter.RegisterCallback(
 		[]instrument.Asynchronous{
@@ -50,11 +54,11 @@ func (t *LocalTracker) initMetrics(chainID tableland.ChainID, addr common.Addres
 		func(ctx context.Context) {
 			t.mu.Lock()
 			defer t.mu.Unlock()
-			mNonce.Observe(ctx, t.currNonce, baseLabels...)
-			mPendingTxns.Observe(ctx, int64(len(t.pendingTxs)), baseLabels...)
-			mBalance.Observe(ctx, t.currWeiBalance, baseLabels...)
-			mTxnConfirmationAttempts.Observe(ctx, t.txnConfirmationAttempts, baseLabels...)
-			mEthClientUnhealthy.Observe(ctx, t.ethClientUnhealthy, baseLabels...)
+			mNonce.Observe(ctx, t.currNonce, t.mBaseLabels...)
+			mPendingTxns.Observe(ctx, int64(len(t.pendingTxs)), t.mBaseLabels...)
+			mBalance.Observe(ctx, t.currWeiBalance, t.mBaseLabels...)
+			mTxnConfirmationAttempts.Observe(ctx, t.txnConfirmationAttempts, t.mBaseLabels...)
+			mEthClientUnhealthy.Observe(ctx, t.ethClientUnhealthy, t.mBaseLabels...)
 		}); err != nil {
 		return fmt.Errorf("registering async metric callback: %s", err)
 	}

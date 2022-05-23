@@ -3,6 +3,7 @@ package impl
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"strings"
 	"sync"
 	"time"
@@ -14,7 +15,11 @@ import (
 	"github.com/textileio/go-tableland/internal/tableland"
 	noncepkg "github.com/textileio/go-tableland/pkg/nonce"
 	"github.com/textileio/go-tableland/pkg/wallet"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric/instrument/syncint64"
 )
+
+const maxGasBumpAttempts = 3
 
 // LocalTracker implements a nonce tracker that stores
 // nonce and pending txs locally.
@@ -42,6 +47,10 @@ type LocalTracker struct {
 	checkInterval      time.Duration
 	minBlockChainDepth int
 	stuckInterval      time.Duration
+
+	// metric
+	mBaseLabels []attribute.KeyValue
+	mGasBump    syncint64.Counter
 }
 
 // NewLocalTracker creates a new local tracker. The provided context is used only for initialization
@@ -202,17 +211,16 @@ func (t *LocalTracker) checkIfPendingTxWasIncluded(
 				Str("hash", pendingTx.Hash.Hex()).
 				Int64("nonce", pendingTx.Nonce).
 				Time("createdAt", pendingTx.CreatedAt).
+				Int64("bumpPriceCount", int64(pendingTx.BumpPriceCount)).
 				Msg("pending tx may be stuck")
 
-			t.txnConfirmationAttempts++
-			return noncepkg.ErrPendingTxMayBeStuck
+			return noncepkg.ErrReceiptNotFound
 		}
 		if strings.Contains(err.Error(), "not found") {
 			return noncepkg.ErrReceiptNotFound
 		}
 		return fmt.Errorf("get transaction receipt: %s", err)
 	}
-	t.txnConfirmationAttempts = 0
 
 	blockDiff := h.Number.Int64() - txReceipt.BlockNumber.Int64()
 	if blockDiff < int64(t.minBlockChainDepth) {
@@ -264,14 +272,10 @@ func (t *LocalTracker) checkPendingTxns() error {
 	copy(pendingTxs, t.pendingTxs)
 	t.mu.Unlock()
 
-	for _, pendingTx := range pendingTxs {
+	for i, pendingTx := range pendingTxs {
 		ctx, cls := context.WithTimeout(context.Background(), time.Second*15)
 		if err := t.checkIfPendingTxWasIncluded(ctx, pendingTx, h); err != nil {
 			if err == noncepkg.ErrBlockDiffNotEnough {
-				cls()
-				break
-			}
-			if err == noncepkg.ErrPendingTxMayBeStuck {
 				cls()
 				break
 			}
@@ -281,6 +285,45 @@ func (t *LocalTracker) checkPendingTxns() error {
 					Int64("nonce", pendingTx.Nonce).
 					Msg("receipt not found")
 
+				cls()
+				break
+			}
+
+			if err == noncepkg.ErrPendingTxMayBeStuck {
+				// Did we already bump this txn fees enough times?
+				// If that's the case, stop since something more weird can be happening.
+				if pendingTx.BumpPriceCount > maxGasBumpAttempts {
+					t.mGasBump.Add(ctx, 1, t.mBaseLabels...)
+					t.txnConfirmationAttempts++
+					cls()
+					break
+				}
+				t.txnConfirmationAttempts = 0
+
+				// The pending txn seems to be stuck, and we have quota for bumping
+				// the gas prices. Let's do that.
+				bumpedTxnHash, err := t.bumpTxnGas(ctx, pendingTx.Hash)
+				if err != nil {
+					t.log.Error().
+						Str("hash", pendingTx.Hash.Hex()).
+						Int64("nonce", pendingTx.Nonce).
+						Err(err).
+						Msg("bumping pending transaction gas price")
+					cls()
+					break
+				}
+				if err := t.nonceStore.ReplacePendingTxByHash(ctx, pendingTx.Hash, bumpedTxnHash); err != nil {
+					t.log.Error().
+						Str("hash", pendingTx.Hash.Hex()).
+						Int64("nonce", pendingTx.Nonce).
+						Err(err).
+						Msg("replacing pending txn with bumped one in db:")
+					cls()
+					break
+				}
+				// Replace the pending txn to the new one in-memory slice.
+				pendingTxs[i].Hash = bumpedTxnHash
+				pendingTxs[i].CreatedAt = time.Now()
 				cls()
 				break
 			}
@@ -313,4 +356,37 @@ func (t *LocalTracker) checkBalance() error {
 	t.mu.Unlock()
 
 	return nil
+}
+
+func (t *LocalTracker) bumpTxnGas(ctx context.Context, txnHash common.Hash) (common.Hash, error) {
+	pendingTxn, isPending, err := t.chainClient.TransactionByHash(ctx, txnHash)
+	if err != nil {
+		return common.Hash{}, fmt.Errorf("get pending txn from the mempool: %s", err)
+	}
+	if !isPending {
+		return common.Hash{}, fmt.Errorf("the transaction hash %s isn't pending", txnHash)
+	}
+
+	fmt.Printf("pendingTxn: %v\n", pendingTxn.GasPrice())
+
+	ltxn := &types.LegacyTx{
+		Nonce:    pendingTxn.Nonce(),
+		GasPrice: big.NewInt(0).Div(big.NewInt(0).Mul(pendingTxn.GasPrice(), big.NewInt(125)), big.NewInt(100)),
+		Gas:      pendingTxn.Gas(),
+		To:       pendingTxn.To(),
+		Value:    pendingTxn.Value(),
+		Data:     pendingTxn.Data(),
+	}
+
+	signer := types.NewLondonSigner(big.NewInt(int64(t.chainID)))
+	txn, err := types.SignTx(types.NewTx(ltxn), signer, t.wallet.PrivateKey())
+	if err != nil {
+		return common.Hash{}, fmt.Errorf("signing txn: %s", err)
+	}
+
+	if err := t.chainClient.SendTransaction(ctx, txn); err != nil {
+		return common.Hash{}, fmt.Errorf("sending txn: %s", err)
+	}
+
+	return txn.Hash(), nil
 }

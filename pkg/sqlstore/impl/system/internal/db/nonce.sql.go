@@ -10,7 +10,7 @@ import (
 )
 
 const deletePendingTxByHash = `-- name: DeletePendingTxByHash :exec
-DELETE FROM system_pending_tx WHERE chain_id=$1 AND hash = $2
+DELETE FROM system_pending_tx WHERE chain_id=$1 AND hash=$2
 `
 
 type DeletePendingTxByHashParams struct {
@@ -45,7 +45,7 @@ func (q *Queries) InsertPendingTx(ctx context.Context, arg InsertPendingTxParams
 }
 
 const listPendingTx = `-- name: ListPendingTx :many
-SELECT chain_id, address, hash, nonce, created_at FROM system_pending_tx WHERE address = $1 AND chain_id = $2
+SELECT chain_id, address, hash, nonce, created_at, bump_price_count FROM system_pending_tx WHERE address = $1 AND chain_id = $2
 `
 
 type ListPendingTxParams struct {
@@ -68,6 +68,7 @@ func (q *Queries) ListPendingTx(ctx context.Context, arg ListPendingTxParams) ([
 			&i.Hash,
 			&i.Nonce,
 			&i.CreatedAt,
+			&i.BumpPriceCount,
 		); err != nil {
 			return nil, err
 		}
@@ -77,4 +78,21 @@ func (q *Queries) ListPendingTx(ctx context.Context, arg ListPendingTxParams) ([
 		return nil, err
 	}
 	return items, nil
+}
+
+const replacePendingTxByHash = `-- name: ReplacePendingTxByHash :exec
+UPDATE system_pending_tx 
+SET hash=$3, bump_price_count=bump_price_count+1, created_at=CURRENT_TIMESTAMP 
+WHERE chain_id=$1 AND hash=$2
+`
+
+type ReplacePendingTxByHashParams struct {
+	ChainID int64
+	Hash    string
+	Hash_2  string
+}
+
+func (q *Queries) ReplacePendingTxByHash(ctx context.Context, arg ReplacePendingTxByHashParams) error {
+	_, err := q.db.Exec(ctx, replacePendingTxByHash, arg.ChainID, arg.Hash, arg.Hash_2)
+	return err
 }
