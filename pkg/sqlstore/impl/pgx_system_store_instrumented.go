@@ -169,7 +169,7 @@ func (s *InstrumentedSystemStore) DeletePendingTxByHash(ctx context.Context, has
 }
 
 // ReplacePendingTxByHash replaces a pending txn hash and bumps the counter on how many times this happened.
-func (s *InstrumentedSQLStorePGX) ReplacePendingTxByHash(
+func (s *InstrumentedSystemStore) ReplacePendingTxByHash(
 	ctx context.Context,
 	oldHash common.Hash,
 	newHash common.Hash) error {
