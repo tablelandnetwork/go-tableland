@@ -19,8 +19,9 @@ import (
 // LocalTracker implements a nonce tracker that stores
 // nonce and pending txs locally.
 type LocalTracker struct {
-	log    zerolog.Logger
-	wallet *wallet.Wallet
+	log     zerolog.Logger
+	wallet  *wallet.Wallet
+	chainID tableland.ChainID
 
 	mu                      sync.Mutex
 	currNonce               int64
@@ -64,6 +65,7 @@ func NewLocalTracker(
 		wallet:      w,
 		nonceStore:  nonceStore,
 		chainClient: chainClient,
+		chainID:     chainID,
 
 		checkInterval:      checkInterval,
 		minBlockChainDepth: minBlockChainDepth,
