@@ -45,7 +45,6 @@ func bumpTxnFee(
 	conn *ethclient.Client,
 	pk *ecdsa.PrivateKey,
 	stuckTxnHash common.Hash) (common.Hash, error) {
-
 	ctx := context.Background()
 
 	pendingTxn, isPending, err := conn.TransactionByHash(ctx, stuckTxnHash)
