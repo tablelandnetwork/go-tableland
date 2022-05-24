@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"math/big"
-	"os"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -20,10 +19,10 @@ func main() {
 	privateKey := flag.String("privatekey", "", "Hex encoded private key of the wallet address")
 	flag.Parse()
 
-	if len(os.Args) < 2 {
+	if len(flag.Args()) < 1 {
 		log.Fatalf("we expect one argument\n./gaspricebumper [flags] <stuck-txn-hash>")
 	}
-	stuckTxnHash := common.HexToHash(os.Args[1])
+	stuckTxnHash := common.HexToHash(flag.Args()[0])
 
 	pk, err := crypto.HexToECDSA(*privateKey)
 	if err != nil {
@@ -39,7 +38,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("bumpint txn fee: %s", err)
 	}
-	fmt.Printf("The new transaction hash is: %s", newTxnHash)
+	fmt.Printf("The new transaction hash is: %s\n", newTxnHash)
 }
 
 func bumpTxnFee(
