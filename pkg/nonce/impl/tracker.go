@@ -345,6 +345,7 @@ func (t *LocalTracker) checkPendingTxns() error {
 				}
 				// Replace the pending txn to the new one in-memory slice.
 				pendingTxs[i].Hash = bumpedTxnHash
+				pendingTxs[i].BumpPriceCount++
 				pendingTxs[i].CreatedAt = time.Now()
 				cls()
 				break
