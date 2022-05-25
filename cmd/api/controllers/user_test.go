@@ -13,7 +13,7 @@ import (
 )
 
 func TestUserController(t *testing.T) {
-	req, err := http.NewRequest("GET", "/tables/100/id/0", nil)
+	req, err := http.NewRequest("GET", "/tables/100/id/1", nil)
 	require.NoError(t, err)
 
 	userController := NewUserController(&runnerMock{})
@@ -25,55 +25,24 @@ func TestUserController(t *testing.T) {
 	router.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
 
-	//nolint
-	expJSON := `
-{
-  "name": "Dave Starbelly",
-  "description": "Friendly OpenSea Creature that enjoys long swims in the ocean.",
-  "image": "https://storage.googleapis.com/opensea-prod.appspot.com/creature/3.png",
-  "external_url": "https://example.com/?token_id=3",
-  "attributes": [
-    {
-      "trait_type": "base",
-      "value": "narwhal"
-    },
-    {
-      "trait_type": "eyes",
-      "value": "sleepy"
-    },
-    {
-      "trait_type": "mouth",
-      "value": "cute"
-    },
-    {
-      "trait_type": "level",
-      "value": 4
-    },
-    {
-      "trait_type": "stamina",
-      "value": 90.2
-    },
-    {
-      "trait_type": "personality",
-      "value": "boring"
-    },
-    {
-      "display_type": "boost_number",
-      "trait_type": "aqua_power",
-      "value": 10
-    },
-    {
-      "display_type": "boost_percentage",
-      "trait_type": "stamina_increase",
-      "value": 5
-    },
-    {
-      "display_type": "number",
-      "trait_type": "generation",
-      "value": 1
-    }
-  ]
-}`
+	expJSON := `{"columns":[{"name":"id"},{"name":"description"},{"name":"image"},{"name":"external_url"},{"name":"base"},{"name":"eyes"},{"name":"mouth"},{"name":"level"},{"name":"stamina"},{"name":"personality"},{"name":"aqua_power"},{"name":"stamina_increase"},{"name":"generation"}],"rows":[[1,"Friendly OpenSea Creature that enjoys long swims in the ocean.","https://storage.googleapis.com/opensea-prod.appspot.com/creature/3.png","https://example.com/?token_id=3","Starfish","Big","Surprised",5,1.4,"Sad",40,10,2]]}` // nolint
+	require.JSONEq(t, expJSON, rr.Body.String())
+}
+
+func TestUserControllerERC721Metadata(t *testing.T) {
+	req, err := http.NewRequest("GET", "/tables/100/id/1?format=erc721&name=id&image=image&description=description&external_url=external_url&attributes[0][column]=base&attributes[0][trait_type]=Base&attributes[1][column]=eyes&attributes[1][trait_type]=Eyes&attributes[2][column]=mouth&attributes[2][trait_type]=Mouth&attributes[3][column]=level&attributes[3][trait_type]=Level&attributes[4][column]=stamina&attributes[4][trait_type]=Stamina&attributes[5][column]=personality&attributes[5][trait_type]=Personality&attributes[6][column]=aqua_power&attributes[6][display_type]=boost_number&attributes[6][trait_type]=Aqua%20Power&attributes[7][column]=stamina_increase&attributes[7][display_type]=boost_percentage&attributes[7][trait_type]=Stamina%20Increase&attributes[8][column]=generation&attributes[8][display_type]=number&attributes[8][trait_type]=Generation", nil) // nolint
+	require.NoError(t, err)
+
+	userController := NewUserController(&runnerMock{})
+
+	router := mux.NewRouter()
+	router.HandleFunc("/tables/{id}/{key}/{value}", userController.GetTableRow)
+
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	expJSON := `{"image":"https://storage.googleapis.com/opensea-prod.appspot.com/creature/3.png","external_url":"https://example.com/?token_id=3","description":"Friendly OpenSea Creature that enjoys long swims in the ocean.","name":"#1","attributes":[{"trait_type":"Base","value":"Starfish"},{"trait_type":"Eyes","value":"Big"},{"trait_type":"Mouth","value":"Surprised"},{"trait_type":"Level","value":5},{"trait_type":"Stamina","value":1.4},{"trait_type":"Personality","value":"Sad"},{"display_type":"boost_number","trait_type":"Aqua Power","value":40},{"display_type":"boost_percentage","trait_type":"Stamina Increase","value":10},{"display_type":"number","trait_type":"Generation","value":2}]}` // nolint
 	require.JSONEq(t, expJSON, rr.Body.String())
 }
 
@@ -96,7 +65,7 @@ func TestUserControllerInvalidColumn(t *testing.T) {
 }
 
 func TestUserControllerRowNotFound(t *testing.T) {
-	req, err := http.NewRequest("GET", "/tables/100/id/0", nil)
+	req, err := http.NewRequest("GET", "/tables/100/id/1", nil)
 	require.NoError(t, err)
 
 	userController := NewUserController(&notFoundRunnerMock{})
@@ -122,60 +91,34 @@ func (*runnerMock) RunReadQuery(
 		Result: sqlstore.UserRows{
 			Columns: []sqlstore.UserColumn{
 				{Name: "id"},
-				{Name: "name"},
 				{Name: "description"},
 				{Name: "image"},
 				{Name: "external_url"},
-				{Name: "attributes"},
+				{Name: "base"},
+				{Name: "eyes"},
+				{Name: "mouth"},
+				{Name: "level"},
+				{Name: "stamina"},
+				{Name: "personality"},
+				{Name: "aqua_power"},
+				{Name: "stamina_increase"},
+				{Name: "generation"},
 			},
 			Rows: [][]interface{}{
 				{
-					0,
-					"Dave Starbelly",
+					1,
 					"Friendly OpenSea Creature that enjoys long swims in the ocean.",
 					"https://storage.googleapis.com/opensea-prod.appspot.com/creature/3.png",
 					"https://example.com/?token_id=3",
-					[]map[string]interface{}{
-						{
-							"trait_type": "base",
-							"value":      "narwhal",
-						},
-						{
-							"trait_type": "eyes",
-							"value":      "sleepy",
-						},
-						{
-							"trait_type": "mouth",
-							"value":      "cute",
-						},
-						{
-							"trait_type": "level",
-							"value":      4,
-						},
-						{
-							"trait_type": "stamina",
-							"value":      90.2,
-						},
-						{
-							"trait_type": "personality",
-							"value":      "boring",
-						},
-						{
-							"display_type": "boost_number",
-							"trait_type":   "aqua_power",
-							"value":        10,
-						},
-						{
-							"display_type": "boost_percentage",
-							"trait_type":   "stamina_increase",
-							"value":        5,
-						},
-						{
-							"display_type": "number",
-							"trait_type":   "generation",
-							"value":        1,
-						},
-					},
+					"Starfish",
+					"Big",
+					"Surprised",
+					5,
+					1.4,
+					"Sad",
+					40,
+					10,
+					2,
 				},
 			},
 		},
@@ -201,11 +144,18 @@ func (*notFoundRunnerMock) RunReadQuery(
 		Result: sqlstore.UserRows{
 			Columns: []sqlstore.UserColumn{
 				{Name: "id"},
-				{Name: "name"},
 				{Name: "description"},
 				{Name: "image"},
 				{Name: "external_url"},
-				{Name: "attributes"},
+				{Name: "base"},
+				{Name: "eyes"},
+				{Name: "mouth"},
+				{Name: "level"},
+				{Name: "stamina"},
+				{Name: "personality"},
+				{Name: "aqua_power"},
+				{Name: "stamina_increase"},
+				{Name: "generation"},
 			},
 			Rows: [][]interface{}{},
 		},
