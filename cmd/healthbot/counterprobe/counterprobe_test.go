@@ -14,7 +14,7 @@ func TestProduction(t *testing.T) {
 	endpoint := "https://testnet.tableland.network/rpc"
 	tblname := "Runbook_24"
 
-	cp, err := New(endpoint, siwe, tblname, time.Second, time.Second*10)
+	cp, err := New("optimism-mainnet", endpoint, siwe, tblname, time.Second, time.Second*10)
 	require.NoError(t, err)
 
 	value, err := cp.healthCheck(context.Background())

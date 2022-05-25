@@ -25,27 +25,34 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
 	defer cancel()
 
-	checkInterval, err := time.ParseDuration(cfg.Probe.CheckInterval)
-	if err != nil {
-		log.Fatal().Err(err).Msgf("check interval has invalid format: %s", cfg.Probe.CheckInterval)
-	}
-	receiptTimeout, err := time.ParseDuration(cfg.Probe.ReceiptTimeout)
-	if err != nil {
-		log.Fatal().Err(err).Msgf("receipt timeout has invalid format: %s", cfg.Probe.ReceiptTimeout)
-	}
-
-	cp, err := counterprobe.New(cfg.Probe.Target, cfg.Probe.SIWE, cfg.Probe.Tablename, checkInterval, receiptTimeout)
-	if err != nil {
-		log.Fatal().Err(err).Msg("initializing counter-probe")
-	}
-
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		cp.Run(ctx)
-	}()
+	for _, cfg := range cfg.Chains {
+		checkInterval, err := time.ParseDuration(cfg.Probe.CheckInterval)
+		if err != nil {
+			log.Fatal().Err(err).Msgf("check interval has invalid format: %s", cfg.Probe.CheckInterval)
+		}
+		receiptTimeout, err := time.ParseDuration(cfg.Probe.ReceiptTimeout)
+		if err != nil {
+			log.Fatal().Err(err).Msgf("receipt timeout has invalid format: %s", cfg.Probe.ReceiptTimeout)
+		}
 
+		cp, err := counterprobe.New(
+			cfg.Name,
+			cfg.Probe.Target,
+			cfg.Probe.SIWE,
+			cfg.Probe.Tablename,
+			checkInterval,
+			receiptTimeout)
+		if err != nil {
+			log.Fatal().Err(err).Msg("initializing counter-probe")
+		}
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			cp.Run(ctx)
+		}()
+	}
 	wg.Wait()
-	log.Info().Msg("closing daemon")
+	log.Info().Msg("daemon closed")
 }

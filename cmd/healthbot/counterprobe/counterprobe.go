@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
+	logger "github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/tableland"
-	"go.opentelemetry.io/otel/metric/global"
-	"go.opentelemetry.io/otel/metric/instrument"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
 
 	"github.com/ethereum/go-ethereum/rpc"
@@ -24,6 +24,8 @@ const (
 // CounterProbe allows running an e2e probe for a pre-minted table
 // that has a counter column.
 type CounterProbe struct {
+	log zerolog.Logger
+
 	checkInterval  time.Duration
 	receiptTimeout time.Duration
 	tableName      string
@@ -35,14 +37,22 @@ type CounterProbe struct {
 	mLastCheck           time.Time
 	mLastSuccessfulCheck time.Time
 	mLatencyHist         syncint64.Histogram
+	mBaseLabels          []attribute.KeyValue
 }
 
 // New returns a *CounterProbe.
-func New(endpoint string,
+func New(
+	chainName string,
+	endpoint string,
 	siwe string,
 	tableName string,
 	checkInterval time.Duration,
 	receiptTimeout time.Duration) (*CounterProbe, error) {
+	log := logger.With().
+		Str("component", "healthbot").
+		Str("chainName", chainName).
+		Logger()
+
 	if receiptTimeout == 0 {
 		return nil, fmt.Errorf("receipt timeout can't be zero")
 	}
@@ -58,46 +68,15 @@ func New(endpoint string,
 	}
 	rpcClient.SetHeader("Authorization", "Bearer "+siwe)
 
-	meter := global.MeterProvider().Meter("tableland")
-	latencyHistogram, err := meter.SyncInt64().Histogram(metricPrefix + ".latency")
-	if err != nil {
-		return &CounterProbe{}, fmt.Errorf("registering latency histogram: %s", err)
-	}
-
 	cp := &CounterProbe{
+		log:            log,
 		checkInterval:  checkInterval,
 		rpcClient:      rpcClient,
 		tableName:      tableName,
 		receiptTimeout: receiptTimeout,
-
-		mLatencyHist: latencyHistogram,
 	}
-
-	mLastCheck, err := meter.AsyncInt64().Gauge(metricPrefix + ".last_check")
-	if err != nil {
-		return &CounterProbe{}, fmt.Errorf("registering last check gauge: %s", err)
-	}
-
-	mLastSuccessfulCheck, err := meter.AsyncInt64().Gauge(metricPrefix + ".last_successful_check")
-	if err != nil {
-		return &CounterProbe{}, fmt.Errorf("registering last full check gauge: %s", err)
-	}
-
-	mCounterValue, err := meter.AsyncInt64().Gauge(metricPrefix + ".counter_value")
-	if err != nil {
-		return &CounterProbe{}, fmt.Errorf("registering counter value gauge: %s", err)
-	}
-
-	instruments := []instrument.Asynchronous{mLastCheck, mLastSuccessfulCheck, mCounterValue}
-	if err := meter.RegisterCallback(instruments, func(ctx context.Context) {
-		cp.lock.RLock()
-		defer cp.lock.RUnlock()
-
-		mLastCheck.Observe(ctx, cp.mLastCheck.Unix())
-		mLastSuccessfulCheck.Observe(ctx, cp.mLastSuccessfulCheck.Unix())
-		mCounterValue.Observe(ctx, cp.mLastCounterValue)
-	}); err != nil {
-		return &CounterProbe{}, fmt.Errorf("registering callback on instruments: %s", err)
+	if err := cp.initMetrics(chainName); err != nil {
+		return nil, fmt.Errorf("initializing metrics: %s", err)
 	}
 
 	return cp, nil
@@ -105,15 +84,15 @@ func New(endpoint string,
 
 // Run runs the probe until the provided ctx is canceled.
 func (cp *CounterProbe) Run(ctx context.Context) {
-	log.Info().Msg("starting counter-probe...")
+	cp.log.Info().Msg("starting counter-probe...")
 	for {
 		select {
 		case <-ctx.Done():
-			log.Info().Msg("closing gracefully...")
+			cp.log.Info().Msg("closing gracefully...")
 			return
 		case <-time.After(cp.checkInterval):
 			if err := cp.execProbe(ctx); err != nil {
-				log.Error().Err(err).Msg("health check failed")
+				cp.log.Error().Err(err).Msg("health check failed")
 			}
 		}
 	}
@@ -129,7 +108,7 @@ func (cp *CounterProbe) execProbe(ctx context.Context) error {
 		return fmt.Errorf("health check: %s", err)
 	}
 
-	cp.mLatencyHist.Record(ctx, time.Since(cp.mLastCheck).Milliseconds())
+	cp.mLatencyHist.Record(ctx, time.Since(cp.mLastCheck).Milliseconds(), cp.mBaseLabels...)
 	cp.lock.Lock()
 	cp.mLastSuccessfulCheck = time.Now()
 	cp.mLastCounterValue = counterValue

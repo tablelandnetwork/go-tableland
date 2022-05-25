@@ -106,5 +106,5 @@ spec:
           configMap:
             name: configmap-validator-config
             items:
-              - key: config-staging.json
+              - key: config-validator-staging.json
                 path: config.json
