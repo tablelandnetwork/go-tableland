@@ -48,12 +48,6 @@ spec:
           ports:
             - name: metrics
               containerPort: 9090
-          env:
-            - name: PROBE_SIWE
-              valueFrom:
-                secretKeyRef:
-                  name: tableland-secret
-                  key: healthbot-siwe
           envFrom:
             - configMapRef:
                 name: configmap-healthbot
@@ -75,3 +69,14 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 20
             failureThreshold: 3
+          volumeMounts:
+            - name: healthbot-config
+              mountPath: /app/config.json
+              subPath: config.json
+      volumes:
+        - name: healthbot-config
+          configMap:
+            name: configmap-healthbot-config
+            items:
+              - key: config-healthbot-staging.json
+                path: config.json
