@@ -22,6 +22,7 @@ type config struct {
 		Human bool `default:"false"`
 		Debug bool `default:"false"`
 	}
+	Target string `default:""`
 	Chains []ChainConfig
 }
 
@@ -29,7 +30,6 @@ type config struct {
 type ChainConfig struct {
 	Name  string
 	Probe struct {
-		Target         string `default:""`
 		CheckInterval  string `default:"15s"`
 		ReceiptTimeout string `default:"20s"`
 		SIWE           string `default:""`
