@@ -264,6 +264,42 @@ func (b *batch) SetController(
 	return nil
 }
 
+// GrantPrivileges gives privileges to an address on a table.
+func (b *batch) GrantPrivileges(
+	ctx context.Context,
+	id tableland.TableID,
+	addr common.Address,
+	privileges tableland.Privileges) error {
+	f := func(tx pgx.Tx) error {
+		if err := b.executeGrantPrivilegesTx(ctx, tx, id, addr, privileges); err != nil {
+			return fmt.Errorf("executing grant privileges tx: %w", err)
+		}
+		return nil
+	}
+	if err := b.txn.BeginFunc(ctx, f); err != nil {
+		return fmt.Errorf("processing grant privileges: %s", err)
+	}
+	return nil
+}
+
+// RevokePrivileges revokes privileges from an address on a table.
+func (b *batch) RevokePrivileges(
+	ctx context.Context,
+	id tableland.TableID,
+	addr common.Address,
+	privileges tableland.Privileges) error {
+	f := func(tx pgx.Tx) error {
+		if err := b.executeRevokePrivilegesTx(ctx, tx, id, addr, privileges); err != nil {
+			return fmt.Errorf("executing revoke privileges tx: %w", err)
+		}
+		return nil
+	}
+	if err := b.txn.BeginFunc(ctx, f); err != nil {
+		return fmt.Errorf("processing revoke privileges: %s", err)
+	}
+	return nil
+}
+
 // isErrCausedByQuery detects if the query execution failed because of possibly expected
 // bad queries from users. If that's the case the call might want to accept the failure
 // as an expected event in the flow.
@@ -477,50 +513,12 @@ func (b *batch) executeGrantStmt(
 	for _, role := range gs.GetRoles() {
 		switch gs.Operation() {
 		case tableland.OpGrant:
-			// Upserts the privileges into the acl table,
-			// making sure the array has unique elements.
-			if _, err := tx.Exec(ctx,
-				`INSERT INTO system_acl ("chain_id","table_id","controller","privileges") 
-						VALUES ($1, $2, $3, $4)
-						ON CONFLICT (chain_id,table_id,controller)
-						DO UPDATE SET privileges = ARRAY(
-							SELECT DISTINCT UNNEST(privileges || $4) 
-							FROM system_acl 
-							WHERE table_id = $2 AND controller = $3
-						), updated_at = now();`,
-				b.tp.chainID,
-				dbID,
-				role.Hex(),
-				gs.GetPrivileges(),
-			); err != nil {
-				if code, ok := isErrCausedByQuery(err); ok {
-					return &txn.ErrQueryExecution{
-						Code: "POSTGRES_" + code,
-						Msg:  err.Error(),
-					}
-				}
-				return fmt.Errorf("creating/updating acl entry on system acl: %s", err)
+			if err := b.executeGrantPrivilegesTx(ctx, tx, gs.GetTableID(), role, gs.GetPrivileges()); err != nil {
+				return fmt.Errorf("executing grant privileges tx: %w", err)
 			}
 		case tableland.OpRevoke:
-			for _, privAbbr := range gs.GetPrivileges() {
-				if _, err := tx.Exec(ctx,
-					`UPDATE system_acl 
-								SET privileges = array_remove(privileges, $4), 
-									updated_at = now()
-								WHERE chain_id=$1 AND table_id = $2 AND controller = $3;`,
-					b.tp.chainID,
-					dbID,
-					role.Hex(),
-					privAbbr,
-				); err != nil {
-					if code, ok := isErrCausedByQuery(err); ok {
-						return &txn.ErrQueryExecution{
-							Code: "POSTGRES_" + code,
-							Msg:  err.Error(),
-						}
-					}
-					return fmt.Errorf("removing acl entry from system acl: %s", err)
-				}
+			if err := b.executeRevokePrivilegesTx(ctx, tx, gs.GetTableID(), role, gs.GetPrivileges()); err != nil {
+				return fmt.Errorf("executing revoke privileges tx: %w", err)
 			}
 		default:
 			return &txn.ErrQueryExecution{
@@ -755,4 +753,78 @@ func (b *batch) buildAuditingQueryFromPolicy(dbTableName string, ctids []string,
 		policy.WithCheck(),
 		strings.Join(ctids, ","),
 	)
+}
+
+func (b *batch) executeGrantPrivilegesTx(
+	ctx context.Context,
+	tx pgx.Tx,
+	id tableland.TableID,
+	addr common.Address,
+	privileges tableland.Privileges) error {
+	dbID := pgtype.Numeric{}
+	if err := dbID.Set(id.String()); err != nil {
+		return fmt.Errorf("parsing table id to numeric: %s", err)
+	}
+
+	// Upserts the privileges into the acl table,
+	// making sure the array has unique elements.
+	if _, err := tx.Exec(ctx,
+		`INSERT INTO system_acl ("chain_id","table_id","controller","privileges") 
+						VALUES ($1, $2, $3, $4)
+						ON CONFLICT (chain_id,table_id,controller)
+						DO UPDATE SET privileges = ARRAY(
+							SELECT DISTINCT UNNEST(privileges || $4) 
+							FROM system_acl 
+							WHERE table_id = $2 AND controller = $3
+						), updated_at = now();`,
+		b.tp.chainID,
+		dbID,
+		addr.Hex(),
+		privileges,
+	); err != nil {
+		if code, ok := isErrCausedByQuery(err); ok {
+			return &txn.ErrQueryExecution{
+				Code: "POSTGRES_" + code,
+				Msg:  err.Error(),
+			}
+		}
+		return fmt.Errorf("creating/updating acl entry on system acl: %s", err)
+	}
+
+	return nil
+}
+
+func (b *batch) executeRevokePrivilegesTx(
+	ctx context.Context,
+	tx pgx.Tx,
+	id tableland.TableID,
+	addr common.Address,
+	privileges tableland.Privileges) error {
+	dbID := pgtype.Numeric{}
+	if err := dbID.Set(id.String()); err != nil {
+		return fmt.Errorf("parsing table id to numeric: %s", err)
+	}
+
+	for _, privAbbr := range privileges {
+		if _, err := tx.Exec(ctx,
+			`UPDATE system_acl 
+							SET privileges = array_remove(privileges, $4), 
+								updated_at = now()
+							WHERE chain_id=$1 AND table_id = $2 AND controller = $3;`,
+			b.tp.chainID,
+			dbID,
+			addr.Hex(),
+			privAbbr,
+		); err != nil {
+			if code, ok := isErrCausedByQuery(err); ok {
+				return &txn.ErrQueryExecution{
+					Code: "POSTGRES_" + code,
+					Msg:  err.Error(),
+				}
+			}
+			return fmt.Errorf("removing acl entry from system acl: %s", err)
+		}
+	}
+
+	return nil
 }

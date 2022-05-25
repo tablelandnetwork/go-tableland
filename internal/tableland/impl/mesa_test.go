@@ -390,6 +390,46 @@ func TestOwnerRevokesItsPrivilegeInsideMultipleStatements(t *testing.T) {
 	requireReceipts(ctx, t, tbld, []string{r.Transaction.Hash}, false)
 }
 
+func TestTableTransfer(t *testing.T) {
+	t.Parallel()
+
+	ctx, tbldOwner1, tbldOwner2, backend, sc, txOptsOwner1, txOptsOwner2 := setupTablelandForTwoAddresses(t)
+
+	_, err := sc.CreateTable(txOptsOwner1, txOptsOwner1.From, `CREATE TABLE foo_1337 (bar text);`)
+	require.NoError(t, err)
+
+	// transfer table from owner1 to owner2
+	_, err = sc.TransferFrom(txOptsOwner1, txOptsOwner1.From, txOptsOwner2.From, big.NewInt(0))
+	require.NoError(t, err)
+
+	// we'll execute one insert with owner1 and one insert with owner2
+	query1 := "INSERT INTO foo_1337_0 (bar) VALUES ('Hello')"
+	r1, err := relayWriteQuery(ctx, t, tbldOwner1, query1, txOptsOwner1.From.Hex())
+	require.NoError(t, err)
+	backend.Commit()
+
+	query2 := "INSERT INTO foo_1337_0 (bar) VALUES ('Hello2')"
+	r2, err := relayWriteQuery(ctx, t, tbldOwner2, query2, txOptsOwner2.From.Hex())
+	require.NoError(t, err)
+	backend.Commit()
+
+	// insert from owner1 will NEVER go through
+	require.Never(t,
+		runSQLCountEq(ctx, t, tbldOwner1, "SELECT * FROM foo_1337_0 WHERE bar ='Hello';", txOptsOwner1.From.Hex(), 1),
+		5*time.Second,
+		100*time.Millisecond,
+	)
+	requireReceipts(ctx, t, tbldOwner1, []string{r1.Transaction.Hash}, false)
+
+	// insert from owner2 will EVENTUALLY go through
+	require.Eventually(t,
+		runSQLCountEq(ctx, t, tbldOwner2, "SELECT * FROM foo_1337_0 WHERE bar ='Hello2';", txOptsOwner2.From.Hex(), 1),
+		5*time.Second,
+		100*time.Millisecond,
+	)
+	requireReceipts(ctx, t, tbldOwner2, []string{r2.Transaction.Hash}, true)
+}
+
 func processCSV(
 	ctx context.Context,
 	t *testing.T,

@@ -51,6 +51,16 @@ type Batch interface {
 		ctx context.Context,
 		id tableland.TableID,
 		controller common.Address) error
+	GrantPrivileges(
+		ctx context.Context,
+		id tableland.TableID,
+		addr common.Address,
+		privileges tableland.Privileges) error
+	RevokePrivileges(
+		ctx context.Context,
+		id tableland.TableID,
+		addr common.Address,
+		privileges tableland.Privileges) error
 	GetLastProcessedHeight(ctx context.Context) (int64, error)
 	SetLastProcessedHeight(ctx context.Context, height int64) error
 	SaveTxnReceipts(ctx context.Context, rs []eventprocessor.Receipt) error

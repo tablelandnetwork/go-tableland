@@ -51,9 +51,9 @@ func TestRunSQLBlockProcessing(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		_, contractSendRunSQL, _, checkReceipts, dbReader := setup(t)
+		contractCalls, checkReceipts, dbReader := setup(t)
 		queries := []string{"insert into test_1337_1000 values (1001)"}
-		txnHashes := contractSendRunSQL(queries)
+		txnHashes := contractCalls.runSQL(queries)
 
 		expReceipt := eventprocessor.Receipt{
 			ChainID: chainID,
@@ -69,9 +69,9 @@ func TestRunSQLBlockProcessing(t *testing.T) {
 	t.Run("failure", func(t *testing.T) {
 		t.Parallel()
 
-		_, contractSendRunSQL, _, checkReceipts, dbReader := setup(t)
+		contractCalls, checkReceipts, dbReader := setup(t)
 		queries := []string{"insert into test_1337_1000 values ('abc')"}
-		txnHashes := contractSendRunSQL(queries)
+		txnHashes := contractCalls.runSQL(queries)
 
 		expReceipt := eventprocessor.Receipt{
 			ChainID: chainID,
@@ -86,9 +86,10 @@ func TestRunSQLBlockProcessing(t *testing.T) {
 	})
 	t.Run("success-success", func(t *testing.T) {
 		t.Parallel()
-		_, contractSendRunSQL, _, checkReceipts, dbReader := setup(t)
+
+		contractCalls, checkReceipts, dbReader := setup(t)
 		queries := []string{"insert into test_1337_1000 values (1001)", "insert into test_1337_1000 values (1002)"}
-		txnHashes := contractSendRunSQL(queries)
+		txnHashes := contractCalls.runSQL(queries)
 
 		expReceipts := make([]eventprocessor.Receipt, len(txnHashes))
 		for i, th := range txnHashes {
@@ -106,9 +107,10 @@ func TestRunSQLBlockProcessing(t *testing.T) {
 	})
 	t.Run("failure-success", func(t *testing.T) {
 		t.Parallel()
-		_, contractSendRunSQL, _, checkReceipts, dbReader := setup(t)
+
+		contractCalls, checkReceipts, dbReader := setup(t)
 		queries := []string{"insert into test_1337_1000 values ('abc')", "insert into test_1337_1000 values (1002)"}
-		txnHashes := contractSendRunSQL(queries)
+		txnHashes := contractCalls.runSQL(queries)
 
 		expReceipts := make([]eventprocessor.Receipt, len(txnHashes))
 		expReceipts[0] = eventprocessor.Receipt{
@@ -130,9 +132,9 @@ func TestRunSQLBlockProcessing(t *testing.T) {
 	})
 	t.Run("success-failure", func(t *testing.T) {
 		t.Parallel()
-		_, contractSendRunSQL, _, checkReceipts, dbReader := setup(t)
+		contractCalls, checkReceipts, dbReader := setup(t)
 		queries := []string{"insert into test_1337_1000 values (1001)", "insert into test_1337_1000 values ('abc')"}
-		txnHashes := contractSendRunSQL(queries)
+		txnHashes := contractCalls.runSQL(queries)
 
 		expReceipts := make([]eventprocessor.Receipt, len(txnHashes))
 		expReceipts[0] = eventprocessor.Receipt{
@@ -157,14 +159,13 @@ func TestRunSQLBlockProcessing(t *testing.T) {
 func TestCreateTableBlockProcessing(t *testing.T) {
 	t.Parallel()
 
-	expWrongTypeErr := "query validation: unable to parse the query: syntax error at or near \"CREATEZ\""
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		createTable, _, _, checkReceipts, _ := setup(t)
-
+		contractCalls, checkReceipts, _ := setup(t)
 		for i := 0; i < 2; i++ {
-			txnHash := createTable("CREATE TABLE Foo_1337 (bar bigint)")
+			txnHash := contractCalls.createTable("CREATE TABLE Foo_1337 (bar bigint)")
+
 			tableID, err := tableland.NewTableID(strconv.Itoa(i))
 			require.NoError(t, err)
 			expReceipt := eventprocessor.Receipt{
@@ -176,11 +177,13 @@ func TestCreateTableBlockProcessing(t *testing.T) {
 			require.Eventually(t, checkReceipts(t, expReceipt), time.Second*5, time.Millisecond*100)
 		}
 	})
+
+	expWrongTypeErr := "query validation: unable to parse the query: syntax error at or near \"CREATEZ\""
 	t.Run("failure", func(t *testing.T) {
 		t.Parallel()
 
-		createTable, _, _, checkReceipts, _ := setup(t)
-		txnHash := createTable("CREATEZ TABLE Foo_1337 (bar bigint)")
+		contractCalls, checkReceipts, _ := setup(t)
+		txnHash := contractCalls.createTable("CREATEZ TABLE Foo_1337 (bar bigint)")
 
 		expReceipt := eventprocessor.Receipt{
 			ChainID: chainID,
@@ -195,11 +198,11 @@ func TestCreateTableBlockProcessing(t *testing.T) {
 func TestQueryWithWrongTableTarget(t *testing.T) {
 	t.Parallel()
 
-	_, contractSendRunSQL, _, checkReceipts, _ := setup(t)
+	contractCalls, checkReceipts, _ := setup(t)
 	// Note that we make a query for table 9999 instead of 1000 which was
 	// provided in the SC runSQL call.
 	queries := []string{"insert into test_1337_9999 values (1001)"}
-	txnHashes := contractSendRunSQL(queries)
+	txnHashes := contractCalls.runSQL(queries)
 
 	expErr := "query targets table id 9999 and not 1000"
 	expReceipt := eventprocessor.Receipt{
@@ -214,9 +217,8 @@ func TestQueryWithWrongTableTarget(t *testing.T) {
 func TestSetController(t *testing.T) {
 	t.Parallel()
 
-	createTable, _, contractSendSetController, checkReceipts, _ := setup(t)
-
-	txnHash := createTable("CREATE TABLE Foo_1337 (bar bigint)")
+	contractCalls, checkReceipts, _ := setup(t)
+	txnHash := contractCalls.createTable("CREATE TABLE Foo_1337 (bar bigint)")
 	tableID, err := tableland.NewTableID("0")
 	require.NoError(t, err)
 	expReceipt := eventprocessor.Receipt{
@@ -229,7 +231,7 @@ func TestSetController(t *testing.T) {
 
 	t.Run("set-controller", func(t *testing.T) {
 		controller := common.HexToAddress("0x39b1b9B439312Dd9E1aE137ce9866e873eA4d211")
-		txnHash := contractSendSetController(controller)
+		txnHash := contractCalls.setController(controller)
 
 		tid := tableland.TableID(*big.NewInt(0))
 		expReceipt := eventprocessor.Receipt{
@@ -244,7 +246,7 @@ func TestSetController(t *testing.T) {
 	t.Run("unset-controller", func(t *testing.T) {
 		controller := common.HexToAddress("0x0")
 		fmt.Println(controller.Hex())
-		txnHash := contractSendSetController(controller)
+		txnHash := contractCalls.setController(controller)
 
 		tid := tableland.TableID(*big.NewInt(0))
 		expReceipt := eventprocessor.Receipt{
@@ -257,16 +259,53 @@ func TestSetController(t *testing.T) {
 	})
 }
 
+func TestTransfer(t *testing.T) {
+	t.Parallel()
+
+	contractCalls, checkReceipts, _ := setup(t)
+
+	txnHash := contractCalls.createTable("CREATE TABLE Foo_1337 (bar bigint)")
+	tableID, err := tableland.NewTableID("0")
+	require.NoError(t, err)
+	expReceipt := eventprocessor.Receipt{
+		ChainID: chainID,
+		TxnHash: txnHash.String(),
+		Error:   nil,
+		TableID: &tableID,
+	}
+	require.Eventually(t, checkReceipts(t, expReceipt), time.Second*5, time.Millisecond*100)
+
+	t.Run("transfer", func(t *testing.T) {
+		controller := common.HexToAddress("0x39b1b9B439312Dd9E1aE137ce9866e873eA4d211")
+		txnHash := contractCalls.transfer(controller)
+
+		tid := tableland.TableID(*big.NewInt(0))
+		expReceipt := eventprocessor.Receipt{
+			ChainID: chainID,
+			TxnHash: txnHash.Hex(),
+			Error:   nil,
+			TableID: &tid,
+		}
+		require.Eventually(t, checkReceipts(t, expReceipt), time.Second*5, time.Millisecond*100)
+	})
+}
+
+type contractCalls struct {
+	runSQL        contractRunSQLBlockSender
+	createTable   contractCreateTableSender
+	setController contractSetControllerSender
+	transfer      contractTransferFromSender
+}
+
 type dbReader func(string) []int
 type contractRunSQLBlockSender func([]string) []common.Hash
 type contractCreateTableSender func(string) common.Hash
 type contractSetControllerSender func(controller common.Address) common.Hash
+type contractTransferFromSender func(controller common.Address) common.Hash
 type checkReceipts func(*testing.T, ...eventprocessor.Receipt) func() bool
 
 func setup(t *testing.T) (
-	contractCreateTableSender,
-	contractRunSQLBlockSender,
-	contractSetControllerSender,
+	contractCalls,
 	checkReceipts,
 	dbReader) {
 	t.Helper()
@@ -315,6 +354,14 @@ func setup(t *testing.T) (
 	}
 
 	systemStore, err := system.New(url, tableland.ChainID(chainID))
+
+	transferFrom := func(controller common.Address) common.Hash {
+		txn, err := sc.TransferFrom(authOpts, authOpts.From, controller, big.NewInt(0))
+		require.NoError(t, err)
+		backend.Commit()
+		return txn.Hash()
+	}
+
 	require.NoError(t, err)
 	userStore, err := user.New(url)
 	require.NoError(t, err)
@@ -368,7 +415,12 @@ func setup(t *testing.T) (
 	require.NoError(t, err)
 	t.Cleanup(func() { ep.Stop() })
 
-	return mintTable, contractSendRunSQL, contractSendSetController, checkReceipts, tableReader
+	return contractCalls{
+		runSQL:        contractSendRunSQL,
+		createTable:   mintTable,
+		setController: contractSendSetController,
+		transfer:      transferFrom,
+	}, checkReceipts, tableReader
 }
 
 type aclMock struct{}

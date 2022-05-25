@@ -81,7 +81,7 @@ func TestRunSQLEvents(t *testing.T) {
 	}
 }
 
-func TestCreateTableAndRunSQLAndSetControllerEvents(t *testing.T) {
+func TestAllEvents(t *testing.T) {
 	t.Parallel()
 
 	backend, addr, sc, authOpts, _ := testutil.Setup(t)
@@ -93,15 +93,21 @@ func TestCreateTableAndRunSQLAndSetControllerEvents(t *testing.T) {
 	chFeedClosed := make(chan struct{})
 	ch := make(chan eventfeed.BlockEvents)
 	go func() {
-		err := qf.Start(ctx, 0, ch, []eventfeed.EventType{eventfeed.RunSQL, eventfeed.CreateTable, eventfeed.SetController})
+		err := qf.Start(ctx, 0, ch, []eventfeed.EventType{
+			eventfeed.RunSQL,
+			eventfeed.CreateTable,
+			eventfeed.SetController,
+			eventfeed.TableTransfer,
+		})
 		require.NoError(t, err)
 		close(chFeedClosed)
 	}()
 
 	ctrl := authOpts.From
-	// Make three calls to different functions emitting different events
+	// Make four calls to different functions emitting different events
 	_, err = sc.RunSQL(authOpts, ctrl, big.NewInt(2), "stmt-2")
 	require.NoError(t, err)
+
 	_, err = sc.CreateTable(
 		authOpts,
 		ctrl,
@@ -115,16 +121,25 @@ func TestCreateTableAndRunSQLAndSetControllerEvents(t *testing.T) {
 		common.HexToAddress("0xB0Cf943Cf94E7B6A2657D15af41c5E06c2BFEA3E"),
 	)
 	require.NoError(t, err)
+
+	_, err = sc.TransferFrom(
+		authOpts,
+		ctrl,
+		common.HexToAddress("0xB0Cf943Cf94E7B6A2657D15af41c5E06c2BFEA3E"),
+		big.NewInt(0),
+	)
+	require.NoError(t, err)
 	backend.Commit()
 
 	select {
 	case bes := <-ch:
-		require.Len(t, bes.Events, 3)
+		require.Len(t, bes.Events, 4)
 		require.NotEqual(t, emptyHash, bes.Events[0].TxnHash)
 		require.NotEqual(t, emptyHash, bes.Events[1].TxnHash)
 		require.IsType(t, &ethereum.ContractRunSQL{}, bes.Events[0].Event)
 		require.IsType(t, &ethereum.ContractCreateTable{}, bes.Events[1].Event)
 		require.IsType(t, &ethereum.ContractSetController{}, bes.Events[2].Event)
+		require.IsType(t, &ethereum.ContractTableTransfer{}, bes.Events[3].Event)
 	case <-time.After(time.Second):
 		t.Fatalf("didn't receive expected log")
 	}
