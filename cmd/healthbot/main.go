@@ -26,21 +26,21 @@ func main() {
 	defer cancel()
 
 	var wg sync.WaitGroup
-	for _, cfg := range cfg.Chains {
-		checkInterval, err := time.ParseDuration(cfg.Probe.CheckInterval)
+	for _, chainCfg := range cfg.Chains {
+		checkInterval, err := time.ParseDuration(chainCfg.Probe.CheckInterval)
 		if err != nil {
-			log.Fatal().Err(err).Msgf("check interval has invalid format: %s", cfg.Probe.CheckInterval)
+			log.Fatal().Err(err).Msgf("check interval has invalid format: %s", chainCfg.Probe.CheckInterval)
 		}
-		receiptTimeout, err := time.ParseDuration(cfg.Probe.ReceiptTimeout)
+		receiptTimeout, err := time.ParseDuration(chainCfg.Probe.ReceiptTimeout)
 		if err != nil {
-			log.Fatal().Err(err).Msgf("receipt timeout has invalid format: %s", cfg.Probe.ReceiptTimeout)
+			log.Fatal().Err(err).Msgf("receipt timeout has invalid format: %s", chainCfg.Probe.ReceiptTimeout)
 		}
 
 		cp, err := counterprobe.New(
-			cfg.Name,
-			cfg.Probe.Target,
-			cfg.Probe.SIWE,
-			cfg.Probe.Tablename,
+			chainCfg.Name,
+			cfg.Target,
+			chainCfg.Probe.SIWE,
+			chainCfg.Probe.Tablename,
 			checkInterval,
 			receiptTimeout)
 		if err != nil {
