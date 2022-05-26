@@ -13,10 +13,10 @@ configMapGenerator:
   - configHealthbot.env
   name: configmap-healthbot
 - files:
-  - config-validator-testnet.json
+  - config-validator.json=config-validator-testnet.json
   name: configmap-validator-config
 - files:
-  - config-healthbot-testnet.json
+  - config-healthbot.json=config-healthbot-testnet.json
   name: configmap-healthbot-config
 
 

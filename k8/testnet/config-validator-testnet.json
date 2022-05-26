@@ -33,7 +33,7 @@
       "ChainID": 69,
       "Registry": {
         "EthEndpoint": "wss://opt-kovan.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_OPTIMISM_KOVAN_API_KEY}",
-        "ContractAddress": "TODO(testnet)"
+        "ContractAddress": "0x9d495C9EeFd9daE0CF9d2C7d847e888FEF364960"
       },
       "Signer": {
         "PrivateKey": "${VALIDATOR_OPTIMISM_KOVAN_SIGNER_PRIVATE_KEY}"
@@ -58,7 +58,7 @@
       "ChainID": 5,
       "Registry": {
         "EthEndpoint": "wss://eth-goerli.alchemyapi.io/v2/${VALIDATOR_ALCHEMY_ETHEREUM_GOERLI_API_KEY}",
-        "ContractAddress": "TODO(testnet)"
+        "ContractAddress": "0x8864b95961EdcE0Efe558FbAb55cd5864Be3930a"
       },
       "Signer": {
         "PrivateKey": "${VALIDATOR_ETHEREUM_GOERLI_SIGNER_PRIVATE_KEY}"
@@ -83,7 +83,7 @@
       "ChainID": 80001,
       "Registry": {
         "EthEndpoint": "wss://polygon-mumbai.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_POLYGON_MUMBAI_API_KEY}",
-        "ContractAddress": "TODO(testnet)"
+        "ContractAddress": "0x154C1373E155BE4691233B82d8861b884A7F807D"
       },
       "Signer": {
         "PrivateKey": "${VALIDATOR_POLYGON_MUMBAI_SIGNER_PRIVATE_KEY}"

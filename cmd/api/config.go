@@ -91,6 +91,12 @@ func setupConfig() *config {
 		plugins = append(plugins, file.NewReader(strings.NewReader(fileStr), json.Unmarshal))
 	}
 
+	l, err := json.MarshalIndent(fileStr, "", " ")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("CFG: %s\n", l)
+
 	conf := &config{}
 	c, err := uconfig.Classic(&conf, file.Files{}, plugins...)
 	if err != nil {

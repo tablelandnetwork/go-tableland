@@ -14,7 +14,7 @@
                 "CheckInterval": "30s",
                 "ReceiptTimeout": "25s",
                 "SIWE": "${HEALTHBOT_OPTIMISM_KOVAN_SIWE}",
-                "Tablename": "Healthbot_69_TODO(testnet)"
+                "Tablename": "Healthbot_69_0"
             }
         },
         {
@@ -23,7 +23,7 @@
                 "CheckInterval": "60s",
                 "ReceiptTimeout": "75s",
                 "SIWE": "${HEALTHBOT_ETHEREUM_GOERLI_SIWE}",
-                "Tablename": "Healthbot_5_TODO(testnet)"
+                "Tablename": "Healthbot_5_0"
             }
         },
         {
@@ -32,7 +32,7 @@
                 "CheckInterval": "30s",
                 "ReceiptTimeout": "25s",
                 "SIWE": "${HEALTHBOT_POLYGON_MUMBAI_SIWE}",
-                "Tablename": "Healthbot_80001_TODO(testnet)"
+                "Tablename": "Healthbot_80001_0"
             }
         }
     ]
