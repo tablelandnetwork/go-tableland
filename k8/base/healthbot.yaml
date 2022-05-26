@@ -32,7 +32,7 @@ metadata:
   labels:
     app: healthbot
 spec:
-  replicas: 0 # TODO(jsign): temporary to rollout new deployment in stages.
+  replicas: 1
   selector:
     matchLabels:
       app: healthbot-v1
@@ -54,6 +54,16 @@ spec:
                 secretKeyRef:
                   name: tableland-secret
                   key: healthbot-optimism-kovan-siwe
+            - name: HEALTHBOT_POLYGON_MUMBAI_SIWE
+              valueFrom:
+                secretKeyRef:
+                  name: tableland-secret
+                  key: healthbot-polygon-mumbai-siwe
+            - name: HEALTHBOT_ETHEREUM_GOERLI_SIWE
+              valueFrom:
+                secretKeyRef:
+                  name: tableland-secret
+                  key: healthbot-ethereum-goerli-siwe
           envFrom:
             - configMapRef:
                 name: configmap-healthbot
