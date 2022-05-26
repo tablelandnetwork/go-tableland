@@ -66,16 +66,36 @@ spec:
                 secretKeyRef:
                   name: tableland-secret
                   key: postgres-user
-            - name: ALCHEMY_KOVAN_API_KEY
+            - name: VALIDATOR_ALCHEMY_OPTIMISM_KOVAN_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: tableland-secret
-                  key: alchemy-kovan-api-key
-            - name: KOVAN_SIGNER_PRIVATE_KEY
+                  key: validator-alchemy-optimism-kovan-api-key
+            - name: VALIDATOR_ALCHEMY_ETHEREUM_GOERLI_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: tableland-secret
-                  key: kovan-signer-private-key
+                  key: validator-alchemy-ethereum-goerli-api-key
+            - name: VALIDATOR_ALCHEMY_POLYGON_MUMBAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: tableland-secret
+                  key: validator-alchemy-polygon-mumbai-api-key
+            - name: VALIDATOR_OPTIMISM_KOVAN_SIGNER_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: tableland-secret
+                  key: validator-optimism-kovan-signer-private-key
+            - name: VALIDATOR_ETHEREUM_GOERLI_SIGNER_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: tableland-secret
+                  key: validator-ethereum-goerli-signer-private-key
+            - name: VALIDATOR_POLYGON_MUMBAI_SIGNER_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: tableland-secret
+                  key: validator-polygon-mumbai-signer-private-key
           envFrom:
             - configMapRef:
                 name: configmap-api
@@ -106,5 +126,5 @@ spec:
           configMap:
             name: configmap-validator-config
             items:
-              - key: config-validator-staging.json
+              - key: config-validator.json
                 path: config.json

@@ -32,7 +32,7 @@ metadata:
   labels:
     app: healthbot
 spec:
-  replicas: 1
+  replicas: 0 # TODO(jsign): temporary to rollout new deployment in stages.
   selector:
     matchLabels:
       app: healthbot-v1
@@ -84,5 +84,5 @@ spec:
           configMap:
             name: configmap-healthbot-config
             items:
-              - key: config-healthbot-staging.json
+              - key: config-healthbot.json
                 path: config.json
