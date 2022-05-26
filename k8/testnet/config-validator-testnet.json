@@ -6,7 +6,7 @@
     "MaxRequestPerInterval": 10
   },
   "Gateway": {
-    "ExternalURIPrefix": "https://staging.tableland.network/tables"
+    "ExternalURIPrefix": "https://testnetv2.tableland.network/tables"
   },
   "DB": {
     "Port": "5432"
@@ -32,11 +32,11 @@
       "Name": "Optimism Kovan",
       "ChainID": 69,
       "Registry": {
-        "EthEndpoint": "wss://opt-kovan.g.alchemy.com/v2/${ALCHEMY_OPTIMISM_KOVAN_API_KEY}",
+        "EthEndpoint": "wss://opt-kovan.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_OPTIMISM_KOVAN_API_KEY}",
         "ContractAddress": "TODO(testnet)"
       },
       "Signer": {
-        "PrivateKey": "${OPTIMISM_KOVAN_SIGNER_PRIVATE_KEY}"
+        "PrivateKey": "${VALIDATOR_OPTIMISM_KOVAN_SIGNER_PRIVATE_KEY}"
       },
       "EventFeed": {
         "ChainAPIBackoff": "15s",
@@ -57,11 +57,11 @@
       "Name": "Ethereum Goerli",
       "ChainID": 5,
       "Registry": {
-        "EthEndpoint": "wss://eth-goerli.alchemyapi.io/v2/${ALCHEMY_ETHEREUM_GOERLI_API_KEY}",
+        "EthEndpoint": "wss://eth-goerli.alchemyapi.io/v2/${VALIDATOR_ALCHEMY_ETHEREUM_GOERLI_API_KEY}",
         "ContractAddress": "TODO(testnet)"
       },
       "Signer": {
-        "PrivateKey": "${ETHEREUM_GOERLI_SIGNER_PRIVATE_KEY}"
+        "PrivateKey": "${VALIDATOR_ETHEREUM_GOERLI_SIGNER_PRIVATE_KEY}"
       },
       "EventFeed": {
         "ChainAPIBackoff": "15s",
@@ -82,11 +82,11 @@
       "Name": "Polygon Mumbai",
       "ChainID": 80001,
       "Registry": {
-        "EthEndpoint": "wss://polygon-mumbai.g.alchemy.com/v2/${ALCHEMY_POLYGON_MUMBAI_API_KEY}",
+        "EthEndpoint": "wss://polygon-mumbai.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_POLYGON_MUMBAI_API_KEY}",
         "ContractAddress": "TODO(testnet)"
       },
       "Signer": {
-        "PrivateKey": "${POLYGON_MUMBAI_SIGNER_PRIVATE_KEY}"
+        "PrivateKey": "${VALIDATOR_POLYGON_MUMBAI_SIGNER_PRIVATE_KEY}"
       },
       "EventFeed": {
         "ChainAPIBackoff": "15s",

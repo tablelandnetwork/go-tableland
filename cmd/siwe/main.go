@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"os"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -19,11 +18,11 @@ func main() {
 	chainID := flag.Int("chain-id", 69, "chain id (def: 69, Optimism Kovan))")
 	flag.Parse()
 
-	if len(os.Args) < 2 {
+	if len(flag.Args()) < 1 {
 		log.Fatalf("we expect one argument, use -help")
 	}
 
-	privKeyHex := os.Args[1]
+	privKeyHex := flag.Args()[0]
 	pk, err := crypto.HexToECDSA(privKeyHex)
 	if err != nil {
 		log.Fatalf("decoding private key: %s", err)
