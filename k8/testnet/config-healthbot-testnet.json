@@ -1,0 +1,39 @@
+{
+    "Metrics": {
+        "Port": "9090"
+    },
+    "Log": {
+        "Human": false,
+        "Debug": true
+    },
+    "Target": "https://testnetv2.tableland.network/rpc",
+    "Chains": [
+        {
+            "Name": "optimism-kovan",
+            "Probe": {
+                "CheckInterval": "30s",
+                "ReceiptTimeout": "25s",
+                "SIWE": "${HEALTHBOT_OPTIMISM_KOVAN_SIWE}",
+                "Tablename": "Healthbot_69_TODO(testnet)"
+            }
+        },
+        {
+            "Name": "ethereum-goerli",
+            "Probe": {
+                "CheckInterval": "60s",
+                "ReceiptTimeout": "75s",
+                "SIWE": "${HEALTHBOT_ETHEREUM_GOERLI_SIWE}",
+                "Tablename": "Healthbot_5_TODO(testnet)"
+            }
+        },
+        {
+            "Name": "polygon-mumbai",
+            "Probe": {
+                "CheckInterval": "30s",
+                "ReceiptTimeout": "25s",
+                "SIWE": "${HEALTHBOT_POLYGON_MUMBAI_SIWE}",
+                "Tablename": "Healthbot_80001_TODO(testnet)"
+            }
+        }
+    ]
+}
