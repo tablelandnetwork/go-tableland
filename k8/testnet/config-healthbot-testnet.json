@@ -21,7 +21,7 @@
             "Name": "ethereum-goerli",
             "Probe": {
                 "CheckInterval": "60s",
-                "ReceiptTimeout": "75s",
+                "ReceiptTimeout": "90s",
                 "SIWE": "${HEALTHBOT_ETHEREUM_GOERLI_SIWE}",
                 "Tablename": "Healthbot_5_0"
             }
@@ -30,7 +30,7 @@
             "Name": "polygon-mumbai",
             "Probe": {
                 "CheckInterval": "30s",
-                "ReceiptTimeout": "25s",
+                "ReceiptTimeout": "40s",
                 "SIWE": "${HEALTHBOT_POLYGON_MUMBAI_SIWE}",
                 "Tablename": "Healthbot_80001_0"
             }
