@@ -299,6 +299,7 @@ func createChainIDStack(
 	}
 	epOpts := []eventprocessor.Option{
 		eventprocessor.WithBlockFailedExecutionBackoff(blockFailedExecutionBackoff),
+		eventprocessor.WithDedupExecutedTxns(config.EventProcessor.DedupExecutedTxns),
 	}
 	ep, err := epimpl.New(parser, txnp, ef, config.ChainID, epOpts...)
 	if err != nil {

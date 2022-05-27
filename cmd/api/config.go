@@ -74,6 +74,7 @@ type ChainConfig struct {
 	}
 	EventProcessor struct {
 		BlockFailedExecutionBackoff string `default:"10s"`
+		DedupExecutedTxns           bool   `default:"false"`
 	}
 	NonceTracker struct {
 		CheckInterval string `default:"10s"`

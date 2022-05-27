@@ -408,6 +408,30 @@ func (b *batch) SaveTxnReceipts(ctx context.Context, rs []eventprocessor.Receipt
 	return nil
 }
 
+func (b *batch) TxnReceiptExists(ctx context.Context, txnHash common.Hash) (bool, error) {
+	var exists bool
+	f := func(tx pgx.Tx) error {
+		r := tx.QueryRow(
+			ctx,
+			`SELECT 1 from system_txn_receipts WHERE chain_id=$1 and txn_hash=$2`,
+			b.tp.chainID, txnHash.Hex())
+		var dummy int
+		err := r.Scan(&dummy)
+		if err == pgx.ErrNoRows {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("get txn receipt: %s", err)
+		}
+		exists = true
+		return nil
+	}
+	if err := b.txn.BeginFunc(ctx, f); err != nil {
+		return false, fmt.Errorf("txn receipt lookup: %s", err)
+	}
+	return exists, nil
+}
+
 // Close closes gracefully the batch. Clients should *always* `defer Close()` when
 // opening batches.
 func (b *batch) Close(ctx context.Context) error {

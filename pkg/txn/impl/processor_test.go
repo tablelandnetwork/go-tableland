@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
@@ -261,6 +262,46 @@ func TestExecWriteQueries(t *testing.T) {
 			require.Equal(t, tableland.Privileges{tableland.PrivUpdate}, aclRow.Privileges)
 		}
 	})
+}
+
+func TestReceiptExists(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	txnp, _, _ := newTxnProcessorWithTable(t, 0)
+
+	txnHash := "0x0000000000000000000000000000000000000000000000000000000000001234"
+
+	b, err := txnp.OpenBatch(ctx)
+	require.NoError(t, err)
+	ok, err := b.TxnReceiptExists(ctx, common.HexToHash(txnHash))
+	require.NoError(t, err)
+	require.False(t, ok)
+	require.NoError(t, b.Commit(ctx))
+	require.NoError(t, b.Close(ctx))
+
+	b, err = txnp.OpenBatch(ctx)
+	require.NoError(t, err)
+	err = b.SaveTxnReceipts(ctx, []eventprocessor.Receipt{
+		{
+			ChainID:     tableland.ChainID(chainID),
+			BlockNumber: 100,
+			TxnHash:     txnHash,
+		},
+	})
+	require.NoError(t, err)
+	require.NoError(t, b.Commit(ctx))
+	require.NoError(t, b.Close(ctx))
+
+	b, err = txnp.OpenBatch(ctx)
+	require.NoError(t, err)
+	ok, err = b.TxnReceiptExists(ctx, common.HexToHash(txnHash))
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.NoError(t, b.Commit(ctx))
+	require.NoError(t, b.Close(ctx))
+
+	require.NoError(t, txnp.Close(ctx))
 }
 
 func TestExecWriteQueriesWithPolicies(t *testing.T) {
