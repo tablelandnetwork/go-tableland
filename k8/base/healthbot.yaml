@@ -48,22 +48,6 @@ spec:
           ports:
             - name: metrics
               containerPort: 9090
-          env:
-            - name: HEALTHBOT_OPTIMISM_KOVAN_SIWE
-              valueFrom:
-                secretKeyRef:
-                  name: tableland-secret
-                  key: healthbot-optimism-kovan-siwe
-            - name: HEALTHBOT_POLYGON_MUMBAI_SIWE
-              valueFrom:
-                secretKeyRef:
-                  name: tableland-secret
-                  key: healthbot-polygon-mumbai-siwe
-            - name: HEALTHBOT_ETHEREUM_GOERLI_SIWE
-              valueFrom:
-                secretKeyRef:
-                  name: tableland-secret
-                  key: healthbot-ethereum-goerli-siwe
           envFrom:
             - configMapRef:
                 name: configmap-healthbot
