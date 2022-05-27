@@ -1,0 +1,15 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: healthbot-01
+spec:
+  template:
+    spec:
+      containers:
+        - name: healthbot
+          env:
+            - name: HEALTHBOT_OPTIMISM_KOVAN_SIWE
+              valueFrom:
+                secretKeyRef:
+                  name: tableland-secret
+                  key: healthbot-optimism-kovan-siwe

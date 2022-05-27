@@ -209,7 +209,8 @@ func (t *LocalTracker) checkIfPendingTxWasIncluded(
 				Time("createdAt", pendingTx.CreatedAt).
 				Msg("pending tx may be stuck")
 
-			if _, _, err := t.chainClient.TransactionByHash(ctx, pendingTx.Hash); strings.Contains(err.Error(), "not found") {
+			_, _, err := t.chainClient.TransactionByHash(ctx, pendingTx.Hash)
+			if err != nil && strings.Contains(err.Error(), "not found") {
 				t.log.Info().
 					Str("hash", pendingTx.Hash.Hex()).
 					Int64("nonce", pendingTx.Nonce).
