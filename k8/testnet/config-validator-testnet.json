@@ -67,7 +67,7 @@
         "ChainAPIBackoff": "15s",
         "NewBlockTimeout": "45s",
         "MaxBlocksFetchSize": 100000,
-        "MinBlockDepth": 4
+        "MinBlockDepth": 1
       },
       "EventProcessor": {
         "BlockFailedExecutionBackoff": "10s"
@@ -75,7 +75,7 @@
       "NonceTracker": {
         "CheckInterval": "15s",
         "StuckInterval": "10m",
-        "MinBlockDepth": 4
+        "MinBlockDepth": 1
       }
     },
     {
@@ -92,7 +92,7 @@
         "ChainAPIBackoff": "15s",
         "NewBlockTimeout": "30s",
         "MaxBlocksFetchSize": 100000,
-        "MinBlockDepth": 2
+        "MinBlockDepth": 1
       },
       "EventProcessor": {
         "BlockFailedExecutionBackoff": "10s"
@@ -100,7 +100,7 @@
       "NonceTracker": {
         "CheckInterval": "15s",
         "StuckInterval": "5m",
-        "MinBlockDepth": 2
+        "MinBlockDepth": 1
       }
     }
   ]
