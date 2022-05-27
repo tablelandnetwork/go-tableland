@@ -228,8 +228,21 @@ func (ep *EventProcessor) runBlockQueries(ctx context.Context, bqs eventfeed.Blo
 		return fmt.Errorf("last processed height %d isn't smaller than new height %d", lastHeight, bqs.BlockNumber)
 	}
 
-	receipts := make([]eventprocessor.Receipt, len(bqs.Events))
-	for i, e := range bqs.Events {
+	receipts := make([]eventprocessor.Receipt, 0, len(bqs.Events))
+	for _, e := range bqs.Events {
+		if ep.config.DedupExecutedTxns {
+			ok, err := b.TxnReceiptExists(ctx, e.TxnHash)
+			if err != nil {
+				return fmt.Errorf("checking if receipt already exist: %s", err)
+			}
+			if ok {
+				ep.log.Info().
+					Str("txnHash", e.TxnHash.Hex()).
+					Msg("skipping execution since was already processed due to a reorg")
+				continue
+			}
+		}
+
 		start := time.Now()
 		receipt, err := ep.executeEvent(ctx, b, bqs.BlockNumber, e)
 		if err != nil {
@@ -238,7 +251,7 @@ func (ep *EventProcessor) runBlockQueries(ctx context.Context, bqs eventfeed.Blo
 			return fmt.Errorf("executing query: %s", err)
 		}
 
-		receipts[i] = receipt
+		receipts = append(receipts, receipt)
 
 		attrs := append([]attribute.KeyValue{
 			attribute.String("eventtype", reflect.TypeOf(e.Event).String()),
