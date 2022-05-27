@@ -22,3 +22,5 @@ configMapGenerator:
 
 patchesStrategicMerge:
 - ingress-nginx-patch.yaml
+- healthbot-patch.yaml
+- api-patch.yaml
