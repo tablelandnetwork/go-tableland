@@ -19,7 +19,7 @@ env:
 
 jobs:
   deploy:
-    if: github.event_name == 'release' || github.ref == 'refs/heads/main' || contains(github.event.head_commit.message, '[shipit]') || contains(github.event.head_commit.message, '[testnetdeploy]')
+    if: github.event_name == 'release' || github.ref == 'refs/heads/main' || contains(github.event.head_commit.message, '[stagingdeploy]')
     name: Deploy
     runs-on: ubuntu-latest
     steps:
@@ -39,7 +39,7 @@ jobs:
       - name: Prepare
         id: prep
         run: |
-          if [[ ${{ github.ref }} == refs/heads/main ]] || [[ "${{github.event.head_commit.message}}" == *"[testnetdeploy]"* ]]; then
+          if [[ ${{ github.ref }} == refs/heads/main ]]
             echo "::set-output name=deployment::testnet"
           else
             echo "::set-output name=deployment::staging"
