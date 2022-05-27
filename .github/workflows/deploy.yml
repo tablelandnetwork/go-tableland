@@ -39,7 +39,7 @@ jobs:
       - name: Prepare
         id: prep
         run: |
-          if [[ ${{ github.ref }} == refs/heads/main ]]
+          if [[ ${{ github.ref }} == refs/heads/main ]]; then
             echo "::set-output name=deployment::testnet"
           else
             echo "::set-output name=deployment::staging"
