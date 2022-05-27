@@ -46,7 +46,8 @@
         "MinBlockDepth": 0
       },
       "EventProcessor": {
-        "BlockFailedExecutionBackoff": "10s"
+        "BlockFailedExecutionBackoff": "10s",
+        "DedupExecutedTxns": false
       },
       "NonceTracker": {
          "CheckInterval": "10s",

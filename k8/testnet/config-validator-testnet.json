@@ -45,7 +45,8 @@
         "MinBlockDepth": 0
       },
       "EventProcessor": {
-        "BlockFailedExecutionBackoff": "10s"
+        "BlockFailedExecutionBackoff": "10s",
+        "DedupExecutedTxns": true
       },
       "NonceTracker": {
         "CheckInterval": "10s",
@@ -70,7 +71,8 @@
         "MinBlockDepth": 1
       },
       "EventProcessor": {
-        "BlockFailedExecutionBackoff": "10s"
+        "BlockFailedExecutionBackoff": "10s",
+        "DedupExecutedTxns": true
       },
       "NonceTracker": {
         "CheckInterval": "15s",
@@ -95,7 +97,8 @@
         "MinBlockDepth": 1
       },
       "EventProcessor": {
-        "BlockFailedExecutionBackoff": "10s"
+        "BlockFailedExecutionBackoff": "10s",
+        "DedupExecutedTxns": true
       },
       "NonceTracker": {
         "CheckInterval": "15s",
