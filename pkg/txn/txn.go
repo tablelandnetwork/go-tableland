@@ -64,6 +64,7 @@ type Batch interface {
 	GetLastProcessedHeight(ctx context.Context) (int64, error)
 	SetLastProcessedHeight(ctx context.Context, height int64) error
 	SaveTxnReceipts(ctx context.Context, rs []eventprocessor.Receipt) error
+	TxnReceiptExists(ctx context.Context, txnHash common.Hash) (bool, error)
 
 	Commit(context.Context) error
 	Close(context.Context) error

@@ -10,12 +10,14 @@ import (
 // Config contains configuration attributes for an event processor.
 type Config struct {
 	BlockFailedExecutionBackoff time.Duration
+	DedupExecutedTxns           bool
 }
 
 // DefaultConfig returns the default configuration.
 func DefaultConfig() *Config {
 	return &Config{
 		BlockFailedExecutionBackoff: time.Second * 10,
+		DedupExecutedTxns:           false,
 	}
 }
 
@@ -31,6 +33,18 @@ func WithBlockFailedExecutionBackoff(backoff time.Duration) Option {
 			return fmt.Errorf("backoff is too low (<1s)")
 		}
 		c.BlockFailedExecutionBackoff = backoff
+		return nil
+	}
+}
+
+// WithDedupExecutedTxns makes the event processor skip executing txn hashes that have
+// already been executed before.
+// **IMPORTANT NOTE**: This is an unsafe flag that should only be enabled in test environments.
+// A txn hash should never appear again after it was executed since that indicates
+// there was a reorg in the chain.
+func WithDedupExecutedTxns(dedupExecutedTxns bool) Option {
+	return func(c *Config) error {
+		c.DedupExecutedTxns = dedupExecutedTxns
 		return nil
 	}
 }
