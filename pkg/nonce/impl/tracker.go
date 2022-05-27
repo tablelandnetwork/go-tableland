@@ -14,6 +14,8 @@ import (
 	"github.com/textileio/go-tableland/internal/tableland"
 	noncepkg "github.com/textileio/go-tableland/pkg/nonce"
 	"github.com/textileio/go-tableland/pkg/wallet"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric/instrument/syncint64"
 )
 
 // LocalTracker implements a nonce tracker that stores
@@ -41,6 +43,10 @@ type LocalTracker struct {
 	checkInterval      time.Duration
 	minBlockChainDepth int
 	stuckInterval      time.Duration
+
+	// metrics
+	mBaseLabels              []attribute.KeyValue
+	mUnconfirmedTxnDeletions syncint64.Counter
 }
 
 // NewLocalTracker creates a new local tracker. The provided context is used only for initialization
@@ -163,6 +169,7 @@ func (t *LocalTracker) Resync(ctx context.Context) error {
 	return t.initialize(ctx)
 }
 
+// initialize needs to be called in the ctor or *already* holding the lock.
 func (t *LocalTracker) initialize(ctx context.Context) error {
 	// Get the nonce from the network
 	networkNonce, err := t.chainClient.PendingNonceAt(ctx, t.wallet.Address())
@@ -202,6 +209,25 @@ func (t *LocalTracker) checkIfPendingTxWasIncluded(
 				Time("createdAt", pendingTx.CreatedAt).
 				Msg("pending tx may be stuck")
 
+			if _, _, err := t.chainClient.TransactionByHash(ctx, pendingTx.Hash); strings.Contains(err.Error(), "not found") {
+				t.log.Info().
+					Str("hash", pendingTx.Hash.Hex()).
+					Int64("nonce", pendingTx.Nonce).
+					Time("createdAt", pendingTx.CreatedAt).
+					Msg("deleting from pending since isn't in the mempool")
+				if err := t.deletePendingTxByHash(ctx, pendingTx.Hash); err != nil {
+					return fmt.Errorf("deleting pending tx not present in mempool: %s", err)
+				}
+				t.mUnconfirmedTxnDeletions.Add(ctx, 1, t.mBaseLabels...)
+				// Txn being removed from the mempool can leave an unsynced in-memory nonce, since
+				// the next nonce will go backwards. Resync everything to be in a safe spot for the
+				// ethereum client sending new txn with the right nonce.
+				if err := t.initialize(ctx); err != nil {
+					return fmt.Errorf("re-initializing after pending tx removed from the pool: %s", err)
+				}
+				return nil
+			}
+
 			t.txnConfirmationAttempts++
 			return noncepkg.ErrPendingTxMayBeStuck
 		}
@@ -226,7 +252,7 @@ func (t *LocalTracker) checkIfPendingTxWasIncluded(
 	}
 
 	if err := t.deletePendingTxByHash(ctx, pendingTx.Hash); err != nil {
-		return err
+		return fmt.Errorf("deleting confirmed pending tx: %s", err)
 	}
 
 	return nil
@@ -282,7 +308,6 @@ func (t *LocalTracker) checkPendingTxns() error {
 				cls()
 				break
 			}
-
 			t.log.Error().
 				Str("hash", pendingTx.Hash.Hex()).
 				Int64("nonce", pendingTx.Nonce).
