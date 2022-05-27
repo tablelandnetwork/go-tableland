@@ -29,7 +29,7 @@
         {
             "Name": "polygon-mumbai",
             "Probe": {
-                "CheckInterval": "30s",
+                "CheckInterval": "240s",
                 "ReceiptTimeout": "40s",
                 "SIWE": "${HEALTHBOT_POLYGON_MUMBAI_SIWE}",
                 "Tablename": "Healthbot_80001_0"
