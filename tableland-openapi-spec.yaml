@@ -116,9 +116,8 @@ paths:
                     jsonrpc: "2.0"
                     id: 1
                     result:
-                      data:
-                        transaction:
-                          - hash: "0xc3e7d1e81b59556f414a5f5c23760eb61b4bfaa18150d924d7d3b334941dbecd"
+                      tx:
+                        hash: "0xc3e7d1e81b59556f414a5f5c23760eb61b4bfaa18150d924d7d3b334941dbecd"
                 runReadQuery:
                   value:
                     jsonrpc: "2.0"
