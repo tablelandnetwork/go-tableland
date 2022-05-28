@@ -62,7 +62,7 @@ type ValidateCreateTableResponse struct {
 type SetControllerRequest struct {
 	Caller     string `json:"caller"`
 	Controller string `json:"controller"`
-	TokenID    string `json:"tokenId"`
+	TokenID    string `json:"token_id"`
 }
 
 // SetControllerResponse is a RunSQL response.
