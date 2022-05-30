@@ -313,6 +313,7 @@ func isErrCausedByQuery(err error) (string, bool) {
 	pgExecutionErrors := []string{
 		// Class 22 — Data Exception
 		"22P02", // invalid_text_representation (Caused by a query trying to insert a wrong column type.)
+		"22021", // invalid byte sequence encoding
 
 		// Class 23 — Integrity Constraint Violation
 		"23502", // not_null_violation
