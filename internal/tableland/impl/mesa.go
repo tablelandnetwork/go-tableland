@@ -18,18 +18,28 @@ type TablelandMesa struct {
 	parser      parsing.SQLValidator
 	userStore   sqlstore.UserStore
 	chainStacks map[tableland.ChainID]chains.ChainStack
+	config      *tableland.Config
 }
 
 // NewTablelandMesa creates a new TablelandMesa.
 func NewTablelandMesa(
 	parser parsing.SQLValidator,
 	userStore sqlstore.UserStore,
-	chainStacks map[tableland.ChainID]chains.ChainStack) tableland.Tableland {
+	chainStacks map[tableland.ChainID]chains.ChainStack,
+	opts ...tableland.Option) (tableland.Tableland, error) {
+	config := tableland.DefaultConfig()
+	for _, o := range opts {
+		if err := o(config); err != nil {
+			return nil, fmt.Errorf("applying provided option: %s", err)
+		}
+	}
+
 	return &TablelandMesa{
 		parser:      parser,
 		userStore:   userStore,
 		chainStacks: chainStacks,
-	}
+		config:      config,
+	}, nil
 }
 
 // ValidateCreateTable allows to validate a CREATE TABLE statement and also return the structure hash of it.
@@ -67,6 +77,12 @@ func (t *TablelandMesa) RelayWriteQuery(
 	if !ok {
 		return tableland.RelayWriteQueryResponse{}, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
 	}
+
+	if len(req.Statement) > t.config.MaxWriteQuerySize {
+		return tableland.RelayWriteQueryResponse{},
+			fmt.Errorf("write query size greater than max size: %d", t.config.MaxWriteQuerySize)
+	}
+
 	mutatingStmts, err := t.parser.ValidateMutatingQuery(req.Statement, chainID)
 	if err != nil {
 		return tableland.RelayWriteQueryResponse{}, fmt.Errorf("validating query: %s", err)
@@ -87,6 +103,11 @@ func (t *TablelandMesa) RelayWriteQuery(
 func (t *TablelandMesa) RunReadQuery(
 	ctx context.Context,
 	req tableland.RunReadQueryRequest) (tableland.RunReadQueryResponse, error) {
+	if len(req.Statement) > t.config.MaxReadQuerySize {
+		return tableland.RunReadQueryResponse{},
+			fmt.Errorf("read query size greater than max size: %d", t.config.MaxReadQuerySize)
+	}
+
 	readStmt, err := t.parser.ValidateReadQuery(req.Statement)
 	if err != nil {
 		return tableland.RunReadQueryResponse{}, fmt.Errorf("validating query: %s", err)

@@ -394,6 +394,12 @@ func (ep *EventProcessor) executeRunSQLEvent(
 		BlockNumber: blockNumber,
 		TxnHash:     be.TxnHash.String(),
 	}
+	if len(e.Statement) > ep.config.MaxWriteQuerySize {
+		err := fmt.Sprintf("write query size greater than max size: %d", ep.config.MaxWriteQuerySize)
+		receipt.Error = &err
+		return receipt, nil
+	}
+
 	mutatingStmts, err := ep.parser.ValidateMutatingQuery(e.Statement, ep.chainID)
 	if err != nil {
 		err := fmt.Sprintf("parsing query: %s", err)

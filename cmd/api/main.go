@@ -76,7 +76,7 @@ func main() {
 		if _, ok := chainStacks[chainCfg.ChainID]; ok {
 			log.Fatal().Int64("chainId", int64(chainCfg.ChainID)).Msg("chain id configuration is duplicated")
 		}
-		chainStack, err := createChainIDStack(chainCfg, databaseURL, parser, config.TableConstraints)
+		chainStack, err := createChainIDStack(chainCfg, databaseURL, parser, config.TableConstraints, config.QueryConstraints)
 		if err != nil {
 			log.Fatal().Int64("chainId", int64(chainCfg.ChainID)).Err(err).Msg("spinning up chain stack")
 		}
@@ -92,7 +92,7 @@ func main() {
 		log.Fatal().Err(err).Msg("creating instrumented user store")
 	}
 
-	svc := getTablelandService(parser, instrUserStore, chainStacks)
+	svc := getTablelandService(parser, instrUserStore, chainStacks, config)
 	if err := server.RegisterName("tableland", svc); err != nil {
 		log.Fatal().Err(err).Msg("failed to register a json-rpc service")
 	}
@@ -189,8 +189,17 @@ func main() {
 func getTablelandService(
 	parser parsing.SQLValidator,
 	userStore sqlstore.UserStore,
-	chainStacks map[tableland.ChainID]chains.ChainStack) tableland.Tableland {
-	mesa := impl.NewTablelandMesa(parser, userStore, chainStacks)
+	chainStacks map[tableland.ChainID]chains.ChainStack,
+	config *config) tableland.Tableland {
+	tablelandOpts := []tableland.Option{
+		tableland.WithMaxReadQuerySize(config.QueryConstraints.MaxReadQuerySize),
+		tableland.WithMaxWriteQuerySize(config.QueryConstraints.MaxWriteQuerySize),
+	}
+
+	mesa, err := impl.NewTablelandMesa(parser, userStore, chainStacks, tablelandOpts...)
+	if err != nil {
+		log.Fatal().Err(err).Msg("new tableland mesa")
+	}
 	instrumentedMesa, err := impl.NewInstrumentedTablelandMesa(mesa)
 	if err != nil {
 		log.Fatal().Err(err).Msg("instrumenting mesa")
@@ -207,6 +216,7 @@ func createChainIDStack(
 	databaseURL string,
 	parser parsing.SQLValidator,
 	tableConstraints TableConstraints,
+	queryContraints QueryConstraints,
 ) (chains.ChainStack, error) {
 	store, err := system.New(databaseURL, config.ChainID)
 	if err != nil {
@@ -300,6 +310,7 @@ func createChainIDStack(
 	epOpts := []eventprocessor.Option{
 		eventprocessor.WithBlockFailedExecutionBackoff(blockFailedExecutionBackoff),
 		eventprocessor.WithDedupExecutedTxns(config.EventProcessor.DedupExecutedTxns),
+		eventprocessor.WithMaxWriteQuerySize(queryContraints.MaxWriteQuerySize),
 	}
 	ep, err := epimpl.New(parser, txnp, ef, config.ChainID, epOpts...)
 	if err != nil {

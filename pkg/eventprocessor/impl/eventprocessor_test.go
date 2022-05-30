@@ -154,6 +154,31 @@ func TestRunSQLBlockProcessing(t *testing.T) {
 		expectedRows := []int{1001}
 		require.Eventually(t, cond(dbReader, expectedRows), time.Second, time.Millisecond*100)
 	})
+
+	t.Run("failure-max-write-query-size", func(t *testing.T) {
+		t.Parallel()
+
+		maxWriteQuerySize := 40
+		epOpts := []eventprocessor.Option{
+			eventprocessor.WithMaxWriteQuerySize(maxWriteQuerySize),
+		}
+
+		contractCalls, checkReceipts, dbReader := setup(t, epOpts...)
+		queries := []string{"insert into test_1337_1000 values ('abc')"} // length of 41
+		txnHashes := contractCalls.runSQL(queries)
+
+		expErr := fmt.Sprintf("write query size greater than max size: %d", maxWriteQuerySize)
+		expReceipt := eventprocessor.Receipt{
+			ChainID: chainID,
+			TxnHash: txnHashes[0].String(),
+			Error:   &expErr,
+			TableID: nil,
+		}
+		require.Eventually(t, checkReceipts(t, expReceipt), time.Second*5, time.Millisecond*100)
+
+		notExpectedRows := []int{1001}
+		require.Never(t, cond(dbReader, notExpectedRows), time.Second, time.Millisecond*100)
+	})
 }
 
 func TestCreateTableBlockProcessing(t *testing.T) {
@@ -304,7 +329,7 @@ type contractSetControllerSender func(controller common.Address) common.Hash
 type contractTransferFromSender func(controller common.Address) common.Hash
 type checkReceipts func(*testing.T, ...eventprocessor.Receipt) func() bool
 
-func setup(t *testing.T) (
+func setup(t *testing.T, opts ...eventprocessor.Option) (
 	contractCalls,
 	checkReceipts,
 	dbReader) {
@@ -323,7 +348,7 @@ func setup(t *testing.T) (
 	parser := parserimpl.New([]string{"system_", "registry"}, 0, 0)
 
 	// Create EventProcessor for our test.
-	ep, err := New(parser, txnp, ef, chainID)
+	ep, err := New(parser, txnp, ef, chainID, opts...)
 	require.NoError(t, err)
 
 	ctx := context.Background()

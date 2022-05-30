@@ -430,6 +430,85 @@ func TestTableTransfer(t *testing.T) {
 	requireReceipts(ctx, t, tbldOwner2, []string{r2.Transaction.Hash}, true)
 }
 
+func TestQueryConstraints(t *testing.T) {
+	t.Parallel()
+
+	t.Run("write-query-size-ok", func(t *testing.T) {
+		t.Parallel()
+		tablelandOpts := []tableland.Option{
+			tableland.WithMaxWriteQuerySize(45),
+		}
+		ctx, tbld, _, _, txOpts := setup(t, tablelandOpts...)
+		caller := txOpts.From
+
+		ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller.Hex())
+		_, err := tbld.RelayWriteQuery(ctx, tableland.RelayWriteQueryRequest{
+			Statement: "INSERT INTO foo_1337_0 (bar) VALUES ('hello')", // length of 45 bytes
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("write-query-size-nok", func(t *testing.T) {
+		t.Parallel()
+
+		tablelandOpts := []tableland.Option{
+			tableland.WithMaxWriteQuerySize(45),
+		}
+		ctx, tbld, _, _, txOpts := setup(t, tablelandOpts...)
+		caller := txOpts.From
+
+		ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller.Hex())
+		_, err := tbld.RelayWriteQuery(ctx, tableland.RelayWriteQueryRequest{
+			Statement: "INSERT INTO foo_1337_0 (bar) VALUES ('hello2')", // length of 46 bytes
+		})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "write query size greater than max size")
+	})
+
+	t.Run("read-query-size-ok", func(t *testing.T) {
+		t.Parallel()
+
+		tablelandOpts := []tableland.Option{
+			tableland.WithMaxReadQuerySize(44),
+		}
+		ctx, tbld, backend, sc, txOpts := setup(t, tablelandOpts...)
+		caller := txOpts.From
+
+		_, err := sc.CreateTable(txOpts, caller, `CREATE TABLE foo_1337 (bar text);`)
+		require.NoError(t, err)
+		backend.Commit()
+
+		ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller.Hex())
+		require.Eventually(t,
+			func() bool {
+				_, err := tbld.RunReadQuery(ctx, tableland.RunReadQueryRequest{
+					Statement: "SELECT * FROM foo_1337_0 WHERE bar = 'hello'", // length of 44 bytes
+				})
+				return err == nil
+			},
+			5*time.Second,
+			100*time.Millisecond,
+		)
+	})
+
+	t.Run("read-query-size-nok", func(t *testing.T) {
+		t.Parallel()
+
+		tablelandOpts := []tableland.Option{
+			tableland.WithMaxReadQuerySize(44),
+		}
+		ctx, tbld, _, _, txOpts := setup(t, tablelandOpts...)
+		caller := txOpts.From
+
+		ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller.Hex())
+		_, err := tbld.RunReadQuery(ctx, tableland.RunReadQueryRequest{
+			Statement: "SELECT * FROM foo_1337_0 WHERE bar = 'hello2'", // length of 45 bytes
+		})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "read query size greater than max size")
+	})
+}
+
 func processCSV(
 	ctx context.Context,
 	t *testing.T,
@@ -571,7 +650,8 @@ func readCsvFile(t *testing.T, filePath string) [][]string {
 }
 
 func setup(
-	t *testing.T) (context.Context,
+	t *testing.T,
+	opts ...tableland.Option) (context.Context,
 	tableland.Tableland,
 	*backends.SimulatedBackend,
 	*ethereum.Contract,
@@ -605,12 +685,14 @@ func setup(
 	userStore, err := user.New(url)
 	require.NoError(t, err)
 
-	tbld := NewTablelandMesa(
+	tbld, err := NewTablelandMesa(
 		parser,
 		userStore,
 		map[tableland.ChainID]chains.ChainStack{
 			1337: {Store: store, Registry: registry},
-		})
+		},
+		opts...)
+	require.NoError(t, err)
 
 	// Spin up dependencies needed for the EventProcessor.
 	// i.e: TxnProcessor, Parser, and EventFeed (connected to the EVM chain)
@@ -662,12 +744,13 @@ func setupTablelandForTwoAddresses(t *testing.T) (context.Context,
 	require.NoError(t, err)
 	userStore, err := user.New(url)
 	require.NoError(t, err)
-	tbld1 := NewTablelandMesa(
+	tbld1, err := NewTablelandMesa(
 		parser,
 		userStore,
 		map[tableland.ChainID]chains.ChainStack{
 			1337: {Store: store, Registry: registry},
 		})
+	require.NoError(t, err)
 
 	key2, err := crypto.GenerateKey()
 	require.NoError(t, err)
@@ -688,12 +771,13 @@ func setupTablelandForTwoAddresses(t *testing.T) (context.Context,
 		impl.NewSimpleTracker(wallet2, backend),
 	)
 	require.NoError(t, err)
-	tbld2 := NewTablelandMesa(
+	tbld2, err := NewTablelandMesa(
 		parser,
 		userStore,
 		map[tableland.ChainID]chains.ChainStack{
 			1337: {Store: store, Registry: registry2},
 		})
+	require.NoError(t, err)
 
 	// Spin up dependencies needed for the EventProcessor.
 	// i.e: TxnProcessor, Parser, and EventFeed (connected to the EVM chain)

@@ -16,6 +16,10 @@
     "MaxColumns": 24,
     "MaxTextLength": 1024
   },
+  "QueryConstraints": {
+    "MaxWriteQuerySize": 35000,
+    "MaxReadQuerySize": 35000
+  },
   "Metrics": {
     "Port": "9090"
   },

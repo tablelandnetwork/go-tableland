@@ -34,6 +34,7 @@ type config struct {
 		Name string `default:"dev_database"`
 	}
 	TableConstraints TableConstraints
+	QueryConstraints QueryConstraints
 	Metrics          struct {
 		Port string `default:"9090"`
 	}
@@ -53,6 +54,12 @@ type TableConstraints struct {
 	MaxRowCount   int `default:"100_000"`
 	MaxColumns    int `default:"24"`
 	MaxTextLength int `default:"1024"`
+}
+
+// QueryConstraints describes constraints to be enforced on queries.
+type QueryConstraints struct {
+	MaxWriteQuerySize int `default:"35000"`
+	MaxReadQuerySize  int `default:"35000"`
 }
 
 // ChainConfig contains all the chain execution stack configuration for a particular EVM chain.
