@@ -385,3 +385,90 @@ func (e *ErrTextTooLong) Error() string {
 	return fmt.Sprintf("text field length is too long (has %d, max %d)",
 		e.Length, e.MaxAllowed)
 }
+
+// ErrReadQueryTooLong is an error returned when a read query is too long.
+type ErrReadQueryTooLong struct {
+	Length     int
+	MaxAllowed int
+}
+
+func (e *ErrReadQueryTooLong) Error() string {
+	return fmt.Sprintf("read query size is too long (has %d, max %d)",
+		e.Length, e.MaxAllowed)
+}
+
+// ErrWriteQueryTooLong is an error returned when a write query is too long.
+type ErrWriteQueryTooLong struct {
+	Length     int
+	MaxAllowed int
+}
+
+func (e *ErrWriteQueryTooLong) Error() string {
+	return fmt.Sprintf("write query size is too long (has %d, max %d)",
+		e.Length, e.MaxAllowed)
+}
+
+// Config contains configuration parameters for tableland.
+type Config struct {
+	MaxAllowedColumns int
+	MaxTextLength     int
+	MaxReadQuerySize  int
+	MaxWriteQuerySize int
+}
+
+// DefaultConfig returns the default configuration.
+func DefaultConfig() *Config {
+	return &Config{
+		MaxReadQuerySize:  35000,
+		MaxWriteQuerySize: 35000,
+		MaxAllowedColumns: 0,
+		MaxTextLength:     0,
+	}
+}
+
+// Option modifies a configuration attribute.
+type Option func(*Config) error
+
+// WithMaxAllowedColumns limits the number of columns in a table.
+func WithMaxAllowedColumns(max int) Option {
+	return func(c *Config) error {
+		if max < 0 {
+			return fmt.Errorf("max should be non-negative")
+		}
+		c.MaxAllowedColumns = max
+		return nil
+	}
+}
+
+// WithMaxTextLength limits the length of a text field.
+func WithMaxTextLength(length int) Option {
+	return func(c *Config) error {
+		if length < 0 {
+			return fmt.Errorf("length should be non-negative")
+		}
+		c.MaxTextLength = length
+		return nil
+	}
+}
+
+// WithMaxReadQuerySize limits the size of a read query.
+func WithMaxReadQuerySize(size int) Option {
+	return func(c *Config) error {
+		if size <= 0 {
+			return fmt.Errorf("size should greater than zero")
+		}
+		c.MaxReadQuerySize = size
+		return nil
+	}
+}
+
+// WithMaxWriteQuerySize limits the size of a write query.
+func WithMaxWriteQuerySize(size int) Option {
+	return func(c *Config) error {
+		if size <= 0 {
+			return fmt.Errorf("size should greater than zero")
+		}
+		c.MaxWriteQuerySize = size
+		return nil
+	}
+}

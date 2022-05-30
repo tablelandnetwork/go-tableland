@@ -31,7 +31,8 @@ func TestSystemSQLStoreService(t *testing.T) {
 	b, err := txnp.OpenBatch(ctx)
 	require.NoError(t, err)
 
-	parser := parserimpl.New([]string{"system_", "registry"}, 0, 0)
+	parser, err := parserimpl.New([]string{"system_", "registry"})
+	require.NoError(t, err)
 	id, _ := tableland.NewTableID("42")
 	createStmt, err := parser.ValidateCreateTable("create table foo_1337 (bar int)", 1337)
 	require.NoError(t, err)

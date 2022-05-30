@@ -108,7 +108,7 @@ func TestReadRunSQL(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
 
-				parser := parser.New([]string{"system_", "registry"}, 0, 0)
+				parser := newParser(t, []string{"system_", "registry"})
 				rs, err := parser.ValidateReadQuery(tc.query)
 
 				if tc.expErrType == nil {
@@ -545,7 +545,7 @@ func TestWriteQuery(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
 
-				parser := parser.New([]string{"system_", "registry"}, 0, 0)
+				parser := newParser(t, []string{"system_", "registry"})
 				mss, err := parser.ValidateMutatingQuery(tc.query, tc.chainID)
 
 				if tc.expErrType == nil {
@@ -761,7 +761,7 @@ func TestCreateTableChecks(t *testing.T) {
 		t.Run(it.name, func(tc testCase) func(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
-				parser := parser.New([]string{"system_", "registry", "sqlite_"}, 0, 0)
+				parser := newParser(t, []string{"system_", "registry", "sqlite_"})
 				_, err := parser.ValidateCreateTable(tc.query, tc.chainID)
 				if tc.expErrType == nil {
 					require.NoError(t, err)
@@ -839,7 +839,7 @@ func TestCreateTableResult(t *testing.T) {
 		t.Run(it.name, func(tc testCase) func(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
-				parser := parser.New([]string{"system_", "registry"}, 0, 0)
+				parser := newParser(t, []string{"system_", "registry"})
 				cs, err := parser.ValidateCreateTable(tc.query, 1337)
 				require.NoError(t, err)
 
@@ -859,7 +859,10 @@ func TestCreateTableColLimit(t *testing.T) {
 	t.Parallel()
 
 	maxAllowedColumns := 3
-	parser := parser.New([]string{"system_", "registry"}, maxAllowedColumns, 0)
+	opts := []parsing.Option{
+		parsing.WithMaxAllowedColumns(maxAllowedColumns),
+	}
+	parser := newParser(t, []string{"system_", "registry"}, opts...)
 
 	t.Run("success one column", func(t *testing.T) {
 		_, err := parser.ValidateCreateTable("create table foo_1337 (a int)", 1337)
@@ -882,7 +885,10 @@ func TestCreateTableTextLength(t *testing.T) {
 	t.Parallel()
 
 	textMaxLength := 4
-	parser := parser.New([]string{"system_", "registry"}, 0, textMaxLength)
+	opts := []parsing.Option{
+		parsing.WithMaxTextLength(textMaxLength),
+	}
+	parser := newParser(t, []string{"system_", "registry"}, opts...)
 
 	t.Run("success half limit", func(t *testing.T) {
 		_, err := parser.ValidateMutatingQuery(`insert into _1337_1 values ('aa')`, 1337)
@@ -905,6 +911,52 @@ func TestCreateTableTextLength(t *testing.T) {
 		require.ErrorAs(t, err, &expErr)
 		require.Equal(t, 5, expErr.Length)
 		require.Equal(t, textMaxLength, expErr.MaxAllowed)
+	})
+}
+
+func TestMaxReadQuerySize(t *testing.T) {
+	t.Parallel()
+
+	maxReadQuerySize := 25
+	opts := []parsing.Option{
+		parsing.WithMaxReadQuerySize(maxReadQuerySize),
+	}
+	parser := newParser(t, []string{"system_", "registry"}, opts...)
+
+	t.Run("success", func(t *testing.T) {
+		_, err := parser.ValidateReadQuery("SELECT * FROM foo_1337_0")
+		require.NoError(t, err)
+	})
+
+	t.Run("failure", func(t *testing.T) {
+		_, err := parser.ValidateReadQuery("SELECT * FROM foo_1337_0 WHERE id = 1")
+		var expErr *parsing.ErrReadQueryTooLong
+		require.ErrorAs(t, err, &expErr)
+		require.Equal(t, 37, expErr.Length)
+		require.Equal(t, maxReadQuerySize, expErr.MaxAllowed)
+	})
+}
+
+func TestMaxWriteQuerySize(t *testing.T) {
+	t.Parallel()
+
+	maxWriteQuerySize := 40
+	opts := []parsing.Option{
+		parsing.WithMaxWriteQuerySize(maxWriteQuerySize),
+	}
+	parser := newParser(t, []string{"system_", "registry"}, opts...)
+
+	t.Run("success", func(t *testing.T) {
+		_, err := parser.ValidateMutatingQuery("INSERT INTO foo_1337_0 VALUES ('hello')", 1337)
+		require.NoError(t, err)
+	})
+
+	t.Run("failure", func(t *testing.T) {
+		_, err := parser.ValidateMutatingQuery("INSERT INTO foo_1337_0 VALUES ('hello12')", 1337)
+		var expErr *parsing.ErrWriteQueryTooLong
+		require.ErrorAs(t, err, &expErr)
+		require.Equal(t, 41, expErr.Length)
+		require.Equal(t, maxWriteQuerySize, expErr.MaxAllowed)
 	})
 }
 
@@ -939,7 +991,7 @@ func TestGetWriteStatements(t *testing.T) {
 		t.Run(it.name, func(tc testCase) func(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
-				parser := parser.New([]string{"system_", "registry"}, 0, 0)
+				parser := newParser(t, []string{"system_", "registry"})
 				stmts, err := parser.ValidateMutatingQuery(tc.query, 1337)
 				require.NoError(t, err)
 
@@ -988,7 +1040,7 @@ func TestGetGrantStatementRolesAndPrivileges(t *testing.T) {
 		t.Run(it.name, func(tc testCase) func(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
-				parser := parser.New([]string{"system_", "registry"}, 0, 0)
+				parser := newParser(t, []string{"system_", "registry"})
 				stmts, err := parser.ValidateMutatingQuery(tc.query, 1337)
 				require.NoError(t, err)
 
@@ -1033,7 +1085,7 @@ func TestWriteStatementAddWhereClause(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			parser := parser.New([]string{"system_", "registry"}, 0, 0)
+			parser := newParser(t, []string{"system_", "registry"})
 			mss, err := parser.ValidateMutatingQuery(tc.query, 1337)
 			require.NoError(t, err)
 			require.Len(t, mss, 1)
@@ -1056,7 +1108,7 @@ func TestWriteStatementAddReturningClause(t *testing.T) {
 	t.Run("insert-add-returning", func(t *testing.T) {
 		t.Parallel()
 
-		parser := parser.New([]string{"system_", "registry"}, 0, 0)
+		parser := newParser(t, []string{"system_", "registry"})
 		mss, err := parser.ValidateMutatingQuery("insert into foo_1337_0 VALUES ('bar')", 1337)
 		require.NoError(t, err)
 		require.Len(t, mss, 1)
@@ -1075,7 +1127,7 @@ func TestWriteStatementAddReturningClause(t *testing.T) {
 	t.Run("update-add-returning", func(t *testing.T) {
 		t.Parallel()
 
-		parser := parser.New([]string{"system_", "registry"}, 0, 0)
+		parser := newParser(t, []string{"system_", "registry"})
 		mss, err := parser.ValidateMutatingQuery("update foo_1337_0 set foo = 'bar'", 1337)
 		require.NoError(t, err)
 		require.Len(t, mss, 1)
@@ -1094,7 +1146,7 @@ func TestWriteStatementAddReturningClause(t *testing.T) {
 	t.Run("delete-add-returning-error", func(t *testing.T) {
 		t.Parallel()
 
-		parser := parser.New([]string{"system_", "registry"}, 0, 0)
+		parser := newParser(t, []string{"system_", "registry"})
 		mss, err := parser.ValidateMutatingQuery("DELETE FROM foo_1337_0 WHERE foo = 'bar'", 1337)
 		require.NoError(t, err)
 		require.Len(t, mss, 1)
@@ -1105,6 +1157,13 @@ func TestWriteStatementAddReturningClause(t *testing.T) {
 		err = ws.AddReturningClause()
 		require.ErrorAs(t, err, &parsing.ErrCantAddReturningOnDELETE)
 	})
+}
+
+func newParser(t *testing.T, prefixes []string, opts ...parsing.Option) parsing.SQLValidator {
+	t.Helper()
+	p, err := parser.New(prefixes, opts...)
+	require.NoError(t, err)
+	return p
 }
 
 // Helpers to have a pointer to pointer for generic test-case running.

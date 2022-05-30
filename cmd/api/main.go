@@ -61,12 +61,19 @@ func main() {
 		config.DB.Name,
 	)
 
-	parser, err := parserimpl.NewInstrumentedSQLValidator(
-		parserimpl.New(
-			[]string{systemimpl.SystemTablesPrefix, systemimpl.RegistryTableName},
-			config.TableConstraints.MaxColumns,
-			config.TableConstraints.MaxTextLength),
-	)
+	parserOpts := []parsing.Option{
+		parsing.WithMaxAllowedColumns(config.TableConstraints.MaxColumns),
+		parsing.WithMaxTextLength(config.TableConstraints.MaxColumns),
+		parsing.WithMaxReadQuerySize(config.QueryConstraints.MaxReadQuerySize),
+		parsing.WithMaxWriteQuerySize(config.QueryConstraints.MaxWriteQuerySize),
+	}
+
+	parser, err := parserimpl.New([]string{systemimpl.SystemTablesPrefix, systemimpl.RegistryTableName}, parserOpts...)
+	if err != nil {
+		log.Fatal().Err(err).Msg("new parser")
+	}
+
+	parser, err = parserimpl.NewInstrumentedSQLValidator(parser)
 	if err != nil {
 		log.Fatal().Err(err).Msg("instrumenting sql validator")
 	}
@@ -76,7 +83,7 @@ func main() {
 		if _, ok := chainStacks[chainCfg.ChainID]; ok {
 			log.Fatal().Int64("chainId", int64(chainCfg.ChainID)).Msg("chain id configuration is duplicated")
 		}
-		chainStack, err := createChainIDStack(chainCfg, databaseURL, parser, config.TableConstraints, config.QueryConstraints)
+		chainStack, err := createChainIDStack(chainCfg, databaseURL, parser, config.TableConstraints)
 		if err != nil {
 			log.Fatal().Int64("chainId", int64(chainCfg.ChainID)).Err(err).Msg("spinning up chain stack")
 		}
@@ -92,7 +99,7 @@ func main() {
 		log.Fatal().Err(err).Msg("creating instrumented user store")
 	}
 
-	svc := getTablelandService(parser, instrUserStore, chainStacks, config)
+	svc := getTablelandService(parser, instrUserStore, chainStacks)
 	if err := server.RegisterName("tableland", svc); err != nil {
 		log.Fatal().Err(err).Msg("failed to register a json-rpc service")
 	}
@@ -189,14 +196,8 @@ func main() {
 func getTablelandService(
 	parser parsing.SQLValidator,
 	userStore sqlstore.UserStore,
-	chainStacks map[tableland.ChainID]chains.ChainStack,
-	config *config) tableland.Tableland {
-	tablelandOpts := []tableland.Option{
-		tableland.WithMaxReadQuerySize(config.QueryConstraints.MaxReadQuerySize),
-		tableland.WithMaxWriteQuerySize(config.QueryConstraints.MaxWriteQuerySize),
-	}
-
-	mesa, err := impl.NewTablelandMesa(parser, userStore, chainStacks, tablelandOpts...)
+	chainStacks map[tableland.ChainID]chains.ChainStack) tableland.Tableland {
+	mesa, err := impl.NewTablelandMesa(parser, userStore, chainStacks)
 	if err != nil {
 		log.Fatal().Err(err).Msg("new tableland mesa")
 	}
@@ -216,7 +217,6 @@ func createChainIDStack(
 	databaseURL string,
 	parser parsing.SQLValidator,
 	tableConstraints TableConstraints,
-	queryContraints QueryConstraints,
 ) (chains.ChainStack, error) {
 	store, err := system.New(databaseURL, config.ChainID)
 	if err != nil {
@@ -310,7 +310,6 @@ func createChainIDStack(
 	epOpts := []eventprocessor.Option{
 		eventprocessor.WithBlockFailedExecutionBackoff(blockFailedExecutionBackoff),
 		eventprocessor.WithDedupExecutedTxns(config.EventProcessor.DedupExecutedTxns),
-		eventprocessor.WithMaxWriteQuerySize(queryContraints.MaxWriteQuerySize),
 	}
 	ep, err := epimpl.New(parser, txnp, ef, config.ChainID, epOpts...)
 	if err != nil {

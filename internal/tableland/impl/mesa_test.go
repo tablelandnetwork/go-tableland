@@ -28,6 +28,7 @@ import (
 	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
 	epimpl "github.com/textileio/go-tableland/pkg/eventprocessor/impl"
 	"github.com/textileio/go-tableland/pkg/nonce/impl"
+	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
@@ -435,10 +436,10 @@ func TestQueryConstraints(t *testing.T) {
 
 	t.Run("write-query-size-ok", func(t *testing.T) {
 		t.Parallel()
-		tablelandOpts := []tableland.Option{
-			tableland.WithMaxWriteQuerySize(45),
+		parsingOpts := []parsing.Option{
+			parsing.WithMaxWriteQuerySize(45),
 		}
-		ctx, tbld, _, _, txOpts := setup(t, tablelandOpts...)
+		ctx, tbld, _, _, txOpts := setup(t, parsingOpts...)
 		caller := txOpts.From
 
 		ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller.Hex())
@@ -451,10 +452,10 @@ func TestQueryConstraints(t *testing.T) {
 	t.Run("write-query-size-nok", func(t *testing.T) {
 		t.Parallel()
 
-		tablelandOpts := []tableland.Option{
-			tableland.WithMaxWriteQuerySize(45),
+		parsingOpts := []parsing.Option{
+			parsing.WithMaxWriteQuerySize(45),
 		}
-		ctx, tbld, _, _, txOpts := setup(t, tablelandOpts...)
+		ctx, tbld, _, _, txOpts := setup(t, parsingOpts...)
 		caller := txOpts.From
 
 		ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller.Hex())
@@ -462,16 +463,16 @@ func TestQueryConstraints(t *testing.T) {
 			Statement: "INSERT INTO foo_1337_0 (bar) VALUES ('hello2')", // length of 46 bytes
 		})
 		require.Error(t, err)
-		require.ErrorContains(t, err, "write query size greater than max size")
+		require.ErrorContains(t, err, "write query size is too long")
 	})
 
 	t.Run("read-query-size-ok", func(t *testing.T) {
 		t.Parallel()
 
-		tablelandOpts := []tableland.Option{
-			tableland.WithMaxReadQuerySize(44),
+		parsingOpts := []parsing.Option{
+			parsing.WithMaxReadQuerySize(44),
 		}
-		ctx, tbld, backend, sc, txOpts := setup(t, tablelandOpts...)
+		ctx, tbld, backend, sc, txOpts := setup(t, parsingOpts...)
 		caller := txOpts.From
 
 		_, err := sc.CreateTable(txOpts, caller, `CREATE TABLE foo_1337 (bar text);`)
@@ -494,10 +495,10 @@ func TestQueryConstraints(t *testing.T) {
 	t.Run("read-query-size-nok", func(t *testing.T) {
 		t.Parallel()
 
-		tablelandOpts := []tableland.Option{
-			tableland.WithMaxReadQuerySize(44),
+		parsingOpts := []parsing.Option{
+			parsing.WithMaxReadQuerySize(44),
 		}
-		ctx, tbld, _, _, txOpts := setup(t, tablelandOpts...)
+		ctx, tbld, _, _, txOpts := setup(t, parsingOpts...)
 		caller := txOpts.From
 
 		ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller.Hex())
@@ -505,7 +506,7 @@ func TestQueryConstraints(t *testing.T) {
 			Statement: "SELECT * FROM foo_1337_0 WHERE bar = 'hello2'", // length of 45 bytes
 		})
 		require.Error(t, err)
-		require.ErrorContains(t, err, "read query size greater than max size")
+		require.ErrorContains(t, err, "read query size is too long")
 	})
 }
 
@@ -651,7 +652,7 @@ func readCsvFile(t *testing.T, filePath string) [][]string {
 
 func setup(
 	t *testing.T,
-	opts ...tableland.Option) (context.Context,
+	opts ...parsing.Option) (context.Context,
 	tableland.Tableland,
 	*backends.SimulatedBackend,
 	*ethereum.Contract,
@@ -664,7 +665,9 @@ func setup(
 	store, err := system.New(url, tableland.ChainID(1337))
 	require.NoError(t, err)
 
-	parser := parserimpl.New([]string{"system_", "registry", "sqlite_"}, 0, 0)
+	parser, err := parserimpl.New([]string{"system_", "registry", "sqlite_"}, opts...)
+	require.NoError(t, err)
+
 	txnp, err := txnpimpl.NewTxnProcessor(1337, url, 0, &aclHalfMock{store})
 	require.NoError(t, err)
 
@@ -690,8 +693,7 @@ func setup(
 		userStore,
 		map[tableland.ChainID]chains.ChainStack{
 			1337: {Store: store, Registry: registry},
-		},
-		opts...)
+		})
 	require.NoError(t, err)
 
 	// Spin up dependencies needed for the EventProcessor.
@@ -725,7 +727,9 @@ func setupTablelandForTwoAddresses(t *testing.T) (context.Context,
 	store, err := system.New(url, tableland.ChainID(1337))
 	require.NoError(t, err)
 
-	parser := parserimpl.New([]string{"system_", "registry"}, 0, 0)
+	parser, err := parserimpl.New([]string{"system_", "registry"})
+	require.NoError(t, err)
+
 	txnp, err := txnpimpl.NewTxnProcessor(1337, url, 0, &aclHalfMock{store})
 	require.NoError(t, err)
 

@@ -11,7 +11,6 @@ import (
 type Config struct {
 	BlockFailedExecutionBackoff time.Duration
 	DedupExecutedTxns           bool
-	MaxWriteQuerySize           int
 }
 
 // DefaultConfig returns the default configuration.
@@ -19,7 +18,6 @@ func DefaultConfig() *Config {
 	return &Config{
 		BlockFailedExecutionBackoff: time.Second * 10,
 		DedupExecutedTxns:           false,
-		MaxWriteQuerySize:           35000,
 	}
 }
 
@@ -47,17 +45,6 @@ func WithBlockFailedExecutionBackoff(backoff time.Duration) Option {
 func WithDedupExecutedTxns(dedupExecutedTxns bool) Option {
 	return func(c *Config) error {
 		c.DedupExecutedTxns = dedupExecutedTxns
-		return nil
-	}
-}
-
-// WithMaxWriteQuerySize limits the size of a write query.
-func WithMaxWriteQuerySize(size int) Option {
-	return func(c *Config) error {
-		if size <= 0 {
-			return fmt.Errorf("size should greater than zero")
-		}
-		c.MaxWriteQuerySize = size
 		return nil
 	}
 }
