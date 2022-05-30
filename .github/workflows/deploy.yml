@@ -19,7 +19,7 @@ env:
 
 jobs:
   deploy:
-    if: github.event_name == 'release' || github.ref == 'refs/heads/main' || contains(github.event.head_commit.message, '[stagingdeploy]') || contains(github.event.head_commit.message, '[testnetdeploy]')
+    if: github.event_name == 'release' || github.ref == 'refs/heads/main' || contains(github.event.head_commit.message, '[stagingdeploy]') || contains(github.event.head_commit.message, '[testnetdeploy]') || contains(github.event.head_commit.message, '[productiondeploy]')
     name: Deploy
     runs-on: ubuntu-latest
     steps:
@@ -41,6 +41,8 @@ jobs:
         run: |
           if [[ ${{ github.ref }} == refs/heads/main ]] || [[ "${{github.event.head_commit.message}}" == *"[testnetdeploy]"* ]]; then
             echo "::set-output name=deployment::testnet"
+          elif [[ ${{ github.ref }} == refs/tags/* ]] || [[ "${{github.event.head_commit.message}}" == *"[productiondeploy]"* ]]; then
+            echo "::set-output name=deployment::production"
           else
             echo "::set-output name=deployment::staging"
           fi
