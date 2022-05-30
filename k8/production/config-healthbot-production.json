@@ -1,0 +1,39 @@
+{
+    "Metrics": {
+        "Port": "9090"
+    },
+    "Log": {
+        "Human": false,
+        "Debug": true
+    },
+    "Target": "https://tableland.network/rpc",
+    "Chains": [
+        {
+            "Name": "optimism-mainnet",
+            "Probe": {
+                "CheckInterval": "1h",
+                "ReceiptTimeout": "25s",
+                "SIWE": "${HEALTHBOT_OPTIMISM_MAINNET_SIWE}",
+                "Tablename": "Healthbot_10_0"
+            }
+        },
+        {
+            "Name": "ethereum-mainnet",
+            "Probe": {
+                "CheckInterval": "6h",
+                "ReceiptTimeout": "90s",
+                "SIWE": "${HEALTHBOT_ETHEREUM_MAINNET_SIWE}",
+                "Tablename": "Healthbot_1_0"
+            }
+        },
+        {
+            "Name": "polygon-mainnet",
+            "Probe": {
+                "CheckInterval": "1h",
+                "ReceiptTimeout": "40s",
+                "SIWE": "${HEALTHBOT_POLYGON_MAINNET_SIWE}",
+                "Tablename": "Healthbot_137_0"
+            }
+        }
+    ]
+}

@@ -1,6 +1,6 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-namespace: tableland-production
+namespace: tableland-testnet
 
 resources:
 - ../base
@@ -12,6 +12,15 @@ configMapGenerator:
 - envs:
   - configHealthbot.env
   name: configmap-healthbot
+- files:
+  - config-validator.json=config-validator-production.json
+  name: configmap-validator-config
+- files:
+  - config-healthbot.json=config-healthbot-production.json
+  name: configmap-healthbot-config
+
 
 patchesStrategicMerge:
 - ingress-nginx-patch.yaml
+- healthbot-patch.yaml
+- api-patch.yaml

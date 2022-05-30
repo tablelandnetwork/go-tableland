@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-01
+spec:
+  template:
+    spec:
+      containers:
+        - name: api
+          env:
+            - name: VALIDATOR_ALCHEMY_OPTIMISM_MAINNET_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: tableland-secret
+                  key: validator-alchemy-optimism-mainnet-api-key
+            - name: VALIDATOR_ALCHEMY_ETHEREUM_MAINNET_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: tableland-secret
+                  key: validator-alchemy-ethereum-mainnet-api-key
+            - name: VALIDATOR_ALCHEMY_POLYGON_MAINNET_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: tableland-secret
+                  key: validator-alchemy-polygon-mainnet-api-key
+            - name: VALIDATOR_OPTIMISM_MAINNET_SIGNER_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: tableland-secret
+                  key: validator-optimism-mainnet-signer-private-key
+            - name: VALIDATOR_ETHEREUM_MAINNET_SIGNER_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: tableland-secret
+                  key: validator-ethereum-mainnet-signer-private-key
+            - name: VALIDATOR_POLYGON_MAINNET_SIGNER_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: tableland-secret
+                  key: validator-polygon-mainnet-signer-private-key

@@ -1,0 +1,110 @@
+{
+  "Impl": "mesa",
+  "HTTP": {
+    "Port": "8080",
+    "RateLimInterval": "1s",
+    "MaxRequestPerInterval": 10
+  },
+  "Gateway": {
+    "ExternalURIPrefix": "https://tableland.network/tables"
+  },
+  "DB": {
+    "Port": "5432"
+  },
+  "TableConstraints": {
+    "MaxRowCount": 100000,
+    "MaxColumns": 24,
+    "MaxTextLength": 1024
+  },
+  "Metrics": {
+    "Port": "9090"
+  },
+  "Log": {
+    "Human": false,
+    "Debug": true
+  },
+  "AdminAPI": {
+    "Username": "admin_user",
+    "Password": "admin_password"
+  },
+  "Chains": [
+    {
+      "Name": "Optimism Mainnet",
+      "ChainID": 10,
+      "Registry": {
+        "EthEndpoint": "wss://opt-mainnet.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_OPTIMISM_MAINNET_API_KEY}",
+        "ContractAddress": "TODO(production)"
+      },
+      "Signer": {
+        "PrivateKey": "${VALIDATOR_OPTIMISM_MAINNET_SIGNER_PRIVATE_KEY}"
+      },
+      "EventFeed": {
+        "ChainAPIBackoff": "15s",
+        "NewBlockTimeout": "30s",
+        "MaxBlocksFetchSize": 100000,
+        "MinBlockDepth": 0
+      },
+      "EventProcessor": {
+        "BlockFailedExecutionBackoff": "10s",
+        "DedupExecutedTxns": true
+      },
+      "NonceTracker": {
+        "CheckInterval": "10s",
+        "StuckInterval": "5m",
+        "MinBlockDepth": 0
+      }
+    },
+    {
+      "Name": "Ethereum Mainnet",
+      "ChainID": 1,
+      "Registry": {
+        "EthEndpoint": "wss://eth-mainnet.alchemyapi.io/v2/${VALIDATOR_ALCHEMY_ETHEREUM_MAINNET_API_KEY}",
+        "ContractAddress": "TODO(production)"
+      },
+      "Signer": {
+        "PrivateKey": "${VALIDATOR_ETHEREUM_MAINNET_SIGNER_PRIVATE_KEY}"
+      },
+      "EventFeed": {
+        "ChainAPIBackoff": "15s",
+        "NewBlockTimeout": "45s",
+        "MaxBlocksFetchSize": 100000,
+        "MinBlockDepth": 3
+      },
+      "EventProcessor": {
+        "BlockFailedExecutionBackoff": "10s",
+        "DedupExecutedTxns": true
+      },
+      "NonceTracker": {
+        "CheckInterval": "15s",
+        "StuckInterval": "20m",
+        "MinBlockDepth": 3
+      }
+    },
+    {
+      "Name": "Polygon Mainnet",
+      "ChainID": 137,
+      "Registry": {
+        "EthEndpoint": "wss://polygon-mainnet.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_POLYGON_MAINNET_API_KEY}",
+        "ContractAddress": "TODO(production)"
+      },
+      "Signer": {
+        "PrivateKey": "${VALIDATOR_POLYGON_MAINNET_SIGNER_PRIVATE_KEY}"
+      },
+      "EventFeed": {
+        "ChainAPIBackoff": "15s",
+        "NewBlockTimeout": "30s",
+        "MaxBlocksFetchSize": 100000,
+        "MinBlockDepth": 3
+      },
+      "EventProcessor": {
+        "BlockFailedExecutionBackoff": "10s",
+        "DedupExecutedTxns": true
+      },
+      "NonceTracker": {
+        "CheckInterval": "15s",
+        "StuckInterval": "5m",
+        "MinBlockDepth": 3
+      }
+    }
+  ]
+}
