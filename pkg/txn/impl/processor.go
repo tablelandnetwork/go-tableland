@@ -313,6 +313,7 @@ func isErrCausedByQuery(err error) (string, bool) {
 	pgExecutionErrors := []string{
 		// Class 22 — Data Exception
 		"22P02", // invalid_text_representation (Caused by a query trying to insert a wrong column type.)
+		"22021", // invalid byte sequence encoding
 
 		// Class 23 — Integrity Constraint Violation
 		"23502", // not_null_violation
@@ -391,6 +392,9 @@ func (b *batch) SaveTxnReceipts(ctx context.Context, rs []eventprocessor.Receipt
 				if err := dbID.Set(r.TableID.String()); err != nil {
 					return fmt.Errorf("parsing table id to numeric: %s", err)
 				}
+			}
+			if r.Error != nil {
+				*r.Error = strings.ToValidUTF8(*r.Error, "")
 			}
 			if _, err := tx.Exec(
 				ctx,
