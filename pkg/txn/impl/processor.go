@@ -393,6 +393,9 @@ func (b *batch) SaveTxnReceipts(ctx context.Context, rs []eventprocessor.Receipt
 					return fmt.Errorf("parsing table id to numeric: %s", err)
 				}
 			}
+			if r.Error != nil {
+				*r.Error = strings.ToValidUTF8(*r.Error, "")
+			}
 			if _, err := tx.Exec(
 				ctx,
 				`INSERT INTO system_txn_receipts (chain_id, txn_hash, error, table_id, block_number) 
