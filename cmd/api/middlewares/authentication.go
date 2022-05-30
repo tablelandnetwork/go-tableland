@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	stderrors "errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -17,7 +16,7 @@ import (
 )
 
 var (
-	errSIWEWrongDomain        = stderrors.New("SIWE domain isn't Tableland")
+	siweDomain                = "Tableland"
 	unauthenticatedRPCMethods = []string{
 		"tableland_runReadQuery",
 	}
@@ -89,10 +88,7 @@ func parseAuth(bearerToken string) (tableland.ChainID, string, error) {
 	if err != nil {
 		return 0, "", fmt.Errorf("parsing siwe: %s", err)
 	}
-	if msg.GetDomain() != "Tableland" {
-		return 0, "", errSIWEWrongDomain
-	}
-	if _, err := msg.Verify(siweAuthMsg.Signature, nil, nil); err != nil {
+	if _, err := msg.Verify(siweAuthMsg.Signature, &siweDomain, nil, nil); err != nil {
 		return 0, "", fmt.Errorf("checking siwe validity: %w", err)
 	}
 	return tableland.ChainID(msg.GetChainID()), msg.GetAddress().String(), nil

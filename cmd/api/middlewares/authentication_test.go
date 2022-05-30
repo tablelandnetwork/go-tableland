@@ -29,7 +29,7 @@ func TestSIWE(t *testing.T) {
 
 		siweToken := "eyJtZXNzYWdlIjoibG9jYWxob3N0OjQzNjEgd2FudHMgeW91IHRvIHNpZ24gaW4gd2l0aCB5b3VyIEV0aGVyZXVtIGFjY291bnQ6XG4weGQ1MzViQWQ1MDRDRGQ3N2UyQzUxZEUyNkY0MTY2OTNERjdhMDFhYzhcblxuU0lXRSBOb3RlcGFkIEV4YW1wbGVcblxuVVJJOiBodHRwOi8vbG9jYWxob3N0OjQzNjFcblZlcnNpb246IDFcbkNoYWluIElEOiA0XG5Ob25jZTogdHhEY1pOOUJ1NkhHbXpDdmRcbklzc3VlZCBBdDogMjAyMi0wNC0xOFQyMjoyNDoxNS4xNDRaXG5FeHBpcmF0aW9uIFRpbWU6IDIwNTItMDQtMThUMTU6MDg6MTQuODA1WiIsInNpZ25hdHVyZSI6IjB4MThiOTlmOTY3YjUzNjgxZWZiNTU0Mjk4ZmNkYjJmYjE5N2JiYjEwODU0MmM4Mzc3ZDM0MGE5Zjk0M2RkZTY4NzcwNWUyOTQ3OGZjNTI1MzYyZmU5OGU1ZWI2NzAxOTU3OWM3MzQ4ZThkMTVmNzhjOTRiZDdiNWIzMjdlOTQ3MTAxYyJ9" //nolint
 		_, _, err := parseAuth(siweToken)
-		require.ErrorIs(t, err, errSIWEWrongDomain)
+		require.ErrorContains(t, err, "Message domain doesn't match")
 	})
 	t.Run("expired", func(t *testing.T) {
 		t.Parallel()
