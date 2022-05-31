@@ -24,12 +24,12 @@ type TablelandMesa struct {
 func NewTablelandMesa(
 	parser parsing.SQLValidator,
 	userStore sqlstore.UserStore,
-	chainStacks map[tableland.ChainID]chains.ChainStack) (tableland.Tableland, error) {
+	chainStacks map[tableland.ChainID]chains.ChainStack) tableland.Tableland {
 	return &TablelandMesa{
 		parser:      parser,
 		userStore:   userStore,
 		chainStacks: chainStacks,
-	}, nil
+	}
 }
 
 // ValidateCreateTable allows to validate a CREATE TABLE statement and also return the structure hash of it.

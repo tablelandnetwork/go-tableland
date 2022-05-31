@@ -688,13 +688,12 @@ func setup(
 	userStore, err := user.New(url)
 	require.NoError(t, err)
 
-	tbld, err := NewTablelandMesa(
+	tbld := NewTablelandMesa(
 		parser,
 		userStore,
 		map[tableland.ChainID]chains.ChainStack{
 			1337: {Store: store, Registry: registry},
 		})
-	require.NoError(t, err)
 
 	// Spin up dependencies needed for the EventProcessor.
 	// i.e: TxnProcessor, Parser, and EventFeed (connected to the EVM chain)
@@ -748,13 +747,12 @@ func setupTablelandForTwoAddresses(t *testing.T) (context.Context,
 	require.NoError(t, err)
 	userStore, err := user.New(url)
 	require.NoError(t, err)
-	tbld1, err := NewTablelandMesa(
+	tbld1 := NewTablelandMesa(
 		parser,
 		userStore,
 		map[tableland.ChainID]chains.ChainStack{
 			1337: {Store: store, Registry: registry},
 		})
-	require.NoError(t, err)
 
 	key2, err := crypto.GenerateKey()
 	require.NoError(t, err)
@@ -775,13 +773,12 @@ func setupTablelandForTwoAddresses(t *testing.T) (context.Context,
 		impl.NewSimpleTracker(wallet2, backend),
 	)
 	require.NoError(t, err)
-	tbld2, err := NewTablelandMesa(
+	tbld2 := NewTablelandMesa(
 		parser,
 		userStore,
 		map[tableland.ChainID]chains.ChainStack{
 			1337: {Store: store, Registry: registry2},
 		})
-	require.NoError(t, err)
 
 	// Spin up dependencies needed for the EventProcessor.
 	// i.e: TxnProcessor, Parser, and EventFeed (connected to the EVM chain)

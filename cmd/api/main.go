@@ -197,11 +197,9 @@ func getTablelandService(
 	parser parsing.SQLValidator,
 	userStore sqlstore.UserStore,
 	chainStacks map[tableland.ChainID]chains.ChainStack) tableland.Tableland {
-	mesa, err := impl.NewTablelandMesa(parser, userStore, chainStacks)
-	if err != nil {
-		log.Fatal().Err(err).Msg("new tableland mesa")
-	}
-	instrumentedMesa, err := impl.NewInstrumentedTablelandMesa(mesa)
+	instrumentedMesa, err := impl.NewInstrumentedTablelandMesa(
+		impl.NewTablelandMesa(parser, userStore, chainStacks),
+	)
 	if err != nil {
 		log.Fatal().Err(err).Msg("instrumenting mesa")
 	}
