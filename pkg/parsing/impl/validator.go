@@ -26,17 +26,19 @@ type QueryValidator struct {
 	acceptedTypesNames   []string
 	createTableNameRegEx *regexp.Regexp
 	queryTableNameRegEx  *regexp.Regexp
-	maxAllowedColumns    int
-	maxTextLength        int
+	config               *parsing.Config
 }
 
 var _ parsing.SQLValidator = (*QueryValidator)(nil)
 
 // New returns a Tableland query validator.
-func New(
-	systemTablePrefixes []string,
-	maxAllowedColumns int,
-	maxTextLength int) *QueryValidator {
+func New(systemTablePrefixes []string, opts ...parsing.Option) (parsing.SQLValidator, error) {
+	config := parsing.DefaultConfig()
+	for _, o := range opts {
+		if err := o(config); err != nil {
+			return nil, fmt.Errorf("applying provided option: %s", err)
+		}
+	}
 	// We create here a flattened slice of all the accepted type names from
 	// the parsing.AcceptedTypes source of truth. We do this since having a
 	// slice is easier and faster to do checks.
@@ -54,9 +56,8 @@ func New(
 		acceptedTypesNames:   acceptedTypesNames,
 		createTableNameRegEx: createTableNameRegEx,
 		queryTableNameRegEx:  queryTableNameRegEx,
-		maxAllowedColumns:    maxAllowedColumns,
-		maxTextLength:        maxTextLength,
-	}
+		config:               config,
+	}, nil
 }
 
 // ValidateCreateTable validates a CREATE TABLE statement.
@@ -84,10 +85,10 @@ func (pp *QueryValidator) ValidateCreateTable(query string, chainID tableland.Ch
 		return nil, fmt.Errorf("disallowed column types: %w", err)
 	}
 
-	if pp.maxAllowedColumns > 0 && len(colNameTypes) > pp.maxAllowedColumns {
+	if pp.config.MaxAllowedColumns > 0 && len(colNameTypes) > pp.config.MaxAllowedColumns {
 		return nil, &parsing.ErrTooManyColumns{
 			ColumnCount: len(colNameTypes),
-			MaxAllowed:  pp.maxAllowedColumns,
+			MaxAllowed:  pp.config.MaxAllowedColumns,
 		}
 	}
 
@@ -99,6 +100,13 @@ func (pp *QueryValidator) ValidateCreateTable(query string, chainID tableland.Ch
 func (pp *QueryValidator) ValidateMutatingQuery(
 	query string,
 	chainID tableland.ChainID) ([]parsing.MutatingStmt, error) {
+	if len(query) > pp.config.MaxWriteQuerySize {
+		return nil, &parsing.ErrWriteQueryTooLong{
+			Length:     len(query),
+			MaxAllowed: pp.config.MaxWriteQuerySize,
+		}
+	}
+
 	parsed, err := pg_query.Parse(query)
 	if err != nil {
 		return nil, &parsing.ErrInvalidSyntax{InternalError: err}
@@ -189,6 +197,13 @@ func (pp *QueryValidator) ValidateMutatingQuery(
 
 // ValidateReadQuery validates a read-query, and returns a structured representation of it.
 func (pp *QueryValidator) ValidateReadQuery(query string) (parsing.ReadStmt, error) {
+	if len(query) > pp.config.MaxReadQuerySize {
+		return nil, &parsing.ErrReadQueryTooLong{
+			Length:     len(query),
+			MaxAllowed: pp.config.MaxReadQuerySize,
+		}
+	}
+
 	parsed, err := pg_query.Parse(query)
 	if err != nil {
 		return nil, &parsing.ErrInvalidSyntax{InternalError: err}
@@ -455,7 +470,7 @@ func (pp *QueryValidator) validateWriteQuery(stmt *pg_query.Node) (string, error
 		return "", fmt.Errorf("no non-deterministic func check: %w", err)
 	}
 
-	if err := checkMaxTextValueLength(stmt, pp.maxTextLength); err != nil {
+	if err := checkMaxTextValueLength(stmt, pp.config.MaxTextLength); err != nil {
 		return "", fmt.Errorf("max text length check: %w", err)
 	}
 

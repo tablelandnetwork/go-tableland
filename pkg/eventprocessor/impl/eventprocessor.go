@@ -394,6 +394,7 @@ func (ep *EventProcessor) executeRunSQLEvent(
 		BlockNumber: blockNumber,
 		TxnHash:     be.TxnHash.String(),
 	}
+
 	mutatingStmts, err := ep.parser.ValidateMutatingQuery(e.Statement, ep.chainID)
 	if err != nil {
 		err := fmt.Sprintf("parsing query: %s", err)

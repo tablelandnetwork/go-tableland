@@ -67,6 +67,7 @@ func (t *TablelandMesa) RelayWriteQuery(
 	if !ok {
 		return tableland.RelayWriteQueryResponse{}, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
 	}
+
 	mutatingStmts, err := t.parser.ValidateMutatingQuery(req.Statement, chainID)
 	if err != nil {
 		return tableland.RelayWriteQueryResponse{}, fmt.Errorf("validating query: %s", err)

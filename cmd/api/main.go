@@ -61,12 +61,19 @@ func main() {
 		config.DB.Name,
 	)
 
-	parser, err := parserimpl.NewInstrumentedSQLValidator(
-		parserimpl.New(
-			[]string{systemimpl.SystemTablesPrefix, systemimpl.RegistryTableName},
-			config.TableConstraints.MaxColumns,
-			config.TableConstraints.MaxTextLength),
-	)
+	parserOpts := []parsing.Option{
+		parsing.WithMaxAllowedColumns(config.TableConstraints.MaxColumns),
+		parsing.WithMaxTextLength(config.TableConstraints.MaxColumns),
+		parsing.WithMaxReadQuerySize(config.QueryConstraints.MaxReadQuerySize),
+		parsing.WithMaxWriteQuerySize(config.QueryConstraints.MaxWriteQuerySize),
+	}
+
+	parser, err := parserimpl.New([]string{systemimpl.SystemTablesPrefix, systemimpl.RegistryTableName}, parserOpts...)
+	if err != nil {
+		log.Fatal().Err(err).Msg("new parser")
+	}
+
+	parser, err = parserimpl.NewInstrumentedSQLValidator(parser)
 	if err != nil {
 		log.Fatal().Err(err).Msg("instrumenting sql validator")
 	}
@@ -190,8 +197,9 @@ func getTablelandService(
 	parser parsing.SQLValidator,
 	userStore sqlstore.UserStore,
 	chainStacks map[tableland.ChainID]chains.ChainStack) tableland.Tableland {
-	mesa := impl.NewTablelandMesa(parser, userStore, chainStacks)
-	instrumentedMesa, err := impl.NewInstrumentedTablelandMesa(mesa)
+	instrumentedMesa, err := impl.NewInstrumentedTablelandMesa(
+		impl.NewTablelandMesa(parser, userStore, chainStacks),
+	)
 	if err != nil {
 		log.Fatal().Err(err).Msg("instrumenting mesa")
 	}

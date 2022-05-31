@@ -21,7 +21,7 @@ type InstrumentedSQLValidator struct {
 }
 
 // NewInstrumentedSQLValidator returns creates a wrapped QueryValidator for registering metrics.
-func NewInstrumentedSQLValidator(p parsing.SQLValidator) (*InstrumentedSQLValidator, error) {
+func NewInstrumentedSQLValidator(p parsing.SQLValidator) (parsing.SQLValidator, error) {
 	meter := global.MeterProvider().Meter("tableland")
 
 	callCount, err := meter.SyncInt64().Counter("tableland.sqlvalidator.call.count")
