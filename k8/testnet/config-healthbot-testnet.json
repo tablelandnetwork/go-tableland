@@ -20,7 +20,7 @@
         {
             "Name": "ethereum-goerli",
             "Probe": {
-                "CheckInterval": "60s",
+                "CheckInterval": "1h",
                 "ReceiptTimeout": "90s",
                 "SIWE": "${HEALTHBOT_ETHEREUM_GOERLI_SIWE}",
                 "Tablename": "Healthbot_5_0"
