@@ -358,6 +358,14 @@ func setup(t *testing.T) (*backends.SimulatedBackend, *ecdsa.PrivateKey, *bind.T
 		t.Error("Expected a valid deployment address. Received empty address byte array instead")
 	}
 
+	// Initialize the contract
+	_, err = contract.Initialize(auth, "https://foo.xyz")
+
+	// commit all pending transactions
+	backend.Commit()
+
+	require.NoError(t, err)
+
 	w, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(key)))
 	require.NoError(t, err)
 
@@ -394,6 +402,14 @@ func setupWithLocalTracker(t *testing.T) (
 	if len(address.Bytes()) == 0 {
 		t.Error("Expected a valid deployment address. Received empty address byte array instead")
 	}
+
+	// Initialize the contract
+	_, err = contract.Initialize(auth, "https://foo.xyz")
+
+	// commit all pending transactions
+	backend.Commit()
+
+	require.NoError(t, err)
 
 	w, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(key)))
 	require.NoError(t, err)
