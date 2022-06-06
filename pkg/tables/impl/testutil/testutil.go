@@ -13,7 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
+	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 )
 
 // Setup spinup a simulated backend node connected to a test EVM chain running the Registry smart-contract.
@@ -25,7 +25,7 @@ func Setup(t *testing.T) (
 	*ecdsa.PrivateKey) {
 	key, err := crypto.GenerateKey()
 	require.NoError(t, err)
-	auth, err := bind.NewKeyedTransactorWithChainID(key, big.NewInt(1337)) //nolint
+	auth, err := bind.NewKeyedTransactorWithChainID(key, big.NewInt(1337)) // nolint
 	require.NoError(t, err)
 
 	alloc := make(core.GenesisAlloc)
@@ -35,7 +35,7 @@ func Setup(t *testing.T) (
 	require.NoError(t, err)
 	auth.GasPrice = gas
 
-	//Deploy contract
+	// Deploy contract
 	address, _, contract, err := ethereum.DeployContract(
 		auth,
 		backend,

@@ -33,8 +33,8 @@ import (
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
-	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
-	"github.com/textileio/go-tableland/pkg/tableregistry/impl/testutil"
+	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
+	"github.com/textileio/go-tableland/pkg/tables/impl/testutil"
 	txnpimpl "github.com/textileio/go-tableland/pkg/txn/impl"
 	"github.com/textileio/go-tableland/pkg/wallet"
 	"github.com/textileio/go-tableland/tests"
@@ -171,10 +171,10 @@ func TestCheckInsertPrivileges(t *testing.T) {
 		{"INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivInsert}, true},
 		{"INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivUpdate}, false},
 		{"INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivDelete}, false},
-		{"INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate}, true},                       //nolint
-		{"INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivInsert, tableland.PrivDelete}, true},                       //nolint
-		{"INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivUpdate, tableland.PrivDelete}, false},                      //nolint
-		{"INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate, tableland.PrivDelete}, true}, //nolint
+		{"INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate}, true},                       // nolint
+		{"INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivInsert, tableland.PrivDelete}, true},                       // nolint
+		{"INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivUpdate, tableland.PrivDelete}, false},                      // nolint
+		{"INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate, tableland.PrivDelete}, true}, // nolint
 	}
 
 	for i, test := range tests {
@@ -242,7 +242,7 @@ func TestCheckUpdatePrivileges(t *testing.T) {
 		{"UPDATE foo_1337_%s SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate}, true},
 		{"UPDATE foo_1337_%s SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivInsert, tableland.PrivDelete}, false},
 		{"UPDATE foo_1337_%s SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivUpdate, tableland.PrivDelete}, true},
-		{"UPDATE foo_1337_%s SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate, tableland.PrivDelete}, true}, //nolint
+		{"UPDATE foo_1337_%s SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate, tableland.PrivDelete}, true}, // nolint
 	}
 
 	for i, test := range tests {
@@ -254,7 +254,7 @@ func TestCheckUpdatePrivileges(t *testing.T) {
 			var successfulTxnHashes []string
 
 			// we initilize the table with a row to be updated
-			r, err := relayWriteQuery(ctx, t, tbldGranter, fmt.Sprintf("INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", testCase), granter) //nolint
+			r, err := relayWriteQuery(ctx, t, tbldGranter, fmt.Sprintf("INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", testCase), granter) // nolint
 			require.NoError(t, err)
 			backend.Commit()
 			successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
@@ -316,7 +316,7 @@ func TestCheckDeletePrivileges(t *testing.T) {
 		{"DELETE FROM foo_1337_%s", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate}, false},
 		{"DELETE FROM foo_1337_%s", tableland.Privileges{tableland.PrivInsert, tableland.PrivDelete}, true},
 		{"DELETE FROM foo_1337_%s", tableland.Privileges{tableland.PrivUpdate, tableland.PrivDelete}, true},
-		{"DELETE FROM foo_1337_%s", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate, tableland.PrivDelete}, true}, //nolint
+		{"DELETE FROM foo_1337_%s", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate, tableland.PrivDelete}, true}, // nolint
 	}
 
 	for i, test := range tests {
@@ -327,7 +327,7 @@ func TestCheckDeletePrivileges(t *testing.T) {
 			var successfulTxnHashes []string
 
 			// we initilize the table with a row to be delete
-			_, err = relayWriteQuery(ctx, t, tbldGranter, fmt.Sprintf("INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", testCase), granter) //nolint
+			_, err = relayWriteQuery(ctx, t, tbldGranter, fmt.Sprintf("INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", testCase), granter) // nolint
 			require.NoError(t, err)
 			backend.Commit()
 
@@ -391,7 +391,7 @@ func TestOwnerRevokesItsPrivilegeInsideMultipleStatements(t *testing.T) {
 	requireReceipts(ctx, t, tbld, []string{r.Transaction.Hash}, false)
 }
 
-func TestTableTransfer(t *testing.T) {
+func TestTransferTable(t *testing.T) {
 	t.Parallel()
 
 	ctx, tbldOwner1, tbldOwner2, backend, sc, txOptsOwner1, txOptsOwner2 := setupTablelandForTwoAddresses(t)
@@ -760,7 +760,7 @@ func setupTablelandForTwoAddresses(t *testing.T) (context.Context,
 	wallet2, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(key2)))
 	require.NoError(t, err)
 
-	txOpts2, err := bind.NewKeyedTransactorWithChainID(key2, big.NewInt(1337)) //nolint
+	txOpts2, err := bind.NewKeyedTransactorWithChainID(key2, big.NewInt(1337)) // nolint
 	require.NoError(t, err)
 
 	requireTxn(t, backend, key1, wallet1.Address(), wallet2.Address(), big.NewInt(1000000000000000000))

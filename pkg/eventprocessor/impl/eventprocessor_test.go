@@ -19,7 +19,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
-	"github.com/textileio/go-tableland/pkg/tableregistry/impl/testutil"
+	"github.com/textileio/go-tableland/pkg/tables/impl/testutil"
 	txnpimpl "github.com/textileio/go-tableland/pkg/txn/impl"
 	"github.com/textileio/go-tableland/tests"
 )
@@ -32,7 +32,7 @@ func TestRunSQLBlockProcessing(t *testing.T) {
 	tableID, err := tableland.NewTableID("1000")
 	require.NoError(t, err)
 
-	expWrongTypeErr := "db query execution failed (code: POSTGRES_22P02, msg: ERROR: invalid input syntax for type integer: \"abc\" (SQLSTATE 22P02))" //nolint
+	expWrongTypeErr := "db query execution failed (code: POSTGRES_22P02, msg: ERROR: invalid input syntax for type integer: \"abc\" (SQLSTATE 22P02))" // nolint
 	cond := func(dr dbReader, exp []int) func() bool {
 		return func() bool {
 			got := dr("select * from test_1337_1000")

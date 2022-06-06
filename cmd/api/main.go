@@ -32,7 +32,7 @@ import (
 	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
-	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
+	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/txn"
 	txnimpl "github.com/textileio/go-tableland/pkg/txn/impl"
 	"github.com/textileio/go-tableland/pkg/wallet"

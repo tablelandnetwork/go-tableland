@@ -12,8 +12,8 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
-	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
-	"github.com/textileio/go-tableland/pkg/tableregistry/impl/testutil"
+	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
+	"github.com/textileio/go-tableland/pkg/tables/impl/testutil"
 )
 
 var emptyHash = common.HexToHash("0x0")
@@ -97,7 +97,7 @@ func TestAllEvents(t *testing.T) {
 			eventfeed.RunSQL,
 			eventfeed.CreateTable,
 			eventfeed.SetController,
-			eventfeed.TableTransfer,
+			eventfeed.TransferTable,
 		})
 		require.NoError(t, err)
 		close(chFeedClosed)
@@ -139,7 +139,7 @@ func TestAllEvents(t *testing.T) {
 		require.IsType(t, &ethereum.ContractRunSQL{}, bes.Events[0].Event)
 		require.IsType(t, &ethereum.ContractCreateTable{}, bes.Events[1].Event)
 		require.IsType(t, &ethereum.ContractSetController{}, bes.Events[2].Event)
-		require.IsType(t, &ethereum.ContractTableTransfer{}, bes.Events[3].Event)
+		require.IsType(t, &ethereum.ContractTransferTable{}, bes.Events[3].Event)
 	case <-time.After(time.Second):
 		t.Fatalf("didn't receive expected log")
 	}

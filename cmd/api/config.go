@@ -24,7 +24,7 @@ type config struct {
 		MaxRequestPerInterval uint64 `default:"10"`
 	}
 	Gateway struct {
-		ExternalURIPrefix string `default:"http://testnet.tableland.network"`
+		ExternalURIPrefix string `default:"https://testnet.tableland.network"`
 	}
 	DB struct {
 		Host string `default:"database"`
