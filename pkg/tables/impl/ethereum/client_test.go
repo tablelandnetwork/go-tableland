@@ -21,9 +21,9 @@ import (
 	"github.com/textileio/go-tableland/internal/tableland"
 	nonceimpl "github.com/textileio/go-tableland/pkg/nonce/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
-	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum/badges"
-	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum/controller"
-	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum/rigs"
+	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum/test/controller"
+	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum/test/erc721Enumerable"
+	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum/test/erc721aQueryable"
 	"github.com/textileio/go-tableland/pkg/wallet"
 	"github.com/textileio/go-tableland/tests"
 )
@@ -119,13 +119,13 @@ func TestSetController(t *testing.T) {
 	require.Equal(t, controller, event.Controller)
 }
 
-func TestRunSQLWithBadgesAndRigsPolicy(t *testing.T) {
+func TestRunSQLWithPolicy(t *testing.T) {
 	backend, _, txOpts, contract, client := setup(t)
 
 	// caller must be the sender
 	callerAddress := txOpts.From
 
-	//Deploy controller contract
+	// Deploy controller contract
 	controllerAddress, _, controllerContract, err := controller.DeployContract(
 		txOpts,
 		backend,
@@ -133,29 +133,27 @@ func TestRunSQLWithBadgesAndRigsPolicy(t *testing.T) {
 	require.NoError(t, err)
 	backend.Commit()
 
-	//Deploy badges contract
-	badgesAddress, _, badgesContract, err := badges.DeployContract(
+	// Deploy erc721Enumerable contract
+	erc721Address, _, erc721Contract, err := erc721Enumerable.DeployContract(
 		txOpts,
 		backend,
 	)
 	require.NoError(t, err)
 	backend.Commit()
 
-	//Deploy rigs contract
-	rigsAddress, _, rigsContract, err := rigs.DeployContract(
+	// Deploy erc721aQueryable contract
+	erc721aAddress, _, erc721aContract, err := erc721aQueryable.DeployContract(
 		txOpts,
 		backend,
 	)
 	require.NoError(t, err)
 	backend.Commit()
 
-	// Set rigs contract address on controller
-	_, err = controllerContract.SetRigs(txOpts, rigsAddress)
+	// Set contract addresses on controller
+	_, err = controllerContract.SetFoos(txOpts, erc721Address)
 	require.NoError(t, err)
 	backend.Commit()
-
-	// Set badges contract address on controller
-	_, err = controllerContract.SetBadges(txOpts, badgesAddress)
+	_, err = controllerContract.SetBars(txOpts, erc721aAddress)
 	require.NoError(t, err)
 	backend.Commit()
 
@@ -168,22 +166,21 @@ func TestRunSQLWithBadgesAndRigsPolicy(t *testing.T) {
 	require.NoError(t, err)
 	backend.Commit()
 
-	// Mint two badges with ids 0 and 1
-	_, err = badgesContract.SafeMint(txOpts, callerAddress)
+	// Mint two erc721 with ids 0 and 1
+	_, err = erc721Contract.Mint(txOpts)
+	require.NoError(t, err)
+	backend.Commit()
+	_, err = erc721Contract.Mint(txOpts)
 	require.NoError(t, err)
 	backend.Commit()
 
-	_, err = badgesContract.SafeMint(txOpts, callerAddress)
-	require.NoError(t, err)
-	backend.Commit()
-
-	// Mint one rig with id 0
-	_, err = rigsContract.SafeMint(txOpts, callerAddress)
+	// Mint one erc721a with id 0
+	_, err = erc721aContract.Mint(txOpts)
 	require.NoError(t, err)
 	backend.Commit()
 
 	// execute RunSQL with a controller previously set
-	statement := "update badges_0 set position = 1"
+	statement := "update testing_0 set baz = 1"
 	txn, err := client.RunSQL(context.Background(), callerAddress, tableID, statement)
 	require.NoError(t, err)
 	backend.Commit()
@@ -206,9 +203,9 @@ func TestRunSQLWithBadgesAndRigsPolicy(t *testing.T) {
 	require.False(t, event.Policy.AllowDelete)
 	require.False(t, event.Policy.AllowInsert)
 	require.True(t, event.Policy.AllowUpdate)
-	require.Equal(t, "rig_id in (0) and id in (0,1)", event.Policy.WhereClause)
-	require.Equal(t, []string{"position"}, event.Policy.UpdatableColumns)
-	require.Equal(t, "", event.Policy.WithCheck)
+	require.Equal(t, "foo_id in (0,1) and bar_id in (0)", event.Policy.WhereClause)
+	require.Equal(t, []string{"baz"}, event.Policy.UpdatableColumns)
+	require.Equal(t, "baz > 0", event.Policy.WithCheck)
 	require.Equal(t, statement, event.Statement)
 }
 
@@ -346,7 +343,7 @@ func setup(t *testing.T) (*backends.SimulatedBackend, *ecdsa.PrivateKey, *bind.T
 
 	requireAuthGas(t, backend, auth)
 
-	//Deploy contract
+	// Deploy contract
 	address, _, contract, err := DeployContract(
 		auth,
 		backend,
@@ -383,7 +380,7 @@ func setupWithLocalTracker(t *testing.T) (
 
 	requireAuthGas(t, backend, auth)
 
-	//Deploy contract
+	// Deploy contract
 	address, _, contract, err := DeployContract(
 		auth,
 		backend,

@@ -8,16 +8,16 @@ import (
 	"github.com/jackc/pgx/v4"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
-	"github.com/textileio/go-tableland/pkg/tableregistry"
+	"github.com/textileio/go-tableland/pkg/tables"
 )
 
 type acl struct {
 	store    sqlstore.SystemStore
-	registry tableregistry.TableRegistry
+	registry tables.TablelandTables
 }
 
 // NewACL creates a new instance of the ACL.
-func NewACL(store sqlstore.SystemStore, registry tableregistry.TableRegistry) tableland.ACL {
+func NewACL(store sqlstore.SystemStore, registry tables.TablelandTables) tableland.ACL {
 	return &acl{
 		store:    store,
 		registry: registry,

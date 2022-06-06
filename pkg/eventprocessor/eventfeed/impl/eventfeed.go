@@ -15,7 +15,7 @@ import (
 	logger "github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
-	tbleth "github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
+	tbleth "github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
 	"go.uber.org/atomic"

@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	tbleth "github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
+	tbleth "github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 )
 
 // ChainClient provides basic apis for an EventFeed.
@@ -47,8 +47,8 @@ const (
 	CreateTable = "CreateTable"
 	// SetController is a SetController event fired by the SC.
 	SetController = "SetController"
-	// TableTransfer is a TableTransfer event fired by the SC.
-	TableTransfer = "TableTransfer"
+	// TransferTable is a TransferTable event fired by the SC.
+	TransferTable = "TransferTable"
 )
 
 var (
@@ -64,7 +64,7 @@ var (
 		RunSQL:        reflect.TypeOf(tbleth.ContractRunSQL{}),
 		CreateTable:   reflect.TypeOf(tbleth.ContractCreateTable{}),
 		SetController: reflect.TypeOf(tbleth.ContractSetController{}),
-		TableTransfer: reflect.TypeOf(tbleth.ContractTableTransfer{}),
+		TransferTable: reflect.TypeOf(tbleth.ContractTransferTable{}),
 	}
 )
 

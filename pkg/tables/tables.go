@@ -1,4 +1,4 @@
-package tableregistry
+package tables
 
 import (
 	"context"
@@ -13,8 +13,8 @@ type Transaction interface {
 	Hash() common.Hash
 }
 
-// TableRegistry defines the interface for interaction with the registry smart contract.
-type TableRegistry interface {
+// TablelandTables defines the interface for interaction with the TablelandTables smart contract.
+type TablelandTables interface {
 	IsOwner(context context.Context, addrress common.Address, id *big.Int) (bool, error)
 
 	// RunSQL sends a transaction with a SQL statement to the Tabeland Smart Contract.

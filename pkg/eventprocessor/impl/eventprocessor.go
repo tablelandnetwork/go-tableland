@@ -14,7 +14,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	"github.com/textileio/go-tableland/pkg/parsing"
-	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
+	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/txn"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
@@ -28,7 +28,7 @@ var (
 		eventfeed.RunSQL,
 		eventfeed.CreateTable,
 		eventfeed.SetController,
-		eventfeed.TableTransfer,
+		eventfeed.TransferTable,
 	}
 
 	tableIDIsEmpty = "table id is empty"
@@ -309,7 +309,7 @@ func (ep *EventProcessor) executeEvent(
 		return receipt, nil
 	case *ethereum.ContractCreateTable:
 		ep.log.Debug().
-			Str("caller", e.Caller.Hex()).
+			Str("owner", e.Owner.Hex()).
 			Str("tokenId", e.TableId.String()).
 			Str("statement", e.Statement).
 			Msgf("executing create-table event")
@@ -328,7 +328,7 @@ func (ep *EventProcessor) executeEvent(
 			return eventprocessor.Receipt{}, fmt.Errorf("executing set-controller event: %s", err)
 		}
 		return receipt, nil
-	case *ethereum.ContractTableTransfer:
+	case *ethereum.ContractTransferTable:
 		ep.log.Debug().
 			Str("from", e.From.Hex()).
 			Str("to", e.To.Hex()).
@@ -369,7 +369,7 @@ func (ep *EventProcessor) executeCreateTableEvent(
 	}
 	tableID := tableland.TableID(*e.TableId)
 
-	if err := b.InsertTable(ctx, tableID, e.Caller.Hex(), createStmt); err != nil {
+	if err := b.InsertTable(ctx, tableID, e.Owner.Hex(), createStmt); err != nil {
 		var pgErr *txn.ErrQueryExecution
 		if errors.As(err, &pgErr) {
 			err := fmt.Sprintf("table creation execution failed (code: %s, msg: %s)", pgErr.Code, pgErr.Msg)
@@ -461,7 +461,7 @@ func (ep *EventProcessor) executeTransferEvent(
 	b txn.Batch,
 	blockNumber int64,
 	be eventfeed.BlockEvent,
-	e *ethereum.ContractTableTransfer) (eventprocessor.Receipt, error) {
+	e *ethereum.ContractTransferTable) (eventprocessor.Receipt, error) {
 	receipt := eventprocessor.Receipt{
 		ChainID:     ep.chainID,
 		BlockNumber: blockNumber,
@@ -499,29 +499,29 @@ func (ep *EventProcessor) executeTransferEvent(
 }
 
 type policy struct {
-	ethereum.TablelandControllerLibraryPolicy
+	ethereum.ITablelandControllerPolicy
 }
 
 func (p *policy) IsInsertAllowed() bool {
-	return p.TablelandControllerLibraryPolicy.AllowInsert
+	return p.ITablelandControllerPolicy.AllowInsert
 }
 
 func (p *policy) IsUpdateAllowed() bool {
-	return p.TablelandControllerLibraryPolicy.AllowUpdate
+	return p.ITablelandControllerPolicy.AllowUpdate
 }
 
 func (p *policy) IsDeleteAllowed() bool {
-	return p.TablelandControllerLibraryPolicy.AllowDelete
+	return p.ITablelandControllerPolicy.AllowDelete
 }
 
 func (p *policy) WhereClause() string {
-	return p.TablelandControllerLibraryPolicy.WhereClause
+	return p.ITablelandControllerPolicy.WhereClause
 }
 
 func (p *policy) UpdatableColumns() []string {
-	return p.TablelandControllerLibraryPolicy.UpdatableColumns
+	return p.ITablelandControllerPolicy.UpdatableColumns
 }
 
 func (p *policy) WithCheck() string {
-	return p.TablelandControllerLibraryPolicy.WithCheck
+	return p.ITablelandControllerPolicy.WithCheck
 }

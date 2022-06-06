@@ -13,7 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/nonce"
-	"github.com/textileio/go-tableland/pkg/tableregistry"
+	"github.com/textileio/go-tableland/pkg/tables"
 	"github.com/textileio/go-tableland/pkg/wallet"
 )
 
@@ -61,7 +61,7 @@ func (c *Client) RunSQL(
 	ctx context.Context,
 	addr common.Address,
 	table tableland.TableID,
-	statement string) (tableregistry.Transaction, error) {
+	statement string) (tables.Transaction, error) {
 	gasPrice, err := c.backend.SuggestGasPrice(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("suggest gas price: %s", err)
@@ -103,7 +103,7 @@ func (c *Client) SetController(
 	ctx context.Context,
 	caller common.Address,
 	table tableland.TableID,
-	controller common.Address) (tableregistry.Transaction, error) {
+	controller common.Address) (tables.Transaction, error) {
 	gasPrice, err := c.backend.SuggestGasPrice(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("suggest gas price: %s", err)

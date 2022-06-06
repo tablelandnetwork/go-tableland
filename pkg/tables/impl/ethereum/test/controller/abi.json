@@ -1,0 +1,141 @@
+[
+  {
+    "inputs": [],
+    "name": "ERC721AQueryablePoliciesUnauthorized",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ERC721EnumerablePoliciesUnauthorized",
+    "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "previousOwner",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "OwnershipTransferred",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "caller",
+        "type": "address"
+      }
+    ],
+    "name": "getPolicy",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "bool",
+            "name": "allowInsert",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "allowUpdate",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "allowDelete",
+            "type": "bool"
+          },
+          {
+            "internalType": "string",
+            "name": "whereClause",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "withCheck",
+            "type": "string"
+          },
+          {
+            "internalType": "string[]",
+            "name": "updatableColumns",
+            "type": "string[]"
+          }
+        ],
+        "internalType": "struct ITablelandController.Policy",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "owner",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "renounceOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "bars",
+        "type": "address"
+      }
+    ],
+    "name": "setBars",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "foos",
+        "type": "address"
+      }
+    ],
+    "name": "setFoos",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "transferOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]

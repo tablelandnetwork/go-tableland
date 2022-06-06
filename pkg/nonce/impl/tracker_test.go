@@ -19,8 +19,8 @@ import (
 	noncepkg "github.com/textileio/go-tableland/pkg/nonce"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
-	"github.com/textileio/go-tableland/pkg/tableregistry/impl/ethereum"
-	"github.com/textileio/go-tableland/pkg/tableregistry/impl/testutil"
+	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
+	"github.com/textileio/go-tableland/pkg/tables/impl/testutil"
 	"github.com/textileio/go-tableland/pkg/wallet"
 	"github.com/textileio/go-tableland/tests"
 )
@@ -102,7 +102,7 @@ func TestTrackerPendingTxGotStuck(t *testing.T) {
 	fn2, unlock2, nonce2 := tracker.GetNonce(ctx)
 	txn2, err := contract.RunSQL(txOpts, wallet.Address(), big.NewInt(0), "INSERT ...")
 	require.NoError(t, err)
-	//backend.Commit() , this tx will get stuck
+	// backend.Commit() , this tx will get stuck
 	fn2(txn2.Hash())
 	unlock2()
 
@@ -381,7 +381,7 @@ func setup(ctx context.Context, t *testing.T) (
 	key, err := crypto.GenerateKey()
 	require.NoError(t, err)
 
-	txOptsTo, err := bind.NewKeyedTransactorWithChainID(key, big.NewInt(1337)) //nolint
+	txOptsTo, err := bind.NewKeyedTransactorWithChainID(key, big.NewInt(1337)) // nolint
 	require.NoError(t, err)
 
 	requireTxn(t, backend, sk, txOptsFrom.From, txOptsTo.From, big.NewInt(1000000000000000000))
