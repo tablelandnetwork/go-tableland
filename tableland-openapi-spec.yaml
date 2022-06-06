@@ -11,7 +11,7 @@ paths:
         - bearerAuth: []
       summary: Lets you interact with Tableland's JSON-RPC calls
       description: >
-        There are four available JSON-RPC methods:
+        The following JSON-RPC methods are available:
 
         * The `validateCreateTable` method allows you validate a CREATE TABLE query as a pre-mint check, and also calculate its corresponding structure hash.
 
@@ -66,7 +66,7 @@ paths:
                   method: tableland_getReceipt
                   id: 1
                   params:
-                    - txn_hash: "0xc3e7d1e81b59556f414a5f5c23760eb61b4bfaa18150d924d7d3b334941dbecd"
+                    - txn_hash: "0x400508d7cc035b14cc53f64393a8dafcc55f66ad8f9b44d626744157337e2098"
               setController:
                 value:
                   jsonrpc: "2.0"
@@ -74,8 +74,8 @@ paths:
                   id: 1
                   params:
                     - caller: "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
-                      controller: "0x5e4e65926ba27467555eb562121fac00d24e9dd2"
-                      token_id: "0"
+                      controller: "0x0"
+                      token_id: "1"
       responses:
         "200":
           description: OK
@@ -126,23 +126,27 @@ paths:
                       data:
                         columns:
                           - name: column_a
-                          - name: column_b
                         rows:
-                          - ["e11", "e12"]
-                          - ["e21", "e22"]
+                          - [1]
                 getReceipt:
                   value:
                     jsonrpc: "2.0"
                     id: 1
                     result:
-                      ok: "true"
+                      ok: true
                       receipt:
-                        chain_id: 4
+                        chain_id: 5
                         txn_hash: "0xc3e7d1e81b59556f414a5f5c23760eb61b4bfaa18150d924d7d3b334941dbecd"
                         block_number: 1000
-                        error: ""
-                        table_id: 102
-  /chain/{chainID}/tables/controller/{ethAddress}:
+                        table_id: '2'
+                setController:
+                  value:
+                    jsonrpc: "2.0"
+                    id: 1
+                    result:
+                      tx:
+                        hash: '0xa69590589a9ae04bfde4ca07351c611f9ddb2ddc3bab6cd0165684dc959be5c7'
+  /chain/{chainID}/tables/controller/{address}:
     get:
       summary: Get all tables controlled by an ETH address
       parameters:
@@ -153,7 +157,7 @@ paths:
           required: true
           description: The ChainID of the targeted chain.
         - in: path
-          name: ethAddress
+          name: address
           schema:
             type: string
           required: true
@@ -243,7 +247,6 @@ paths:
                           type: "integer"
                 example:
                   name: "myname"
-                  description: "tableland rocks!"
                   external_url: "https://testnet.tableland.network/tables/0"
                   image: "https://bafkreifhuhrjhzbj4onqgbrmhpysk2mop2jimvdvfut6taiyzt2yqzt43a.ipfs.dweb.link"
                   attributes:
@@ -270,6 +273,54 @@ paths:
                   - message
                 example:
                   message: "Invalid id format"
+  /query?s={readStatement}:
+    get:
+      summary: Get a read query with the statement in the `s` querystring parameter
+      parameters:
+        - in: query
+          name: readStatement
+          description: The SQL statement describing the read query
+          required: true
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: "object"
+                  required:
+                    - "data"
+                  properties:
+                    data:
+                      type: "object"
+                  example:
+                    columns:
+                      - name: column_a
+                    rows:
+                      - [1]
+          headers:
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+                example: "Accept, Accept-Language, Content-Type, Authorization"
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+                example: "*"
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+                example: "GET, POST, OPTIONS"
+            Trace-Id:
+              schema:
+                type: string
+                example: "579bf7aa-9bcf-4405-9d9e-7fd6c1672d1b"
+            Content-Type:
+              schema:
+                type: string
+                example: application/json
 
 components:
   securitySchemes:
