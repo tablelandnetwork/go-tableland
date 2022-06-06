@@ -14,7 +14,7 @@
                 "CheckInterval": "15s",
                 "ReceiptTimeout": "20s",
                 "SIWE": "${HEALTHBOT_OPTIMISM_KOVAN_SIWE}",
-                "Tablename": "Healthbot_69_0"
+                "Tablename": "Healthbot_69_1"
             }
         }
     ]

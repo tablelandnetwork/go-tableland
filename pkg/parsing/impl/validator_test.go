@@ -368,7 +368,7 @@ func TestWriteQuery(t *testing.T) {
 		// Valid grant statement
 		{
 			name:       "grant statement",
-			query:      "grant insert, update, delete on a_5_10 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\",  \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"", //nolint
+			query:      "grant insert, update, delete on a_5_10 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\",  \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"", // nolint
 			tableID:    big.NewInt(10),
 			chainID:    5,
 			namePrefix: "a",
@@ -376,7 +376,7 @@ func TestWriteQuery(t *testing.T) {
 		},
 		{
 			name:       "revoke statement",
-			query:      "revoke insert, update, delete on a_8_10 from \"0xd43c59d5694ec111eb9e986c233200b14249558d\",  \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"", //nolint
+			query:      "revoke insert, update, delete on a_8_10 from \"0xd43c59d5694ec111eb9e986c233200b14249558d\",  \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"", // nolint
 			tableID:    big.NewInt(10),
 			chainID:    8,
 			namePrefix: "a",
@@ -924,12 +924,12 @@ func TestMaxReadQuerySize(t *testing.T) {
 	parser := newParser(t, []string{"system_", "registry"}, opts...)
 
 	t.Run("success", func(t *testing.T) {
-		_, err := parser.ValidateReadQuery("SELECT * FROM foo_1337_0")
+		_, err := parser.ValidateReadQuery("SELECT * FROM foo_1337_1")
 		require.NoError(t, err)
 	})
 
 	t.Run("failure", func(t *testing.T) {
-		_, err := parser.ValidateReadQuery("SELECT * FROM foo_1337_0 WHERE id = 1")
+		_, err := parser.ValidateReadQuery("SELECT * FROM foo_1337_1 WHERE id = 1")
 		var expErr *parsing.ErrReadQueryTooLong
 		require.ErrorAs(t, err, &expErr)
 		require.Equal(t, 37, expErr.Length)
@@ -947,12 +947,12 @@ func TestMaxWriteQuerySize(t *testing.T) {
 	parser := newParser(t, []string{"system_", "registry"}, opts...)
 
 	t.Run("success", func(t *testing.T) {
-		_, err := parser.ValidateMutatingQuery("INSERT INTO foo_1337_0 VALUES ('hello')", 1337)
+		_, err := parser.ValidateMutatingQuery("INSERT INTO foo_1337_1 VALUES ('hello')", 1337)
 		require.NoError(t, err)
 	})
 
 	t.Run("failure", func(t *testing.T) {
-		_, err := parser.ValidateMutatingQuery("INSERT INTO foo_1337_0 VALUES ('hello12')", 1337)
+		_, err := parser.ValidateMutatingQuery("INSERT INTO foo_1337_1 VALUES ('hello12')", 1337)
 		var expErr *parsing.ErrWriteQueryTooLong
 		require.ErrorAs(t, err, &expErr)
 		require.Equal(t, 41, expErr.Length)
@@ -979,10 +979,10 @@ func TestGetWriteStatements(t *testing.T) {
 		},
 		{
 			name:  "insert update",
-			query: "insert into foo_1337_0 values (1);update foo_1337_0 set b=2;",
+			query: "insert into foo_1337_1 values (1);update foo_1337_1 set b=2;",
 			expectedStmts: []string{
-				"INSERT INTO foo_1337_0 VALUES (1)",
-				"UPDATE foo_1337_0 SET b = 2",
+				"INSERT INTO foo_1337_1 VALUES (1)",
+				"UPDATE foo_1337_1 SET b = 2",
 			},
 		},
 	}
@@ -1109,7 +1109,7 @@ func TestWriteStatementAddReturningClause(t *testing.T) {
 		t.Parallel()
 
 		parser := newParser(t, []string{"system_", "registry"})
-		mss, err := parser.ValidateMutatingQuery("insert into foo_1337_0 VALUES ('bar')", 1337)
+		mss, err := parser.ValidateMutatingQuery("insert into foo_1337_1 VALUES ('bar')", 1337)
 		require.NoError(t, err)
 		require.Len(t, mss, 1)
 
@@ -1121,14 +1121,14 @@ func TestWriteStatementAddReturningClause(t *testing.T) {
 
 		sql, err := ws.GetQuery()
 		require.NoError(t, err)
-		require.Equal(t, "INSERT INTO foo_1337_0 VALUES ('bar') RETURNING ctid", sql)
+		require.Equal(t, "INSERT INTO foo_1337_1 VALUES ('bar') RETURNING ctid", sql)
 	})
 
 	t.Run("update-add-returning", func(t *testing.T) {
 		t.Parallel()
 
 		parser := newParser(t, []string{"system_", "registry"})
-		mss, err := parser.ValidateMutatingQuery("update foo_1337_0 set foo = 'bar'", 1337)
+		mss, err := parser.ValidateMutatingQuery("update foo_1337_1 set foo = 'bar'", 1337)
 		require.NoError(t, err)
 		require.Len(t, mss, 1)
 
@@ -1140,14 +1140,14 @@ func TestWriteStatementAddReturningClause(t *testing.T) {
 
 		sql, err := ws.GetQuery()
 		require.NoError(t, err)
-		require.Equal(t, "UPDATE foo_1337_0 SET foo = 'bar' RETURNING ctid", sql)
+		require.Equal(t, "UPDATE foo_1337_1 SET foo = 'bar' RETURNING ctid", sql)
 	})
 
 	t.Run("delete-add-returning-error", func(t *testing.T) {
 		t.Parallel()
 
 		parser := newParser(t, []string{"system_", "registry"})
-		mss, err := parser.ValidateMutatingQuery("DELETE FROM foo_1337_0 WHERE foo = 'bar'", 1337)
+		mss, err := parser.ValidateMutatingQuery("DELETE FROM foo_1337_1 WHERE foo = 'bar'", 1337)
 		require.NoError(t, err)
 		require.Len(t, mss, 1)
 

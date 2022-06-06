@@ -79,14 +79,14 @@ func TestInsertOnConflict(t *testing.T) {
 	req := baseReq
 	var txnHashes []string
 	for i := 0; i < 10; i++ {
-		req.Statement = `INSERT INTO foo_1337_0 VALUES ('bar', 0) ON CONFLICT (name) DO UPDATE SET count=_0.count+1`
+		req.Statement = `INSERT INTO foo_1337_1 VALUES ('bar', 0) ON CONFLICT (name) DO UPDATE SET count=_1.count+1`
 		r, err := tbld.RelayWriteQuery(ctx, req)
 		require.NoError(t, err)
 		backend.Commit()
 		txnHashes = append(txnHashes, r.Transaction.Hash)
 	}
 
-	readReq := tableland.RunReadQueryRequest{Statement: "SELECT count FROM foo_1337_0"}
+	readReq := tableland.RunReadQueryRequest{Statement: "SELECT count FROM foo_1337_1"}
 	require.Eventually(
 		t,
 		jsonEq(ctx, t, tbld, readReq, `{"columns":[{"name":"count"}],"rows":[[9]]}`),
@@ -110,13 +110,13 @@ func TestMultiStatement(t *testing.T) {
 
 	ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller.Hex())
 	req := tableland.RelayWriteQueryRequest{
-		Statement: `INSERT INTO foo_1337_0 values ('bar'); UPDATE foo_1337_0 SET name='zoo'`,
+		Statement: `INSERT INTO foo_1337_1 values ('bar'); UPDATE foo_1337_1 SET name='zoo'`,
 	}
 	r, err := tbld.RelayWriteQuery(ctx, req)
 	require.NoError(t, err)
 	backend.Commit()
 
-	readReq := tableland.RunReadQueryRequest{Statement: "SELECT name from foo_1337_0"}
+	readReq := tableland.RunReadQueryRequest{Statement: "SELECT name from foo_1337_1"}
 	require.Eventually(
 		t,
 		jsonEq(ctx, t, tbld, readReq, `{"columns":[{"name":"name"}],"rows":[["zoo"]]}`),
@@ -178,7 +178,7 @@ func TestCheckInsertPrivileges(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		testCase := fmt.Sprint(i)
+		testCase := fmt.Sprint(i + 1)
 		t.Run(testCase, func(t *testing.T) {
 			_, err := sc.CreateTable(txOptsGranter, common.HexToAddress(granter), `CREATE TABLE foo_1337 (bar text);`)
 			require.NoError(t, err)
@@ -246,7 +246,7 @@ func TestCheckUpdatePrivileges(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		testCase := fmt.Sprint(i)
+		testCase := fmt.Sprint(i + 1)
 		t.Run(testCase, func(t *testing.T) {
 			_, err := sc.CreateTable(txOptsGranter, common.HexToAddress(granter), `CREATE TABLE foo_1337 (bar text);`)
 			require.NoError(t, err)
@@ -320,7 +320,7 @@ func TestCheckDeletePrivileges(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		testCase := fmt.Sprint(i)
+		testCase := fmt.Sprint(i + 1)
 		t.Run(testCase, func(t *testing.T) {
 			_, err := sc.CreateTable(txOptsGranter, common.HexToAddress(granter), `CREATE TABLE foo_1337 (bar text);`)
 			require.NoError(t, err)
@@ -376,16 +376,16 @@ func TestOwnerRevokesItsPrivilegeInsideMultipleStatements(t *testing.T) {
 	require.NoError(t, err)
 
 	multiStatements := `
-		INSERT INTO foo_1337_0 (bar) VALUES ('Hello');
-		UPDATE foo_1337_0 SET bar = 'Hello 2';
-		REVOKE update ON foo_1337_0 FROM "` + caller + `";
-		UPDATE foo_1337_0 SET bar = 'Hello 3';
+		INSERT INTO foo_1337_1 (bar) VALUES ('Hello');
+		UPDATE foo_1337_1 SET bar = 'Hello 2';
+		REVOKE update ON foo_1337_1 FROM "` + caller + `";
+		UPDATE foo_1337_1 SET bar = 'Hello 3';
 	`
 	r, err := relayWriteQuery(ctx, t, tbld, multiStatements, caller)
 	require.NoError(t, err)
 	backend.Commit()
 
-	testQuery := "SELECT * FROM foo_1337_0;"
+	testQuery := "SELECT * FROM foo_1337_1;"
 	cond := runSQLCountEq(ctx, t, tbld, testQuery, caller, 1)
 	require.Never(t, cond, 5*time.Second, 100*time.Millisecond)
 	requireReceipts(ctx, t, tbld, []string{r.Transaction.Hash}, false)
@@ -400,23 +400,23 @@ func TestTransferTable(t *testing.T) {
 	require.NoError(t, err)
 
 	// transfer table from owner1 to owner2
-	_, err = sc.TransferFrom(txOptsOwner1, txOptsOwner1.From, txOptsOwner2.From, big.NewInt(0))
+	_, err = sc.TransferFrom(txOptsOwner1, txOptsOwner1.From, txOptsOwner2.From, big.NewInt(1))
 	require.NoError(t, err)
 
 	// we'll execute one insert with owner1 and one insert with owner2
-	query1 := "INSERT INTO foo_1337_0 (bar) VALUES ('Hello')"
+	query1 := "INSERT INTO foo_1337_1 (bar) VALUES ('Hello')"
 	r1, err := relayWriteQuery(ctx, t, tbldOwner1, query1, txOptsOwner1.From.Hex())
 	require.NoError(t, err)
 	backend.Commit()
 
-	query2 := "INSERT INTO foo_1337_0 (bar) VALUES ('Hello2')"
+	query2 := "INSERT INTO foo_1337_1 (bar) VALUES ('Hello2')"
 	r2, err := relayWriteQuery(ctx, t, tbldOwner2, query2, txOptsOwner2.From.Hex())
 	require.NoError(t, err)
 	backend.Commit()
 
 	// insert from owner1 will NEVER go through
 	require.Never(t,
-		runSQLCountEq(ctx, t, tbldOwner1, "SELECT * FROM foo_1337_0 WHERE bar ='Hello';", txOptsOwner1.From.Hex(), 1),
+		runSQLCountEq(ctx, t, tbldOwner1, "SELECT * FROM foo_1337_1 WHERE bar ='Hello';", txOptsOwner1.From.Hex(), 1),
 		5*time.Second,
 		100*time.Millisecond,
 	)
@@ -424,7 +424,7 @@ func TestTransferTable(t *testing.T) {
 
 	// insert from owner2 will EVENTUALLY go through
 	require.Eventually(t,
-		runSQLCountEq(ctx, t, tbldOwner2, "SELECT * FROM foo_1337_0 WHERE bar ='Hello2';", txOptsOwner2.From.Hex(), 1),
+		runSQLCountEq(ctx, t, tbldOwner2, "SELECT * FROM foo_1337_1 WHERE bar ='Hello2';", txOptsOwner2.From.Hex(), 1),
 		5*time.Second,
 		100*time.Millisecond,
 	)
@@ -444,7 +444,7 @@ func TestQueryConstraints(t *testing.T) {
 
 		ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller.Hex())
 		_, err := tbld.RelayWriteQuery(ctx, tableland.RelayWriteQueryRequest{
-			Statement: "INSERT INTO foo_1337_0 (bar) VALUES ('hello')", // length of 45 bytes
+			Statement: "INSERT INTO foo_1337_1 (bar) VALUES ('hello')", // length of 45 bytes
 		})
 		require.NoError(t, err)
 	})
@@ -460,7 +460,7 @@ func TestQueryConstraints(t *testing.T) {
 
 		ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller.Hex())
 		_, err := tbld.RelayWriteQuery(ctx, tableland.RelayWriteQueryRequest{
-			Statement: "INSERT INTO foo_1337_0 (bar) VALUES ('hello2')", // length of 46 bytes
+			Statement: "INSERT INTO foo_1337_1 (bar) VALUES ('hello2')", // length of 46 bytes
 		})
 		require.Error(t, err)
 		require.ErrorContains(t, err, "write query size is too long")
@@ -483,7 +483,7 @@ func TestQueryConstraints(t *testing.T) {
 		require.Eventually(t,
 			func() bool {
 				_, err := tbld.RunReadQuery(ctx, tableland.RunReadQueryRequest{
-					Statement: "SELECT * FROM foo_1337_0 WHERE bar = 'hello'", // length of 44 bytes
+					Statement: "SELECT * FROM foo_1337_1 WHERE bar = 'hello'", // length of 44 bytes
 				})
 				return err == nil
 			},
@@ -503,7 +503,7 @@ func TestQueryConstraints(t *testing.T) {
 
 		ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller.Hex())
 		_, err := tbld.RunReadQuery(ctx, tableland.RunReadQueryRequest{
-			Statement: "SELECT * FROM foo_1337_0 WHERE bar = 'hello2'", // length of 45 bytes
+			Statement: "SELECT * FROM foo_1337_1 WHERE bar = 'hello2'", // length of 45 bytes
 		})
 		require.Error(t, err)
 		require.ErrorContains(t, err, "read query size is too long")
