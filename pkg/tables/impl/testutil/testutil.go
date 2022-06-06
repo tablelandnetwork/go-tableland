@@ -50,5 +50,13 @@ func Setup(t *testing.T) (
 		t.Error("Expected a valid deployment address. Received empty address byte array instead")
 	}
 
+	// Initialize the contract
+	_, err = contract.Initialize(auth, "https://foo.xyz")
+
+	// commit all pending transactions
+	backend.Commit()
+
+	require.NoError(t, err)
+
 	return backend, address, contract, auth, key
 }
