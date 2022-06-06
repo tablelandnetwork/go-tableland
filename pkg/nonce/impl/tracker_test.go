@@ -30,7 +30,7 @@ func TestTracker(t *testing.T) {
 	tracker, backend, contract, txOpts, wallet, _ := setup(ctx, t)
 
 	fn1, unlock1, nonce1 := tracker.GetNonce(ctx)
-	txn1, err := contract.RunSQL(txOpts, wallet.Address(), big.NewInt(0), "INSERT ...")
+	txn1, err := contract.RunSQL(txOpts, wallet.Address(), big.NewInt(1), "INSERT ...")
 
 	require.NoError(t, err)
 	backend.Commit()
@@ -38,7 +38,7 @@ func TestTracker(t *testing.T) {
 	unlock1()
 
 	fn2, unlock2, nonce2 := tracker.GetNonce(ctx)
-	txn2, err := contract.RunSQL(txOpts, wallet.Address(), big.NewInt(0), "INSERT ...")
+	txn2, err := contract.RunSQL(txOpts, wallet.Address(), big.NewInt(1), "INSERT ...")
 
 	require.NoError(t, err)
 	backend.Commit()
@@ -46,7 +46,7 @@ func TestTracker(t *testing.T) {
 	unlock2()
 
 	fn3, unlock3, nonce3 := tracker.GetNonce(ctx)
-	txn3, err := contract.RunSQL(txOpts, wallet.Address(), big.NewInt(0), "INSERT ...")
+	txn3, err := contract.RunSQL(txOpts, wallet.Address(), big.NewInt(1), "INSERT ...")
 
 	require.NoError(t, err)
 	backend.Commit()
@@ -74,7 +74,7 @@ func TestTrackerUnlock(t *testing.T) {
 
 	// this call will be blocked until nonce tracker is unblocked
 	fn2, unlock2, nonce2 := tracker.GetNonce(ctx)
-	txn2, err := contract.RunSQL(txOpts, wallet.Address(), big.NewInt(0), "INSERT ...")
+	txn2, err := contract.RunSQL(txOpts, wallet.Address(), big.NewInt(1), "INSERT ...")
 
 	require.NoError(t, err)
 	backend.Commit()
@@ -100,7 +100,7 @@ func TestTrackerPendingTxGotStuck(t *testing.T) {
 	unlock1()
 
 	fn2, unlock2, nonce2 := tracker.GetNonce(ctx)
-	txn2, err := contract.RunSQL(txOpts, wallet.Address(), big.NewInt(0), "INSERT ...")
+	txn2, err := contract.RunSQL(txOpts, wallet.Address(), big.NewInt(1), "INSERT ...")
 	require.NoError(t, err)
 	// backend.Commit() , this tx will get stuck
 	fn2(txn2.Hash())

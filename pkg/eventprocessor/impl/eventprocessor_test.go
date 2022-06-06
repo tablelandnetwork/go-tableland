@@ -166,7 +166,7 @@ func TestCreateTableBlockProcessing(t *testing.T) {
 		for i := 0; i < 2; i++ {
 			txnHash := contractCalls.createTable("CREATE TABLE Foo_1337 (bar bigint)")
 
-			tableID, err := tableland.NewTableID(strconv.Itoa(i))
+			tableID, err := tableland.NewTableID(strconv.Itoa(i + 1))
 			require.NoError(t, err)
 			expReceipt := eventprocessor.Receipt{
 				ChainID: chainID,
@@ -219,7 +219,7 @@ func TestSetController(t *testing.T) {
 
 	contractCalls, checkReceipts, _ := setup(t)
 	txnHash := contractCalls.createTable("CREATE TABLE Foo_1337 (bar bigint)")
-	tableID, err := tableland.NewTableID("0")
+	tableID, err := tableland.NewTableID("1")
 	require.NoError(t, err)
 	expReceipt := eventprocessor.Receipt{
 		ChainID: chainID,
@@ -233,7 +233,7 @@ func TestSetController(t *testing.T) {
 		controller := common.HexToAddress("0x39b1b9B439312Dd9E1aE137ce9866e873eA4d211")
 		txnHash := contractCalls.setController(controller)
 
-		tid := tableland.TableID(*big.NewInt(0))
+		tid := tableland.TableID(*big.NewInt(1))
 		expReceipt := eventprocessor.Receipt{
 			ChainID: chainID,
 			TxnHash: txnHash.Hex(),
@@ -248,7 +248,7 @@ func TestSetController(t *testing.T) {
 		fmt.Println(controller.Hex())
 		txnHash := contractCalls.setController(controller)
 
-		tid := tableland.TableID(*big.NewInt(0))
+		tid := tableland.TableID(*big.NewInt(1))
 		expReceipt := eventprocessor.Receipt{
 			ChainID: chainID,
 			TxnHash: txnHash.Hex(),
@@ -265,7 +265,7 @@ func TestTransfer(t *testing.T) {
 	contractCalls, checkReceipts, _ := setup(t)
 
 	txnHash := contractCalls.createTable("CREATE TABLE Foo_1337 (bar bigint)")
-	tableID, err := tableland.NewTableID("0")
+	tableID, err := tableland.NewTableID("1")
 	require.NoError(t, err)
 	expReceipt := eventprocessor.Receipt{
 		ChainID: chainID,
@@ -279,7 +279,7 @@ func TestTransfer(t *testing.T) {
 		controller := common.HexToAddress("0x39b1b9B439312Dd9E1aE137ce9866e873eA4d211")
 		txnHash := contractCalls.transfer(controller)
 
-		tid := tableland.TableID(*big.NewInt(0))
+		tid := tableland.TableID(*big.NewInt(1))
 		expReceipt := eventprocessor.Receipt{
 			ChainID: chainID,
 			TxnHash: txnHash.Hex(),
@@ -341,7 +341,7 @@ func setup(t *testing.T) (
 	}
 
 	contractSendSetController := func(controller common.Address) common.Hash {
-		txn, err := sc.SetController(authOpts, authOpts.From, big.NewInt(0), controller)
+		txn, err := sc.SetController(authOpts, authOpts.From, big.NewInt(1), controller)
 		require.NoError(t, err)
 		backend.Commit()
 		return txn.Hash()
@@ -357,7 +357,7 @@ func setup(t *testing.T) (
 	systemStore, err := system.New(url, tableland.ChainID(chainID))
 
 	transferFrom := func(controller common.Address) common.Hash {
-		txn, err := sc.TransferFrom(authOpts, authOpts.From, controller, big.NewInt(0))
+		txn, err := sc.TransferFrom(authOpts, authOpts.From, controller, big.NewInt(1))
 		require.NoError(t, err)
 		backend.Commit()
 		return txn.Hash()

@@ -117,7 +117,7 @@ func TestAllEvents(t *testing.T) {
 	_, err = sc.SetController(
 		authOpts,
 		ctrl,
-		big.NewInt(0),
+		big.NewInt(1),
 		common.HexToAddress("0xB0Cf943Cf94E7B6A2657D15af41c5E06c2BFEA3E"),
 	)
 	require.NoError(t, err)
@@ -126,7 +126,7 @@ func TestAllEvents(t *testing.T) {
 		authOpts,
 		ctrl,
 		common.HexToAddress("0xB0Cf943Cf94E7B6A2657D15af41c5E06c2BFEA3E"),
-		big.NewInt(0),
+		big.NewInt(1),
 	)
 	require.NoError(t, err)
 	backend.Commit()

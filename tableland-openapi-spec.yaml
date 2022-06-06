@@ -52,14 +52,14 @@ paths:
                   method: tableland_runReadQuery
                   id: 1
                   params:
-                    - statement: SELECT * FROM healthbot_31337_0;
+                    - statement: SELECT * FROM healthbot_31337_1;
               relayWriteQuery:
                 value:
                   jsonrpc: "2.0"
                   method: tableland_relayWriteQuery
                   id: 1
                   params:
-                    - statement: INSERT INTO healthbot_31337_0 values (2);
+                    - statement: INSERT INTO healthbot_31337_1 values (2);
               getReceipt:
                 value:
                   jsonrpc: "2.0"
@@ -185,7 +185,7 @@ paths:
                       type: "string"
                   example:
                     - controller: "0xbAb12215Ed94713A290e0c618fa8177fAb5eFd2D"
-                      name: "healthbot_31337_0"
+                      name: "healthbot_31337_1"
                       structure: "be1eb905f03347a439ecf9b612632fd53839b7f082dc2f9be6ef7da5dfddd660"
                       created_at: "2022-02-07T22:57:41.606803Z"
   /chain/{chainID}/tables/{id}:

@@ -160,7 +160,7 @@ func TestExecWriteQueries(t *testing.T) {
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
 
-		wq1 := mustGrantStmt(t, "grant insert, update, delete on foo_1337_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\", \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"") //nolint
+		wq1 := mustGrantStmt(t, "grant insert, update, delete on foo_1337_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\", \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"") // nolint
 		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq1}, true, tableland.AllowAllPolicy{})
 		require.NoError(t, err)
 
@@ -190,12 +190,12 @@ func TestExecWriteQueries(t *testing.T) {
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
 
-		wq1 := mustGrantStmt(t, "grant insert on foo_1337_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\", \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"") //nolint
+		wq1 := mustGrantStmt(t, "grant insert on foo_1337_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\", \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"") // nolint
 		// add the update privilege for role 0xd43c59d5694ec111eb9e986c233200b14249558d
 		wq2 := mustGrantStmt(t, "grant update on foo_1337_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\"")
 		// add the delete privilege (and mistakenly the insert) grant for role 0x4afe8e30db4549384b0a05bb796468b130c7d6e0
 		wq3 := mustGrantStmt(t, "grant insert, delete on foo_1337_100 to \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"")
-		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq1, wq2, wq3}, true, tableland.AllowAllPolicy{}) //nolint
+		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq1, wq2, wq3}, true, tableland.AllowAllPolicy{}) // nolint
 		require.NoError(t, err)
 
 		require.NoError(t, b.Commit(ctx))
@@ -238,7 +238,7 @@ func TestExecWriteQueries(t *testing.T) {
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
 
-		wq1 := mustGrantStmt(t, "grant insert, update, delete on foo_1337_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\"") //nolint
+		wq1 := mustGrantStmt(t, "grant insert, update, delete on foo_1337_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\"") // nolint
 		wq2 := mustGrantStmt(t, "revoke insert, delete on foo_1337_100 from \"0xd43c59d5694ec111eb9e986c233200b14249558d\"")
 		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq1, wq2}, true, tableland.AllowAllPolicy{})
 		require.NoError(t, err)
@@ -556,7 +556,7 @@ func TestSetController(t *testing.T) {
 		// table id different than 100 violates foreign key
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
-		err = b.SetController(ctx, tableland.TableID(*big.NewInt(0)), common.HexToAddress("0x01"))
+		err = b.SetController(ctx, tableland.TableID(*big.NewInt(1)), common.HexToAddress("0x01"))
 		require.NoError(t, b.Commit(ctx))
 		require.Error(t, err)
 		var errQueryExecution *txn.ErrQueryExecution

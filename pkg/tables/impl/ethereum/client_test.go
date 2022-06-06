@@ -52,7 +52,7 @@ func TestRunSQL(t *testing.T) {
 	tableID, err := tableland.NewTableID(tokenID.String())
 	require.NoError(t, err)
 
-	statement := "insert into foo_0 values (1,2,3)"
+	statement := "insert into foo_1 values (1,2,3)"
 
 	txn, err := client.RunSQL(context.Background(), txOpts.From, tableID, statement)
 	require.NoError(t, err)
@@ -167,8 +167,8 @@ func TestRunSQLWithPolicy(t *testing.T) {
 	backend.Commit()
 
 	// Controller requires caller to own a Foo and a Bar
-	statement := "update testing_0 set baz = 1"
-	txn, err := client.RunSQL(context.Background(), callerAddress, tableID, statement)
+	statement := "update testing_1 set baz = 1"
+	_, err = client.RunSQL(context.Background(), callerAddress, tableID, statement)
 	require.Error(t, err)
 
 	// Mint two erc721 with ids 0 and 1
@@ -185,7 +185,7 @@ func TestRunSQLWithPolicy(t *testing.T) {
 	backend.Commit()
 
 	// execute RunSQL with a controller previously set
-	txn, err = client.RunSQL(context.Background(), callerAddress, tableID, statement)
+	txn, err := client.RunSQL(context.Background(), callerAddress, tableID, statement)
 	require.NoError(t, err)
 	backend.Commit()
 
@@ -231,7 +231,7 @@ func TestNonceTooLow(t *testing.T) {
 		tableID, err := tableland.NewTableID(tokenID.String())
 		require.NoError(t, err)
 
-		statement := "insert into foo_0 values (1,2,3)"
+		statement := "insert into foo_1 values (1,2,3)"
 
 		_, err = client.RunSQL(context.Background(), txOpts.From, tableID, statement)
 		require.NoError(t, err)
