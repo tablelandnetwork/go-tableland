@@ -439,11 +439,15 @@ func TestQueryConstraints(t *testing.T) {
 		parsingOpts := []parsing.Option{
 			parsing.WithMaxWriteQuerySize(45),
 		}
-		ctx, tbld, _, _, txOpts := setup(t, parsingOpts...)
+		ctx, tbld, backend, sc, txOpts := setup(t, parsingOpts...)
 		caller := txOpts.From
 
+		_, err := sc.CreateTable(txOpts, caller, `CREATE TABLE foo_1337 (bar text);`)
+		require.NoError(t, err)
+		backend.Commit()
+
 		ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller.Hex())
-		_, err := tbld.RelayWriteQuery(ctx, tableland.RelayWriteQueryRequest{
+		_, err = tbld.RelayWriteQuery(ctx, tableland.RelayWriteQueryRequest{
 			Statement: "INSERT INTO foo_1337_1 (bar) VALUES ('hello')", // length of 45 bytes
 		})
 		require.NoError(t, err)
