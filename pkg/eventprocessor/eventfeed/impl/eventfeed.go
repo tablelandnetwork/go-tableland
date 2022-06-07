@@ -257,7 +257,8 @@ func (ef *EventFeed) notifyNewBlocks(ctx context.Context, clientCh chan *types.H
 	clientCh <- h
 
 	ch := make(chan *types.Header, 1)
-	notifierSignaler := make(chan struct{})
+	notifierSignaler := make(chan struct{}, 1)
+	notifierSignaler <- struct{}{}
 	// Fire a goroutine that relays new detected blocks to the client, while also inspecting
 	// the healthiness of the subscription. If the subscription is faulty, it notifies
 	// that the subscription should be regenerated.
@@ -298,7 +299,6 @@ func (ef *EventFeed) notifyNewBlocks(ctx context.Context, clientCh chan *types.H
 		}
 		ef.log.Info().Msg("gracefully closing notifier")
 	}()
-	notifierSignaler <- struct{}{}
 
 	return nil
 }
