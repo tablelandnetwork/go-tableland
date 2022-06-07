@@ -30,6 +30,22 @@
     "type": "error"
   },
   {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "querySize",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "maxQuerySize",
+        "type": "uint256"
+      }
+    ],
+    "name": "MaxQuerySizeExceeded",
+    "type": "error"
+  },
+  {
     "inputs": [],
     "name": "MintToZeroAddress",
     "type": "error"
@@ -539,6 +555,25 @@
       }
     ],
     "name": "getApproved",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "tableId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getController",
     "outputs": [
       {
         "internalType": "address",

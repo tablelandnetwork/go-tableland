@@ -25,7 +25,14 @@ func TestRunSQLEvents(t *testing.T) {
 	qf, err := New(1337, backend, addr, eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
 
+	// Create the table
 	ctrl := authOpts.From
+	_, err = sc.CreateTable(
+		authOpts,
+		ctrl,
+		"CREATE TABLE foo (bar int)")
+	require.NoError(t, err)
+
 	// Make one call before start listening.
 	_, err = sc.RunSQL(authOpts, ctrl, big.NewInt(1), "stmt-1")
 	require.NoError(t, err)
@@ -50,7 +57,7 @@ func TestRunSQLEvents(t *testing.T) {
 	}
 
 	// Make a second call, that should be detected as a new event next.
-	_, err = sc.RunSQL(authOpts, ctrl, big.NewInt(2), "stmt-2")
+	_, err = sc.RunSQL(authOpts, ctrl, big.NewInt(1), "stmt-2")
 	require.NoError(t, err)
 	backend.Commit()
 	select {
@@ -63,9 +70,9 @@ func TestRunSQLEvents(t *testing.T) {
 	}
 
 	// Try making two calls in a single block now, and assert we receive things correctly.
-	_, err = sc.RunSQL(authOpts, ctrl, big.NewInt(3), "stmt-3")
+	_, err = sc.RunSQL(authOpts, ctrl, big.NewInt(1), "stmt-3")
 	require.NoError(t, err)
-	_, err = sc.RunSQL(authOpts, ctrl, big.NewInt(4), "stmt-4")
+	_, err = sc.RunSQL(authOpts, ctrl, big.NewInt(1), "stmt-4")
 
 	require.NoError(t, err)
 	backend.Commit()
@@ -105,13 +112,13 @@ func TestAllEvents(t *testing.T) {
 
 	ctrl := authOpts.From
 	// Make four calls to different functions emitting different events
-	_, err = sc.RunSQL(authOpts, ctrl, big.NewInt(2), "stmt-2")
-	require.NoError(t, err)
-
 	_, err = sc.CreateTable(
 		authOpts,
 		ctrl,
 		"CREATE TABLE foo (bar int)")
+	require.NoError(t, err)
+
+	_, err = sc.RunSQL(authOpts, ctrl, big.NewInt(1), "stmt-2")
 	require.NoError(t, err)
 
 	_, err = sc.SetController(
@@ -136,8 +143,8 @@ func TestAllEvents(t *testing.T) {
 		require.Len(t, bes.Events, 4)
 		require.NotEqual(t, emptyHash, bes.Events[0].TxnHash)
 		require.NotEqual(t, emptyHash, bes.Events[1].TxnHash)
-		require.IsType(t, &ethereum.ContractRunSQL{}, bes.Events[0].Event)
-		require.IsType(t, &ethereum.ContractCreateTable{}, bes.Events[1].Event)
+		require.IsType(t, &ethereum.ContractCreateTable{}, bes.Events[0].Event)
+		require.IsType(t, &ethereum.ContractRunSQL{}, bes.Events[1].Event)
 		require.IsType(t, &ethereum.ContractSetController{}, bes.Events[2].Event)
 		require.IsType(t, &ethereum.ContractTransferTable{}, bes.Events[3].Event)
 	case <-time.After(time.Second):
