@@ -29,6 +29,10 @@ func TestTracker(t *testing.T) {
 	ctx := context.Background()
 	tracker, backend, contract, txOpts, wallet, _ := setup(ctx, t)
 
+	_, err := contract.CreateTable(txOpts, txOpts.From, "CREATE TABLE Foo_1337 (bar int)")
+	require.NoError(t, err)
+	backend.Commit()
+
 	fn1, unlock1, nonce1 := tracker.GetNonce(ctx)
 	txn1, err := contract.RunSQL(txOpts, wallet.Address(), big.NewInt(1), "INSERT ...")
 
@@ -64,6 +68,9 @@ func TestTracker(t *testing.T) {
 func TestTrackerUnlock(t *testing.T) {
 	ctx := context.Background()
 	tracker, backend, contract, txOpts, wallet, _ := setup(ctx, t)
+	_, err := contract.CreateTable(txOpts, txOpts.From, "CREATE TABLE Foo_1337 (bar int)")
+	require.NoError(t, err)
+	backend.Commit()
 
 	_, unlock, nonce1 := tracker.GetNonce(ctx)
 	// this go routine simulates a concurrent runSQL call that went wrong
@@ -91,6 +98,9 @@ func TestTrackerUnlock(t *testing.T) {
 func TestTrackerPendingTxGotStuck(t *testing.T) {
 	ctx := context.Background()
 	tracker, backend, contract, txOpts, wallet, sqlstore := setup(ctx, t)
+	_, err := contract.CreateTable(txOpts, txOpts.From, "CREATE TABLE Foo_1337 (bar int)")
+	require.NoError(t, err)
+	backend.Commit()
 
 	fn1, unlock1, nonce1 := tracker.GetNonce(ctx)
 	txn1, err := contract.RunSQL(txOpts, wallet.Address(), big.NewInt(1), "INSERT ...")
