@@ -85,6 +85,11 @@ func New(
 // Run runs the probe until the provided ctx is canceled.
 func (cp *CounterProbe) Run(ctx context.Context) {
 	cp.log.Info().Msg("starting counter-probe...")
+
+	time.Sleep(time.Second * 15) // ~wait for the validator to spin-up
+	if err := cp.execProbe(ctx); err != nil {
+		cp.log.Error().Err(err).Msg("health check failed")
+	}
 	for {
 		select {
 		case <-ctx.Done():
