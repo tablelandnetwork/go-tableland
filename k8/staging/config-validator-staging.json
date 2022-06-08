@@ -38,7 +38,7 @@
       "Registry": {
         "EthEndpoint": "wss://opt-kovan.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_OPTIMISM_KOVAN_API_KEY}",
         "ChainID": 69,
-        "ContractAddress": "0xDE231D5774e79F039B84d82325b4e5d20F7FdFfF"
+        "ContractAddress": "0x322F01e81c38B4211529f334864fA630F6aeA408"
       },
       "Signer": {
         "PrivateKey": "${VALIDATOR_OPTIMISM_KOVAN_SIGNER_PRIVATE_KEY}"
@@ -54,10 +54,10 @@
         "DedupExecutedTxns": false
       },
       "NonceTracker": {
-         "CheckInterval": "10s",
-         "StuckInterval": "10m",
-         "MinBlockDepth": 0
+        "CheckInterval": "10s",
+        "StuckInterval": "10m",
+        "MinBlockDepth": 0
       }
-   }
- ]
+    }
+  ]
 }
