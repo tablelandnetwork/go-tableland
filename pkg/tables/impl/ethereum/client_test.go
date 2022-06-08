@@ -28,6 +28,22 @@ import (
 	"github.com/textileio/go-tableland/tests"
 )
 
+func TestCreateTable(t *testing.T) {
+	backend, _, _, _, client := setup(t)
+
+	txn, err := client.CreateTable(context.Background(), "CREATE TABLE foo (bar int)")
+	require.NoError(t, err)
+	backend.Commit()
+
+	receipt, err := backend.TransactionReceipt(context.Background(), txn.Hash())
+	require.NoError(t, err)
+	require.NotNil(t, receipt)
+
+	// TODO: How many logs and topics should there be?
+	require.Len(t, receipt.Logs, 2)
+	require.Len(t, receipt.Logs[0].Topics, 4)
+}
+
 func TestIsOwner(t *testing.T) {
 	backend, key, fromAuth, contract, client := setup(t)
 	_, toAuth := requireNewAuth(t)
