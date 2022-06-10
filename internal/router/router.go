@@ -55,27 +55,27 @@ func ConfiguredRouter(
 	systemController := controllers.NewSystemController(systemService)
 
 	// General router configuration.
-	router := newRouter()
-	router.use(middlewares.CORS, middlewares.TraceID)
+	router := NewRouter()
+	router.Use(middlewares.CORS, middlewares.TraceID)
 
 	// RPC configuration.
 	rateLim, err := middlewares.RateLimitController(maxRPI, rateLimInterval)
 	if err != nil {
 		log.Fatal().Err(err).Msg("creating rate limit controller middleware")
 	}
-	router.post("/rpc", func(rw http.ResponseWriter, r *http.Request) {
+	router.Post("/rpc", func(rw http.ResponseWriter, r *http.Request) {
 		server.ServeHTTP(rw, r)
 	}, middlewares.Authentication, rateLim, middlewares.OtelHTTP("rpc"))
 
 	// Gateway configuration.
-	router.get("/chain/{chainID}/tables/{id}", systemController.GetTable, middlewares.RESTChainID, middlewares.OtelHTTP("GetTable"))                                           // nolint
-	router.get("/chain/{chainID}/tables/{id}/{key}/{value}", userController.GetTableRow, middlewares.RESTChainID, middlewares.OtelHTTP("GetTableRow"))                         // nolint
-	router.get("/chain/{chainID}/tables/controller/{address}", systemController.GetTablesByController, middlewares.RESTChainID, middlewares.OtelHTTP("GetTablesByController")) // nolint
-	router.get("/query", userController.GetTableQuery, middlewares.OtelHTTP("GetTableQuery"))                                                                                  // nolint
+	router.Get("/chain/{chainID}/tables/{id}", systemController.GetTable, middlewares.RESTChainID, middlewares.OtelHTTP("GetTable"))                                           // nolint
+	router.Get("/chain/{chainID}/tables/{id}/{key}/{value}", userController.GetTableRow, middlewares.RESTChainID, middlewares.OtelHTTP("GetTableRow"))                         // nolint
+	router.Get("/chain/{chainID}/tables/controller/{address}", systemController.GetTablesByController, middlewares.RESTChainID, middlewares.OtelHTTP("GetTablesByController")) // nolint
+	router.Get("/query", userController.GetTableQuery, middlewares.OtelHTTP("GetTableQuery"))                                                                                  // nolint
 
 	// Health endpoint configuration.
-	router.get("/healthz", healthHandler)
-	router.get("/health", healthHandler)
+	router.Get("/healthz", healthHandler)
+	router.Get("/health", healthHandler)
 
 	return router
 }
@@ -99,44 +99,43 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 
 // Router provides a nice api around mux.Router.
 type Router struct {
-	r   *mux.Router
-	srv *http.Server
+	r *mux.Router
 }
 
-// newRouter is a Mux HTTP router constructor.
-func newRouter() *Router {
+// NewRouter is a Mux HTTP router constructor.
+func NewRouter() *Router {
 	r := mux.NewRouter()
 	r.PathPrefix("/").Methods(http.MethodOptions) // accept OPTIONS on all routes and do nothing
 	return &Router{r: r}
 }
 
-// Handler returns the configured router http handler.
-func (r *Router) Handler() http.Handler {
-	return r.r
-}
-
-// get creates a subroute on the specified URI that only accepts GET. You can provide specific middlewares.
-func (r *Router) get(uri string, f func(http.ResponseWriter, *http.Request), mid ...mux.MiddlewareFunc) {
+// Get creates a subroute on the specified URI that only accepts GET. You can provide specific middlewares.
+func (r *Router) Get(uri string, f func(http.ResponseWriter, *http.Request), mid ...mux.MiddlewareFunc) {
 	sub := r.r.Path(uri).Subrouter()
 	sub.HandleFunc("", f).Methods(http.MethodGet)
 	sub.Use(mid...)
 }
 
-// post creates a subroute on the specified URI that only accepts POST. You can provide specific middlewares.
-func (r *Router) post(uri string, f func(http.ResponseWriter, *http.Request), mid ...mux.MiddlewareFunc) {
+// Post creates a subroute on the specified URI that only accepts POST. You can provide specific middlewares.
+func (r *Router) Post(uri string, f func(http.ResponseWriter, *http.Request), mid ...mux.MiddlewareFunc) {
 	sub := r.r.Path(uri).Subrouter()
 	sub.HandleFunc("", f).Methods(http.MethodPost)
 	sub.Use(mid...)
 }
 
-// delete creates a subroute on the specified URI that only accepts DELETE. You can provide specific middlewares.
-func (r *Router) delete(uri string, f func(http.ResponseWriter, *http.Request), mid ...mux.MiddlewareFunc) {
+// Delete creates a subroute on the specified URI that only accepts DELETE. You can provide specific middlewares.
+func (r *Router) Delete(uri string, f func(http.ResponseWriter, *http.Request), mid ...mux.MiddlewareFunc) {
 	sub := r.r.Path(uri).Subrouter()
 	sub.HandleFunc("", f).Methods(http.MethodDelete)
 	sub.Use(mid...)
 }
 
-// use adds middlewares to all routes. Should be used when a middleware should be execute all all routes (e.g. CORS).
-func (r *Router) use(mid ...mux.MiddlewareFunc) {
+// Use adds middlewares to all routes. Should be used when a middleware should be execute all all routes (e.g. CORS).
+func (r *Router) Use(mid ...mux.MiddlewareFunc) {
 	r.r.Use(mid...)
+}
+
+// Handler returns the configured router http handler.
+func (r *Router) Handler() http.Handler {
+	return r.r
 }
