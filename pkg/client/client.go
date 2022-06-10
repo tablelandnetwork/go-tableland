@@ -2,24 +2,14 @@ package client
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"time"
 
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/spruceid/siwe-go"
-
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/textileio/go-tableland/internal/tableland"
-	nonceimpl "github.com/textileio/go-tableland/pkg/nonce/impl"
 	"github.com/textileio/go-tableland/pkg/tables"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
-	"github.com/textileio/go-tableland/pkg/wallet"
 )
 
 // Client is the Tableland client.
@@ -30,50 +20,16 @@ type Client struct {
 
 // Config configures the Client.
 type Config struct {
-	TablelandAPI      string
-	EthereumAPI       string
-	TablelandContract common.Address
-	ChainID           int64
-	Wallet            *wallet.Wallet
+	TblRPCClient      *rpc.Client
+	TblContractClient *ethereum.Client
 }
 
 // NewClient creates a new Client.
-func NewClient(
-	ctx context.Context,
-	config Config,
-) (*Client, error) {
-	tblRPC, err := rpc.DialContext(ctx, config.TablelandAPI)
-	if err != nil {
-		return nil, fmt.Errorf("creating rpc client: %v", err)
-	}
-	bearer, err := bearerValue(config.ChainID, config.Wallet)
-	if err != nil {
-		return nil, fmt.Errorf("getting bearer value: %v", err)
-	}
-	tblRPC.SetHeader("Authorization", bearer)
-
-	ethClient, err := ethclient.DialContext(ctx, config.EthereumAPI)
-	if err != nil {
-		return nil, fmt.Errorf("creating ethereum client: %v", err)
-	}
-
-	tracker := nonceimpl.NewSimpleTracker(config.Wallet, ethClient)
-
-	tblContract, err := ethereum.NewClient(
-		ethClient,
-		tableland.ChainID(config.ChainID),
-		config.TablelandContract,
-		config.Wallet,
-		tracker,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("creating tableland contract client: %v", err)
-	}
-
+func NewClient(config Config) *Client {
 	return &Client{
-		tblRPC:      tblRPC,
-		tblContract: tblContract,
-	}, nil
+		tblRPC:      config.TblRPCClient,
+		tblContract: config.TblContractClient,
+	}
 }
 
 // List lists something.
@@ -86,7 +42,7 @@ func (c *Client) Create(ctx context.Context, createStatement string) (tables.Tra
 	req := &tableland.ValidateCreateTableRequest{CreateStatement: createStatement}
 	var res tableland.ValidateCreateTableResponse
 
-	if err := c.tblRPC.CallContext(ctx, &res, "validateCreateTable", req); err != nil {
+	if err := c.tblRPC.CallContext(ctx, &res, "tableland_validateCreateTable", req); err != nil {
 		return nil, fmt.Errorf("calling rpc validateCreateTable: %v", err)
 	}
 
@@ -150,37 +106,4 @@ func (c *Client) Receipt(ctx context.Context, txnHash string) (*tableland.TxnRec
 	}
 
 	return res.Receipt, res.Ok, nil
-}
-
-func bearerValue(chainID int64, wallet *wallet.Wallet) (string, error) {
-	validFor := time.Hour * 24 * 365
-	opts := map[string]interface{}{
-		"chainId":        chainID,
-		"expirationTime": time.Now().Add(validFor),
-		"nonce":          siwe.GenerateNonce(),
-	}
-
-	msg, err := siwe.InitMessage("Tableland", wallet.Address().Hex(), "https://tableland.xyz", "1", opts)
-	if err != nil {
-		return "", fmt.Errorf("initializing siwe message: %v", err)
-	}
-
-	payload := fmt.Sprintf("\x19Ethereum Signed Message:\n%d%s", len(msg.String()), msg.String())
-	hash := crypto.Keccak256Hash([]byte(payload))
-	signature, err := crypto.Sign(hash.Bytes(), wallet.PrivateKey())
-	if err != nil {
-		return "", fmt.Errorf("signing siwe message: %v", err)
-	}
-	signature[64] += 27
-
-	bearerValue := struct {
-		Message   string `json:"message"`
-		Signature string `json:"signature"`
-	}{Message: msg.String(), Signature: hexutil.Encode(signature)}
-	bearer, err := json.Marshal(bearerValue)
-	if err != nil {
-		return "", fmt.Errorf("json marshaling signed siwe: %v", err)
-	}
-
-	return fmt.Sprintf("Bearer %s", base64.StdEncoding.EncodeToString(bearer)), nil
 }

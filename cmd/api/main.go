@@ -9,13 +9,11 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/rs/zerolog/log"
 	"github.com/textileio/cli"
 	"github.com/textileio/go-tableland/buildinfo"
-	"github.com/textileio/go-tableland/cmd/api/controllers"
-	"github.com/textileio/go-tableland/cmd/api/middlewares"
 	"github.com/textileio/go-tableland/internal/chains"
+	"github.com/textileio/go-tableland/internal/router"
 	systemimpl "github.com/textileio/go-tableland/internal/system/impl"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/internal/tableland/impl"
@@ -28,7 +26,6 @@ import (
 	nonceimpl "github.com/textileio/go-tableland/pkg/nonce/impl"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
-	"github.com/textileio/go-tableland/pkg/sqlstore"
 	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
@@ -49,8 +46,6 @@ func main() {
 			Str("port", config.Metrics.Port).
 			Msg("could not setup instrumentation")
 	}
-
-	server := rpc.NewServer()
 
 	databaseURL := fmt.Sprintf(
 		"postgres://%s:%s@%s:%s/%s?sslmode=disable&timezone=UTC",
@@ -94,57 +89,28 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("creating user store")
 	}
-	instrUserStore, err := sqlstoreimpl.NewInstrumentedUserStore(userStore)
-	if err != nil {
-		log.Fatal().Err(err).Msg("creating instrumented user store")
-	}
 
-	svc := getTablelandService(parser, instrUserStore, chainStacks)
-	if err := server.RegisterName("tableland", svc); err != nil {
-		log.Fatal().Err(err).Msg("failed to register a json-rpc service")
-	}
-	userController := controllers.NewUserController(svc)
-
-	stores := make(map[tableland.ChainID]sqlstore.SystemStore, len(chainStacks))
-	for chainID, stack := range chainStacks {
-		stores[chainID] = stack.Store
-	}
-	sysStore, err := systemimpl.NewSystemSQLStoreService(stores, config.Gateway.ExternalURIPrefix)
-	if err != nil {
-		log.Fatal().Err(err).Msg("creating system store")
-	}
-	systemService, err := systemimpl.NewInstrumentedSystemSQLStoreService(sysStore)
-	if err != nil {
-		log.Fatal().Err(err).Msg("instrumenting system sql store")
-	}
-	systemController := controllers.NewSystemController(systemService)
-
-	// General router configuration.
-	router := newRouter()
-	router.Use(middlewares.CORS, middlewares.TraceID)
-
-	// RPC configuration.
 	rateLimInterval, err := time.ParseDuration(config.HTTP.RateLimInterval)
 	if err != nil {
 		log.Fatal().Err(err).Msg("parsing http rate lim interval")
 	}
-	rateLim, err := middlewares.RateLimitController(config.HTTP.MaxRequestPerInterval, rateLimInterval)
-	if err != nil {
-		log.Fatal().Err(err).Msg("creating rate limit controller middleware")
+
+	router := router.ConfiguredRouter(
+		config.Gateway.ExternalURIPrefix,
+		config.HTTP.MaxRequestPerInterval,
+		rateLimInterval,
+		parser,
+		userStore,
+		chainStacks,
+	)
+
+	server := &http.Server{
+		Addr:         ":" + config.HTTP.Port,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 20 * time.Second,
+		IdleTimeout:  120 * time.Second,
+		Handler:      router.Handler(),
 	}
-	router.Post("/rpc", func(rw http.ResponseWriter, r *http.Request) {
-		server.ServeHTTP(rw, r)
-	}, middlewares.Authentication, rateLim, middlewares.OtelHTTP("rpc"))
-
-	// Gateway configuration.
-	router.Get("/chain/{chainID}/tables/{id}", systemController.GetTable, middlewares.RESTChainID, middlewares.OtelHTTP("GetTable"))                                           // nolint
-	router.Get("/chain/{chainID}/tables/{id}/{key}/{value}", userController.GetTableRow, middlewares.RESTChainID, middlewares.OtelHTTP("GetTableRow"))                         // nolint
-	router.Get("/chain/{chainID}/tables/controller/{address}", systemController.GetTablesByController, middlewares.RESTChainID, middlewares.OtelHTTP("GetTablesByController")) // nolint
-	router.Get("/query", userController.GetTableQuery, middlewares.OtelHTTP("GetTableQuery"))                                                                                  // nolint
-
-	// Health endpoint configuration.
-	router.Get("/healthz", healthHandler)
-	router.Get("/health", healthHandler)
 
 	// Admin endpoint configuration.
 	if config.AdminAPI.Password == "" {
@@ -153,7 +119,7 @@ func main() {
 	}
 
 	go func() {
-		if err := router.Serve(":" + config.HTTP.Port); err != nil {
+		if err := server.ListenAndServe(); err != nil {
 			if err == http.ErrServerClosed {
 				log.Info().Msg("http serve gracefully closed")
 				return
@@ -183,31 +149,14 @@ func main() {
 
 		ctx, cls := context.WithTimeout(context.Background(), time.Second*10)
 		defer cls()
-		if err := router.Close(ctx); err != nil {
-			log.Error().Err(err).Msg("closing http server")
+		if err := server.Shutdown(ctx); err != nil {
+			log.Error().Err(err).Msg("shutting down http server")
 		}
 
 		if err := userStore.Close(); err != nil {
 			log.Error().Err(err).Msg("closing user store")
 		}
 	})
-}
-
-func getTablelandService(
-	parser parsing.SQLValidator,
-	userStore sqlstore.UserStore,
-	chainStacks map[tableland.ChainID]chains.ChainStack) tableland.Tableland {
-	instrumentedMesa, err := impl.NewInstrumentedTablelandMesa(
-		impl.NewTablelandMesa(parser, userStore, chainStacks),
-	)
-	if err != nil {
-		log.Fatal().Err(err).Msg("instrumenting mesa")
-	}
-	return instrumentedMesa
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
 }
 
 func createChainIDStack(
