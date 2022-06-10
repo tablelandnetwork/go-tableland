@@ -11,12 +11,10 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/chains"
 	"github.com/textileio/go-tableland/internal/router"
-	"github.com/textileio/go-tableland/internal/router/middlewares"
 	"github.com/textileio/go-tableland/internal/tableland"
 	tblimpl "github.com/textileio/go-tableland/internal/tableland/impl"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
@@ -31,17 +29,23 @@ import (
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/tables/impl/testutil"
 	txnpimpl "github.com/textileio/go-tableland/pkg/txn/impl"
-	"github.com/textileio/go-tableland/pkg/util"
 	"github.com/textileio/go-tableland/pkg/wallet"
 	"github.com/textileio/go-tableland/tests"
 )
 
 func TestCreate(t *testing.T) {
-	ctx, client, _, _, _, _ := setup(t)
+	ctx, client, _, backend, _, _ := setup(t)
 
 	txn, err := client.Create(ctx, "CREATE TABLE foo_1337 (bar text)")
 	require.NoError(t, err)
 	require.NotEmpty(t, txn.Hash().Hex())
+
+	backend.Commit()
+
+	receipt, found, err := client.Receipt(ctx, txn.Hash().Hex(), WaitFor(time.Second*10))
+	require.NoError(t, err)
+	require.True(t, found)
+	require.NotEmpty(t, receipt.TableID)
 }
 
 type aclHalfMock struct {
@@ -72,9 +76,10 @@ func setup(t *testing.T, opts ...parsing.Option) (
 ) {
 	t.Helper()
 
+	ctx := context.Background()
+
 	url := tests.PostgresURL(t)
 
-	ctx := context.WithValue(context.Background(), middlewares.ContextKeyChainID, tableland.ChainID(1337))
 	store, err := system.New(url, tableland.ChainID(1337))
 	require.NoError(t, err)
 
@@ -122,15 +127,14 @@ func setup(t *testing.T, opts ...parsing.Option) (
 
 	server := httptest.NewServer(router.Handler())
 
-	bearer, err := util.AuthorizationSIWEValue(1337, wallet, time.Hour*24*365)
+	client, err := NewClient(ctx, Config{
+		TblAPIURL:    server.URL + "/rpc",
+		Backend:      backend,
+		ChainID:      1337,
+		ContractAddr: addr,
+		Wallet:       wallet,
+	})
 	require.NoError(t, err)
-
-	rpcClient, err := rpc.DialContext(ctx, server.URL+"/rpc")
-	require.NoError(t, err)
-
-	rpcClient.SetHeader("Authorization", bearer)
-
-	client := NewClient(Config{TblRPCClient: rpcClient, TblContractClient: registry})
 
 	// Spin up dependencies needed for the EventProcessor.
 	// i.e: TxnProcessor, Parser, and EventFeed (connected to the EVM chain)
@@ -145,7 +149,7 @@ func setup(t *testing.T, opts ...parsing.Option) (
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		ep.Stop()
-		rpcClient.Close()
+		client.Close()
 		server.Close()
 	})
 

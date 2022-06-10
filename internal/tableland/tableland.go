@@ -60,7 +60,6 @@ type ValidateCreateTableResponse struct {
 
 // SetControllerRequest is a user SetController request.
 type SetControllerRequest struct {
-	Caller     string `json:"caller"`
 	Controller string `json:"controller"`
 	TokenID    string `json:"token_id"`
 }

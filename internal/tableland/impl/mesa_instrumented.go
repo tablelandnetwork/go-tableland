@@ -100,8 +100,9 @@ func (t *InstrumentedTablelandMesa) SetController(ctx context.Context,
 	resp, err := t.tableland.SetController(ctx, req)
 	latency := time.Since(start).Milliseconds()
 
+	controller, _ := ctx.Value(middlewares.ContextKeyAddress).(string)
 	chainID, _ := ctx.Value(middlewares.ContextKeyChainID).(tableland.ChainID)
-	t.record(ctx, recordData{"SetController", req.Caller, "", err == nil, latency, chainID})
+	t.record(ctx, recordData{"SetController", controller, "", err == nil, latency, chainID})
 	return resp, err
 }
 
