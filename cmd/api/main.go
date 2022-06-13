@@ -58,7 +58,7 @@ func main() {
 
 	parserOpts := []parsing.Option{
 		parsing.WithMaxAllowedColumns(config.TableConstraints.MaxColumns),
-		parsing.WithMaxTextLength(config.TableConstraints.MaxColumns),
+		parsing.WithMaxTextLength(config.TableConstraints.MaxTextLength),
 		parsing.WithMaxReadQuerySize(config.QueryConstraints.MaxReadQuerySize),
 		parsing.WithMaxWriteQuerySize(config.QueryConstraints.MaxWriteQuerySize),
 	}
