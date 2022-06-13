@@ -8,10 +8,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
 
-func TestRateLimSingle(t *testing.T) {
+func TestLimit1Addr(t *testing.T) {
 	t.Parallel()
 
 	type testCase struct {
@@ -25,33 +26,67 @@ func TestRateLimSingle(t *testing.T) {
 		{name: "block-me", callRPS: 1000, limitRPS: 500},
 	}
 
+	type variant struct {
+		name      string
+		chainAddr string
+		ip        string // If empty, will be random.
+	}
+	variants := []variant{
+		{name: "with chain addr", chainAddr: "0xdeadbeef"},
+		{name: "with ip", ip: "10.10.1.1"},
+	}
+
 	for _, tc := range tests {
 		t.Run(tc.name, func(tc testCase) func(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
 
-				rlcm, err := RateLimitController(uint64(tc.limitRPS), time.Second)
-				require.NoError(t, err)
-				rlc := rlcm(dummyHandler{})
+				for _, vari := range variants {
+					t.Run(vari.name, func(vari variant) func(t *testing.T) {
+						return func(t *testing.T) {
+							t.Parallel()
 
-				ctx := context.WithValue(context.Background(), ContextKeyAddress, "0xdeadbeef")
-				r, err := http.NewRequestWithContext(ctx, "", "", nil)
-				require.NoError(t, err)
+							cfg := RateLimiterConfig{
+								Default: RateLimiterRouteConfig{
+									MaxRPI:   uint64(tc.limitRPS),
+									Interval: time.Second,
+								},
+								JSONRPCRoute: "/rpc",
+							}
+							rlcm, err := RateLimitController(cfg)
+							require.NoError(t, err)
+							rlc := rlcm(dummyHandler{})
 
-				res := httptest.NewRecorder()
+							ctx := context.Background()
+							if vari.chainAddr != "" {
+								ctx = context.WithValue(context.Background(), ContextKeyAddress, "0xdeadbeef")
+							}
+							if vari.ip == "" {
+								// Not strictly valid value, but for the rate limiter doesn't matter.
+								vari.ip = uuid.NewString()
+							}
+							r, err := http.NewRequestWithContext(ctx, "", "", nil)
+							require.NoError(t, err)
+							r.Header.Set("X-Forwarded-For", vari.ip)
 
-				// Verify that after some seconds making requests with the configured
-				// callRPS with the limitRPS, we are getting the expected output:
-				// - If callRPS < limitRPS, we never get a 429.
-				// - If callRPS > limitRPS, we eventually should see a 429.
-				assertFunc := require.Eventually
-				if tc.callRPS < tc.limitRPS {
-					assertFunc = require.Never
+							res := httptest.NewRecorder()
+
+							// Verify that after some seconds making requests with the configured
+							// callRPS with the limitRPS, we are getting the expected output:
+							// - If callRPS < limitRPS, we never get a 429.
+							// - If callRPS > limitRPS, we eventually should see a 429.
+							assertFunc := require.Eventually
+							if tc.callRPS < tc.limitRPS {
+								assertFunc = require.Never
+							}
+							assertFunc(t, func() bool {
+								rlc.ServeHTTP(res, r)
+								return res.Code == 429
+							}, time.Second*5, time.Second/time.Duration(tc.callRPS))
+
+						}
+					}(vari))
 				}
-				assertFunc(t, func() bool {
-					rlc.ServeHTTP(res, r)
-					return res.Code == 429
-				}, time.Second*5, time.Second/time.Duration(tc.callRPS))
 			}
 		}(tc))
 	}
@@ -61,7 +96,14 @@ func TestRateLim10Addresses(t *testing.T) {
 	t.Parallel()
 
 	// Only allow 10 req per second *per address*.
-	rlcm, err := RateLimitController(100, time.Second)
+	cfg := RateLimiterConfig{
+		Default: RateLimiterRouteConfig{
+			MaxRPI:   100,
+			Interval: time.Second,
+		},
+		JSONRPCRoute: "/rpc",
+	}
+	rlcm, err := RateLimitController(cfg)
 	require.NoError(t, err)
 	rlc := rlcm(dummyHandler{})
 
