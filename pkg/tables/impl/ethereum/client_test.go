@@ -29,9 +29,9 @@ import (
 )
 
 func TestCreateTable(t *testing.T) {
-	backend, _, _, _, client := setup(t)
+	backend, _, fromAuth, _, client := setup(t)
 
-	txn, err := client.CreateTable(context.Background(), "CREATE TABLE foo (bar int)")
+	txn, err := client.CreateTable(context.Background(), fromAuth.From, "CREATE TABLE foo (bar int)")
 	require.NoError(t, err)
 	backend.Commit()
 

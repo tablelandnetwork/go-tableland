@@ -14,15 +14,20 @@ import (
 	"github.com/textileio/go-tableland/pkg/wallet"
 )
 
-// AuthorizationSIWEValue returns the "Bearer ..." string for the provided chainid and wallet.
-func AuthorizationSIWEValue(chainID tableland.ChainID, wallet *wallet.Wallet, validFor time.Duration) (string, error) {
+// EncodedSIWEMsg returns the encoded SIWE msg string for the provided chainid and wallet.
+func EncodedSIWEMsg(chainID tableland.ChainID, wallet *wallet.Wallet, validFor time.Duration) (string, error) {
 	opts := map[string]interface{}{
 		"chainId":        int(chainID),
-		"expirationTime": time.Now().Add(validFor),
-		"nonce":          siwe.GenerateNonce(),
+		"expirationTime": time.Now().UTC().Add(validFor).Format(time.RFC3339),
 	}
 
-	msg, err := siwe.InitMessage("Tableland", wallet.Address().Hex(), "https://staging.tableland.io", "1", opts)
+	msg, err := siwe.InitMessage(
+		"Tableland",
+		wallet.Address().Hex(),
+		"https://tableland.xyz",
+		siwe.GenerateNonce(),
+		opts,
+	)
 	if err != nil {
 		return "", fmt.Errorf("initializing siwe message: %v", err)
 	}
@@ -35,14 +40,14 @@ func AuthorizationSIWEValue(chainID tableland.ChainID, wallet *wallet.Wallet, va
 	}
 	signature[64] += 27
 
-	bearerValue := struct {
+	value := struct {
 		Message   string `json:"message"`
 		Signature string `json:"signature"`
 	}{Message: msg.String(), Signature: hexutil.Encode(signature)}
-	bearer, err := json.Marshal(bearerValue)
+	json, err := json.Marshal(value)
 	if err != nil {
-		return "", fmt.Errorf("json marshaling signed siwe: %v", err)
+		return "", fmt.Errorf("json marshaling signed siwe value: %v", err)
 	}
 
-	return fmt.Sprintf("Bearer %s", base64.StdEncoding.EncodeToString(bearer)), nil
+	return base64.StdEncoding.EncodeToString(json), nil
 }

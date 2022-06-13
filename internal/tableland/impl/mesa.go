@@ -125,10 +125,12 @@ func (t *TablelandMesa) GetReceipt(
 		return tableland.GetReceiptResponse{Ok: false}, nil
 	}
 
+	tableID := receipt.TableID.String()
 	ret := tableland.GetReceiptResponse{
 		Ok: ok,
 		Receipt: &tableland.TxnReceipt{
 			ChainID:     receipt.ChainID,
+			TableID:     &tableID,
 			TxnHash:     receipt.TxnHash,
 			BlockNumber: receipt.BlockNumber,
 			Error:       receipt.Error,

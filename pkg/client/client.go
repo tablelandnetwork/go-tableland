@@ -5,14 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
+	"net/http"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/textileio/go-tableland/internal/router/controllers"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/nonce/impl"
-	"github.com/textileio/go-tableland/pkg/tables"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/util"
 	"github.com/textileio/go-tableland/pkg/wallet"
@@ -21,6 +23,7 @@ import (
 // Client is the Tableland client.
 type Client struct {
 	tblRPC      *rpc.Client
+	tblHTTP     *http.Client
 	tblContract *ethereum.Client
 	config      Config
 }
@@ -47,44 +50,109 @@ func NewClient(ctx context.Context, config Config) (*Client, error) {
 		return nil, fmt.Errorf("creating contract client: %v", err)
 	}
 
-	bearer, err := util.AuthorizationSIWEValue(config.ChainID, config.Wallet, time.Hour*24*365)
+	siwe, err := util.EncodedSIWEMsg(config.ChainID, config.Wallet, time.Hour*24*365)
 	if err != nil {
 		return nil, fmt.Errorf("creating siwe value: %v", err)
 	}
 
-	tblRPC, err := rpc.DialContext(ctx, config.TblAPIURL)
+	tblRPC, err := rpc.DialContext(ctx, config.TblAPIURL+"/rpc")
 	if err != nil {
 		return nil, fmt.Errorf("creating rpc client: %v", err)
 	}
-	tblRPC.SetHeader("Authorization", bearer)
+	tblRPC.SetHeader("Authorization", "Bearer "+siwe)
 
 	return &Client{
 		tblRPC:      tblRPC,
+		tblHTTP:     &http.Client{},
 		tblContract: tblContract,
 		config:      config,
 	}, nil
 }
 
 // List lists something.
-func (c *Client) List(ctx context.Context) error {
-	return errors.New("not implemented")
+func (c *Client) List(ctx context.Context) ([]controllers.TableNameIDUnified, error) {
+	url := fmt.Sprintf(
+		"%s/chain/%d/tables/controller/%s",
+		c.config.TblAPIURL,
+		c.config.ChainID,
+		c.config.Wallet.Address().Hex(),
+	)
+	res, err := c.tblHTTP.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("calling http endpoint: %v", err)
+	}
+	defer func() {
+		_ = res.Body.Close()
+	}()
+
+	var ret []controllers.TableNameIDUnified
+
+	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
+		return nil, fmt.Errorf("decoding response body: %v", err)
+	}
+
+	return ret, nil
+}
+
+type createConfig struct {
+	prefix         string
+	receiptTimeout *time.Duration
+}
+
+// CreateOption controls the behavior of Create.
+type CreateOption func(*createConfig)
+
+// WithPrefix allows you to specify an optional table name prefix where
+// the final table name will be <prefix>_<chain-id>_<tableid>.
+func WithPrefix(prefix string) CreateOption {
+	return func(cc *createConfig) {
+		cc.prefix = prefix
+	}
+}
+
+// WithReceiptTimeout specifies how long to wait for the Tableland
+// receipt that contains the table id.
+func WithReceiptTimeout(timeout time.Duration) CreateOption {
+	return func(cc *createConfig) {
+		cc.receiptTimeout = &timeout
+	}
 }
 
 // Create creates a new table on the Tableland.
-func (c *Client) Create(ctx context.Context, createStatement string) (tables.Transaction, error) {
+func (c *Client) Create(ctx context.Context, schema string, opts ...CreateOption) (tableland.TableID, string, error) {
+	defaultTimeout := time.Minute * 10
+	conf := createConfig{receiptTimeout: &defaultTimeout}
+	for _, opt := range opts {
+		opt(&conf)
+	}
+
+	createStatement := fmt.Sprintf("CREATE TABLE %s_%d %s", conf.prefix, c.config.ChainID, schema)
 	req := &tableland.ValidateCreateTableRequest{CreateStatement: createStatement}
 	var res tableland.ValidateCreateTableResponse
 
 	if err := c.tblRPC.CallContext(ctx, &res, "tableland_validateCreateTable", req); err != nil {
-		return nil, fmt.Errorf("calling rpc validateCreateTable: %v", err)
+		return tableland.TableID{}, "", fmt.Errorf("calling rpc validateCreateTable: %v", err)
 	}
 
-	t, err := c.tblContract.CreateTable(ctx, createStatement)
+	t, err := c.tblContract.CreateTable(ctx, c.config.Wallet.Address(), createStatement)
 	if err != nil {
-		return nil, fmt.Errorf("calling contract create table: %v", err)
+		return tableland.TableID{}, "", fmt.Errorf("calling contract create table: %v", err)
 	}
 
-	return t, nil
+	r, found, err := c.waitForReceipt(ctx, t.Hash().Hex(), *conf.receiptTimeout)
+	if err != nil {
+		return tableland.TableID{}, "", fmt.Errorf("waiting for txn receipt: %v", err)
+	}
+	if !found {
+		return tableland.TableID{}, "", errors.New("no receipt found before timeout")
+	}
+
+	tableID, ok := (&big.Int{}).SetString(*r.TableID, 10)
+	if !ok {
+		return tableland.TableID{}, "", errors.New("parsing table id from response")
+	}
+
+	return tableland.TableID(*tableID), fmt.Sprintf("%s_%d_%s", conf.prefix, c.config.ChainID, *r.TableID), nil
 }
 
 // Read runs a read query and returns the results.

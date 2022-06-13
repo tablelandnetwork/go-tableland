@@ -27,11 +27,11 @@ func main() {
 		log.Fatalf("decoding private key: %s", err)
 	}
 
-	bearer, err := util.AuthorizationSIWEValue(tableland.ChainID(*chainID), w, *validFor)
+	siwe, err := util.EncodedSIWEMsg(tableland.ChainID(*chainID), w, *validFor)
 	if err != nil {
 		log.Fatalf("creating bearer value: %v", err)
 	}
 
-	fmt.Printf("%s\n\n", bearer)
+	fmt.Printf("%s\n\n", siwe)
 	fmt.Printf("Signed by %s\n", w.Address().Hex())
 }

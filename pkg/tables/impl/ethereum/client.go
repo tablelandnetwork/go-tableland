@@ -47,7 +47,7 @@ func NewClient(
 }
 
 // CreateTable implements CreateTable.
-func (c *Client) CreateTable(ctx context.Context, statement string) (tables.Transaction, error) {
+func (c *Client) CreateTable(ctx context.Context, owner common.Address, statement string) (tables.Transaction, error) {
 	gasPrice, err := c.backend.SuggestGasPrice(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("suggest gas price: %s", err)
@@ -70,7 +70,7 @@ func (c *Client) CreateTable(ctx context.Context, statement string) (tables.Tran
 			GasPrice: gasPrice,
 		}
 
-		tx, err := c.contract.CreateTable(opts, auth.From, statement)
+		tx, err := c.contract.CreateTable(opts, owner, statement)
 		if err != nil {
 			return nil, err
 		}

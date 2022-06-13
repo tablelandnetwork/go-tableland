@@ -3,25 +3,25 @@ package client
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/chains"
 	"github.com/textileio/go-tableland/internal/router"
+	"github.com/textileio/go-tableland/internal/router/controllers"
 	"github.com/textileio/go-tableland/internal/tableland"
 	tblimpl "github.com/textileio/go-tableland/internal/tableland/impl"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
 	epimpl "github.com/textileio/go-tableland/pkg/eventprocessor/impl"
 	"github.com/textileio/go-tableland/pkg/nonce/impl"
-	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
@@ -34,18 +34,65 @@ import (
 )
 
 func TestCreate(t *testing.T) {
-	ctx, client, _, backend, _, _ := setup(t)
+	calls := setup(t)
+	requireCreate(t, calls)
+}
 
-	txn, err := client.Create(ctx, "CREATE TABLE foo_1337 (bar text)")
+func TestList(t *testing.T) {
+	calls := setup(t)
+	requireCreate(t, calls)
+	res := calls.list()
+	require.Len(t, res, 1)
+}
+
+func TestWrite(t *testing.T) {
+	calls := setup(t)
+	_, table := requireCreate(t, calls)
+	requireWrite(t, calls, table)
+}
+
+func TestRead(t *testing.T) {
+	calls := setup(t)
+	_, table := requireCreate(t, calls)
+	hash := requireWrite(t, calls, table)
+	requireReceipt(t, calls, hash, WaitFor(time.Second*10))
+	res := calls.read(fmt.Sprintf("select * from %s", table))
+	require.NotEmpty(t, res)
+}
+
+func TestHash(t *testing.T) {
+	calls := setup(t)
+	hash := calls.hash("create table foo_1337 (bar text)")
+	require.NotEmpty(t, hash)
+}
+
+func TestSetController(t *testing.T) {
+	calls := setup(t)
+	tableID, _ := requireCreate(t, calls)
+	key, err := crypto.GenerateKey()
 	require.NoError(t, err)
-	require.NotEmpty(t, txn.Hash().Hex())
+	controller := common.HexToAddress(crypto.PubkeyToAddress(key.PublicKey).Hex())
+	hash := calls.setController(controller, tableID)
+	require.NotEmpty(t, hash)
+}
 
-	backend.Commit()
+func requireCreate(t *testing.T, calls clientCalls) (tableland.TableID, string) {
+	id, table := calls.create("(bar text)", WithPrefix("foo"), WithReceiptTimeout(time.Second*10))
+	require.Equal(t, "foo_1337_1", table)
+	return id, table
+}
 
-	receipt, found, err := client.Receipt(ctx, txn.Hash().Hex(), WaitFor(time.Second*10))
-	require.NoError(t, err)
+func requireWrite(t *testing.T, calls clientCalls, table string) string {
+	hash := calls.write(fmt.Sprintf("insert into %s (bar) values('baz')", table))
+	require.NotEmpty(t, hash)
+	return hash
+}
+
+func requireReceipt(t *testing.T, calls clientCalls, hash string, opts ...ReceiptOption) *tableland.TxnReceipt {
+	res, found := calls.receipt(hash, opts...)
 	require.True(t, found)
-	require.NotEmpty(t, receipt.TableID)
+	require.NotNil(t, res)
+	return res
 }
 
 type aclHalfMock struct {
@@ -66,14 +113,17 @@ func (acl *aclHalfMock) IsOwner(ctx context.Context, controller common.Address, 
 	return true, nil
 }
 
-func setup(t *testing.T, opts ...parsing.Option) (
-	context.Context,
-	*Client,
-	tableland.Tableland,
-	*backends.SimulatedBackend,
-	*ethereum.Contract,
-	*bind.TransactOpts,
-) {
+type clientCalls struct {
+	list          func() []controllers.TableNameIDUnified
+	create        func(schema string, opts ...CreateOption) (tableland.TableID, string)
+	read          func(query string) string
+	write         func(query string) string
+	hash          func(statement string) string
+	receipt       func(txnHash string, options ...ReceiptOption) (*tableland.TxnReceipt, bool)
+	setController func(controller common.Address, tableID tableland.TableID) string
+}
+
+func setup(t *testing.T) clientCalls {
 	t.Helper()
 
 	ctx := context.Background()
@@ -83,13 +133,13 @@ func setup(t *testing.T, opts ...parsing.Option) (
 	store, err := system.New(url, tableland.ChainID(1337))
 	require.NoError(t, err)
 
-	parser, err := parserimpl.New([]string{"system_", "registry", "sqlite_"}, opts...)
+	parser, err := parserimpl.New([]string{"system_", "registry", "sqlite_"})
 	require.NoError(t, err)
 
 	txnp, err := txnpimpl.NewTxnProcessor(1337, url, 0, &aclHalfMock{store})
 	require.NoError(t, err)
 
-	backend, addr, sc, auth, sk := testutil.Setup(t)
+	backend, addr, _, _, sk := testutil.Setup(t)
 
 	wallet, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(sk)))
 	require.NoError(t, err)
@@ -110,12 +160,6 @@ func setup(t *testing.T, opts ...parsing.Option) (
 		1337: {Store: store, Registry: registry},
 	}
 
-	tbld := tblimpl.NewTablelandMesa(
-		parser,
-		userStore,
-		chainStack,
-	)
-
 	router := router.ConfiguredRouter(
 		"https://testnet.tableland.network",
 		10,
@@ -128,7 +172,7 @@ func setup(t *testing.T, opts ...parsing.Option) (
 	server := httptest.NewServer(router.Handler())
 
 	client, err := NewClient(ctx, Config{
-		TblAPIURL:    server.URL + "/rpc",
+		TblAPIURL:    server.URL,
 		Backend:      backend,
 		ChainID:      1337,
 		ContractAddr: addr,
@@ -153,5 +197,52 @@ func setup(t *testing.T, opts ...parsing.Option) (
 		server.Close()
 	})
 
-	return ctx, client, tbld, backend, sc, auth
+	return clientCalls{
+		list: func() []controllers.TableNameIDUnified {
+			res, err := client.List(ctx)
+			require.NoError(t, err)
+			return res
+		},
+		create: func(schema string, opts ...CreateOption) (tableland.TableID, string) {
+			wg := sync.WaitGroup{}
+			wg.Add(1)
+			go func() {
+				time.Sleep(time.Second * 1)
+				backend.Commit()
+				wg.Done()
+			}()
+			id, table, err := client.Create(ctx, schema, opts...)
+			require.NoError(t, err)
+			backend.Commit()
+			wg.Wait()
+			return id, table
+		},
+		read: func(query string) string {
+			res, err := client.Read(ctx, query)
+			require.NoError(t, err)
+			return res
+		},
+		write: func(query string) string {
+			hash, err := client.Write(ctx, query)
+			require.NoError(t, err)
+			backend.Commit()
+			return hash
+		},
+		hash: func(statement string) string {
+			hash, err := client.Hash(ctx, statement)
+			require.NoError(t, err)
+			return hash
+		},
+		receipt: func(txnHash string, options ...ReceiptOption) (*tableland.TxnReceipt, bool) {
+			receipt, found, err := client.Receipt(ctx, txnHash, options...)
+			require.NoError(t, err)
+			return receipt, found
+		},
+		setController: func(controller common.Address, tableID tableland.TableID) string {
+			hash, err := client.SetController(ctx, controller, tableID)
+			require.NoError(t, err)
+			backend.Commit()
+			return hash
+		},
+	}
 }

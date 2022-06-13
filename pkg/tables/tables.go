@@ -16,7 +16,7 @@ type Transaction interface {
 // TablelandTables defines the interface for interaction with the TablelandTables smart contract.
 type TablelandTables interface {
 	// CreateTable mints a new table NFT.
-	CreateTable(context.Context, string) (Transaction, error)
+	CreateTable(context.Context, common.Address, string) (Transaction, error)
 
 	// IsOwner checks if the provided address is the owner of the provided table.
 	IsOwner(context.Context, common.Address, *big.Int) (bool, error)
