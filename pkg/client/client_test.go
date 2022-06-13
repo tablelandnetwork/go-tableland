@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/http/httptest"
-	"sync"
 	"testing"
 	"time"
 
@@ -204,17 +203,12 @@ func setup(t *testing.T) clientCalls {
 			return res
 		},
 		create: func(schema string, opts ...CreateOption) (tableland.TableID, string) {
-			wg := sync.WaitGroup{}
-			wg.Add(1)
 			go func() {
 				time.Sleep(time.Second * 1)
 				backend.Commit()
-				wg.Done()
 			}()
 			id, table, err := client.Create(ctx, schema, opts...)
 			require.NoError(t, err)
-			backend.Commit()
-			wg.Wait()
 			return id, table
 		},
 		read: func(query string) string {
