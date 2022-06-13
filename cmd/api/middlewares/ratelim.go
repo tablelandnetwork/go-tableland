@@ -16,6 +16,9 @@ import (
 	"github.com/textileio/go-tableland/pkg/errors"
 )
 
+// RateLimiterConfig specifies a defautl rate limiting configuration, and optional custom rate limiting
+// rules for a JSON RPC sub-route with path JSONRPCRoute. i.e: particular JSON RPC methods can have different
+// rate limiting.
 type RateLimiterConfig struct {
 	Default RateLimiterRouteConfig
 
@@ -23,6 +26,8 @@ type RateLimiterConfig struct {
 	JSONRPCMethodLimits map[string]RateLimiterRouteConfig
 }
 
+// RateLimiterRouteConfig specifies the maximum request per interval, and
+// interval length for a rate limiting rule.
 type RateLimiterRouteConfig struct {
 	MaxRPI   uint64
 	Interval time.Duration
@@ -105,7 +110,6 @@ func RateLimitController(cfg RateLimiterConfig) (mux.MiddlewareFunc, error) {
 			m.ServeHTTP(w, r)
 		})
 	}, nil
-
 }
 
 func createRateLimiter(cfg RateLimiterRouteConfig, kf httplimit.KeyFunc) (*httplimit.Middleware, error) {
