@@ -16,7 +16,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/errors"
 )
 
-// RateLimiterConfig specifies a defautl rate limiting configuration, and optional custom rate limiting
+// RateLimiterConfig specifies a default rate limiting configuration, and optional custom rate limiting
 // rules for a JSON RPC sub-route with path JSONRPCRoute. i.e: particular JSON RPC methods can have different
 // rate limiting.
 type RateLimiterConfig struct {
