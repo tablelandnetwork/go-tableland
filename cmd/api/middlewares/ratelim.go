@@ -47,7 +47,7 @@ func RateLimitController(cfg RateLimiterConfig) (mux.MiddlewareFunc, error) {
 			return ctrlAddress, nil
 		}
 
-		// Use X-Fowarded-For IP if present.
+		// Use X-Forwarded-For IP if present.
 		// i.g: https://cloud.google.com/load-balancing/docs/https#x-forwarded-for_header
 		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
 			ip := strings.Split(xff, ",")[0]

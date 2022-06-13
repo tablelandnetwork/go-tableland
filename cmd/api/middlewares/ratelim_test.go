@@ -138,14 +138,18 @@ func TestLimit1IP(t *testing.T) {
 	t.Parallel()
 
 	type testCase struct {
-		name     string
-		callRPS  int
-		limitRPS int
+		name         string
+		callRPS      int
+		limitRPS     int
+		forwardedFor bool
 	}
 
 	tests := []testCase{
-		{name: "success", callRPS: 100, limitRPS: 500},
-		{name: "block-me", callRPS: 1000, limitRPS: 500},
+		{name: "forwarded-success", callRPS: 100, limitRPS: 500, forwardedFor: true},
+		{name: "forwarded-block-me", callRPS: 1000, limitRPS: 500, forwardedFor: true},
+
+		{name: "success", callRPS: 100, limitRPS: 500, forwardedFor: false},
+		{name: "block-me", callRPS: 1000, limitRPS: 500, forwardedFor: false},
 	}
 
 	for _, tc := range tests {
@@ -167,7 +171,12 @@ func TestLimit1IP(t *testing.T) {
 				ctx := context.Background()
 				r, err := http.NewRequestWithContext(ctx, "", "", nil)
 				require.NoError(t, err)
-				r.Header.Set("X-Forwarded-For", uuid.NewString())
+
+				if tc.forwardedFor {
+					r.Header.Set("X-Forwarded-For", uuid.NewString())
+				} else {
+					r.RemoteAddr = uuid.NewString() + ":1234"
+				}
 
 				res := httptest.NewRecorder()
 
@@ -191,10 +200,10 @@ func TestLimit1IP(t *testing.T) {
 func TestRateLim10Addresses(t *testing.T) {
 	t.Parallel()
 
-	// Only allow 10 req per second *per address*.
+	// Only allow 150 req per second *per address*.
 	cfg := RateLimiterConfig{
 		Default: RateLimiterRouteConfig{
-			MaxRPI:   100,
+			MaxRPI:   150,
 			Interval: time.Second,
 		},
 		JSONRPCRoute: "/rpc",
@@ -207,7 +216,7 @@ func TestRateLim10Addresses(t *testing.T) {
 	// we never get a 429 status response. The request per second being done is
 	// clearly more than 10 per second, but from different addresses which should be fine.
 	for i := 0; i < 1000; i++ {
-		ctx := context.WithValue(context.Background(), ContextKeyAddress, strconv.Itoa(i))
+		ctx := context.WithValue(context.Background(), ContextKeyAddress, strconv.Itoa(i%10))
 		r, err := http.NewRequestWithContext(ctx, "", "", nil)
 		require.NoError(t, err)
 
