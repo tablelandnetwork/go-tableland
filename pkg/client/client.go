@@ -32,16 +32,57 @@ type Client struct {
 type Config struct {
 	TblAPIURL    string
 	EthBackend   bind.ContractBackend
-	ChainID      tableland.ChainID
+	ChainID      ChainID
 	ContractAddr common.Address
 	Wallet       *wallet.Wallet
 }
+
+// TxnReceipt is a Tableland event processing receipt.
+type TxnReceipt struct {
+	ChainID     ChainID `json:"chain_id"`
+	TxnHash     string  `json:"txn_hash"`
+	BlockNumber int64   `json:"block_number"`
+	Error       *string `json:"error,omitempty"`
+	TableID     *string `json:"table_id,omitempty"`
+}
+
+// TableID is the ID of a Table.
+type TableID big.Int
+
+// String returns a string representation of the TableID.
+func (tid TableID) String() string {
+	bi := (big.Int)(tid)
+	return bi.String()
+}
+
+// ToBigInt returns a *big.Int representation of the TableID.
+func (tid TableID) ToBigInt() *big.Int {
+	bi := (big.Int)(tid)
+	b := &big.Int{}
+	b.Set(&bi)
+	return b
+}
+
+// NewTableID creates a TableID from a string representation of the uint256.
+func NewTableID(strID string) (TableID, error) {
+	tableID := &big.Int{}
+	if _, ok := tableID.SetString(strID, 10); !ok {
+		return TableID{}, fmt.Errorf("parsing stringified id failed")
+	}
+	if tableID.Cmp(&big.Int{}) < 0 {
+		return TableID{}, fmt.Errorf("table id is negative")
+	}
+	return TableID(*tableID), nil
+}
+
+// ChainID is a supported EVM chain identifier.
+type ChainID int64
 
 // NewClient creates a new Client.
 func NewClient(ctx context.Context, config Config) (*Client, error) {
 	tblContract, err := ethereum.NewClient(
 		config.EthBackend,
-		config.ChainID,
+		tableland.ChainID(config.ChainID),
 		config.ContractAddr,
 		config.Wallet,
 		impl.NewSimpleTracker(config.Wallet, config.EthBackend),
@@ -50,7 +91,7 @@ func NewClient(ctx context.Context, config Config) (*Client, error) {
 		return nil, fmt.Errorf("creating contract client: %v", err)
 	}
 
-	siwe, err := util.EncodedSIWEMsg(config.ChainID, config.Wallet, time.Hour*24*365)
+	siwe, err := util.EncodedSIWEMsg(tableland.ChainID(config.ChainID), config.Wallet, time.Hour*24*365)
 	if err != nil {
 		return nil, fmt.Errorf("creating siwe value: %v", err)
 	}
@@ -119,7 +160,7 @@ func WithReceiptTimeout(timeout time.Duration) CreateOption {
 }
 
 // Create creates a new table on the Tableland.
-func (c *Client) Create(ctx context.Context, schema string, opts ...CreateOption) (tableland.TableID, string, error) {
+func (c *Client) Create(ctx context.Context, schema string, opts ...CreateOption) (TableID, string, error) {
 	defaultTimeout := time.Minute * 10
 	conf := createConfig{receiptTimeout: &defaultTimeout}
 	for _, opt := range opts {
@@ -131,28 +172,28 @@ func (c *Client) Create(ctx context.Context, schema string, opts ...CreateOption
 	var res tableland.ValidateCreateTableResponse
 
 	if err := c.tblRPC.CallContext(ctx, &res, "tableland_validateCreateTable", req); err != nil {
-		return tableland.TableID{}, "", fmt.Errorf("calling rpc validateCreateTable: %v", err)
+		return TableID{}, "", fmt.Errorf("calling rpc validateCreateTable: %v", err)
 	}
 
 	t, err := c.tblContract.CreateTable(ctx, c.config.Wallet.Address(), createStatement)
 	if err != nil {
-		return tableland.TableID{}, "", fmt.Errorf("calling contract create table: %v", err)
+		return TableID{}, "", fmt.Errorf("calling contract create table: %v", err)
 	}
 
 	r, found, err := c.waitForReceipt(ctx, t.Hash().Hex(), *conf.receiptTimeout)
 	if err != nil {
-		return tableland.TableID{}, "", fmt.Errorf("waiting for txn receipt: %v", err)
+		return TableID{}, "", fmt.Errorf("waiting for txn receipt: %v", err)
 	}
 	if !found {
-		return tableland.TableID{}, "", errors.New("no receipt found before timeout")
+		return TableID{}, "", errors.New("no receipt found before timeout")
 	}
 
 	tableID, ok := (&big.Int{}).SetString(*r.TableID, 10)
 	if !ok {
-		return tableland.TableID{}, "", errors.New("parsing table id from response")
+		return TableID{}, "", errors.New("parsing table id from response")
 	}
 
-	return tableland.TableID(*tableID), fmt.Sprintf("%s_%d_%s", conf.prefix, c.config.ChainID, *r.TableID), nil
+	return TableID(*tableID), fmt.Sprintf("%s_%d_%s", conf.prefix, c.config.ChainID, *r.TableID), nil
 }
 
 // Read runs a read query and returns the results.
@@ -216,7 +257,7 @@ func (c *Client) Receipt(
 	ctx context.Context,
 	txnHash string,
 	options ...ReceiptOption,
-) (*tableland.TxnReceipt, bool, error) {
+) (*TxnReceipt, bool, error) {
 	config := receiptConfig{}
 	for _, option := range options {
 		option(&config)
@@ -231,7 +272,7 @@ func (c *Client) Receipt(
 func (c *Client) SetController(
 	ctx context.Context,
 	controller common.Address,
-	tableID tableland.TableID,
+	tableID TableID,
 ) (string, error) {
 	req := tableland.SetControllerRequest{Controller: controller.Hex(), TokenID: tableID.String()}
 	var res tableland.SetControllerResponse
@@ -243,20 +284,27 @@ func (c *Client) SetController(
 	return res.Transaction.Hash, nil
 }
 
-func (c *Client) getReceipt(ctx context.Context, txnHash string) (*tableland.TxnReceipt, bool, error) {
+func (c *Client) getReceipt(ctx context.Context, txnHash string) (*TxnReceipt, bool, error) {
 	req := tableland.GetReceiptRequest{TxnHash: txnHash}
 	var res tableland.GetReceiptResponse
 	if err := c.tblRPC.CallContext(ctx, &res, "tableland_getReceipt", req); err != nil {
 		return nil, false, fmt.Errorf("calling rpc getReceipt: %v", err)
 	}
-	return res.Receipt, res.Ok, nil
+	receipt := TxnReceipt{
+		ChainID:     ChainID(res.Receipt.ChainID),
+		TxnHash:     res.Receipt.TxnHash,
+		BlockNumber: res.Receipt.BlockNumber,
+		Error:       res.Receipt.Error,
+		TableID:     res.Receipt.TableID,
+	}
+	return &receipt, res.Ok, nil
 }
 
 func (c *Client) waitForReceipt(
 	ctx context.Context,
 	txnHash string,
 	timeout time.Duration,
-) (*tableland.TxnReceipt, bool, error) {
+) (*TxnReceipt, bool, error) {
 	for stay, timeout := true, time.After(timeout); stay; {
 		select {
 		case <-timeout:

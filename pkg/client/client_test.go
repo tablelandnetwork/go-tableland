@@ -75,7 +75,7 @@ func TestSetController(t *testing.T) {
 	require.NotEmpty(t, hash)
 }
 
-func requireCreate(t *testing.T, calls clientCalls) (tableland.TableID, string) {
+func requireCreate(t *testing.T, calls clientCalls) (TableID, string) {
 	id, table := calls.create("(bar text)", WithPrefix("foo"), WithReceiptTimeout(time.Second*10))
 	require.Equal(t, "foo_1337_1", table)
 	return id, table
@@ -87,7 +87,7 @@ func requireWrite(t *testing.T, calls clientCalls, table string) string {
 	return hash
 }
 
-func requireReceipt(t *testing.T, calls clientCalls, hash string, opts ...ReceiptOption) *tableland.TxnReceipt {
+func requireReceipt(t *testing.T, calls clientCalls, hash string, opts ...ReceiptOption) *TxnReceipt {
 	res, found := calls.receipt(hash, opts...)
 	require.True(t, found)
 	require.NotNil(t, res)
@@ -114,12 +114,12 @@ func (acl *aclHalfMock) IsOwner(ctx context.Context, controller common.Address, 
 
 type clientCalls struct {
 	list          func() []controllers.TableNameIDUnified
-	create        func(schema string, opts ...CreateOption) (tableland.TableID, string)
+	create        func(schema string, opts ...CreateOption) (TableID, string)
 	read          func(query string) string
 	write         func(query string) string
 	hash          func(statement string) string
-	receipt       func(txnHash string, options ...ReceiptOption) (*tableland.TxnReceipt, bool)
-	setController func(controller common.Address, tableID tableland.TableID) string
+	receipt       func(txnHash string, options ...ReceiptOption) (*TxnReceipt, bool)
+	setController func(controller common.Address, tableID TableID) string
 }
 
 func setup(t *testing.T) clientCalls {
@@ -202,7 +202,7 @@ func setup(t *testing.T) clientCalls {
 			require.NoError(t, err)
 			return res
 		},
-		create: func(schema string, opts ...CreateOption) (tableland.TableID, string) {
+		create: func(schema string, opts ...CreateOption) (TableID, string) {
 			go func() {
 				time.Sleep(time.Second * 1)
 				backend.Commit()
@@ -227,12 +227,12 @@ func setup(t *testing.T) clientCalls {
 			require.NoError(t, err)
 			return hash
 		},
-		receipt: func(txnHash string, options ...ReceiptOption) (*tableland.TxnReceipt, bool) {
+		receipt: func(txnHash string, options ...ReceiptOption) (*TxnReceipt, bool) {
 			receipt, found, err := client.Receipt(ctx, txnHash, options...)
 			require.NoError(t, err)
 			return receipt, found
 		},
-		setController: func(controller common.Address, tableID tableland.TableID) string {
+		setController: func(controller common.Address, tableID TableID) string {
 			hash, err := client.SetController(ctx, controller, tableID)
 			require.NoError(t, err)
 			backend.Commit()
