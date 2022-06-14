@@ -297,6 +297,9 @@ func (c *Client) getReceipt(ctx context.Context, txnHash string) (*TxnReceipt, b
 	if err := c.tblRPC.CallContext(ctx, &res, "tableland_getReceipt", req); err != nil {
 		return nil, false, fmt.Errorf("calling rpc getReceipt: %v", err)
 	}
+	if !res.Ok {
+		return nil, res.Ok, nil
+	}
 	receipt := TxnReceipt{
 		ChainID:     ChainID(res.Receipt.ChainID),
 		TxnHash:     res.Receipt.TxnHash,
