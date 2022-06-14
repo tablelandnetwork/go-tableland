@@ -78,7 +78,7 @@ func (c *SystemController) GetTablesByController(rw http.ResponseWriter, r *http
 		return
 	}
 
-	// tableNameIDUnified is used since we don't want to return an ID field.
+	// This struct is used since we don't want to return an ID field.
 	// The Name will be {optional-prefix}_{chainId}_{tableId}.
 	// Not doing `omitempty` in tableland.Table since
 	// that feels hacky. Looks safer to define a separate type here at the handler level.
