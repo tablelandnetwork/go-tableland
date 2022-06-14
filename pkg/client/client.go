@@ -31,7 +31,7 @@ type Client struct {
 // Config configures the Client.
 type Config struct {
 	TblAPIURL    string
-	Backend      bind.ContractBackend
+	EthBackend   bind.ContractBackend
 	ChainID      tableland.ChainID
 	ContractAddr common.Address
 	Wallet       *wallet.Wallet
@@ -40,11 +40,11 @@ type Config struct {
 // NewClient creates a new Client.
 func NewClient(ctx context.Context, config Config) (*Client, error) {
 	tblContract, err := ethereum.NewClient(
-		config.Backend,
+		config.EthBackend,
 		config.ChainID,
 		config.ContractAddr,
 		config.Wallet,
-		impl.NewSimpleTracker(config.Wallet, config.Backend),
+		impl.NewSimpleTracker(config.Wallet, config.EthBackend),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating contract client: %v", err)

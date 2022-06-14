@@ -172,7 +172,7 @@ func setup(t *testing.T) clientCalls {
 
 	client, err := NewClient(ctx, Config{
 		TblAPIURL:    server.URL,
-		Backend:      backend,
+		EthBackend:   backend,
 		ChainID:      1337,
 		ContractAddr: addr,
 		Wallet:       wallet,
