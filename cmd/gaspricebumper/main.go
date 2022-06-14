@@ -55,9 +55,25 @@ func bumpTxnFee(
 		return common.Hash{}, fmt.Errorf("the transaction hash %s isn't pending", stuckTxnHash)
 	}
 
+	candidateGasPriceSuggested, err := conn.SuggestGasPrice(ctx)
+	if err != nil {
+		return common.Hash{}, fmt.Errorf("get suggested gas price: %s", err)
+	}
+	candidateOldGasPricePlus25 :=
+		big.NewInt(0).Div(big.NewInt(0).Mul(pendingTxn.GasPrice(), big.NewInt(125)), big.NewInt(100))
+
+	newGasPrice := candidateOldGasPricePlus25
+	if newGasPrice.Cmp(candidateGasPriceSuggested) < 0 {
+		newGasPrice = candidateGasPriceSuggested
+	}
+
+	fmt.Printf("Current txn gas price: %s\n", pendingTxn.GasPrice())
+	fmt.Printf("Candidate prices, +25%%: %s, Suggested: %s\n\n", candidateOldGasPricePlus25, candidateGasPriceSuggested)
+	fmt.Printf("**New gas price: %s**\n", newGasPrice)
+
 	ltxn := &types.LegacyTx{
 		Nonce:    pendingTxn.Nonce(),
-		GasPrice: big.NewInt(0).Div(big.NewInt(0).Mul(pendingTxn.GasPrice(), big.NewInt(125)), big.NewInt(100)),
+		GasPrice: newGasPrice,
 		Gas:      pendingTxn.Gas(),
 		To:       pendingTxn.To(),
 		Value:    pendingTxn.Value(),

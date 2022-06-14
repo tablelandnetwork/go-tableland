@@ -453,6 +453,11 @@ func (m *ChainMock) SendTransaction(ctx context.Context, tx *types.Transaction) 
 	return nil
 }
 
+// this is not used by any test.
+func (m *ChainMock) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
+	return big.NewInt(0), nil
+}
+
 func setup(ctx context.Context, t *testing.T) (
 	noncepkg.NonceTracker,
 	*backends.SimulatedBackend,

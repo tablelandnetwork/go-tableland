@@ -58,6 +58,7 @@ type ChainClient interface {
 	BalanceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (*big.Int, error)
 	TransactionByHash(ctx context.Context, hash common.Hash) (tx *types.Transaction, isPending bool, err error)
 	SendTransaction(ctx context.Context, tx *types.Transaction) error
+	SuggestGasPrice(ctx context.Context) (*big.Int, error)
 }
 
 // NonceStore provides the api for managing the storage of nonce and pending txs.
