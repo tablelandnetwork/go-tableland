@@ -236,7 +236,6 @@ func (t *LocalTracker) checkIfPendingTxWasIncluded(
 				return nil
 			}
 
-			t.txnConfirmationAttempts++
 			return noncepkg.ErrPendingTxMayBeStuck
 		}
 		if strings.Contains(err.Error(), "not found") {
@@ -390,14 +389,32 @@ func (t *LocalTracker) bumpTxnGas(ctx context.Context, txnHash common.Hash) (com
 		return common.Hash{}, fmt.Errorf("the transaction hash %s isn't pending", txnHash)
 	}
 
+	candidateGasPriceSuggested, err := t.chainClient.SuggestGasPrice(ctx)
+	if err != nil {
+		return common.Hash{}, fmt.Errorf("get suggested gas price: %s", err)
+	}
+	candidateOldGasPricePlus25 :=
+		big.NewInt(0).Div(big.NewInt(0).Mul(pendingTxn.GasPrice(), big.NewInt(125)), big.NewInt(100))
+
+	newGasPrice := candidateOldGasPricePlus25
+	if newGasPrice.Cmp(candidateGasPriceSuggested) < 0 {
+		newGasPrice = candidateGasPriceSuggested
+	}
+
 	ltxn := &types.LegacyTx{
 		Nonce:    pendingTxn.Nonce(),
-		GasPrice: big.NewInt(0).Div(big.NewInt(0).Mul(pendingTxn.GasPrice(), big.NewInt(125)), big.NewInt(100)),
+		GasPrice: newGasPrice,
 		Gas:      pendingTxn.Gas(),
 		To:       pendingTxn.To(),
 		Value:    pendingTxn.Value(),
 		Data:     pendingTxn.Data(),
 	}
+	t.log.Info().
+		Int64("oldGasPrice", pendingTxn.GasPrice().Int64()).
+		Int64("candidateOldPrice+25", candidateOldGasPricePlus25.Int64()).
+		Int64("candidateGasPriceSuggested", candidateGasPriceSuggested.Int64()).
+		Int64("newDecidedGasPrice", newGasPrice.Int64()).
+		Msg("bumped txn gas price summary")
 
 	signer := types.NewLondonSigner(big.NewInt(int64(t.chainID)))
 	txn, err := types.SignTx(types.NewTx(ltxn), signer, t.wallet.PrivateKey())
