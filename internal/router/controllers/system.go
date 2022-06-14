@@ -58,17 +58,6 @@ func (c *SystemController) GetTable(rw http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(rw).Encode(metadata)
 }
 
-// TableNameIDUnified is used since we don't want to return an ID field.
-// The Name will be {optional-prefix}_{chainId}_{tableId}.
-// Not doing `omitempty` in tableland.Table since
-// that feels hacky. Looks safer to define a separate type here at the handler level.
-type TableNameIDUnified struct {
-	Controller string    `json:"controller"`
-	Name       string    `json:"name"`
-	Structure  string    `json:"structure"`
-	CreatedAt  time.Time `json:"created_at"`
-}
-
 // GetTablesByController handles the GET /chain/{chainID}/tables/controller/{address} call.
 func (c *SystemController) GetTablesByController(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -88,9 +77,20 @@ func (c *SystemController) GetTablesByController(rw http.ResponseWriter, r *http
 		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Failed to fetch tables"})
 		return
 	}
-	retTables := make([]TableNameIDUnified, len(tables))
+
+	// tableNameIDUnified is used since we don't want to return an ID field.
+	// The Name will be {optional-prefix}_{chainId}_{tableId}.
+	// Not doing `omitempty` in tableland.Table since
+	// that feels hacky. Looks safer to define a separate type here at the handler level.
+	type tableNameIDUnified struct {
+		Controller string    `json:"controller"`
+		Name       string    `json:"name"`
+		Structure  string    `json:"structure"`
+		CreatedAt  time.Time `json:"created_at"`
+	}
+	retTables := make([]tableNameIDUnified, len(tables))
 	for i, t := range tables {
-		retTables[i] = TableNameIDUnified{
+		retTables[i] = tableNameIDUnified{
 			Controller: t.Controller,
 			Name:       fmt.Sprintf("%s_%d_%s", t.Prefix, t.ChainID, t.ID),
 			Structure:  t.Structure,

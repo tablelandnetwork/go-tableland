@@ -12,7 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/textileio/go-tableland/internal/router/controllers"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/nonce/impl"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
@@ -63,6 +62,17 @@ func (tid TableID) ToBigInt() *big.Int {
 	return b
 }
 
+// ChainID is a supported EVM chain identifier.
+type ChainID int64
+
+// TableInfo summarizes information about a table.
+type TableInfo struct {
+	Controller string    `json:"controller"`
+	Name       string    `json:"name"`
+	Structure  string    `json:"structure"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
 // NewTableID creates a TableID from a string representation of the uint256.
 func NewTableID(strID string) (TableID, error) {
 	tableID := &big.Int{}
@@ -74,9 +84,6 @@ func NewTableID(strID string) (TableID, error) {
 	}
 	return TableID(*tableID), nil
 }
-
-// ChainID is a supported EVM chain identifier.
-type ChainID int64
 
 // NewClient creates a new Client.
 func NewClient(ctx context.Context, config Config) (*Client, error) {
@@ -111,7 +118,7 @@ func NewClient(ctx context.Context, config Config) (*Client, error) {
 }
 
 // List lists something.
-func (c *Client) List(ctx context.Context) ([]controllers.TableNameIDUnified, error) {
+func (c *Client) List(ctx context.Context) ([]TableInfo, error) {
 	url := fmt.Sprintf(
 		"%s/chain/%d/tables/controller/%s",
 		c.config.TblAPIURL,
@@ -126,7 +133,7 @@ func (c *Client) List(ctx context.Context) ([]controllers.TableNameIDUnified, er
 		_ = res.Body.Close()
 	}()
 
-	var ret []controllers.TableNameIDUnified
+	var ret []TableInfo
 
 	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
 		return nil, fmt.Errorf("decoding response body: %v", err)

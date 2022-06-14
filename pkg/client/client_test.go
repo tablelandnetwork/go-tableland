@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/chains"
 	"github.com/textileio/go-tableland/internal/router"
-	"github.com/textileio/go-tableland/internal/router/controllers"
 	"github.com/textileio/go-tableland/internal/tableland"
 	tblimpl "github.com/textileio/go-tableland/internal/tableland/impl"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
@@ -113,7 +112,7 @@ func (acl *aclHalfMock) IsOwner(ctx context.Context, controller common.Address, 
 }
 
 type clientCalls struct {
-	list          func() []controllers.TableNameIDUnified
+	list          func() []TableInfo
 	create        func(schema string, opts ...CreateOption) (TableID, string)
 	read          func(query string) string
 	write         func(query string) string
@@ -197,7 +196,7 @@ func setup(t *testing.T) clientCalls {
 	})
 
 	return clientCalls{
-		list: func() []controllers.TableNameIDUnified {
+		list: func() []TableInfo {
 			res, err := client.List(ctx)
 			require.NoError(t, err)
 			return res
