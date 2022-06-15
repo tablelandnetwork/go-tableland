@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/textileio/go-tableland/internal/tableland"
-	"github.com/textileio/go-tableland/pkg/util"
+	"github.com/textileio/go-tableland/pkg/siwe"
 	"github.com/textileio/go-tableland/pkg/wallet"
 )
 
@@ -27,7 +27,7 @@ func main() {
 		log.Fatalf("decoding private key: %s", err)
 	}
 
-	siwe, err := util.EncodedSIWEMsg(tableland.ChainID(*chainID), w, *validFor)
+	siwe, err := siwe.EncodedSIWEMsg(tableland.ChainID(*chainID), w, *validFor)
 	if err != nil {
 		log.Fatalf("creating bearer value: %v", err)
 	}

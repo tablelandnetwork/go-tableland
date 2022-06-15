@@ -14,8 +14,8 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/nonce/impl"
+	"github.com/textileio/go-tableland/pkg/siwe"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
-	"github.com/textileio/go-tableland/pkg/util"
 	"github.com/textileio/go-tableland/pkg/wallet"
 )
 
@@ -98,7 +98,7 @@ func NewClient(ctx context.Context, config Config) (*Client, error) {
 		return nil, fmt.Errorf("creating contract client: %v", err)
 	}
 
-	siwe, err := util.EncodedSIWEMsg(tableland.ChainID(config.ChainID), config.Wallet, time.Hour*24*365)
+	siwe, err := siwe.EncodedSIWEMsg(tableland.ChainID(config.ChainID), config.Wallet, time.Hour*24*365)
 	if err != nil {
 		return nil, fmt.Errorf("creating siwe value: %v", err)
 	}
@@ -195,7 +195,7 @@ func (c *Client) Create(ctx context.Context, schema string, opts ...CreateOption
 		return TableID{}, "", errors.New("no receipt found before timeout")
 	}
 
-	tableID, ok := (&big.Int{}).SetString(*r.TableID, 10)
+	tableID, ok := big.NewInt(0).SetString(*r.TableID, 10)
 	if !ok {
 		return TableID{}, "", errors.New("parsing table id from response")
 	}

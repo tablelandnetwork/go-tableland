@@ -1,4 +1,4 @@
-package util
+package siwe
 
 import (
 	"encoding/base64"
