@@ -6,8 +6,8 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/textileio/go-tableland/cmd/api/middlewares"
 	"github.com/textileio/go-tableland/internal/chains"
+	"github.com/textileio/go-tableland/internal/router/middlewares"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
@@ -146,6 +146,11 @@ func (t *TablelandMesa) GetReceipt(
 func (t *TablelandMesa) SetController(
 	ctx context.Context,
 	req tableland.SetControllerRequest) (tableland.SetControllerResponse, error) {
+	ctxCaller := ctx.Value(middlewares.ContextKeyAddress)
+	caller, ok := ctxCaller.(string)
+	if !ok || caller == "" {
+		return tableland.SetControllerResponse{}, errors.New("no caller address found in context")
+	}
 	tableID, err := tableland.NewTableID(req.TokenID)
 	if err != nil {
 		return tableland.SetControllerResponse{}, fmt.Errorf("parsing table id: %s", err)
@@ -162,7 +167,7 @@ func (t *TablelandMesa) SetController(
 	}
 
 	tx, err := stack.Registry.SetController(
-		ctx, common.HexToAddress(req.Caller), tableID, common.HexToAddress(req.Controller))
+		ctx, common.HexToAddress(caller), tableID, common.HexToAddress(req.Controller))
 	if err != nil {
 		return tableland.SetControllerResponse{}, fmt.Errorf("sending tx: %s", err)
 	}
