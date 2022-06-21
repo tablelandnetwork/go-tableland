@@ -144,7 +144,8 @@ func (c *UserController) GetTableRow(rw http.ResponseWriter, r *http.Request) {
 	prefix := **prefixRow.Rows[0][0].(**string)
 
 	chainID := vars["chainID"]
-	stm = fmt.Sprintf("SELECT * FROM %s_%s_%s WHERE %s=%s LIMIT 1", prefix, chainID, id.String(), vars["key"], vars["value"])
+	stm = fmt.Sprintf(
+		"SELECT * FROM %s_%s_%s WHERE %s=%s LIMIT 1", prefix, chainID, id.String(), vars["key"], vars["value"])
 	rows, ok := c.runReadRequest(r.Context(), stm, rw)
 	if !ok {
 		return
