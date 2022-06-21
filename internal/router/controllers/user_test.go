@@ -82,11 +82,23 @@ func TestUserControllerRowNotFound(t *testing.T) {
 	require.JSONEq(t, expJSON, rr.Body.String())
 }
 
-type runnerMock struct{}
+type runnerMock struct {
+	counter int
+}
 
-func (*runnerMock) RunReadQuery(
+func (rm *runnerMock) RunReadQuery(
 	ctx context.Context,
 	req tableland.RunReadQueryRequest) (tableland.RunReadQueryResponse, error) {
+	if rm.counter == 0 {
+		rm.counter++
+		str := "foo"
+		ptrStr := &str
+		return tableland.RunReadQueryResponse{
+			Result: sqlstore.UserRows{
+				Rows: [][]interface{}{{&ptrStr}},
+			},
+		}, nil
+	}
 	return tableland.RunReadQueryResponse{
 		Result: sqlstore.UserRows{
 			Columns: []sqlstore.UserColumn{
