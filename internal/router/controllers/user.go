@@ -118,6 +118,7 @@ func userRowToMap(cols []sqlstore.UserColumn, row []interface{}) map[string]inte
 }
 
 // GetTableRow handles the GET /chain/{chainID}/tables/{id}/{key}/{value} call.
+// Use format=erc721 query param to generate JSON for ERC721 metadata.
 func (c *UserController) GetTableRow(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-type", "application/json")
 	vars := mux.Vars(r)
@@ -186,11 +187,11 @@ func (c *UserController) GetTableRow(rw http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(rw).Encode(out)
 }
 
-// FormatMode is used to contract the output format of a query specified with a param called "mode".
+// FormatMode is used to contract the output format of a query specified with a "mode" query param.
 type FormatMode string
 
 const (
-	// ColumnsMode returns the query result with columns.
+	// ColumnsMode returns the query result with columns. This is the default mode.
 	ColumnsMode FormatMode = "columns"
 	// RowsMode returns the query result with rows only (no columns).
 	RowsMode FormatMode = "rows"
@@ -210,6 +211,7 @@ func modeFromString(m string) (FormatMode, bool) {
 }
 
 // GetTableQuery handles the GET /query?s=[statement] call.
+// Use mode=columns|rows|lines query param to control output format.
 func (c *UserController) GetTableQuery(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-type", "application/json")
 

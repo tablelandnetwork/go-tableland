@@ -88,6 +88,7 @@ func TestUserControllerTableQuery(t *testing.T) {
 	router := mux.NewRouter()
 	router.HandleFunc("/query", userController.GetTableQuery)
 
+	// Columns mode
 	req, err := http.NewRequest("GET", "/query?s=select%20*%20from%20foo%3B", nil)
 	require.NoError(t, err)
 	rr := httptest.NewRecorder()
@@ -96,6 +97,7 @@ func TestUserControllerTableQuery(t *testing.T) {
 	expJSON := `{"columns":[{"name":"id"},{"name":"eyes"},{"name":"mouth"}],"rows":[[1,"Big","Surprised"],[2,"Medium","Sad"],[3,"Small","Happy"]]}` // nolint
 	require.JSONEq(t, expJSON, rr.Body.String())
 
+	// Rows mode
 	req, err = http.NewRequest("GET", "/query?s=select%20*%20from%20foo%3B&mode=rows", nil)
 	require.NoError(t, err)
 	rr = httptest.NewRecorder()
@@ -104,6 +106,7 @@ func TestUserControllerTableQuery(t *testing.T) {
 	expJSON = `[[1,"Big","Surprised"],[2,"Medium","Sad"],[3,"Small","Happy"]]`
 	require.JSONEq(t, expJSON, rr.Body.String())
 
+	// Lines mode
 	req, err = http.NewRequest("GET", "/query?s=select%20*%20from%20foo%3B&mode=lines", nil)
 	require.NoError(t, err)
 	rr = httptest.NewRecorder()
