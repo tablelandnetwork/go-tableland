@@ -186,6 +186,29 @@ func (c *UserController) GetTableRow(rw http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(rw).Encode(out)
 }
 
+// FormatMode is used to contract the output format of a query specified with a param called "mode".
+type FormatMode string
+
+const (
+	// ColumnsMode returns the query result with columns.
+	ColumnsMode FormatMode = "columns"
+	// RowsMode returns the query result with rows only (no columns).
+	RowsMode FormatMode = "rows"
+	// LinesMode returns the query result with each row on a new line.
+	LinesMode FormatMode = "lines"
+)
+
+var modes = map[string]FormatMode{
+	"columns": ColumnsMode,
+	"rows":    RowsMode,
+	"lines":   LinesMode,
+}
+
+func modeFromString(m string) (FormatMode, bool) {
+	mode, ok := modes[m]
+	return mode, ok
+}
+
 // GetTableQuery handles the GET /query?s=[statement] call.
 func (c *UserController) GetTableQuery(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-type", "application/json")
@@ -196,7 +219,21 @@ func (c *UserController) GetTableQuery(rw http.ResponseWriter, r *http.Request) 
 	}
 
 	rw.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(rw).Encode(rows)
+	encoder := json.NewEncoder(rw)
+
+	mode, ok := modeFromString(r.URL.Query().Get("mode"))
+	if !ok || mode == ColumnsMode {
+		_ = encoder.Encode(rows)
+	}
+	switch mode {
+	case RowsMode:
+		_ = encoder.Encode(rows.Rows)
+	case LinesMode:
+		rw.Header().Set("Content-type", "application/jsonl+json")
+		for _, r := range rows.Rows {
+			_ = encoder.Encode(r)
+		}
+	}
 }
 
 func (c *UserController) runReadRequest(
