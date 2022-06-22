@@ -94,8 +94,8 @@ func TestUserControllerTableQuery(t *testing.T) {
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
-	expJSON := `{"columns":[{"name":"id"},{"name":"eyes"},{"name":"mouth"}],"rows":[[1,"Big","Surprised"],[2,"Medium","Sad"],[3,"Small","Happy"]]}` // nolint
-	require.JSONEq(t, expJSON, rr.Body.String())
+	exp := `{"columns":[{"name":"id"},{"name":"eyes"},{"name":"mouth"}],"rows":[[1,"Big","Surprised"],[2,"Medium","Sad"],[3,"Small","Happy"]]}` // nolint
+	require.JSONEq(t, exp, rr.Body.String())
 
 	// Rows mode
 	req, err = http.NewRequest("GET", "/query?s=select%20*%20from%20foo%3B&mode=rows", nil)
@@ -103,8 +103,8 @@ func TestUserControllerTableQuery(t *testing.T) {
 	rr = httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
-	expJSON = `[[1,"Big","Surprised"],[2,"Medium","Sad"],[3,"Small","Happy"]]`
-	require.JSONEq(t, expJSON, rr.Body.String())
+	exp = `[[1,"Big","Surprised"],[2,"Medium","Sad"],[3,"Small","Happy"]]`
+	require.JSONEq(t, exp, rr.Body.String())
 
 	// JSON mode
 	req, err = http.NewRequest("GET", "/query?s=select%20*%20from%20foo%3B&mode=json", nil)
@@ -112,8 +112,21 @@ func TestUserControllerTableQuery(t *testing.T) {
 	rr = httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
-	expJSON = `[{"eyes":"Big","id":1,"mouth":"Surprised"},{"eyes":"Medium","id":2,"mouth":"Sad"},{"eyes":"Small","id":3,"mouth":"Happy"}]` // nolint
-	require.JSONEq(t, expJSON, rr.Body.String())
+	exp = `[{"eyes":"Big","id":1,"mouth":"Surprised"},{"eyes":"Medium","id":2,"mouth":"Sad"},{"eyes":"Small","id":3,"mouth":"Happy"}]` // nolint
+	require.JSONEq(t, exp, rr.Body.String())
+
+	// CSV mode
+	req, err = http.NewRequest("GET", "/query?s=select%20*%20from%20foo%3B&mode=csv", nil)
+	require.NoError(t, err)
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+	exp = `id,eyes,mouth
+1,"Big","Surprised"
+2,"Medium","Sad"
+3,"Small","Happy"
+`
+	require.Equal(t, exp, rr.Body.String())
 
 	// List mode
 	req, err = http.NewRequest("GET", "/query?s=select%20*%20from%20foo%3B&mode=list", nil)
@@ -121,11 +134,11 @@ func TestUserControllerTableQuery(t *testing.T) {
 	rr = httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
-	expJSON = `1|"Big"|"Surprised"
+	exp = `1|"Big"|"Surprised"
 2|"Medium"|"Sad"
 3|"Small"|"Happy"
 `
-	require.Equal(t, expJSON, rr.Body.String())
+	require.Equal(t, exp, rr.Body.String())
 }
 
 type runnerMock struct {
