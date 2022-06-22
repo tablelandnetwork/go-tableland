@@ -82,6 +82,52 @@ func TestUserControllerRowNotFound(t *testing.T) {
 	require.JSONEq(t, expJSON, rr.Body.String())
 }
 
+func TestUserControllerTableQuery(t *testing.T) {
+	userController := NewUserController(&queryRunnerMock{})
+
+	router := mux.NewRouter()
+	router.HandleFunc("/query", userController.GetTableQuery)
+
+	// Columns mode
+	req, err := http.NewRequest("GET", "/query?s=select%20*%20from%20foo%3B", nil)
+	require.NoError(t, err)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+	expJSON := `{"columns":[{"name":"id"},{"name":"eyes"},{"name":"mouth"}],"rows":[[1,"Big","Surprised"],[2,"Medium","Sad"],[3,"Small","Happy"]]}` // nolint
+	require.JSONEq(t, expJSON, rr.Body.String())
+
+	// Rows mode
+	req, err = http.NewRequest("GET", "/query?s=select%20*%20from%20foo%3B&mode=rows", nil)
+	require.NoError(t, err)
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+	expJSON = `[[1,"Big","Surprised"],[2,"Medium","Sad"],[3,"Small","Happy"]]`
+	require.JSONEq(t, expJSON, rr.Body.String())
+
+	// JSON mode
+	req, err = http.NewRequest("GET", "/query?s=select%20*%20from%20foo%3B&mode=json", nil)
+	require.NoError(t, err)
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+	expJSON = `[{"eyes":"Big","id":1,"mouth":"Surprised"},{"eyes":"Medium","id":2,"mouth":"Sad"},{"eyes":"Small","id":3,"mouth":"Happy"}]` // nolint
+	require.JSONEq(t, expJSON, rr.Body.String())
+
+	// List mode
+	req, err = http.NewRequest("GET", "/query?s=select%20*%20from%20foo%3B&mode=list", nil)
+	require.NoError(t, err)
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+	expJSON = `1|"Big"|"Surprised"
+2|"Medium"|"Sad"
+3|"Small"|"Happy"
+`
+	require.Equal(t, expJSON, rr.Body.String())
+}
+
 type runnerMock struct {
 	counter int
 }
@@ -170,6 +216,39 @@ func (*notFoundRunnerMock) RunReadQuery(
 				{Name: "generation"},
 			},
 			Rows: [][]interface{}{},
+		},
+	}, nil
+}
+
+type queryRunnerMock struct{}
+
+func (rm *queryRunnerMock) RunReadQuery(
+	ctx context.Context,
+	req tableland.RunReadQueryRequest) (tableland.RunReadQueryResponse, error) {
+	return tableland.RunReadQueryResponse{
+		Result: sqlstore.UserRows{
+			Columns: []sqlstore.UserColumn{
+				{Name: "id"},
+				{Name: "eyes"},
+				{Name: "mouth"},
+			},
+			Rows: [][]interface{}{
+				{
+					1,
+					"Big",
+					"Surprised",
+				},
+				{
+					2,
+					"Medium",
+					"Sad",
+				},
+				{
+					3,
+					"Small",
+					"Happy",
+				},
+			},
 		},
 	}, nil
 }

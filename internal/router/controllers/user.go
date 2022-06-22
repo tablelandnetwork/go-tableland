@@ -118,6 +118,7 @@ func userRowToMap(cols []sqlstore.UserColumn, row []interface{}) map[string]inte
 }
 
 // GetTableRow handles the GET /chain/{chainID}/tables/{id}/{key}/{value} call.
+// Use format=erc721 query param to generate JSON for ERC721 metadata.
 func (c *UserController) GetTableRow(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-type", "application/json")
 	vars := mux.Vars(r)
@@ -186,17 +187,99 @@ func (c *UserController) GetTableRow(rw http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(rw).Encode(out)
 }
 
+// FormatMode is used to contract the output format of a query specified with a "mode" query param.
+type FormatMode string
+
+const (
+	// ColumnsMode returns the query result with columns. This is the default mode.
+	ColumnsMode FormatMode = "columns"
+	// RowsMode returns the query result with rows only (no columns).
+	RowsMode FormatMode = "rows"
+	// JSONMode returns the query result as JSON key-value pairs.
+	JSONMode FormatMode = "json"
+	// ListMode returns the query result with each row on a new line. Column values are pipe-separated.
+	ListMode FormatMode = "list"
+)
+
+var modes = map[string]FormatMode{
+	"columns": ColumnsMode,
+	"rows":    RowsMode,
+	"json":    JSONMode,
+	"list":    ListMode,
+}
+
+func modeFromString(m string) (FormatMode, bool) {
+	mode, ok := modes[m]
+	return mode, ok
+}
+
 // GetTableQuery handles the GET /query?s=[statement] call.
+// Use mode=columns|rows|json|lines query param to control output format.
 func (c *UserController) GetTableQuery(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-type", "application/json")
 
-	rows, ok := c.runReadRequest(r.Context(), r.URL.Query().Get("s"), rw)
+	stm := r.URL.Query().Get("s")
+	rows, ok := c.runReadRequest(r.Context(), stm, rw)
 	if !ok {
 		return
 	}
 
 	rw.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(rw).Encode(rows)
+	encoder := json.NewEncoder(rw)
+
+	modestr := r.URL.Query().Get("mode")
+	mode, ok := modeFromString(modestr)
+	if !ok {
+		mode = ColumnsMode
+	}
+	switch mode {
+	case ColumnsMode:
+		_ = encoder.Encode(rows)
+	case RowsMode:
+		_ = encoder.Encode(rows.Rows)
+	case JSONMode:
+		jsonrows := make([]map[string]interface{}, len(rows.Rows))
+		for i, row := range rows.Rows {
+			jsonrow := make(map[string]interface{}, len(row))
+			for j, col := range row {
+				jsonrow[rows.Columns[j].Name] = col
+			}
+			jsonrows[i] = jsonrow
+		}
+		_ = encoder.Encode(jsonrows)
+	case ListMode:
+		rw.Header().Set("Content-type", "application/jsonl+json")
+		for _, row := range rows.Rows {
+			for j, col := range row {
+				if j > 0 {
+					_, _ = rw.Write([]byte("|"))
+				}
+
+				b, err := json.Marshal(col)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					log.Ctx(r.Context()).
+						Error().
+						Str("sqlRequest", stm).
+						Err(err)
+
+					_ = encoder.Encode(errors.ServiceError{Message: err.Error()})
+					return
+				}
+				_, _ = rw.Write(b)
+			}
+			_, _ = rw.Write([]byte("\n"))
+		}
+	default:
+		rw.WriteHeader(http.StatusBadRequest)
+		err := fmt.Errorf("unrecognized mode: %s", modestr)
+		log.Ctx(r.Context()).
+			Error().
+			Str("mode", modestr).
+			Err(err)
+
+		_ = encoder.Encode(errors.ServiceError{Message: err.Error()})
+	}
 }
 
 func (c *UserController) runReadRequest(
