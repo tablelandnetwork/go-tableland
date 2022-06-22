@@ -195,14 +195,14 @@ const (
 	ColumnsMode FormatMode = "columns"
 	// RowsMode returns the query result with rows only (no columns).
 	RowsMode FormatMode = "rows"
-	// LinesMode returns the query result with each row on a new line.
-	LinesMode FormatMode = "lines"
+	// ListMode returns the query result with each row on a new line. Column values are pipe-separated.
+	ListMode FormatMode = "list"
 )
 
 var modes = map[string]FormatMode{
 	"columns": ColumnsMode,
 	"rows":    RowsMode,
-	"lines":   LinesMode,
+	"list":    ListMode,
 }
 
 func modeFromString(m string) (FormatMode, bool) {
@@ -215,7 +215,8 @@ func modeFromString(m string) (FormatMode, bool) {
 func (c *UserController) GetTableQuery(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-type", "application/json")
 
-	rows, ok := c.runReadRequest(r.Context(), r.URL.Query().Get("s"), rw)
+	stm := r.URL.Query().Get("s")
+	rows, ok := c.runReadRequest(r.Context(), stm, rw)
 	if !ok {
 		return
 	}
@@ -230,10 +231,28 @@ func (c *UserController) GetTableQuery(rw http.ResponseWriter, r *http.Request) 
 	switch mode {
 	case RowsMode:
 		_ = encoder.Encode(rows.Rows)
-	case LinesMode:
+	case ListMode:
 		rw.Header().Set("Content-type", "application/jsonl+json")
-		for _, r := range rows.Rows {
-			_ = encoder.Encode(r)
+		for _, row := range rows.Rows {
+			for j, col := range row {
+				if j > 0 {
+					_, _ = rw.Write([]byte("|"))
+				}
+
+				b, err := json.Marshal(col)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					log.Ctx(r.Context()).
+						Error().
+						Str("sqlRequest", stm).
+						Err(err)
+
+					_ = encoder.Encode(errors.ServiceError{Message: err.Error()})
+					return
+				}
+				_, _ = rw.Write(b)
+			}
+			_, _ = rw.Write([]byte("\n"))
 		}
 	}
 }

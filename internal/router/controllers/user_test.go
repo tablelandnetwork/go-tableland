@@ -106,15 +106,15 @@ func TestUserControllerTableQuery(t *testing.T) {
 	expJSON = `[[1,"Big","Surprised"],[2,"Medium","Sad"],[3,"Small","Happy"]]`
 	require.JSONEq(t, expJSON, rr.Body.String())
 
-	// Lines mode
-	req, err = http.NewRequest("GET", "/query?s=select%20*%20from%20foo%3B&mode=lines", nil)
+	// List mode
+	req, err = http.NewRequest("GET", "/query?s=select%20*%20from%20foo%3B&mode=list", nil)
 	require.NoError(t, err)
 	rr = httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
-	expJSON = `[1,"Big","Surprised"]
-[2,"Medium","Sad"]
-[3,"Small","Happy"]
+	expJSON = `1|"Big"|"Surprised"
+2|"Medium"|"Sad"
+3|"Small"|"Happy"
 `
 	require.Equal(t, expJSON, rr.Body.String())
 }
