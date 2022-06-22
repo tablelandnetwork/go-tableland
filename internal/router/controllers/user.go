@@ -197,6 +197,8 @@ const (
 	RowsMode FormatMode = "rows"
 	// JSONMode returns the query result as JSON key-value pairs.
 	JSONMode FormatMode = "json"
+	// CSVMode returns the query result as a comma-separated values. The first line contains the column header.
+	CSVMode FormatMode = "csv"
 	// ListMode returns the query result with each row on a new line. Column values are pipe-separated.
 	ListMode FormatMode = "list"
 )
@@ -205,6 +207,7 @@ var modes = map[string]FormatMode{
 	"columns": ColumnsMode,
 	"rows":    RowsMode,
 	"json":    JSONMode,
+	"csv":     CSVMode,
 	"list":    ListMode,
 }
 
@@ -247,6 +250,36 @@ func (c *UserController) GetTableQuery(rw http.ResponseWriter, r *http.Request) 
 			jsonrows[i] = jsonrow
 		}
 		_ = encoder.Encode(jsonrows)
+	case CSVMode:
+		rw.Header().Set("Content-type", "text/csv")
+		for i, col := range rows.Columns {
+			if i > 0 {
+				_, _ = rw.Write([]byte(","))
+			}
+			_, _ = rw.Write([]byte(col.Name))
+		}
+		_, _ = rw.Write([]byte("\n"))
+		for _, row := range rows.Rows {
+			for j, col := range row {
+				if j > 0 {
+					_, _ = rw.Write([]byte(","))
+				}
+
+				b, err := json.Marshal(col)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					log.Ctx(r.Context()).
+						Error().
+						Str("sqlRequest", stm).
+						Err(err)
+
+					_ = encoder.Encode(errors.ServiceError{Message: err.Error()})
+					return
+				}
+				_, _ = rw.Write(b)
+			}
+			_, _ = rw.Write([]byte("\n"))
+		}
 	case ListMode:
 		rw.Header().Set("Content-type", "application/jsonl+json")
 		for _, row := range rows.Rows {
