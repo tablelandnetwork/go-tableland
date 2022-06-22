@@ -195,6 +195,8 @@ const (
 	ColumnsMode FormatMode = "columns"
 	// RowsMode returns the query result with rows only (no columns).
 	RowsMode FormatMode = "rows"
+	// JSONMode returns the query result as JSON key-value pairs.
+	JSONMode FormatMode = "json"
 	// ListMode returns the query result with each row on a new line. Column values are pipe-separated.
 	ListMode FormatMode = "list"
 )
@@ -202,6 +204,7 @@ const (
 var modes = map[string]FormatMode{
 	"columns": ColumnsMode,
 	"rows":    RowsMode,
+	"json":    JSONMode,
 	"list":    ListMode,
 }
 
@@ -211,7 +214,7 @@ func modeFromString(m string) (FormatMode, bool) {
 }
 
 // GetTableQuery handles the GET /query?s=[statement] call.
-// Use mode=columns|rows|lines query param to control output format.
+// Use mode=columns|rows|json|lines query param to control output format.
 func (c *UserController) GetTableQuery(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-type", "application/json")
 
@@ -231,6 +234,16 @@ func (c *UserController) GetTableQuery(rw http.ResponseWriter, r *http.Request) 
 	switch mode {
 	case RowsMode:
 		_ = encoder.Encode(rows.Rows)
+	case JSONMode:
+		jsonrows := make([]map[string]interface{}, len(rows.Rows))
+		for i, row := range rows.Rows {
+			jsonrow := make(map[string]interface{})
+			for j, col := range row {
+				jsonrow[rows.Columns[j].Name] = col
+			}
+			jsonrows[i] = jsonrow
+		}
+		_ = encoder.Encode(jsonrows)
 	case ListMode:
 		rw.Header().Set("Content-type", "application/jsonl+json")
 		for _, row := range rows.Rows {

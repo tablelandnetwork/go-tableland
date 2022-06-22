@@ -106,6 +106,15 @@ func TestUserControllerTableQuery(t *testing.T) {
 	expJSON = `[[1,"Big","Surprised"],[2,"Medium","Sad"],[3,"Small","Happy"]]`
 	require.JSONEq(t, expJSON, rr.Body.String())
 
+	// JSON mode
+	req, err = http.NewRequest("GET", "/query?s=select%20*%20from%20foo%3B&mode=json", nil)
+	require.NoError(t, err)
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+	expJSON = `[{"eyes":"Big","id":1,"mouth":"Surprised"},{"eyes":"Medium","id":2,"mouth":"Sad"},{"eyes":"Small","id":3,"mouth":"Happy"}]` // nolint
+	require.JSONEq(t, expJSON, rr.Body.String())
+
 	// List mode
 	req, err = http.NewRequest("GET", "/query?s=select%20*%20from%20foo%3B&mode=list", nil)
 	require.NoError(t, err)
