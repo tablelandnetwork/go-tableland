@@ -227,17 +227,20 @@ func (c *UserController) GetTableQuery(rw http.ResponseWriter, r *http.Request) 
 	rw.WriteHeader(http.StatusOK)
 	encoder := json.NewEncoder(rw)
 
-	mode, ok := modeFromString(r.URL.Query().Get("mode"))
-	if !ok || mode == ColumnsMode {
-		_ = encoder.Encode(rows)
+	modestr := r.URL.Query().Get("mode")
+	mode, ok := modeFromString(modestr)
+	if !ok {
+		mode = ColumnsMode
 	}
 	switch mode {
+	case ColumnsMode:
+		_ = encoder.Encode(rows)
 	case RowsMode:
 		_ = encoder.Encode(rows.Rows)
 	case JSONMode:
 		jsonrows := make([]map[string]interface{}, len(rows.Rows))
 		for i, row := range rows.Rows {
-			jsonrow := make(map[string]interface{})
+			jsonrow := make(map[string]interface{}, len(row))
 			for j, col := range row {
 				jsonrow[rows.Columns[j].Name] = col
 			}
@@ -267,6 +270,15 @@ func (c *UserController) GetTableQuery(rw http.ResponseWriter, r *http.Request) 
 			}
 			_, _ = rw.Write([]byte("\n"))
 		}
+	default:
+		rw.WriteHeader(http.StatusBadRequest)
+		err := fmt.Errorf("unrecognized mode: %s", modestr)
+		log.Ctx(r.Context()).
+			Error().
+			Str("mode", modestr).
+			Err(err)
+
+		_ = encoder.Encode(errors.ServiceError{Message: err.Error()})
 	}
 }
 
