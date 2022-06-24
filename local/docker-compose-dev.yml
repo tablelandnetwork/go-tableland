@@ -7,7 +7,6 @@ services:
     platform: linux/{{platform}}
     entrypoint: ["./dlv", "--listen=:40000", "--headless=true", "--accept-multiclient", "--continue", "--api-version=2", "exec", "./api"]
     environment:
-    # - REGISTRY_ETHENDPOINT=ws://127.0.0.1:8545 # Linux
       - LOG_HUMAN=true
       - LOG_DEBUG=true
       - OTEL_SERVICE_NAME=tableland:api # this is just to the unknown_service from the metrics label
