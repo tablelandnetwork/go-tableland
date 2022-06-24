@@ -22,8 +22,3 @@ kovan-staging-up:
 kovan-staging-down:
 	docker-compose -f docker-compose-live.yml down
 .PHONY: kovan-staging-down
-
-
-psql:
-	docker-compose -f docker-compose-dev.yml exec api psql postgresql://dev_user:dev_password@database/dev_database
-.PHONY: psql
