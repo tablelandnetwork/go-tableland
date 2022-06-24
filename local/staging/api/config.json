@@ -20,10 +20,6 @@
     "Human": false,
     "Debug": true
   },
-  "AdminAPI": {
-    "Username": "admin_user",
-    "Password": "admin_password"
-  },
   "Chains": [
     {
       "Name": "Optimism Kovan",
