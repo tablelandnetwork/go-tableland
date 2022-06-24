@@ -5,14 +5,8 @@ services:
       context: ..
       dockerfile: ./cmd/api/Dockerfile.debug
     platform: linux/{{platform}}
-    entrypoint: ["./with-postgres.sh", "./dlv", "--listen=:40000", "--headless=true", "--accept-multiclient", "--continue", "--api-version=2", "exec", "./api"]
+    entrypoint: ["./dlv", "--listen=:40000", "--headless=true", "--accept-multiclient", "--continue", "--api-version=2", "exec", "./api"]
     environment:
-      - DB_HOST=database
-      - DB_USER=dev_user
-      - DB_PASS=dev_password
-      - DB_NAME=dev_database
-      - POSTGRES_USER=postgres # used only in with-postgres.sh
-      - POSTGRES_PASSWORD=postgres # used only in with-postgres.sh
       - OTEL_SERVICE_NAME=tableland:api # this is just to the unknown_service from the metrics label
     env_file:
       - ${ENV_FILE}
@@ -21,31 +15,9 @@ services:
       - "127.0.0.1:9090:9090"
       - "127.0.0.1:40000:40000"
     volumes:
-      - ${PWD}/${CONFIG_FILE}:/app/config.json
+      - ${PWD}/${CONFIG_FILE}:/root/.tableland/config.json
     security_opt:
       - "seccomp:unconfined"
     cap_add:
       - SYS_PTRACE
-    depends_on:
-      database:
-        condition: service_healthy
     restart: unless-stopped
-  database:
-    build:
-      context: .
-      dockerfile: postgres.Dockerfile
-    platform: linux/{{platform}}
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-    command:
-      - "postgres"
-      - "-c"
-      - "compute_query_id=auto"
-      - "-c"
-      - "shared_preload_libraries=pg_stat_statements"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 1s
-      timeout: 5s
-      retries: 10

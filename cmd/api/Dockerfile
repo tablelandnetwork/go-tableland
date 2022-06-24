@@ -13,9 +13,6 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
 
 FROM alpine
 
-RUN apk --no-cache add postgresql-client
-COPY /local/with-postgres.sh /app/
-
 COPY --from=builder /app/api /app/api
 WORKDIR /app
 ENTRYPOINT ["./api"]
