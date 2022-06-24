@@ -15,7 +15,7 @@ services:
       - "127.0.0.1:9090:9090"
       - "127.0.0.1:40000:40000"
     volumes:
-      - ${PWD}/${CONFIG_FILE}:/root/.tableland/config.json
+      - ${PWD}/${ENVIROMENT}:/root/.tableland
     security_opt:
       - "seccomp:unconfined"
     cap_add:
