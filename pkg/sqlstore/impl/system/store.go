@@ -15,7 +15,6 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/sqlite3"
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
-	"github.com/jackc/pgx/v4"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
@@ -222,7 +221,7 @@ func (s *SystemStore) GetReceipt(
 	}
 
 	res, err := s.db.queries().GetReceipt(ctx, params)
-	if err == pgx.ErrNoRows {
+	if err == sql.ErrNoRows {
 		return eventprocessor.Receipt{}, false, nil
 	}
 	if err != nil {
@@ -238,7 +237,7 @@ func (s *SystemStore) GetReceipt(
 		receipt.Error = &res.Error.String
 	}
 	if res.TableID.Valid {
-		id, err := tableland.NewTableID(res.TableID.String)
+		id, err := tableland.NewTableIDFromInt64(res.TableID.Int64)
 		if err != nil {
 			return eventprocessor.Receipt{}, false, fmt.Errorf("parsing id to string: %s", err)
 		}
@@ -254,7 +253,7 @@ func (s *SystemStore) Close() error {
 	return nil
 }
 
-// executeMigration run db migrations and return a ready to use connection to the Postgres database.
+// executeMigration run db migrations and return a ready to use connection to the SQLite database.
 func executeMigration(dbURI string, as *bindata.AssetSource) error {
 	d, err := bindata.WithInstance(as)
 	if err != nil {

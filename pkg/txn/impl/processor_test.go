@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/google/uuid"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/tableland"
@@ -18,6 +17,7 @@ import (
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/txn"
+	"github.com/textileio/go-tableland/tests"
 )
 
 // Random address for testing. The value isn't important
@@ -821,7 +821,7 @@ func existsTableWithName(t *testing.T, dbURL string, tableName string) bool {
 
 	pool, err := sql.Open("sqlite3", dbURL)
 	require.NoError(t, err)
-	q := `SELECT 1 FROM sqlite_master  WHERE type='table' AND name = $1`
+	q := `SELECT 1 FROM sqlite_master  WHERE type='table' AND name = ?1`
 	row := pool.QueryRow(q, tableName)
 	var dummy int
 	err = row.Scan(&dummy)
@@ -835,7 +835,7 @@ func existsTableWithName(t *testing.T, dbURL string, tableName string) bool {
 func newTxnProcessor(t *testing.T, rowsLimit int) (*TblTxnProcessor, string) {
 	t.Helper()
 
-	url := "file::" + uuid.NewString() + ":?mode=memory&cache=shared&_foreign_keys=on"
+	url := tests.Sqlite3URL()
 	txnp, err := NewTxnProcessor(1337, url, rowsLimit, &aclMock{})
 	require.NoError(t, err)
 

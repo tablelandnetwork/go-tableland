@@ -6,7 +6,7 @@ import (
 )
 
 const getTable = `-- name: GetTable :one
-SELECT created_at, id, structure, controller, prefix, chain_id FROM registry WHERE chain_id =$1 AND id = $2
+SELECT created_at, id, structure, controller, prefix, chain_id FROM registry WHERE chain_id =?1 AND id = ?2
 `
 
 type GetTableParams struct {

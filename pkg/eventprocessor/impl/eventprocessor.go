@@ -146,7 +146,7 @@ func (ep *EventProcessor) startDaemon() error {
 	if err != nil {
 		ep.log.Err(err).Msg("getting last processed height")
 	}
-	if err := b.Close(ctx); err != nil {
+	if err := b.Close(); err != nil {
 		return fmt.Errorf("closing batch: %s", err)
 	}
 	ep.mLastProcessedHeight.Store(fromHeight)
@@ -212,7 +212,7 @@ func (ep *EventProcessor) runBlockQueries(ctx context.Context, bqs eventfeed.Blo
 		return fmt.Errorf("opening batch: %s", err)
 	}
 	defer func() {
-		if err := b.Close(ctx); err != nil {
+		if err := b.Close(); err != nil {
 			ep.log.Error().Err(err).Msg("closing batch")
 		}
 	}()
@@ -276,7 +276,7 @@ func (ep *EventProcessor) runBlockQueries(ctx context.Context, bqs eventfeed.Blo
 		return fmt.Errorf("set new processed height %d: %s", bqs.BlockNumber, err)
 	}
 
-	if err := b.Commit(ctx); err != nil {
+	if err := b.Commit(); err != nil {
 		return fmt.Errorf("committing changes: %s", err)
 	}
 	ep.log.Debug().Int64("height", bqs.BlockNumber).Msg("new last processed height")
