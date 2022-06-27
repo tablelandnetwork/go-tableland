@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS registry (
     structure TEXT NOT NULL,
     controller TEXT NOT NULL,
     prefix TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at INTEGER NOT NULL,
     chain_id INTEGER,
 
     PRIMARY KEY(chain_id, id),
@@ -15,8 +15,8 @@ CREATE TABLE IF NOT EXISTS system_acl (
     controller TEXT NOT NULL,
     privileges INT NOT NULL,
     chain_id INTEGER NOT NULL,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER,
 
     PRIMARY KEY(chain_id, table_id, controller),
     FOREIGN KEY(chain_id, table_id) REFERENCES registry(chain_id, id)
@@ -30,4 +30,15 @@ CREATE TABLE IF NOT EXISTS system_controller (
     PRIMARY KEY(chain_id, table_id),
     CHECK (controller != '0x0000000000000000000000000000000000000000'),
     FOREIGN KEY(chain_id, table_id) REFERENCES registry(chain_id, id)
+);
+
+CREATE TABLE IF NOT EXISTS system_txn_receipts (
+    chain_id INTEGER NOT NULL,
+    block_number INTEGER NOT NULL,
+    block_order INTEGER NOT NULL,
+    txn_hash TEXT NOT NULL,
+    error TEXT,
+    table_id INTEGER,
+
+    PRIMARY KEY(chain_id, txn_hash)
 );
