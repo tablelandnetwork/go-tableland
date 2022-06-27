@@ -9,14 +9,13 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/hetiansu5/urlquery v1.2.7
-	github.com/jackc/pgtype v1.11.0
 	github.com/mattn/go-sqlite3 v1.14.13
 	github.com/omeid/uconfig v1.2.0
-	github.com/pganalyze/pg_query_go/v2 v2.1.0
 	github.com/rs/zerolog v1.27.0
 	github.com/sethvargo/go-limiter v0.7.2
 	github.com/spruceid/siwe-go v0.2.0
 	github.com/stretchr/testify v1.7.4
+	github.com/tablelandnetwork/sqlparser v0.0.0-20220627210906-4f88b6ff9726
 	github.com/textileio/cli v1.0.2
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.32.0
 	go.opentelemetry.io/contrib/instrumentation/runtime v0.32.0
@@ -61,8 +60,6 @@ require (
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/holiman/bloomfilter/v2 v2.0.3 // indirect
 	github.com/holiman/uint256 v1.2.0 // indirect
-	github.com/jackc/pgio v1.0.0 // indirect
-	github.com/jackc/pgx/v4 v4.16.1 // indirect
 	github.com/magiconair/properties v1.8.5 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
