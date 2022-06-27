@@ -8,7 +8,7 @@ package db
 import (
 	"context"
 
-	"github.com/jackc/pgtype"
+	"github.com/lib/pq"
 )
 
 const getAclByTableAndController = `-- name: GetAclByTableAndController :one
@@ -17,17 +17,17 @@ SELECT table_id, controller, privileges, created_at, updated_at, chain_id FROM s
 
 type GetAclByTableAndControllerParams struct {
 	Controller string
-	TableID    pgtype.Numeric
+	TableID    string
 	ChainID    int64
 }
 
 func (q *Queries) GetAclByTableAndController(ctx context.Context, arg GetAclByTableAndControllerParams) (SystemAcl, error) {
-	row := q.db.QueryRow(ctx, getAclByTableAndController, arg.Controller, arg.TableID, arg.ChainID)
+	row := q.queryRow(ctx, q.getAclByTableAndControllerStmt, getAclByTableAndController, arg.Controller, arg.TableID, arg.ChainID)
 	var i SystemAcl
 	err := row.Scan(
 		&i.TableID,
 		&i.Controller,
-		&i.Privileges,
+		pq.Array(&i.Privileges),
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ChainID,

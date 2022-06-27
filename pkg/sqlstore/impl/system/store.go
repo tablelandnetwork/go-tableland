@@ -2,6 +2,7 @@ package system
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"math/big"
@@ -206,7 +207,7 @@ func (s *SystemStore) ReplacePendingTxByHash(ctx context.Context, oldHash common
 }
 
 // WithTx returns a copy of the current SystemStore with a tx attached.
-func (s *SystemStore) WithTx(tx pgx.Tx) sqlstore.SystemStore {
+func (s *SystemStore) WithTx(tx *sql.Tx) sqlstore.SystemStore {
 	return &SystemStore{
 		chainID: s.chainID,
 		db: &dbWithTxImpl{
@@ -370,7 +371,7 @@ type dbWithTx interface {
 
 type dbWithTxImpl struct {
 	db *db.Queries
-	tx pgx.Tx
+	tx *sql.Tx
 }
 
 func (d *dbWithTxImpl) queries() *db.Queries {

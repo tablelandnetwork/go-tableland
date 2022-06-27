@@ -7,13 +7,11 @@ package db
 import (
 	"database/sql"
 	"time"
-
-	"github.com/jackc/pgtype"
 )
 
 type Registry struct {
 	CreatedAt  time.Time
-	ID         pgtype.Numeric
+	ID         string
 	Structure  string
 	Controller string
 	Prefix     string
@@ -21,7 +19,7 @@ type Registry struct {
 }
 
 type SystemAcl struct {
-	TableID    pgtype.Numeric
+	TableID    string
 	Controller string
 	Privileges []string
 	CreatedAt  time.Time
@@ -39,7 +37,7 @@ type SystemAuth struct {
 
 type SystemController struct {
 	ChainID    int64
-	TableID    pgtype.Numeric
+	TableID    string
 	Controller string
 }
 
@@ -63,5 +61,5 @@ type SystemTxnReceipt struct {
 	BlockNumber int64
 	TxnHash     string
 	Error       sql.NullString
-	TableID     pgtype.Numeric
+	TableID     sql.NullString
 }
