@@ -42,17 +42,16 @@
       "EventFeed": {
         "ChainAPIBackoff": "15s",
         "NewBlockTimeout": "30s",
-        "MaxBlocksFetchSize": 10000,
         "MinBlockDepth": 0
       },
       "EventProcessor": {
         "BlockFailedExecutionBackoff": "10s"
       },
       "NonceTracker": {
-         "CheckInterval": "10s",
-         "StuckInterval": "10m",
-         "MinBlockDepth": 0
+        "CheckInterval": "10s",
+        "StuckInterval": "10m",
+        "MinBlockDepth": 0
       }
-   }
- ]
+    }
+  ]
 }
