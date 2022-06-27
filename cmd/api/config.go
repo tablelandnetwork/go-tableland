@@ -18,7 +18,6 @@ import (
 var configFilename = "config.json"
 
 type config struct {
-	Impl string `default:"mesa"` // service implementation (mock or mesa)
 	HTTP struct {
 		Port string `default:"8080"` // HTTP port (e.g. 8080)
 
@@ -36,10 +35,6 @@ type config struct {
 	Log struct {
 		Human bool `default:"false"`
 		Debug bool `default:"false"`
-	}
-	AdminAPI struct {
-		Username string `default:""`
-		Password string `default:""`
 	}
 	Chains []ChainConfig
 }
