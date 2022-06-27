@@ -45,7 +45,6 @@
       "EventFeed": {
         "ChainAPIBackoff": "15s",
         "NewBlockTimeout": "30s",
-        "MaxBlocksFetchSize": 100000,
         "MinBlockDepth": 0
       },
       "EventProcessor": {
@@ -71,7 +70,6 @@
       "EventFeed": {
         "ChainAPIBackoff": "15s",
         "NewBlockTimeout": "45s",
-        "MaxBlocksFetchSize": 100000,
         "MinBlockDepth": 1
       },
       "EventProcessor": {
@@ -97,7 +95,6 @@
       "EventFeed": {
         "ChainAPIBackoff": "15s",
         "NewBlockTimeout": "30s",
-        "MaxBlocksFetchSize": 100000,
         "MinBlockDepth": 1
       },
       "EventProcessor": {
