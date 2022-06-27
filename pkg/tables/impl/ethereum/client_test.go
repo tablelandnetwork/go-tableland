@@ -29,6 +29,7 @@ import (
 )
 
 func TestCreateTable(t *testing.T) {
+	t.Parallel()
 	backend, _, fromAuth, _, client := setup(t)
 
 	txn, err := client.CreateTable(context.Background(), fromAuth.From, "CREATE TABLE foo (bar int)")
@@ -45,6 +46,8 @@ func TestCreateTable(t *testing.T) {
 }
 
 func TestIsOwner(t *testing.T) {
+	t.Parallel()
+
 	backend, key, fromAuth, contract, client := setup(t)
 	_, toAuth := requireNewAuth(t)
 	requireAuthGas(t, backend, toAuth)
@@ -61,6 +64,8 @@ func TestIsOwner(t *testing.T) {
 }
 
 func TestRunSQL(t *testing.T) {
+	t.Parallel()
+
 	backend, _, txOpts, contract, client := setup(t)
 
 	tokenID := requireMint(t, backend, contract, txOpts, txOpts.From)
@@ -100,6 +105,8 @@ func TestRunSQL(t *testing.T) {
 }
 
 func TestSetController(t *testing.T) {
+	t.Parallel()
+
 	backend, _, txOpts, contract, client := setup(t)
 
 	// You have to be the owner of the token to set the controller
@@ -136,6 +143,8 @@ func TestSetController(t *testing.T) {
 }
 
 func TestRunSQLWithPolicy(t *testing.T) {
+	t.Parallel()
+
 	backend, _, txOpts, contract, client := setup(t)
 
 	// caller must be the sender

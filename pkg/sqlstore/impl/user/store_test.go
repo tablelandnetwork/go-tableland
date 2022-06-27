@@ -8,77 +8,59 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
+	"github.com/textileio/go-tableland/tests"
 )
 
 func TestReadGeneralTypeCorrectness(t *testing.T) {
-	db, err := sql.Open("sqlite3", "file::memory:?cache=shared")
+	t.Parallel()
+
+	db, err := sql.Open("sqlite3", tests.Sqlite3URL())
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	db.Begin()
-	tx, err := db.Begin()
-	require.NoError(t, err)
-	defer func() { _ = tx.Rollback() }()
 
+	// INTEGER
 	{
-		data, err := execReadQuery(ctx, tx, "SELECT 1 one")
+		data, err := execReadQuery(ctx, db, "SELECT cast(1 as INTEGER) one")
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
 		require.JSONEq(t, `{"columns":[{"name":"one"}],"rows":[[1]]}`, string(b))
 	}
 
+	// Two INTEGERs without cast.
 	{
-		data, err := execReadQuery(ctx, tx, "SELECT 1 a, 2 b")
+		data, err := execReadQuery(ctx, db, "SELECT 1 a, 2 b")
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
 		require.JSONEq(t, `{"columns":[{"name":"a"}, {"name":"b"}],"rows":[[1, 2]]}`, string(b))
 	}
 
-	// test real type parsing
+	// REAL
 	{
-		data, err := execReadQuery(ctx, tx, "SELECT cast(1.2 as real) float8")
+		data, err := execReadQuery(ctx, db, "SELECT cast(1.2 as REAL) real")
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
-		require.JSONEq(t, `{"columns":[{"name":"float8"}],"rows":[[1.2]]}`, string(b))
+		require.JSONEq(t, `{"columns":[{"name":"real"}],"rows":[[1.2]]}`, string(b))
 	}
 
-	// test text type parsing
+	// TEXT
 	{
-		data, err := execReadQuery(ctx, tx, "SELECT 'hello' text")
+		data, err := execReadQuery(ctx, db, "SELECT 'hello' text")
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
 		require.JSONEq(t, `{"columns":[{"name":"text"}],"rows":[["hello"]]}`, string(b))
 	}
 
-	/* TODO(jsign)
-	// test json map
+	// BLOB
 	{
-		data, err := execReadQuery(ctx, tx, `SELECT '{"foo": 1, "bar":"zar"}' json;`)
+		data, err := execReadQuery(ctx, db, "SELECT cast(X'4141414141414141414141' as BLOB) blob")
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
-		require.JSONEq(t, `{"columns":[{"name":"json"}],"rows":[[{"bar":"zar","foo":1}]]}`, string(b))
+		require.JSONEq(t, `{"columns":[{"name":"blob"}],"rows":[["QUFBQUFBQUFBQUE="]]}`, string(b))
 	}
-
-	// test json array
-	{
-		data, err := execReadQuery(ctx, tx, `SELECT ('[{"foo": 1}, {"bar":[1,2]}]')::json;`)
-		require.NoError(t, err)
-		b, err := json.Marshal(data)
-		require.NoError(t, err)
-		require.JSONEq(t, `{"columns":[{"name":"json"}],"rows":[[[{"foo":1},{"bar":[1,2]}]]]}`, string(b))
-	}
-	// test json single string
-	{
-		data, err := execReadQuery(ctx, tx, `SELECT ('"iam valid too"')::json;`)
-		require.NoError(t, err)
-		b, err := json.Marshal(data)
-		require.NoError(t, err)
-		require.JSONEq(t, `{"columns":[{"name":"json"}],"rows":[["iam valid too"]]}`, string(b))
-	}
-	*/
 }

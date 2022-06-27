@@ -212,7 +212,7 @@ func TestQueryWithWrongTableTarget(t *testing.T) {
 		Error:   &expErr,
 		TableID: nil,
 	}
-	require.Eventually(t, checkReceipts(t, expReceipt), time.Second*5, time.Millisecond*100)
+	require.Eventually(t, checkReceipts(t, expReceipt), time.Second*10, time.Millisecond*100)
 }
 
 func TestSetController(t *testing.T) {
@@ -366,10 +366,10 @@ func setup(t *testing.T) (
 		res, err := userStore.Read(ctx, rq)
 		require.NoError(t, err)
 
-		queryRes := res.(sqlstore.UserRows)
+		queryRes := res.(*sqlstore.UserRows)
 		ret := make([]int64, len(queryRes.Rows))
 		for i := range queryRes.Rows {
-			ret[i] = queryRes.Rows[i][0].(*sql.NullInt64).Int64
+			ret[i] = (*queryRes.Rows[i][0].(*interface{})).(int64)
 		}
 		return ret
 	}

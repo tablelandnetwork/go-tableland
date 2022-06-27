@@ -58,6 +58,22 @@ func TestTodoAppWorkflow(t *testing.T) {
 	processCSV(ctx, t, caller, tbld, "testdata/todoapp_queries.csv", backend)
 }
 
+func TestAny(t *testing.T) {
+	t.Parallel()
+	t.Skipf("enable test when we have the new parser")
+
+	ctx, tbld, backend, sc, txOpts := setup(t)
+
+	caller := txOpts.From
+	_, err := sc.CreateTable(txOpts, caller,
+		`CREATE TABLE any_1337 (
+			wild ANY
+		  );`)
+	require.NoError(t, err)
+
+	processCSV(ctx, t, caller, tbld, "testdata/any_queries.csv", backend)
+}
+
 func TestInsertOnConflict(t *testing.T) {
 	t.Parallel()
 	// TODO: This test was passing because the "DO UPDATE SET" clause didn't have a table name.
@@ -104,7 +120,7 @@ func TestMultiStatement(t *testing.T) {
 
 	_, err := sc.CreateTable(txOpts, caller,
 		`CREATE TABLE foo_1337 (
-			name TEXT unique
+			name text unique
 		);`)
 	require.NoError(t, err)
 
@@ -156,10 +172,6 @@ func TestJSON(t *testing.T) {
 func TestCheckInsertPrivileges(t *testing.T) {
 	t.Parallel()
 
-	ctx, tbldGranter, tbldGrantee, backend, sc, txOptsGranter, txOptsGrantee := setupTablelandForTwoAddresses(t)
-	granter := txOptsGranter.From.Hex()
-	grantee := txOptsGrantee.From.Hex()
-
 	type testCase struct { // nolint
 		query      string
 		privileges tableland.Privileges
@@ -167,19 +179,25 @@ func TestCheckInsertPrivileges(t *testing.T) {
 	}
 
 	tests := []testCase{
-		{"INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", tableland.Privileges{}, false},
-		{"INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivInsert}, true},
-		{"INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivUpdate}, false},
-		{"INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivDelete}, false},
-		{"INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate}, true},                       // nolint
-		{"INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivInsert, tableland.PrivDelete}, true},                       // nolint
-		{"INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivUpdate, tableland.PrivDelete}, false},                      // nolint
-		{"INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate, tableland.PrivDelete}, true}, // nolint
+		{"INSERT INTO foo_1337_1 (bar) VALUES ('Hello')", tableland.Privileges{}, false},
+		{"INSERT INTO foo_1337_1 (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivInsert}, true},
+		{"INSERT INTO foo_1337_1 (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivUpdate}, false},
+		{"INSERT INTO foo_1337_1 (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivDelete}, false},
+		{"INSERT INTO foo_1337_1 (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate}, true},                       // nolint
+		{"INSERT INTO foo_1337_1 (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivInsert, tableland.PrivDelete}, true},                       // nolint
+		{"INSERT INTO foo_1337_1 (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivUpdate, tableland.PrivDelete}, false},                      // nolint
+		{"INSERT INTO foo_1337_1 (bar) VALUES ('Hello')", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate, tableland.PrivDelete}, true}, // nolint
 	}
 
 	for i, test := range tests {
-		testCase := fmt.Sprint(i + 1)
-		t.Run(testCase, func(t *testing.T) {
+		test := test
+		t.Run(fmt.Sprint(i+1), func(t *testing.T) {
+			t.Parallel()
+
+			ctx, tbldGranter, tbldGrantee, backend, sc, txOptsGranter, txOptsGrantee := setupTablelandForTwoAddresses(t)
+			granter := txOptsGranter.From.Hex()
+			grantee := txOptsGrantee.From.Hex()
+
 			_, err := sc.CreateTable(txOptsGranter, common.HexToAddress(granter), `CREATE TABLE foo_1337 (bar text);`)
 			require.NoError(t, err)
 			backend.Commit()
@@ -192,18 +210,18 @@ func TestCheckInsertPrivileges(t *testing.T) {
 				}
 
 				// execute grant statement according to test case
-				grantQuery := fmt.Sprintf("GRANT %s ON foo_1337_%s TO \"%s\"", strings.Join(privileges, ","), testCase, grantee)
+				grantQuery := fmt.Sprintf("GRANT %s ON foo_1337_1 TO \"%s\"", strings.Join(privileges, ","), grantee)
 				r, err := relayWriteQuery(ctx, t, tbldGranter, grantQuery, granter)
 				require.NoError(t, err)
 				backend.Commit()
 				successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
 			}
 
-			r, err := relayWriteQuery(ctx, t, tbldGrantee, fmt.Sprintf(test.query, testCase), grantee)
+			r, err := relayWriteQuery(ctx, t, tbldGrantee, test.query, grantee)
 			require.NoError(t, err)
 			backend.Commit()
 
-			testQuery := fmt.Sprintf("SELECT * FROM foo_1337_%s WHERE bar ='Hello';", testCase)
+			testQuery := "SELECT * FROM foo_1337_1 WHERE bar ='Hello';"
 			if test.isAllowed {
 				require.Eventually(t,
 					runSQLCountEq(ctx, t, tbldGrantee, testQuery, grantee, 1),
@@ -224,10 +242,6 @@ func TestCheckInsertPrivileges(t *testing.T) {
 func TestCheckUpdatePrivileges(t *testing.T) {
 	t.Parallel()
 
-	ctx, tbldGranter, tbldGrantee, backend, sc, txOptsGranter, txOptsGrantee := setupTablelandForTwoAddresses(t)
-	granter := txOptsGranter.From.Hex()
-	grantee := txOptsGrantee.From.Hex()
-
 	type testCase struct { // nolint
 		query      string
 		privileges tableland.Privileges
@@ -235,26 +249,32 @@ func TestCheckUpdatePrivileges(t *testing.T) {
 	}
 
 	tests := []testCase{
-		{"UPDATE foo_1337_%s SET bar = 'Hello 2'", tableland.Privileges{}, false},
-		{"UPDATE foo_1337_%s SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivInsert}, false},
-		{"UPDATE foo_1337_%s SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivUpdate}, true},
-		{"UPDATE foo_1337_%s SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivDelete}, false},
-		{"UPDATE foo_1337_%s SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate}, true},
-		{"UPDATE foo_1337_%s SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivInsert, tableland.PrivDelete}, false},
-		{"UPDATE foo_1337_%s SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivUpdate, tableland.PrivDelete}, true},
-		{"UPDATE foo_1337_%s SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate, tableland.PrivDelete}, true}, // nolint
+		{"UPDATE foo_1337_1 SET bar = 'Hello 2'", tableland.Privileges{}, false},
+		{"UPDATE foo_1337_1 SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivInsert}, false},
+		{"UPDATE foo_1337_1 SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivUpdate}, true},
+		{"UPDATE foo_1337_1 SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivDelete}, false},
+		{"UPDATE foo_1337_1 SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate}, true},
+		{"UPDATE foo_1337_1 SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivInsert, tableland.PrivDelete}, false},
+		{"UPDATE foo_1337_1 SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivUpdate, tableland.PrivDelete}, true},
+		{"UPDATE foo_1337_1 SET bar = 'Hello 2'", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate, tableland.PrivDelete}, true}, // nolint
 	}
 
 	for i, test := range tests {
-		testCase := fmt.Sprint(i + 1)
-		t.Run(testCase, func(t *testing.T) {
+		test := test
+		t.Run(fmt.Sprint(i+1), func(t *testing.T) {
+			t.Parallel()
+
+			ctx, tbldGranter, tbldGrantee, backend, sc, txOptsGranter, txOptsGrantee := setupTablelandForTwoAddresses(t)
+			granter := txOptsGranter.From.Hex()
+			grantee := txOptsGrantee.From.Hex()
+
 			_, err := sc.CreateTable(txOptsGranter, common.HexToAddress(granter), `CREATE TABLE foo_1337 (bar text);`)
 			require.NoError(t, err)
 			backend.Commit()
 			var successfulTxnHashes []string
 
 			// we initilize the table with a row to be updated
-			r, err := relayWriteQuery(ctx, t, tbldGranter, fmt.Sprintf("INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", testCase), granter) // nolint
+			r, err := relayWriteQuery(ctx, t, tbldGranter, "INSERT INTO foo_1337_1 (bar) VALUES ('Hello')", granter) // nolint
 			require.NoError(t, err)
 			backend.Commit()
 			successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
@@ -266,18 +286,18 @@ func TestCheckUpdatePrivileges(t *testing.T) {
 				}
 
 				// execute grant statement according to test case
-				grantQuery := fmt.Sprintf("GRANT %s ON foo_1337_%s TO \"%s\"", strings.Join(privileges, ","), testCase, grantee)
+				grantQuery := fmt.Sprintf("GRANT %s ON foo_1337_1 TO \"%s\"", strings.Join(privileges, ","), grantee)
 				r, err := relayWriteQuery(ctx, t, tbldGranter, grantQuery, granter)
 				require.NoError(t, err)
 				backend.Commit()
 				successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
 			}
 
-			r, err = relayWriteQuery(ctx, t, tbldGrantee, fmt.Sprintf(test.query, testCase), grantee)
+			r, err = relayWriteQuery(ctx, t, tbldGrantee, test.query, grantee)
 			require.NoError(t, err)
 			backend.Commit()
 
-			testQuery := fmt.Sprintf("SELECT * FROM foo_1337_%s WHERE bar ='Hello 2';", testCase)
+			testQuery := "SELECT * FROM foo_1337_1 WHERE bar='Hello 2';"
 			if test.isAllowed {
 				require.Eventually(t,
 					runSQLCountEq(ctx, t, tbldGrantee, testQuery, grantee, 1),
@@ -298,10 +318,6 @@ func TestCheckUpdatePrivileges(t *testing.T) {
 func TestCheckDeletePrivileges(t *testing.T) {
 	t.Parallel()
 
-	ctx, tbldGranter, tbldGrantee, backend, sc, txOptsGranter, txOptsGrantee := setupTablelandForTwoAddresses(t)
-	granter := txOptsGranter.From.Hex()
-	grantee := txOptsGrantee.From.Hex()
-
 	type testCase struct { // nolint
 		query      string
 		privileges tableland.Privileges
@@ -309,25 +325,31 @@ func TestCheckDeletePrivileges(t *testing.T) {
 	}
 
 	tests := []testCase{
-		{"DELETE FROM foo_1337_%s", tableland.Privileges{}, false},
-		{"DELETE FROM foo_1337_%s", tableland.Privileges{tableland.PrivInsert}, false},
-		{"DELETE FROM foo_1337_%s", tableland.Privileges{tableland.PrivUpdate}, false},
-		{"DELETE FROM foo_1337_%s", tableland.Privileges{tableland.PrivDelete}, true},
-		{"DELETE FROM foo_1337_%s", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate}, false},
-		{"DELETE FROM foo_1337_%s", tableland.Privileges{tableland.PrivInsert, tableland.PrivDelete}, true},
-		{"DELETE FROM foo_1337_%s", tableland.Privileges{tableland.PrivUpdate, tableland.PrivDelete}, true},
-		{"DELETE FROM foo_1337_%s", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate, tableland.PrivDelete}, true}, // nolint
+		{"DELETE FROM foo_1337_1", tableland.Privileges{}, false},
+		{"DELETE FROM foo_1337_1", tableland.Privileges{tableland.PrivInsert}, false},
+		{"DELETE FROM foo_1337_1", tableland.Privileges{tableland.PrivUpdate}, false},
+		{"DELETE FROM foo_1337_1", tableland.Privileges{tableland.PrivDelete}, true},
+		{"DELETE FROM foo_1337_1", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate}, false},
+		{"DELETE FROM foo_1337_1", tableland.Privileges{tableland.PrivInsert, tableland.PrivDelete}, true},
+		{"DELETE FROM foo_1337_1", tableland.Privileges{tableland.PrivUpdate, tableland.PrivDelete}, true},
+		{"DELETE FROM foo_1337_1", tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate, tableland.PrivDelete}, true}, // nolint
 	}
 
 	for i, test := range tests {
-		testCase := fmt.Sprint(i + 1)
-		t.Run(testCase, func(t *testing.T) {
+		test := test
+		t.Run(fmt.Sprint(i+1), func(t *testing.T) {
+			t.Parallel()
+
+			ctx, tbldGranter, tbldGrantee, backend, sc, txOptsGranter, txOptsGrantee := setupTablelandForTwoAddresses(t)
+			granter := txOptsGranter.From.Hex()
+			grantee := txOptsGrantee.From.Hex()
+
 			_, err := sc.CreateTable(txOptsGranter, common.HexToAddress(granter), `CREATE TABLE foo_1337 (bar text);`)
 			require.NoError(t, err)
 			var successfulTxnHashes []string
 
 			// we initilize the table with a row to be delete
-			_, err = relayWriteQuery(ctx, t, tbldGranter, fmt.Sprintf("INSERT INTO foo_1337_%s (bar) VALUES ('Hello')", testCase), granter) // nolint
+			_, err = relayWriteQuery(ctx, t, tbldGranter, "INSERT INTO foo_1337_1 (bar) VALUES ('Hello')", granter) // nolint
 			require.NoError(t, err)
 			backend.Commit()
 
@@ -338,18 +360,18 @@ func TestCheckDeletePrivileges(t *testing.T) {
 				}
 
 				// execute grant statement according to test case
-				grantQuery := fmt.Sprintf("GRANT %s ON foo_1337_%s TO \"%s\"", strings.Join(privileges, ","), testCase, grantee)
+				grantQuery := fmt.Sprintf("GRANT %s ON foo_1337_1 TO \"%s\"", strings.Join(privileges, ","), grantee)
 				r, err := relayWriteQuery(ctx, t, tbldGranter, grantQuery, granter)
 				require.NoError(t, err)
 				backend.Commit()
 				successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
 			}
 
-			r, err := relayWriteQuery(ctx, t, tbldGrantee, fmt.Sprintf(test.query, testCase), grantee)
+			r, err := relayWriteQuery(ctx, t, tbldGrantee, test.query, grantee)
 			require.NoError(t, err)
 			backend.Commit()
 
-			testQuery := fmt.Sprintf("SELECT * FROM foo_1337_%s", testCase)
+			testQuery := "SELECT * FROM foo_1337_1"
 			if test.isAllowed {
 				require.Eventually(t,
 					runSQLCountEq(ctx, t, tbldGrantee, testQuery, grantee, 0),
@@ -436,6 +458,7 @@ func TestQueryConstraints(t *testing.T) {
 
 	t.Run("write-query-size-ok", func(t *testing.T) {
 		t.Parallel()
+
 		parsingOpts := []parsing.Option{
 			parsing.WithMaxWriteQuerySize(45),
 		}
@@ -585,7 +608,7 @@ func runSQLCountEq(
 	return func() bool {
 		response, err := runReadQuery(ctx, t, tbld, sql, address)
 		// if we get a table undefined error, try again
-		if err != nil && strings.Contains(err.Error(), "SQLSTATE 42P01") {
+		if err != nil && strings.Contains(err.Error(), "table not found") {
 			return false
 		}
 		require.NoError(t, err)

@@ -1121,7 +1121,7 @@ func TestWriteStatementAddReturningClause(t *testing.T) {
 
 		sql, err := ws.GetQuery()
 		require.NoError(t, err)
-		require.Equal(t, "INSERT INTO foo_1337_1 VALUES ('bar') RETURNING ctid", sql)
+		require.Equal(t, "INSERT INTO foo_1337_1 VALUES ('bar') RETURNING rowid", sql)
 	})
 
 	t.Run("update-add-returning", func(t *testing.T) {
@@ -1140,7 +1140,7 @@ func TestWriteStatementAddReturningClause(t *testing.T) {
 
 		sql, err := ws.GetQuery()
 		require.NoError(t, err)
-		require.Equal(t, "UPDATE foo_1337_1 SET foo = 'bar' RETURNING ctid", sql)
+		require.Equal(t, "UPDATE foo_1337_1 SET foo = 'bar' RETURNING rowid", sql)
 	})
 
 	t.Run("delete-add-returning-error", func(t *testing.T) {
