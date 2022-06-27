@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"database/sql"
 	"encoding/hex"
 	"fmt"
 	"net/http/httptest"
@@ -10,7 +11,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/chains"
 	"github.com/textileio/go-tableland/internal/router"
@@ -99,7 +99,7 @@ type aclHalfMock struct {
 
 func (acl *aclHalfMock) CheckPrivileges(
 	ctx context.Context,
-	tx pgx.Tx,
+	tx *sql.Tx,
 	controller common.Address,
 	id tableland.TableID,
 	op tableland.Operation) (bool, error) {
@@ -126,7 +126,7 @@ func setup(t *testing.T) clientCalls {
 
 	ctx := context.Background()
 
-	url := tests.PostgresURL(t)
+	url := tests.Sqlite3URL()
 
 	store, err := system.New(url, tableland.ChainID(1337))
 	require.NoError(t, err)
