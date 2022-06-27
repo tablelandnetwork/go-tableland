@@ -32,6 +32,10 @@ ethereum-testerc721a:
 	go run github.com/ethereum/go-ethereum/cmd/abigen@v1.10.17 --abi ./pkg/tables/impl/ethereum/test/erc721aQueryable/abi.json --pkg erc721aQueryable --type Contract --out pkg/tables/impl/ethereum/test/erc721aQueryable/erc721aQueryable.go --bin pkg/tables/impl/ethereum/test/erc721aQueryable/bytecode.bin
 .PHONY: ethereum-testerc721a
 
+system-sql-assets:
+	cd pkg/sqlstore/impl/system && $(GO_BINDATA) -pkg migrations -prefix migrations/ -o migrations/migrations.go -ignore=migrations.go migrations
+.PHONY: system-sql-assets
+
 
 # Building and publishing image to GCP
 
