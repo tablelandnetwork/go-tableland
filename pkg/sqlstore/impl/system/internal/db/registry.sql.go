@@ -33,7 +33,7 @@ func (q *Queries) GetTable(ctx context.Context, arg GetTableParams) (Registry, e
 }
 
 const getTablesByController = `-- name: GetTablesByController :many
-SELECT created_at, id, structure, controller, prefix, chain_id FROM registry WHERE chain_id=$1 AND controller ILIKE $2
+SELECT created_at, id, structure, controller, prefix, chain_id FROM registry WHERE chain_id=$1 AND upper(controller) LIKE $2
 `
 
 type GetTablesByControllerParams struct {
