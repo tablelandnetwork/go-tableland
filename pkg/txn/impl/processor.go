@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgconn"
@@ -127,21 +128,25 @@ func (b *batch) InsertTable(
 	createStmt parsing.CreateStmt) error {
 	f := func(ctx context.Context, txn *sql.Tx) error {
 		if _, err := txn.ExecContext(ctx,
-			`INSERT INTO registry ("chain_id", "id","controller","prefix","structure") VALUES ($1,$2,$3,$4,$5);`,
+			`INSERT INTO registry ("chain_id", "id","controller","prefix","structure", "created_at") 
+		  	 VALUES ($1,$2,$3,$4,$5,$6);`,
 			b.tp.chainID,
 			id.String(),
 			controller,
 			createStmt.GetPrefix(),
-			createStmt.GetStructureHash()); err != nil {
+			createStmt.GetStructureHash(),
+			time.Now().Unix()); err != nil {
 			return fmt.Errorf("inserting new table in system-wide registry: %s", err)
 		}
 
 		if _, err := txn.ExecContext(ctx,
-			`INSERT INTO system_acl ("chain_id","table_id","controller","privileges") VALUES ($1,$2,$3,$4);`,
+			`INSERT INTO system_acl ("chain_id","table_id","controller","privileges","created_at") 
+			 VALUES ($1,$2,$3,$4,$5);`,
 			b.tp.chainID,
 			id.String(),
 			controller,
 			3, // the abbreviations for PrivInsert, PrivUpdate and PrivDelete TODO(jsign)
+			time.Now().Unix(),
 		); err != nil {
 			return fmt.Errorf("inserting new entry into system acl: %s", err)
 		}
@@ -375,9 +380,9 @@ func (b *batch) SaveTxnReceipts(ctx context.Context, rs []eventprocessor.Receipt
 		}
 		if _, err := b.txn.ExecContext(
 			ctx,
-			`INSERT INTO system_txn_receipts (chain_id, txn_hash, error, table_id, block_number) 
-				 VALUES ($1, $2, $3, $4, $5)`,
-			r.ChainID, r.TxnHash, r.Error, dbID, r.BlockNumber); err != nil {
+			`INSERT INTO system_txn_receipts (chain_id,txn_hash,error,table_id,block_number,block_order) 
+				 VALUES ($1,$2,$3,$4,$5,$6)`,
+			r.ChainID, r.TxnHash, r.Error, dbID, r.BlockNumber, 0); err != nil { // TODO(jsign): fix ordering
 			return fmt.Errorf("insert txn receipt: %s", err)
 		}
 	}
