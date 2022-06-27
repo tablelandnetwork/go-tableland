@@ -20,8 +20,8 @@ func (q *Queries) DeletePendingTxByHash(ctx context.Context, arg DeletePendingTx
 }
 
 const insertPendingTx = `
-INSERT INTO system_pending_tx ("chain_id", "address", "hash", "nonce", "created_at") 
-VALUES (?1, ?2, ?3, ?4, ?5)
+INSERT INTO system_pending_tx ("chain_id", "address", "hash", "nonce")
+VALUES (?1, ?2, ?3, ?4)
 `
 
 type InsertPendingTxParams struct {
@@ -37,7 +37,6 @@ func (q *Queries) InsertPendingTx(ctx context.Context, arg InsertPendingTxParams
 		arg.Address,
 		arg.Hash,
 		arg.Nonce,
-		time.Now().Unix(),
 	)
 	return err
 }

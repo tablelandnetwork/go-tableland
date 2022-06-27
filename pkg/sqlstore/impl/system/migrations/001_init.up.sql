@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS registry (
     structure TEXT NOT NULL,
     controller TEXT NOT NULL,
     prefix TEXT NOT NULL,
-    created_at INTEGER NOT NULL,
+    created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
     chain_id INTEGER,
 
     PRIMARY KEY(chain_id, id),
@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS system_acl (
     controller TEXT NOT NULL,
     privileges INT NOT NULL,
     chain_id INTEGER NOT NULL,
-    created_at INTEGER NOT NULL,
+    created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
     updated_at INTEGER,
 
     PRIMARY KEY(chain_id, table_id, controller),
@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS system_pending_tx (
     hash TEXT NOT NULL,
     nonce INTEGER NOT NULL,
     bump_price_count INTEGER NOT NULL DEFAULT 0,
-    created_at INTEGER NOT NULL,
+    created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
     updated_at INTEGER,
 
     PRIMARY KEY(chain_id, address, nonce)
