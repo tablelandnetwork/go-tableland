@@ -10,9 +10,10 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/hetiansu5/urlquery v1.2.7
 	github.com/jackc/pgconn v1.12.1
-	github.com/jackc/pgproto3/v2 v2.3.0
 	github.com/jackc/pgtype v1.11.0
 	github.com/jackc/pgx/v4 v4.16.1
+	github.com/lib/pq v1.10.2
+	github.com/mattn/go-sqlite3 v1.14.10
 	github.com/omeid/uconfig v1.2.0
 	github.com/ory/dockertest/v3 v3.9.1
 	github.com/pganalyze/pg_query_go/v2 v2.1.0
