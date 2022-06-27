@@ -114,5 +114,11 @@ func NewTableID(strID string) (TableID, error) {
 	return TableID(*tableID), nil
 }
 
+func NewTableIDFromInt64(intID int64) (TableID, error) {
+	tableID := &big.Int{}
+	tableID.SetInt64(intID)
+	return TableID(*tableID), nil
+}
+
 // ChainID is a supported EVM chain identifier.
 type ChainID int64
