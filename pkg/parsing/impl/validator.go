@@ -345,7 +345,7 @@ func (ws *writeStmt) AddReturningClause() error {
 	}
 
 	ctidString := &pg_query.Node_String_{
-		String_: &pg_query.String{Str: "ctid"},
+		String_: &pg_query.String{Str: "rowid"},
 	}
 
 	columnRef := &pg_query.Node{Node: &pg_query.Node_ColumnRef{
