@@ -2,7 +2,6 @@ package db
 
 import (
 	"context"
-	"fmt"
 )
 
 const getReceipt = `-- name: GetReceipt :one
@@ -25,6 +24,5 @@ func (q *Queries) GetReceipt(ctx context.Context, arg GetReceiptParams) (SystemT
 		&i.Error,
 		&i.TableID,
 	)
-	fmt.Printf("HAHAHAHAHAHHAHA: %#v\n", err)
 	return i, err
 }
