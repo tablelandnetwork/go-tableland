@@ -2,16 +2,16 @@ package tableland
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/jackc/pgx/v4"
 )
 
 // ACL is the API for access control rules check.
 type ACL interface {
 	// CheckPrivileges checks if an address can execute a specific operation on a table.
-	CheckPrivileges(context.Context, pgx.Tx, common.Address, TableID, Operation) (bool, error)
+	CheckPrivileges(context.Context, *sql.Tx, common.Address, TableID, Operation) (bool, error)
 }
 
 // Privilege maps to SQL privilege and is the thing needed to execute an operation.
