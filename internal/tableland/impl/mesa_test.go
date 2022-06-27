@@ -688,7 +688,7 @@ func setup(
 	*bind.TransactOpts) {
 	t.Helper()
 
-	url := tests.Sqlite3URL()
+	url := tests.Sqlite3URI()
 
 	ctx := context.WithValue(context.Background(), middlewares.ContextKeyChainID, tableland.ChainID(1337))
 	store, err := system.New(url, tableland.ChainID(1337))
@@ -749,7 +749,7 @@ func setupTablelandForTwoAddresses(t *testing.T) (context.Context,
 	*bind.TransactOpts) {
 	t.Helper()
 
-	url := tests.Sqlite3URL()
+	url := tests.Sqlite3URI()
 
 	ctx := context.WithValue(context.Background(), middlewares.ContextKeyChainID, tableland.ChainID(1337))
 	store, err := system.New(url, tableland.ChainID(1337))

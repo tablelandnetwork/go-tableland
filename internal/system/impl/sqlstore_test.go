@@ -21,7 +21,7 @@ var chainID = tableland.ChainID(1337)
 func TestSystemSQLStoreService(t *testing.T) {
 	t.Parallel()
 
-	url := tests.Sqlite3URL()
+	url := tests.Sqlite3URI()
 
 	ctx := context.WithValue(context.Background(), middlewares.ContextKeyChainID, tableland.ChainID(1337))
 	store, err := system.New(url, chainID)

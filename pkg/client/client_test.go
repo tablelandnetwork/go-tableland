@@ -138,7 +138,7 @@ func setup(t *testing.T) clientCalls {
 
 	ctx := context.Background()
 
-	url := tests.Sqlite3URL()
+	url := tests.Sqlite3URI()
 
 	store, err := system.New(url, tableland.ChainID(1337))
 	require.NoError(t, err)

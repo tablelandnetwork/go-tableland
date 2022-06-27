@@ -114,6 +114,7 @@ func NewTableID(strID string) (TableID, error) {
 	return TableID(*tableID), nil
 }
 
+// NewTableIDFromInt64 returns a TableID from a int64.
 func NewTableIDFromInt64(intID int64) (TableID, error) {
 	tableID := &big.Int{}
 	tableID.SetInt64(intID)

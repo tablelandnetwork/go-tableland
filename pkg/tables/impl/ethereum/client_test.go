@@ -443,7 +443,7 @@ func setupWithLocalTracker(t *testing.T) (
 	w, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(key)))
 	require.NoError(t, err)
 
-	url := tests.Sqlite3URL()
+	url := tests.Sqlite3URI()
 
 	systemStore, err := system.New(url, tableland.ChainID(1337))
 	require.NoError(t, err)

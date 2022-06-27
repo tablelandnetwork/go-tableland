@@ -12,9 +12,9 @@ import (
 	"strings"
 
 	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/sqlite3"
+	_ "github.com/golang-migrate/migrate/v4/database/sqlite3" // migration for sqlite3
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/mattn/go-sqlite3" // sqlite3 driver
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/nonce"
@@ -39,12 +39,8 @@ func New(dbURI string, chainID tableland.ChainID) (*SystemStore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("connecting to db: %s", err)
 	}
-	dbc.SetMaxOpenConns(1)
 
-	as := bindata.Resource(migrations.AssetNames(),
-		func(name string) ([]byte, error) {
-			return migrations.Asset(name)
-		})
+	as := bindata.Resource(migrations.AssetNames(), migrations.Asset)
 	if err := executeMigration(dbURI, as); err != nil {
 		return nil, fmt.Errorf("initializing db connection: %s", err)
 	}
@@ -249,7 +245,9 @@ func (s *SystemStore) GetReceipt(
 
 // Close closes the store.
 func (s *SystemStore) Close() error {
-	s.pool.Close()
+	if err := s.pool.Close(); err != nil {
+		return fmt.Errorf("closing db: %s", err)
+	}
 	return nil
 }
 
