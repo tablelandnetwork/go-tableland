@@ -217,7 +217,7 @@ func TestQueryWithWrongTableTarget(t *testing.T) {
 		Error:   &expErr,
 		TableID: nil,
 	}
-	require.Eventually(t, checkReceipts(t, expReceipt), time.Second*10, time.Millisecond*100)
+	require.Eventually(t, checkReceipts(t, expReceipt), time.Second*5, time.Millisecond*100)
 }
 
 func TestSetController(t *testing.T) {
@@ -294,7 +294,7 @@ type contractCalls struct {
 }
 
 type dbReader func(string) []int64
-type contractRunSQLBlockSender func(...[]string) []common.Hash
+type contractRunSQLBlockSender func([]string) []common.Hash
 type contractCreateTableSender func(string) common.Hash
 type contractSetControllerSender func(controller common.Address) common.Hash
 type contractTransferFromSender func(controller common.Address) common.Hash
@@ -325,15 +325,13 @@ func setup(t *testing.T) (
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	contractSendRunSQL := func(queries ...[]string) []common.Hash {
+	contractSendRunSQL := func(queries []string) []common.Hash {
 		var txnHashes []common.Hash
-		for _, qs := range queries {
-			for _, q := range qs {
-				txn, err := sc.RunSQL(authOpts, authOpts.From, big.NewInt(1), q)
+		for _, q := range queries {
+			txn, err := sc.RunSQL(authOpts, authOpts.From, big.NewInt(1), q)
 
-				require.NoError(t, err)
-				txnHashes = append(txnHashes, txn.Hash())
-			}
+			require.NoError(t, err)
+			txnHashes = append(txnHashes, txn.Hash())
 		}
 		backend.Commit()
 		return txnHashes
