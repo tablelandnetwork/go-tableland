@@ -10,7 +10,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v4/pgxpool"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/tableland"
@@ -562,7 +561,7 @@ func TestSetController(t *testing.T) {
 		require.Error(t, err)
 		var errQueryExecution *txn.ErrQueryExecution
 		require.NotErrorIs(t, err, errQueryExecution)
-		require.Contains(t, err.Error(), "SQLSTATE 23503")
+		require.Contains(t, err.Error(), "FOREIGN KEY constraint failed")
 
 		require.NoError(t, b.Close())
 		require.NoError(t, txnp.Close(ctx))
@@ -820,12 +819,10 @@ func tableRowCountT100(t *testing.T, pool *sql.DB, query string) int {
 func existsTableWithName(t *testing.T, dbURL string, tableName string) bool {
 	t.Helper()
 
-	ctx, cls := context.WithTimeout(context.Background(), time.Second*15)
-	defer cls()
-	pool, err := pgxpool.Connect(ctx, dbURL)
+	pool, err := sql.Open("sqlite3", dbURL)
 	require.NoError(t, err)
-	q := `SELECT 1 FROM information_schema.tables  WHERE table_name = $1`
-	row := pool.QueryRow(context.Background(), q, tableName)
+	q := `SELECT 1 FROM sqlite_master  WHERE type='table' AND name = $1`
+	row := pool.QueryRow(q, tableName)
 	var dummy int
 	err = row.Scan(&dummy)
 	if err == sql.ErrNoRows {
@@ -838,7 +835,7 @@ func existsTableWithName(t *testing.T, dbURL string, tableName string) bool {
 func newTxnProcessor(t *testing.T, rowsLimit int) (*TblTxnProcessor, string) {
 	t.Helper()
 
-	url := "file::" + uuid.NewString() + ":?mode=memory&cache=shared"
+	url := "file::" + uuid.NewString() + ":?mode=memory&cache=shared&_foreign_keys=on"
 	txnp, err := NewTxnProcessor(1337, url, rowsLimit, &aclMock{})
 	require.NoError(t, err)
 
