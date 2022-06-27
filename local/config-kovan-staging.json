@@ -1,5 +1,4 @@
 {
-  "Impl": "mesa",
   "HTTP": {
     "Port": "8080",
     "RateLimInterval": "1s",
