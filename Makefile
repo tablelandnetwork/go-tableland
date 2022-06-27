@@ -33,10 +33,6 @@ ethereum-testerc721a:
 .PHONY: ethereum-testerc721a
 
 
-system-sql-assets:
-	cd pkg/sqlstore/impl/system && $(GO_BINDATA) -pkg migrations -prefix migrations/ -o migrations/migrations.go -ignore=migrations.go migrations && $(SQLC) generate; cd -;
-.PHONY: system-sql-assets
-
 # Building and publishing image to GCP
 
 build-api:
