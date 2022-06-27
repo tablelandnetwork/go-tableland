@@ -66,8 +66,8 @@ type Batch interface {
 	SaveTxnReceipts(ctx context.Context, rs []eventprocessor.Receipt) error
 	TxnReceiptExists(ctx context.Context, txnHash common.Hash) (bool, error)
 
-	Commit(context.Context) error
-	Close(context.Context) error
+	Commit() error
+	Close() error
 }
 
 // ErrQueryExecution is an error returned when the query execution failed

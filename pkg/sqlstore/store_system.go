@@ -5,7 +5,6 @@ import (
 	"database/sql"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/jackc/pgx/v4"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/nonce"
@@ -21,7 +20,7 @@ type SystemStore interface {
 	DeletePendingTxByHash(context.Context, common.Hash) error
 	ReplacePendingTxByHash(context.Context, common.Hash, common.Hash) error
 	WithTx(tx *sql.Tx) SystemStore
-	Begin(context.Context) (pgx.Tx, error)
+	Begin(context.Context) (*sql.Tx, error)
 	GetReceipt(context.Context, string) (eventprocessor.Receipt, bool, error)
 	Close() error
 }

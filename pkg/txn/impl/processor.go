@@ -2,16 +2,14 @@ package impl
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgtype"
-	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/rs/zerolog"
 	logger "github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/tableland"
@@ -24,7 +22,7 @@ import (
 type TblTxnProcessor struct {
 	log     zerolog.Logger
 	chainID tableland.ChainID
-	pool    *pgxpool.Pool
+	pool    *sql.DB
 	chBatch chan struct{}
 
 	maxTableRowCount int
@@ -36,12 +34,10 @@ var _ txn.TxnProcessor = (*TblTxnProcessor)(nil)
 // NewTxnProcessor returns a new Tableland transaction processor.
 func NewTxnProcessor(
 	chainID tableland.ChainID,
-	postgresURI string,
+	dbURI string,
 	maxTableRowCount int,
 	acl tableland.ACL) (*TblTxnProcessor, error) {
-	ctx, cls := context.WithTimeout(context.Background(), time.Second*10)
-	defer cls()
-	pool, err := pgxpool.Connect(ctx, postgresURI)
+	pool, err := sql.Open("sqlite3", dbURI)
 	if err != nil {
 		return nil, fmt.Errorf("connecting to postgres: %s", err)
 	}
@@ -73,11 +69,11 @@ func NewTxnProcessor(
 func (tp *TblTxnProcessor) OpenBatch(ctx context.Context) (txn.Batch, error) {
 	<-tp.chBatch
 
-	ops := pgx.TxOptions{
-		IsoLevel:   pgx.Serializable,
-		AccessMode: pgx.ReadWrite,
+	ops := sql.TxOptions{
+		Isolation: sql.LevelSerializable,
+		ReadOnly:  false,
 	}
-	txn, err := tp.pool.BeginTx(ctx, ops)
+	txn, err := tp.pool.BeginTx(ctx, &ops)
 	if err != nil {
 		tp.chBatch <- struct{}{}
 		return nil, fmt.Errorf("opening postgres transaction: %s", err)
@@ -99,8 +95,25 @@ func (tp *TblTxnProcessor) Close(ctx context.Context) error {
 }
 
 type batch struct {
-	txn pgx.Tx
+	txn *sql.Tx
 	tp  *TblTxnProcessor
+}
+
+func runWithinSavepoint(ctx context.Context, txn *sql.Tx, f func(ctx context.Context, txn *sql.Tx) error) error {
+	if _, err := txn.ExecContext(ctx, "SAVEPOINT tbl"); err != nil {
+		return fmt.Errorf("creating savepoint: %s", err)
+	}
+	if err := f(ctx, txn); err != nil {
+		if _, err := txn.ExecContext(ctx, "ROLLBACK TO tbl"); err != nil {
+			return fmt.Errorf("rollbacking savepoint: %s", err)
+		}
+		return fmt.Errorf("executing query: %w", err)
+	}
+	if _, err := txn.ExecContext(ctx, "RELEASE SAVEPOINT tbl"); err != nil {
+		return fmt.Errorf("releasing savepoint: %s", err)
+	}
+
+	return nil
 }
 
 // InsertTable creates a new table in Tableland:
@@ -112,30 +125,23 @@ func (b *batch) InsertTable(
 	id tableland.TableID,
 	controller string,
 	createStmt parsing.CreateStmt) error {
-	f := func(tx pgx.Tx) error {
-		dbID := pgtype.Numeric{}
-		if err := dbID.Set(id.String()); err != nil {
-			return fmt.Errorf("parsing table id to numeric: %s", err)
-		}
-
-		if _, err := tx.Exec(ctx,
-			`INSERT INTO registry ("chain_id", "id","controller","prefix", "structure") 
-			 VALUES ($1,$2,$3,$4, $5);`,
+	f := func(ctx context.Context, txn *sql.Tx) error {
+		if _, err := txn.ExecContext(ctx,
+			`INSERT INTO registry ("chain_id", "id","controller","prefix","structure") VALUES ($1,$2,$3,$4,$5);`,
 			b.tp.chainID,
-			dbID,
+			id.String(),
 			controller,
 			createStmt.GetPrefix(),
 			createStmt.GetStructureHash()); err != nil {
 			return fmt.Errorf("inserting new table in system-wide registry: %s", err)
 		}
 
-		if _, err := tx.Exec(ctx,
-			`INSERT INTO system_acl ("chain_id","table_id","controller","privileges") 
-			 VALUES ($1,$2,$3,$4);`,
+		if _, err := txn.ExecContext(ctx,
+			`INSERT INTO system_acl ("chain_id","table_id","controller","privileges") VALUES ($1,$2,$3,$4);`,
 			b.tp.chainID,
-			dbID,
+			id.String(),
 			controller,
-			[]string{"a", "w", "d"}, // the abbreviations for PrivInsert, PrivUpdate and PrivDelete
+			3, // the abbreviations for PrivInsert, PrivUpdate and PrivDelete TODO(jsign)
 		); err != nil {
 			return fmt.Errorf("inserting new entry into system acl: %s", err)
 		}
@@ -144,14 +150,14 @@ func (b *batch) InsertTable(
 		if err != nil {
 			return fmt.Errorf("get query for table id: %s", err)
 		}
-		if _, err := tx.Exec(ctx, query); err != nil {
+		if _, err := txn.ExecContext(ctx, query); err != nil {
 			return fmt.Errorf("exec CREATE statement: %s", err)
 		}
 
 		return nil
 	}
-	if err := b.txn.BeginFunc(ctx, f); err != nil {
-		return fmt.Errorf("processing register table: %s", err)
+	if err := runWithinSavepoint(ctx, b.txn, f); err != nil {
+		return fmt.Errorf("running within savepoint: %s", err)
 	}
 	return nil
 }
@@ -162,12 +168,12 @@ func (b *batch) ExecWriteQueries(
 	mqueries []parsing.MutatingStmt,
 	isOwner bool,
 	policy tableland.Policy) error {
-	f := func(tx pgx.Tx) error {
-		if len(mqueries) == 0 {
-			b.tp.log.Warn().Msg("no mutating-queries to execute in a batch")
-			return nil
-		}
+	if len(mqueries) == 0 {
+		b.tp.log.Warn().Msg("no mutating-queries to execute in a batch")
+		return nil
+	}
 
+	f := func(ctx context.Context, tx *sql.Tx) error {
 		dbTableName := mqueries[0].GetDBTableName()
 		tablePrefix, beforeRowCount, err := GetTablePrefixAndRowCountByTableID(
 			ctx, tx, b.tp.chainID, mqueries[0].GetTableID(), dbTableName)
@@ -201,11 +207,10 @@ func (b *batch) ExecWriteQueries(
 				return fmt.Errorf("unknown stmt type")
 			}
 		}
-
 		return nil
 	}
-	if err := b.txn.BeginFunc(ctx, f); err != nil {
-		return fmt.Errorf("running nested txn: %w", err)
+	if err := runWithinSavepoint(ctx, b.txn, f); err != nil {
+		return fmt.Errorf("running within savepoint: %s", err)
 	}
 
 	return nil
@@ -216,51 +221,45 @@ func (b *batch) SetController(
 	ctx context.Context,
 	id tableland.TableID,
 	controller common.Address) error {
-	f := func(tx pgx.Tx) error {
-		dbID := pgtype.Numeric{}
-		if err := dbID.Set(id.String()); err != nil {
-			return fmt.Errorf("parsing table id to numeric: %s", err)
-		}
+	dbID := pgtype.Numeric{}
+	if err := dbID.Set(id.String()); err != nil {
+		return fmt.Errorf("parsing table id to numeric: %s", err)
+	}
 
-		if controller == common.HexToAddress("0x0") {
-			if _, err := tx.Exec(ctx,
-				`DELETE FROM system_controller WHERE chain_id = $1 AND table_id = $2;`,
-				b.tp.chainID,
-				dbID,
-			); err != nil {
-				if code, ok := isErrCausedByQuery(err); ok {
-					return &txn.ErrQueryExecution{
-						Code: "POSTGRES_" + code,
-						Msg:  err.Error(),
-					}
+	if controller == common.HexToAddress("0x0") {
+		if _, err := b.txn.ExecContext(ctx,
+			`DELETE FROM system_controller WHERE chain_id = $1 AND table_id = $2;`,
+			b.tp.chainID,
+			dbID,
+		); err != nil {
+			if code, ok := isErrCausedByQuery(err); ok {
+				return &txn.ErrQueryExecution{
+					Code: "POSTGRES_" + code,
+					Msg:  err.Error(),
 				}
-				return fmt.Errorf("deleting entry from system controller: %s", err)
 			}
-		} else {
-			if _, err := tx.Exec(ctx,
-				`INSERT INTO system_controller ("chain_id", "table_id", "controller") 
+			return fmt.Errorf("deleting entry from system controller: %s", err)
+		}
+	} else {
+		if _, err := b.txn.ExecContext(ctx,
+			`INSERT INTO system_controller ("chain_id", "table_id", "controller") 
 				VALUES ($1, $2, $3)
 				ON CONFLICT ("chain_id", "table_id")
 				DO UPDATE set controller = $3;`,
-				b.tp.chainID,
-				dbID,
-				controller.Hex(),
-			); err != nil {
-				if code, ok := isErrCausedByQuery(err); ok {
-					return &txn.ErrQueryExecution{
-						Code: "POSTGRES_" + code,
-						Msg:  err.Error(),
-					}
+			b.tp.chainID,
+			dbID,
+			controller.Hex(),
+		); err != nil {
+			if code, ok := isErrCausedByQuery(err); ok {
+				return &txn.ErrQueryExecution{
+					Code: "POSTGRES_" + code,
+					Msg:  err.Error(),
 				}
-				return fmt.Errorf("inserting new entry into system controller: %s", err)
 			}
+			return fmt.Errorf("inserting new entry into system controller: %s", err)
 		}
+	}
 
-		return nil
-	}
-	if err := b.txn.BeginFunc(ctx, f); err != nil {
-		return fmt.Errorf("processing set controller: %s", err)
-	}
 	return nil
 }
 
@@ -270,14 +269,8 @@ func (b *batch) GrantPrivileges(
 	id tableland.TableID,
 	addr common.Address,
 	privileges tableland.Privileges) error {
-	f := func(tx pgx.Tx) error {
-		if err := b.executeGrantPrivilegesTx(ctx, tx, id, addr, privileges); err != nil {
-			return fmt.Errorf("executing grant privileges tx: %w", err)
-		}
-		return nil
-	}
-	if err := b.txn.BeginFunc(ctx, f); err != nil {
-		return fmt.Errorf("processing grant privileges: %s", err)
+	if err := b.executeGrantPrivilegesTx(ctx, b.txn, id, addr, privileges); err != nil {
+		return fmt.Errorf("executing grant privileges tx: %w", err)
 	}
 	return nil
 }
@@ -288,14 +281,8 @@ func (b *batch) RevokePrivileges(
 	id tableland.TableID,
 	addr common.Address,
 	privileges tableland.Privileges) error {
-	f := func(tx pgx.Tx) error {
-		if err := b.executeRevokePrivilegesTx(ctx, tx, id, addr, privileges); err != nil {
-			return fmt.Errorf("executing revoke privileges tx: %w", err)
-		}
-		return nil
-	}
-	if err := b.txn.BeginFunc(ctx, f); err != nil {
-		return fmt.Errorf("processing revoke privileges: %s", err)
+	if err := b.executeRevokePrivilegesTx(ctx, b.txn, id, addr, privileges); err != nil {
+		return fmt.Errorf("executing revoke privileges tx: %w", err)
 	}
 	return nil
 }
@@ -342,110 +329,87 @@ func isErrCausedByQuery(err error) (string, bool) {
 }
 
 func (b *batch) GetLastProcessedHeight(ctx context.Context) (int64, error) {
+	r := b.txn.QueryRowContext(ctx, "SELECT block_number FROM system_txn_processor WHERE chain_id=$1 LIMIT 1", b.tp.chainID)
 	var blockNumber int64
-	f := func(tx pgx.Tx) error {
-		r := tx.QueryRow(ctx, "SELECT block_number FROM system_txn_processor WHERE chain_id=$1 LIMIT 1", b.tp.chainID)
-		if err := r.Scan(&blockNumber); err != nil {
-			if err == pgx.ErrNoRows {
-				blockNumber = 0
-				return nil
-			}
-			return fmt.Errorf("get last block number query: %s", err)
+	if err := r.Scan(&blockNumber); err != nil {
+		if err == sql.ErrNoRows {
+			blockNumber = 0
+			return 0, nil
 		}
-		return nil
-	}
-	if err := b.txn.BeginFunc(ctx, f); err != nil {
-		return 0, fmt.Errorf("processing register table: %s", err)
+		return 0, fmt.Errorf("get last block number query: %s", err)
 	}
 	return blockNumber, nil
 }
 
 func (b *batch) SetLastProcessedHeight(ctx context.Context, height int64) error {
-	f := func(tx pgx.Tx) error {
-		tag, err := tx.Exec(ctx, "UPDATE system_txn_processor set block_number=$1 WHERE chain_id=$2", height, b.tp.chainID)
-		if err != nil {
-			return fmt.Errorf("update last processed block number: %s", err)
-		}
-		if tag.RowsAffected() != 1 {
-			_, err := tx.Exec(ctx,
-				"INSERT INTO system_txn_processor (block_number, chain_id) VALUES ($1, $2)",
-				height,
-				b.tp.chainID,
-			)
-			if err != nil {
-				return fmt.Errorf("inserting first processed height: %s", err)
-			}
-		}
-		return nil
+	tag, err := b.txn.ExecContext(ctx, "UPDATE system_txn_processor set block_number=$1 WHERE chain_id=$2", height, b.tp.chainID)
+	if err != nil {
+		return fmt.Errorf("update last processed block number: %s", err)
 	}
-	if err := b.txn.BeginFunc(ctx, f); err != nil {
-		return fmt.Errorf("set last processed height: %s", err)
+	ra, err := tag.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("rows affected: %s", err)
+	}
+	if ra != 1 {
+		if _, err := b.txn.ExecContext(ctx,
+			"INSERT INTO system_txn_processor (block_number, chain_id) VALUES ($1, $2)",
+			height,
+			b.tp.chainID,
+		); err != nil {
+			return fmt.Errorf("inserting first processed height: %s", err)
+		}
 	}
 	return nil
 }
 
 func (b *batch) SaveTxnReceipts(ctx context.Context, rs []eventprocessor.Receipt) error {
-	f := func(tx pgx.Tx) error {
-		for _, r := range rs {
-			dbID := pgtype.Numeric{Status: pgtype.Null}
-			if r.TableID != nil {
-				if err := dbID.Set(r.TableID.String()); err != nil {
-					return fmt.Errorf("parsing table id to numeric: %s", err)
-				}
-			}
-			if r.Error != nil {
-				*r.Error = strings.ToValidUTF8(*r.Error, "")
-			}
-			if _, err := tx.Exec(
-				ctx,
-				`INSERT INTO system_txn_receipts (chain_id, txn_hash, error, table_id, block_number) 
-				 VALUES ($1, $2, $3, $4, $5)`,
-				r.ChainID, r.TxnHash, r.Error, dbID, r.BlockNumber); err != nil {
-				return fmt.Errorf("insert txn receipt: %s", err)
+	for _, r := range rs {
+		dbID := pgtype.Numeric{Status: pgtype.Null}
+		if r.TableID != nil {
+			if err := dbID.Set(r.TableID.String()); err != nil {
+				return fmt.Errorf("parsing table id to numeric: %s", err)
 			}
 		}
-		return nil
-	}
-	if err := b.txn.BeginFunc(ctx, f); err != nil {
-		return fmt.Errorf("saving txn receipt: %s", err)
+		if r.Error != nil {
+			*r.Error = strings.ToValidUTF8(*r.Error, "")
+		}
+		if _, err := b.txn.ExecContext(
+			ctx,
+			`INSERT INTO system_txn_receipts (chain_id, txn_hash, error, table_id, block_number) 
+				 VALUES ($1, $2, $3, $4, $5)`,
+			r.ChainID, r.TxnHash, r.Error, dbID, r.BlockNumber); err != nil {
+			return fmt.Errorf("insert txn receipt: %s", err)
+		}
 	}
 	return nil
 }
 
 func (b *batch) TxnReceiptExists(ctx context.Context, txnHash common.Hash) (bool, error) {
-	var exists bool
-	f := func(tx pgx.Tx) error {
-		r := tx.QueryRow(
-			ctx,
-			`SELECT 1 from system_txn_receipts WHERE chain_id=$1 and txn_hash=$2`,
-			b.tp.chainID, txnHash.Hex())
-		var dummy int
-		err := r.Scan(&dummy)
-		if err == pgx.ErrNoRows {
-			return nil
-		}
-		if err != nil {
-			return fmt.Errorf("get txn receipt: %s", err)
-		}
-		exists = true
-		return nil
+	r := b.txn.QueryRowContext(
+		ctx,
+		`SELECT 1 from system_txn_receipts WHERE chain_id=$1 and txn_hash=$2`,
+		b.tp.chainID, txnHash.Hex())
+	var dummy int
+	err := r.Scan(&dummy)
+	if err == sql.ErrNoRows {
+		return false, nil
 	}
-	if err := b.txn.BeginFunc(ctx, f); err != nil {
-		return false, fmt.Errorf("txn receipt lookup: %s", err)
+	if err != nil {
+		return false, fmt.Errorf("get txn receipt: %s", err)
 	}
-	return exists, nil
+	return true, nil
 }
 
 // Close closes gracefully the batch. Clients should *always* `defer Close()` when
 // opening batches.
-func (b *batch) Close(ctx context.Context) error {
+func (b *batch) Close() error {
 	defer func() { b.tp.chBatch <- struct{}{} }()
 
 	// Calling rollback is always safe:
 	// - If Commit() wasn't called, the result is a rollback.
 	// - If Commit() was called, pgx.Txn guarantees is a noop.
-	if err := b.txn.Rollback(ctx); err != nil {
-		if err != pgx.ErrTxClosed {
+	if err := b.txn.Rollback(); err != nil {
+		if err != sql.ErrTxDone {
 			return fmt.Errorf("closing batch: %s", err)
 		}
 	}
@@ -453,8 +417,8 @@ func (b *batch) Close(ctx context.Context) error {
 	return nil
 }
 
-func (b *batch) Commit(ctx context.Context) error {
-	if err := b.txn.Commit(ctx); err != nil {
+func (b *batch) Commit() error {
+	if err := b.txn.Commit(); err != nil {
 		return fmt.Errorf("commit txn: %s", err)
 	}
 	return nil
@@ -464,7 +428,7 @@ func (b *batch) Commit(ctx context.Context) error {
 // within the provided transaction.
 func GetTablePrefixAndRowCountByTableID(
 	ctx context.Context,
-	tx pgx.Tx,
+	tx *sql.Tx,
 	chainID tableland.ChainID,
 	tableID tableland.TableID,
 	dbTableName string) (string, int, error) {
@@ -475,11 +439,11 @@ func GetTablePrefixAndRowCountByTableID(
 
 	q := fmt.Sprintf(
 		"SELECT (SELECT prefix FROM registry where chain_id=$1 AND id=$2), (SELECT count(*) FROM %s)", dbTableName)
-	r := tx.QueryRow(ctx, q, chainID, dbID)
+	r := tx.QueryRowContext(ctx, q, chainID, dbID)
 	var tablePrefix string
 	var rowCount int
 	err := r.Scan(&tablePrefix, &rowCount)
-	if err == pgx.ErrNoRows {
+	if err == sql.ErrNoRows {
 		return "", 0, fmt.Errorf("the table id doesn't exist")
 	}
 	if err != nil {
@@ -491,7 +455,7 @@ func GetTablePrefixAndRowCountByTableID(
 // getController gets the controller for a given table.
 func getController(
 	ctx context.Context,
-	tx pgx.Tx,
+	tx *sql.Tx,
 	chainID tableland.ChainID,
 	tableID tableland.TableID) (string, error) {
 	dbID := pgtype.Numeric{}
@@ -503,10 +467,10 @@ func getController(
 	}
 
 	q := "SELECT controller FROM system_controller where chain_id=$1 AND table_id=$2"
-	r := tx.QueryRow(ctx, q, chainID, dbID)
+	r := tx.QueryRowContext(ctx, q, chainID, dbID)
 	var controller string
 	err := r.Scan(&controller)
-	if err == pgx.ErrNoRows {
+	if err == sql.ErrNoRows {
 		return "", nil
 	}
 
@@ -518,7 +482,7 @@ func getController(
 
 func (b *batch) executeGrantStmt(
 	ctx context.Context,
-	tx pgx.Tx,
+	tx *sql.Tx,
 	gs parsing.GrantStmt,
 	isOwner bool) error {
 	tableID := gs.GetTableID()
@@ -561,7 +525,7 @@ func (b *batch) executeGrantStmt(
 
 func (b *batch) executeWriteStmt(
 	ctx context.Context,
-	tx pgx.Tx,
+	tx *sql.Tx,
 	ws parsing.WriteStmt,
 	addr common.Address,
 	policy tableland.Policy,
@@ -593,7 +557,7 @@ func (b *batch) executeWriteStmt(
 		if err != nil {
 			return fmt.Errorf("get query query: %s", err)
 		}
-		cmdTag, err := tx.Exec(ctx, query)
+		cmdTag, err := tx.ExecContext(ctx, query)
 		if err != nil {
 			if code, ok := isErrCausedByQuery(err); ok {
 				return &txn.ErrQueryExecution{
@@ -604,7 +568,14 @@ func (b *batch) executeWriteStmt(
 			return fmt.Errorf("exec query: %s", err)
 		}
 
-		if err := b.checkRowCountLimit(cmdTag, beforeRowCount); err != nil {
+		// TODO(jsign): ask the query to detect if is an insert.
+		ra, err := cmdTag.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("get rows affected: %s", err)
+		}
+		isInsert := strings.Contains(query, "INSERT")
+
+		if err := b.checkRowCountLimit(ra, isInsert, beforeRowCount); err != nil {
 			return fmt.Errorf("check row limit: %w", err)
 		}
 
@@ -626,12 +597,15 @@ func (b *batch) executeWriteStmt(
 		return fmt.Errorf("get query: %s", err)
 	}
 
-	affectedRowsCtids, commandTag, err := b.executeQueryAndGetAffectedRows(ctx, tx, query)
+	affectedRowsCtids, err := b.executeQueryAndGetAffectedRows(ctx, tx, query)
 	if err != nil {
 		return fmt.Errorf("get rows ctids: %s", err)
 	}
 
-	if err := b.checkRowCountLimit(commandTag, beforeRowCount); err != nil {
+	// TODO(jsign): change with query method
+	isInsert := strings.Contains(query, "INSERT")
+
+	if err := b.checkRowCountLimit(int64(len(affectedRowsCtids)), isInsert, beforeRowCount); err != nil {
 		return fmt.Errorf("check row limit: %w", err)
 	}
 
@@ -704,38 +678,35 @@ func (b *batch) applyPolicy(ws parsing.WriteStmt, policy tableland.Policy) error
 
 func (b *batch) executeQueryAndGetAffectedRows(
 	ctx context.Context,
-	tx pgx.Tx,
-	query string) (affectedRowsCtids []string, commandTag pgconn.CommandTag, err error) {
-	rows, err := tx.Query(ctx, query)
-	defer func() {
-		rows.Close()
-		commandTag = rows.CommandTag()
-	}()
+	tx *sql.Tx,
+	query string) (affectedRowsCtids []string, err error) {
+	rows, err := tx.QueryContext(ctx, query)
+	defer rows.Close()
 
 	if err != nil {
 		if code, ok := isErrCausedByQuery(err); ok {
-			return nil, nil, &txn.ErrQueryExecution{
+			return nil, &txn.ErrQueryExecution{
 				Code: "POSTGRES_" + code,
 				Msg:  err.Error(),
 			}
 		}
-		return nil, nil, fmt.Errorf("exec query: %s", err)
+		return nil, fmt.Errorf("exec query: %s", err)
 	}
 
 	for rows.Next() {
 		var ctid pgtype.TID
 		if err := rows.Scan(&ctid); err != nil {
-			return nil, nil, fmt.Errorf("scan row column: %s", err)
+			return nil, fmt.Errorf("scan row column: %s", err)
 		}
 
 		affectedRowsCtids = append(affectedRowsCtids, fmt.Sprintf("'(%d, %d)'", ctid.BlockNumber, ctid.OffsetNumber))
 	}
-	return affectedRowsCtids, commandTag, nil
+	return affectedRowsCtids, nil
 }
 
-func (b *batch) checkRowCountLimit(cmdTag pgconn.CommandTag, beforeRowCount int) error {
-	if b.tp.maxTableRowCount > 0 && cmdTag.Insert() {
-		afterRowCount := beforeRowCount + int(cmdTag.RowsAffected())
+func (b *batch) checkRowCountLimit(rowsAffected int64, isInsert bool, beforeRowCount int) error {
+	if b.tp.maxTableRowCount > 0 && isInsert {
+		afterRowCount := beforeRowCount + int(rowsAffected)
 
 		if afterRowCount > b.tp.maxTableRowCount {
 			return &txn.ErrQueryExecution{
@@ -750,11 +721,11 @@ func (b *batch) checkRowCountLimit(cmdTag pgconn.CommandTag, beforeRowCount int)
 
 func (b *batch) checkAffectedRowsAgainstAuditingQuery(
 	ctx context.Context,
-	tx pgx.Tx,
+	tx *sql.Tx,
 	affectedRowsCount int,
 	sql string) error {
 	var count int
-	if err := tx.QueryRow(ctx, sql).Scan(&count); err != nil {
+	if err := tx.QueryRowContext(ctx, sql).Scan(&count); err != nil {
 		if code, ok := isErrCausedByQuery(err); ok {
 			return &txn.ErrQueryExecution{
 				Code: "POSTGRES_" + code,
@@ -785,31 +756,35 @@ func (b *batch) buildAuditingQueryFromPolicy(dbTableName string, ctids []string,
 
 func (b *batch) executeGrantPrivilegesTx(
 	ctx context.Context,
-	tx pgx.Tx,
+	tx *sql.Tx,
 	id tableland.TableID,
 	addr common.Address,
 	privileges tableland.Privileges) error {
-	dbID := pgtype.Numeric{}
-	if err := dbID.Set(id.String()); err != nil {
-		return fmt.Errorf("parsing table id to numeric: %s", err)
+	var privilegesMask int64
+	for _, privilege := range privileges {
+		switch privilege {
+		case tableland.PrivInsert:
+			privilegesMask |= 1
+		case tableland.PrivUpdate:
+			privilegesMask |= 1 << 1
+		case tableland.PrivDelete:
+			privilegesMask |= 1 << 2
+		default:
+			return fmt.Errorf("unknown privilege: %s", privilege)
+		}
 	}
 
 	// Upserts the privileges into the acl table,
 	// making sure the array has unique elements.
-	if _, err := tx.Exec(ctx,
-		`INSERT INTO system_acl ("chain_id","table_id","controller","privileges") 
-						VALUES ($1, $2, $3, $4)
-						ON CONFLICT (chain_id,table_id,controller)
-						DO UPDATE SET privileges = ARRAY(
-							SELECT DISTINCT UNNEST(privileges || $4) 
-							FROM system_acl 
-							WHERE table_id = $2 AND controller = $3
-						), updated_at = now();`,
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO system_acl ("chain_id","table_id","controller","privileges")
+		 VALUES ($1, $2, $3, $4)
+		 ON CONFLICT (chain_id,table_id,controller)
+		 DO UPDATE SET privileges = privileges | $4, updated_at = current_timestamp`,
 		b.tp.chainID,
-		dbID,
+		id.ToBigInt().Int64(),
 		addr.Hex(),
-		privileges,
-	); err != nil {
+		privilegesMask); err != nil {
 		if code, ok := isErrCausedByQuery(err); ok {
 			return &txn.ErrQueryExecution{
 				Code: "POSTGRES_" + code,
@@ -824,7 +799,7 @@ func (b *batch) executeGrantPrivilegesTx(
 
 func (b *batch) executeRevokePrivilegesTx(
 	ctx context.Context,
-	tx pgx.Tx,
+	tx *sql.Tx,
 	id tableland.TableID,
 	addr common.Address,
 	privileges tableland.Privileges) error {
@@ -833,12 +808,29 @@ func (b *batch) executeRevokePrivilegesTx(
 		return fmt.Errorf("parsing table id to numeric: %s", err)
 	}
 
+	privilegesMask := 1<<3 - 1 // All privileges mask: 111
+	// Tune the mask to have a 0 in the places we want to disable the bit.
+	// For example, if we want to remove tableland.PrivUpdate, the following
+	// code will transform 111 -> 101.
+	// We'll then use 101 to AND the value in the DB.
+	for _, privilege := range privileges {
+		switch privilege {
+		case tableland.PrivInsert:
+			privilegesMask &^= 1
+		case tableland.PrivUpdate:
+			privilegesMask &^= 1 << 1
+		case tableland.PrivDelete:
+			privilegesMask &^= 1 << 2
+		default:
+			return fmt.Errorf("unknown privilege: %s", privilege)
+		}
+	}
+
 	for _, privAbbr := range privileges {
-		if _, err := tx.Exec(ctx,
-			`UPDATE system_acl 
-							SET privileges = array_remove(privileges, $4), 
-								updated_at = now()
-							WHERE chain_id=$1 AND table_id = $2 AND controller = $3;`,
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE system_acl
+			 SET privileges = privileges & $4, updated_at = current_timestamp
+			 WHERE chain_id=$1 AND table_id = $2 AND controller = $3;`,
 			b.tp.chainID,
 			dbID,
 			addr.Hex(),
