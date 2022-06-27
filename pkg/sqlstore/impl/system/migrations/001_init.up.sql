@@ -47,3 +47,15 @@ CREATE TABLE IF NOT EXISTS system_txn_processor (
     chain_id INTEGER PRIMARY KEY NOT NULL,
     block_number INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS system_pending_tx (
+    chain_id INTEGER NOT NULL,
+    address TEXT NOT NULL,
+    hash TEXT NOT NULL,
+    nonce INTEGER NOT NULL,
+    bump_price_count INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER,
+
+    PRIMARY KEY(chain_id, address, nonce)
+);
