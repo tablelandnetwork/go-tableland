@@ -138,7 +138,7 @@ func TestInitialization(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	url := tests.Sqlite3URL()
+	url := tests.Sqlite3URI()
 
 	key, err := crypto.GenerateKey()
 	require.NoError(t, err)
@@ -210,7 +210,7 @@ func TestMinBlockDepth(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	url := tests.Sqlite3URL()
+	url := tests.Sqlite3URI()
 
 	key, err := crypto.GenerateKey()
 	require.NoError(t, err)
@@ -367,7 +367,7 @@ func TestCheckIfPendingTxIsStuck(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	url := tests.Sqlite3URL()
+	url := tests.Sqlite3URI()
 
 	key, err := crypto.GenerateKey()
 	require.NoError(t, err)
@@ -477,7 +477,7 @@ func setup(ctx context.Context, t *testing.T) (
 	*bind.TransactOpts,
 	*wallet.Wallet,
 	sqlstore.SystemStore) {
-	url := tests.Sqlite3URL()
+	url := tests.Sqlite3URI()
 
 	backend, _, contract, txOptsFrom, sk := testutil.Setup(t)
 

@@ -99,6 +99,7 @@ type SQLValidator interface {
 }
 
 // TODO(parser-merge): we can remove all things from below.
+
 // TablelandColumnType represents an accepted column type for user-tables.
 type TablelandColumnType struct {
 	// Oid is the corresponding postgres datatype OID.

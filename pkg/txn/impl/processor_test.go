@@ -837,7 +837,7 @@ func existsTableWithName(t *testing.T, dbURL string, tableName string) bool {
 func newTxnProcessor(t *testing.T, rowsLimit int) (*TblTxnProcessor, string) {
 	t.Helper()
 
-	url := tests.Sqlite3URL()
+	url := tests.Sqlite3URI()
 	txnp, err := NewTxnProcessor(1337, url, rowsLimit, &aclMock{})
 	require.NoError(t, err)
 

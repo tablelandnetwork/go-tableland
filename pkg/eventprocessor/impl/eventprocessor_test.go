@@ -314,7 +314,7 @@ func setup(t *testing.T) (
 	ef, err := efimpl.New(chainID, backend, addr, eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
 
-	dbURI := tests.Sqlite3URL()
+	dbURI := tests.Sqlite3URI()
 	txnp, err := txnpimpl.NewTxnProcessor(chainID, dbURI, 0, &aclMock{})
 	require.NoError(t, err)
 	parser, err := parserimpl.New([]string{"system_", "registry"})

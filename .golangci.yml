@@ -14,12 +14,16 @@ linters:
     - whitespace
     - godot
     - lll
+    - sqlclosecheck
 
 issues:
   exclude-use-default: false
 
   exclude:
     - stutters
-
+  
 run:
   timeout: 30m
+
+  skip-dirs:
+    - "pkg/sqlstore/impl/system/internal/db"
