@@ -300,13 +300,13 @@ func aclFromSQLtoDTO(acl db.SystemAcl) (sqlstore.SystemACL, error) {
 	}
 
 	var privileges tableland.Privileges
-	if acl.Privileges&1 > 0 {
+	if acl.Privileges&tableland.PrivInsert.Bitfield > 0 {
 		privileges = append(privileges, tableland.PrivInsert)
 	}
-	if acl.Privileges&(1<<1) > 0 {
+	if acl.Privileges&tableland.PrivUpdate.Bitfield > 0 {
 		privileges = append(privileges, tableland.PrivUpdate)
 	}
-	if acl.Privileges&(1<<2) > 0 {
+	if acl.Privileges&tableland.PrivDelete.Bitfield > 0 {
 		privileges = append(privileges, tableland.PrivDelete)
 	}
 

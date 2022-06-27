@@ -15,17 +15,29 @@ type ACL interface {
 }
 
 // Privilege maps to SQL privilege and is the thing needed to execute an operation.
-type Privilege string
+type Privilege struct {
+	Abbreviation string
+	Bitfield     int
+}
 
-const (
+var (
 	// PrivInsert allows insert operations to be executed. The abbreviation is "a".
-	PrivInsert = "a"
+	PrivInsert = Privilege{
+		Abbreviation: "a",
+		Bitfield:     0b001,
+	}
 
 	// PrivUpdate allows updated operations to be executed. The abbreviation is "w".
-	PrivUpdate = "w"
+	PrivUpdate = Privilege{
+		Abbreviation: "w",
+		Bitfield:     0b010,
+	}
 
 	// PrivDelete allows delete operations to be executed. The abbreviation is "d".
-	PrivDelete = "d"
+	PrivDelete = Privilege{
+		Abbreviation: "d",
+		Bitfield:     0b100,
+	}
 )
 
 // NewPrivilegeFromSQLString converts a SQL privilege string into a Privilege.
@@ -39,7 +51,7 @@ func NewPrivilegeFromSQLString(s string) (Privilege, error) {
 		return PrivDelete, nil
 	}
 
-	return "", fmt.Errorf("unsupported string=%s", s)
+	return Privilege{}, fmt.Errorf("unsupported string=%s", s)
 }
 
 // ToSQLString returns the SQL string representation of a Privilege.
@@ -119,11 +131,11 @@ type Privileges []Privilege
 func (p Privileges) CanExecute(operation Operation) (bool, Privilege) {
 	privilegeNeededForOperation, ok := operationPrivilegeMap[operation]
 	if !ok {
-		return true, ""
+		return true, Privilege{}
 	}
 	for _, privilege := range p {
 		if privilege == privilegeNeededForOperation {
-			return true, ""
+			return true, Privilege{}
 		}
 	}
 	return false, privilegeNeededForOperation
