@@ -1,3 +1,5 @@
+TODO(jsign): fix all this (and CTRL+F Postgres...)
+
 ![image](https://user-images.githubusercontent.com/6136245/153219831-53b05f19-1ac2-4523-b564-0686e2078d4d.png)
 <h1 align="center">Go Tableland</h1>
 
