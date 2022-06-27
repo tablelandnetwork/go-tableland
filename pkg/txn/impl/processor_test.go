@@ -2,14 +2,16 @@ package impl
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"math/big"
 	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/jackc/pgx/v4"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4/pgxpool"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
@@ -17,7 +19,6 @@ import (
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/txn"
-	"github.com/textileio/go-tableland/tests"
 )
 
 // Random address for testing. The value isn't important
@@ -40,8 +41,8 @@ func TestExecWriteQueries(t *testing.T) {
 		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq1}, true, tableland.AllowAllPolicy{})
 		require.NoError(t, err)
 
-		require.NoError(t, b.Commit(ctx))
-		require.NoError(t, b.Close(ctx))
+		require.NoError(t, b.Commit())
+		require.NoError(t, b.Close())
 		require.NoError(t, txnp.Close(ctx))
 
 		require.Equal(t, 1, tableRowCountT100(t, pool, "select count(*) from foo_1337_100"))
@@ -73,8 +74,8 @@ func TestExecWriteQueries(t *testing.T) {
 			require.NoError(t, err)
 		}
 
-		require.NoError(t, b.Commit(ctx))
-		require.NoError(t, b.Close(ctx))
+		require.NoError(t, b.Commit())
+		require.NoError(t, b.Close())
 		require.NoError(t, txnp.Close(ctx))
 
 		require.Equal(t, 4, tableRowCountT100(t, pool, "select count(*) from foo_1337_100"))
@@ -106,8 +107,8 @@ func TestExecWriteQueries(t *testing.T) {
 			require.NoError(t, err)
 		}
 
-		require.NoError(t, b.Commit(ctx))
-		require.NoError(t, b.Close(ctx))
+		require.NoError(t, b.Commit())
+		require.NoError(t, b.Close())
 		require.NoError(t, txnp.Close(ctx))
 
 		// We executed a single batch, with 3 Exec calls.
@@ -142,7 +143,7 @@ func TestExecWriteQueries(t *testing.T) {
 		}
 
 		// Note: we don't do a Commit() call, thus all should be rollbacked.
-		require.NoError(t, b.Close(ctx))
+		require.NoError(t, b.Close())
 		require.NoError(t, txnp.Close(ctx))
 
 		// The opened batch wasn't txnp.CloseBatch(), but we simply
@@ -164,8 +165,8 @@ func TestExecWriteQueries(t *testing.T) {
 		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq1}, true, tableland.AllowAllPolicy{})
 		require.NoError(t, err)
 
-		require.NoError(t, b.Commit(ctx))
-		require.NoError(t, b.Close(ctx))
+		require.NoError(t, b.Commit())
+		require.NoError(t, b.Close())
 		require.NoError(t, txnp.Close(ctx))
 
 		ss := wq1.(parsing.GrantStmt)
@@ -198,8 +199,8 @@ func TestExecWriteQueries(t *testing.T) {
 		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq1, wq2, wq3}, true, tableland.AllowAllPolicy{}) // nolint
 		require.NoError(t, err)
 
-		require.NoError(t, b.Commit(ctx))
-		require.NoError(t, b.Close(ctx))
+		require.NoError(t, b.Commit())
+		require.NoError(t, b.Close())
 		require.NoError(t, txnp.Close(ctx))
 
 		systemStore, err := system.New(dbURL, tableland.ChainID(chainID))
@@ -243,8 +244,8 @@ func TestExecWriteQueries(t *testing.T) {
 		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq1, wq2}, true, tableland.AllowAllPolicy{})
 		require.NoError(t, err)
 
-		require.NoError(t, b.Commit(ctx))
-		require.NoError(t, b.Close(ctx))
+		require.NoError(t, b.Commit())
+		require.NoError(t, b.Close())
 		require.NoError(t, txnp.Close(ctx))
 
 		systemStore, err := system.New(dbURL, tableland.ChainID(chainID))
@@ -277,8 +278,8 @@ func TestReceiptExists(t *testing.T) {
 	ok, err := b.TxnReceiptExists(ctx, common.HexToHash(txnHash))
 	require.NoError(t, err)
 	require.False(t, ok)
-	require.NoError(t, b.Commit(ctx))
-	require.NoError(t, b.Close(ctx))
+	require.NoError(t, b.Commit())
+	require.NoError(t, b.Close())
 
 	b, err = txnp.OpenBatch(ctx)
 	require.NoError(t, err)
@@ -290,16 +291,16 @@ func TestReceiptExists(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	require.NoError(t, b.Commit(ctx))
-	require.NoError(t, b.Close(ctx))
+	require.NoError(t, b.Commit())
+	require.NoError(t, b.Close())
 
 	b, err = txnp.OpenBatch(ctx)
 	require.NoError(t, err)
 	ok, err = b.TxnReceiptExists(ctx, common.HexToHash(txnHash))
 	require.NoError(t, err)
 	require.True(t, ok)
-	require.NoError(t, b.Commit(ctx))
-	require.NoError(t, b.Close(ctx))
+	require.NoError(t, b.Commit())
+	require.NoError(t, b.Close())
 
 	require.NoError(t, txnp.Close(ctx))
 }
@@ -440,8 +441,8 @@ func TestExecWriteQueriesWithPolicies(t *testing.T) {
 		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq3}, true, policy)
 		require.NoError(t, err)
 
-		require.NoError(t, b.Commit(ctx))
-		require.NoError(t, b.Close(ctx))
+		require.NoError(t, b.Commit())
+		require.NoError(t, b.Close())
 		require.NoError(t, txnp.Close(ctx))
 
 		// there should be only one row updated
@@ -467,8 +468,8 @@ func TestRegisterTable(t *testing.T) {
 		err = b.InsertTable(ctx, id, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", createStmt)
 		require.NoError(t, err)
 
-		require.NoError(t, b.Commit(ctx))
-		require.NoError(t, b.Close(ctx))
+		require.NoError(t, b.Commit())
+		require.NoError(t, b.Close())
 		require.NoError(t, txnp.Close(ctx))
 
 		// Check that the table was registered in the system-table.
@@ -504,9 +505,9 @@ func TestTableRowCountLimit(t *testing.T) {
 		q := mustWriteStmt(t, `insert into foo_1337_100 values ('one')`)
 		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{q}, true, tableland.AllowAllPolicy{})
 		if err == nil {
-			require.NoError(t, b.Commit(ctx))
+			require.NoError(t, b.Commit())
 		}
-		require.NoError(t, b.Close(ctx))
+		require.NoError(t, b.Close())
 		return err
 	}
 
@@ -538,15 +539,15 @@ func TestSetController(t *testing.T) {
 		_, _, pgxpool := newTxnProcessorWithTable(t, 0)
 
 		// Let's test first that the controller is not set (it's the default behavior)
-		tx, err := pgxpool.BeginTx(ctx, pgx.TxOptions{
-			IsoLevel:   pgx.Serializable,
-			AccessMode: pgx.ReadWrite,
+		tx, err := pgxpool.BeginTx(ctx, &sql.TxOptions{
+			Isolation: sql.LevelSerializable,
+			ReadOnly:  false,
 		})
 		require.NoError(t, err)
 		controller, err := getController(ctx, tx, tableland.ChainID(chainID), tableID)
 		require.NoError(t, err)
 		require.Equal(t, "", controller)
-		require.NoError(t, tx.Commit(ctx))
+		require.NoError(t, tx.Commit())
 	})
 
 	t.Run("foreign-key-constraint", func(t *testing.T) {
@@ -557,13 +558,13 @@ func TestSetController(t *testing.T) {
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
 		err = b.SetController(ctx, tableland.TableID(*big.NewInt(1)), common.HexToAddress("0x01"))
-		require.NoError(t, b.Commit(ctx))
+		require.NoError(t, b.Commit())
 		require.Error(t, err)
 		var errQueryExecution *txn.ErrQueryExecution
 		require.NotErrorIs(t, err, errQueryExecution)
 		require.Contains(t, err.Error(), "SQLSTATE 23503")
 
-		require.NoError(t, b.Close(ctx))
+		require.NoError(t, b.Close())
 		require.NoError(t, txnp.Close(ctx))
 	})
 
@@ -575,37 +576,37 @@ func TestSetController(t *testing.T) {
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
 		err = b.SetController(ctx, tableID, common.HexToAddress("0x01"))
-		require.NoError(t, b.Commit(ctx))
-		require.NoError(t, b.Close(ctx))
+		require.NoError(t, b.Commit())
+		require.NoError(t, b.Close())
 		require.NoError(t, err)
 
-		tx, err := pgxpool.BeginTx(ctx, pgx.TxOptions{
-			IsoLevel:   pgx.Serializable,
-			AccessMode: pgx.ReadWrite,
+		tx, err := pgxpool.BeginTx(ctx, &sql.TxOptions{
+			Isolation: sql.LevelSerializable,
+			ReadOnly:  false,
 		})
 		require.NoError(t, err)
 		controller, err := getController(ctx, tx, tableland.ChainID(chainID), tableID)
 		require.NoError(t, err)
 		require.Equal(t, "0x0000000000000000000000000000000000000001", controller)
-		require.NoError(t, tx.Commit(ctx))
+		require.NoError(t, tx.Commit())
 
 		// unsets
 		b, err = txnp.OpenBatch(ctx)
 		require.NoError(t, err)
 		err = b.SetController(ctx, tableID, common.HexToAddress("0x0"))
-		require.NoError(t, b.Commit(ctx))
-		require.NoError(t, b.Close(ctx))
+		require.NoError(t, b.Commit())
+		require.NoError(t, b.Close())
 		require.NoError(t, err)
 
-		tx, err = pgxpool.BeginTx(ctx, pgx.TxOptions{
-			IsoLevel:   pgx.Serializable,
-			AccessMode: pgx.ReadWrite,
+		tx, err = pgxpool.BeginTx(ctx, &sql.TxOptions{
+			Isolation: sql.LevelSerializable,
+			ReadOnly:  false,
 		})
 		require.NoError(t, err)
 		controller, err = getController(ctx, tx, tableland.ChainID(chainID), tableID)
 		require.NoError(t, err)
 		require.Equal(t, "", controller)
-		require.NoError(t, tx.Commit(ctx))
+		require.NoError(t, tx.Commit())
 
 		require.NoError(t, txnp.Close(ctx))
 	})
@@ -618,29 +619,29 @@ func TestSetController(t *testing.T) {
 			b, err := txnp.OpenBatch(ctx)
 			require.NoError(t, err)
 			err = b.SetController(ctx, tableID, common.HexToAddress("0x01"))
-			require.NoError(t, b.Commit(ctx))
+			require.NoError(t, b.Commit())
 			require.NoError(t, err)
-			require.NoError(t, b.Close(ctx))
+			require.NoError(t, b.Close())
 		}
 
 		{
 			b, err := txnp.OpenBatch(ctx)
 			require.NoError(t, err)
 			err = b.SetController(ctx, tableID, common.HexToAddress("0x02"))
-			require.NoError(t, b.Commit(ctx))
+			require.NoError(t, b.Commit())
 			require.NoError(t, err)
-			require.NoError(t, b.Close(ctx))
+			require.NoError(t, b.Close())
 		}
 
-		tx, err := pgxpool.BeginTx(ctx, pgx.TxOptions{
-			IsoLevel:   pgx.Serializable,
-			AccessMode: pgx.ReadWrite,
+		tx, err := pgxpool.BeginTx(ctx, &sql.TxOptions{
+			Isolation: sql.LevelSerializable,
+			ReadOnly:  false,
 		})
 		require.NoError(t, err)
 		controller, err := getController(ctx, tx, tableland.ChainID(chainID), tableID)
 		require.NoError(t, err)
 		require.Equal(t, "0x0000000000000000000000000000000000000002", controller)
-		require.NoError(t, tx.Commit(ctx))
+		require.NoError(t, tx.Commit())
 
 		require.NoError(t, txnp.Close(ctx))
 	})
@@ -673,8 +674,8 @@ func TestWithCheck(t *testing.T) {
 		require.ErrorAs(t, err, &errQueryExecution)
 		require.ErrorContains(t, err, "number of affected rows 1 does not match auditing count 0")
 
-		require.NoError(t, b.Commit(ctx))
-		require.NoError(t, b.Close(ctx))
+		require.NoError(t, b.Commit())
+		require.NoError(t, b.Close())
 		require.NoError(t, txnp.Close(ctx))
 
 		require.Equal(t, 0, tableRowCountT100(t, pool, "select count(*) from foo_1337_100"))
@@ -709,8 +710,8 @@ func TestWithCheck(t *testing.T) {
 		require.ErrorAs(t, err, &errQueryExecution)
 		require.ErrorContains(t, err, "number of affected rows 1 does not match auditing count 0")
 
-		require.NoError(t, b.Commit(ctx))
-		require.NoError(t, b.Close(ctx))
+		require.NoError(t, b.Commit())
+		require.NoError(t, b.Close())
 		require.NoError(t, txnp.Close(ctx))
 
 		require.Equal(t, 1, tableRowCountT100(t, pool, "select count(*) from foo_1337_100 WHERE zar = 'one'"))
@@ -741,8 +742,8 @@ func TestWithCheck(t *testing.T) {
 		_ = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq1, wq2}, true, policy)
 		require.Nil(t, err)
 
-		require.NoError(t, b.Commit(ctx))
-		require.NoError(t, b.Close(ctx))
+		require.NoError(t, b.Commit())
+		require.NoError(t, b.Close())
 		require.NoError(t, txnp.Close(ctx))
 
 		require.Equal(t, 2, tableRowCountT100(t, pool, "select count(*) from foo_1337_100"))
@@ -762,7 +763,7 @@ func TestWithCheck(t *testing.T) {
 		err = b.SetController(ctx, tableland.TableID(*big.NewInt(100)), common.HexToAddress("0x1"))
 		require.NoError(t, err)
 
-		require.NoError(t, b.Close(ctx))
+		require.NoError(t, b.Close())
 
 		// Helper func to insert a row and return an error if happened.
 		insertRow := func(t *testing.T) error {
@@ -778,9 +779,9 @@ func TestWithCheck(t *testing.T) {
 
 			err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{q}, true, policy)
 			if err == nil {
-				require.NoError(t, b.Commit(ctx))
+				require.NoError(t, b.Commit())
 			}
-			require.NoError(t, b.Close(ctx))
+			require.NoError(t, b.Close())
 			return err
 		}
 
@@ -802,13 +803,13 @@ func TestWithCheck(t *testing.T) {
 	})
 }
 
-func tableRowCountT100(t *testing.T, pool *pgxpool.Pool, sql string) int {
+func tableRowCountT100(t *testing.T, pool *sql.DB, query string) int {
 	t.Helper()
 
-	row := pool.QueryRow(context.Background(), sql)
+	row := pool.QueryRowContext(context.Background(), query)
 	var rowCount int
 	err := row.Scan(&rowCount)
-	if err == pgx.ErrNoRows {
+	if err == sql.ErrNoRows {
 		return 0
 	}
 	require.NoError(t, err)
@@ -827,7 +828,7 @@ func existsTableWithName(t *testing.T, dbURL string, tableName string) bool {
 	row := pool.QueryRow(context.Background(), q, tableName)
 	var dummy int
 	err = row.Scan(&dummy)
-	if err == pgx.ErrNoRows {
+	if err == sql.ErrNoRows {
 		return false
 	}
 	require.NoError(t, err)
@@ -837,8 +838,7 @@ func existsTableWithName(t *testing.T, dbURL string, tableName string) bool {
 func newTxnProcessor(t *testing.T, rowsLimit int) (*TblTxnProcessor, string) {
 	t.Helper()
 
-	url := tests.PostgresURL(t)
-
+	url := "file::" + uuid.NewString() + ":?mode=memory&cache=shared"
 	txnp, err := NewTxnProcessor(1337, url, rowsLimit, &aclMock{})
 	require.NoError(t, err)
 
@@ -848,7 +848,7 @@ func newTxnProcessor(t *testing.T, rowsLimit int) (*TblTxnProcessor, string) {
 	return txnp, url
 }
 
-func newTxnProcessorWithTable(t *testing.T, rowsLimit int) (*TblTxnProcessor, string, *pgxpool.Pool) {
+func newTxnProcessorWithTable(t *testing.T, rowsLimit int) (*TblTxnProcessor, string, *sql.DB) {
 	t.Helper()
 
 	txnp, dbURL := newTxnProcessor(t, rowsLimit)
@@ -864,10 +864,10 @@ func newTxnProcessorWithTable(t *testing.T, rowsLimit int) (*TblTxnProcessor, st
 	err = b.InsertTable(ctx, id, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", createStmt)
 	require.NoError(t, err)
 
-	require.NoError(t, b.Commit(ctx))
-	require.NoError(t, b.Close(ctx))
+	require.NoError(t, b.Commit())
+	require.NoError(t, b.Close())
 
-	pool, err := pgxpool.Connect(ctx, dbURL)
+	pool, err := sql.Open("sqlite3", dbURL)
 	require.NoError(t, err)
 
 	return txnp, dbURL, pool
@@ -902,7 +902,7 @@ type aclMock struct{}
 
 func (acl *aclMock) CheckPrivileges(
 	ctx context.Context,
-	tx pgx.Tx,
+	tx *sql.Tx,
 	controller common.Address,
 	id tableland.TableID,
 	op tableland.Operation) (bool, error) {
