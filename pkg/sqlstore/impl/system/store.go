@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog/log"
@@ -315,12 +314,8 @@ func aclFromSQLtoDTO(acl db.SystemAcl) (sqlstore.SystemACL, error) {
 		TableID:    id,
 		Controller: acl.Controller,
 		Privileges: privileges,
-		CreatedAt:  time.Now(), // TODO(jsign): fix it's not time.Now()
-	}
-
-	if acl.UpdatedAt.Valid {
-		now := time.Now()
-		systemACL.UpdatedAt = &now // TODO(jsign): fix, should be: &acl.UpdatedAt.String
+		CreatedAt:  acl.CreatedAt,
+		UpdatedAt:  acl.UpdatedAt,
 	}
 
 	return systemACL, nil
@@ -344,7 +339,6 @@ type dbWithTxImpl struct {
 	tx *sql.Tx
 }
 
-// TODO(jsign): revisit this... ???
 func (d *dbWithTxImpl) queries() *db.Queries {
 	if d.tx == nil {
 		return d.db

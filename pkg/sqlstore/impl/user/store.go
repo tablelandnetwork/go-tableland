@@ -7,6 +7,7 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/textileio/go-tableland/pkg/parsing"
+	"github.com/textileio/go-tableland/pkg/sqlstore"
 )
 
 // UserStore provides access to the db store.
@@ -31,12 +32,7 @@ func (db *UserStore) Read(ctx context.Context, rq parsing.ReadStmt) (interface{}
 	if err != nil {
 		return nil, fmt.Errorf("get query: %s", err)
 	}
-	rows, err := db.pool.QueryContext(ctx, query)
-	if err != nil {
-		return nil, fmt.Errorf("executing query: %s", err)
-	}
-	defer rows.Close()
-	ret, err := rowsToJSON(rows)
+	ret, err := execReadQuery(ctx, db.pool, query)
 	if err != nil {
 		return nil, fmt.Errorf("parsing result to json: %s", err)
 	}
@@ -47,4 +43,13 @@ func (db *UserStore) Read(ctx context.Context, rq parsing.ReadStmt) (interface{}
 func (db *UserStore) Close() error {
 	db.pool.Close()
 	return nil
+}
+
+func execReadQuery(ctx context.Context, tx *sql.DB, q string) (*sqlstore.UserRows, error) {
+	rows, err := tx.QueryContext(ctx, q)
+	if err != nil {
+		return nil, fmt.Errorf("executing query: %s", err)
+	}
+	defer rows.Close()
+	return rowsToJSON(rows)
 }

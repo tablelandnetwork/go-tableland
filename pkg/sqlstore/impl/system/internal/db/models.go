@@ -19,16 +19,8 @@ type SystemAcl struct {
 	Controller string
 	Privileges int
 	CreatedAt  time.Time
-	UpdatedAt  sql.NullString
+	UpdatedAt  *time.Time
 	ChainID    int64
-}
-
-type SystemAuth struct {
-	Address          string
-	CreatedAt        time.Time
-	LastSeen         sql.NullTime
-	CreateTableCount int32
-	RunSqlCount      int32
 }
 
 type SystemController struct {
