@@ -129,25 +129,23 @@ func (b *batch) InsertTable(
 	createStmt parsing.CreateStmt) error {
 	f := func(ctx context.Context, txn *sql.Tx) error {
 		if _, err := txn.ExecContext(ctx,
-			`INSERT INTO registry ("chain_id", "id","controller","prefix","structure", "created_at") 
-		  	 VALUES (?1,?2,?3,?4,?5,?6);`,
+			`INSERT INTO registry ("chain_id", "id","controller","prefix","structure") 
+		  	 VALUES (?1,?2,?3,?4,?5);`,
 			b.tp.chainID,
 			id.String(),
 			controller,
 			createStmt.GetPrefix(),
-			createStmt.GetStructureHash(),
-			time.Now().Unix()); err != nil {
+			createStmt.GetStructureHash()); err != nil {
 			return fmt.Errorf("inserting new table in system-wide registry: %s", err)
 		}
 
 		if _, err := txn.ExecContext(ctx,
-			`INSERT INTO system_acl ("chain_id","table_id","controller","privileges","created_at") 
-			 VALUES (?1,?2,?3,?4,?5);`,
+			`INSERT INTO system_acl ("chain_id","table_id","controller","privileges") 
+			 VALUES (?1,?2,?3,?4);`,
 			b.tp.chainID,
 			id.String(),
 			controller,
 			tableland.PrivInsert.Bitfield|tableland.PrivUpdate.Bitfield|tableland.PrivDelete.Bitfield,
-			time.Now().Unix(),
 		); err != nil {
 			return fmt.Errorf("inserting new entry into system acl: %s", err)
 		}
