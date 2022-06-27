@@ -2,6 +2,7 @@ package impl
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
@@ -32,8 +32,8 @@ func TestRunSQLBlockProcessing(t *testing.T) {
 	tableID, err := tableland.NewTableID("1")
 	require.NoError(t, err)
 
-	expWrongTypeErr := "db query execution failed (code: POSTGRES_22P02, msg: ERROR: invalid input syntax for type integer: \"abc\" (SQLSTATE 22P02))" // nolint
-	cond := func(dr dbReader, exp []int) func() bool {
+	expWrongTypeErr := "db query execution failed (code: SQLITE_table test_1337_1 has 1 columns but 2 values were supplied, msg: table test_1337_1 has 1 columns but 2 values were supplied)" //nolint
+	cond := func(dr dbReader, exp []int64) func() bool {
 		return func() bool {
 			got := dr("select * from test_1337_1")
 			if len(exp) != len(got) {
@@ -63,14 +63,14 @@ func TestRunSQLBlockProcessing(t *testing.T) {
 		}
 		require.Eventually(t, checkReceipts(t, expReceipt), time.Second*5, time.Millisecond*100)
 
-		expectedRows := []int{1001}
+		expectedRows := []int64{1001}
 		require.Eventually(t, cond(dbReader, expectedRows), time.Second, time.Millisecond*100)
 	})
 	t.Run("failure", func(t *testing.T) {
 		t.Parallel()
 
 		contractCalls, checkReceipts, dbReader := setup(t)
-		queries := []string{"insert into test_1337_1 values ('abc')"}
+		queries := []string{"insert into test_1337_1 values (1,2)"}
 		txnHashes := contractCalls.runSQL(queries)
 
 		expReceipt := eventprocessor.Receipt{
@@ -81,7 +81,7 @@ func TestRunSQLBlockProcessing(t *testing.T) {
 		}
 		require.Eventually(t, checkReceipts(t, expReceipt), time.Second*5, time.Millisecond*100)
 
-		notExpectedRows := []int{1001}
+		notExpectedRows := []int64{1001}
 		require.Never(t, cond(dbReader, notExpectedRows), time.Second, time.Millisecond*100)
 	})
 	t.Run("success-success", func(t *testing.T) {
@@ -102,14 +102,14 @@ func TestRunSQLBlockProcessing(t *testing.T) {
 		}
 		require.Eventually(t, checkReceipts(t, expReceipts...), time.Second*5, time.Millisecond*100)
 
-		expectedRows := []int{1001, 1002}
+		expectedRows := []int64{1001, 1002}
 		require.Eventually(t, cond(dbReader, expectedRows), time.Second, time.Millisecond*100)
 	})
 	t.Run("failure-success", func(t *testing.T) {
 		t.Parallel()
 
 		contractCalls, checkReceipts, dbReader := setup(t)
-		queries := []string{"insert into test_1337_1 values ('abc')", "insert into test_1337_1 values (1002)"}
+		queries := []string{"insert into test_1337_1 values (1,2)", "insert into test_1337_1 values (1002)"}
 		txnHashes := contractCalls.runSQL(queries)
 
 		expReceipts := make([]eventprocessor.Receipt, len(txnHashes))
@@ -127,13 +127,13 @@ func TestRunSQLBlockProcessing(t *testing.T) {
 		}
 		require.Eventually(t, checkReceipts(t, expReceipts...), time.Second*5, time.Millisecond*100)
 
-		expectedRows := []int{1002}
+		expectedRows := []int64{1002}
 		require.Eventually(t, cond(dbReader, expectedRows), time.Second, time.Millisecond*100)
 	})
 	t.Run("success-failure", func(t *testing.T) {
 		t.Parallel()
 		contractCalls, checkReceipts, dbReader := setup(t)
-		queries := []string{"insert into test_1337_1 values (1001)", "insert into test_1337_1 values ('abc')"}
+		queries := []string{"insert into test_1337_1 values (1001)", "insert into test_1337_1 values (1,2)"}
 		txnHashes := contractCalls.runSQL(queries)
 
 		expReceipts := make([]eventprocessor.Receipt, len(txnHashes))
@@ -151,7 +151,7 @@ func TestRunSQLBlockProcessing(t *testing.T) {
 		}
 		require.Eventually(t, checkReceipts(t, expReceipts...), time.Second*5, time.Millisecond*100)
 
-		expectedRows := []int{1001}
+		expectedRows := []int64{1001}
 		require.Eventually(t, cond(dbReader, expectedRows), time.Second, time.Millisecond*100)
 	})
 }
@@ -288,7 +288,7 @@ type contractCalls struct {
 	transfer      contractTransferFromSender
 }
 
-type dbReader func(string) []int
+type dbReader func(string) []int64
 type contractRunSQLBlockSender func([]string) []common.Hash
 type contractCreateTableSender func(string) common.Hash
 type contractSetControllerSender func(controller common.Address) common.Hash
@@ -308,8 +308,9 @@ func setup(t *testing.T) (
 	// i.e: TxnProcessor, Parser, and EventFeed (connected to the EVM chain)
 	ef, err := efimpl.New(chainID, backend, addr, eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
-	url := tests.PostgresURL(t)
-	txnp, err := txnpimpl.NewTxnProcessor(chainID, url, 0, &aclMock{})
+
+	dbURI := tests.Sqlite3URL()
+	txnp, err := txnpimpl.NewTxnProcessor(chainID, dbURI, 0, &aclMock{})
 	require.NoError(t, err)
 	parser, err := parserimpl.New([]string{"system_", "registry"})
 	require.NoError(t, err)
@@ -345,7 +346,7 @@ func setup(t *testing.T) (
 		return txn.Hash()
 	}
 
-	systemStore, err := system.New(url, tableland.ChainID(chainID))
+	systemStore, err := system.New(dbURI, tableland.ChainID(chainID))
 
 	transferFrom := func(controller common.Address) common.Hash {
 		txn, err := sc.TransferFrom(authOpts, authOpts.From, controller, big.NewInt(1))
@@ -355,10 +356,10 @@ func setup(t *testing.T) (
 	}
 
 	require.NoError(t, err)
-	userStore, err := user.New(url)
+	userStore, err := user.New(dbURI)
 	require.NoError(t, err)
 
-	tableReader := func(readQuery string) []int {
+	tableReader := func(readQuery string) []int64 {
 		rq, err := parser.ValidateReadQuery(readQuery)
 		require.NoError(t, err)
 		require.NotNil(t, rq)
@@ -366,9 +367,9 @@ func setup(t *testing.T) (
 		require.NoError(t, err)
 
 		queryRes := res.(sqlstore.UserRows)
-		ret := make([]int, len(queryRes.Rows))
+		ret := make([]int64, len(queryRes.Rows))
 		for i := range queryRes.Rows {
-			ret[i] = **queryRes.Rows[i][0].(**int)
+			ret[i] = queryRes.Rows[i][0].(*sql.NullInt64).Int64
 		}
 		return ret
 	}
@@ -377,10 +378,10 @@ func setup(t *testing.T) (
 		return func() bool {
 			for _, expReceipt := range rs {
 				gotReceipt, found, err := systemStore.GetReceipt(context.Background(), expReceipt.TxnHash)
+				require.NoError(t, err)
 				if !found {
 					return false
 				}
-				require.NoError(t, err)
 				require.Equal(t, expReceipt.ChainID, gotReceipt.ChainID)
 				require.NotZero(t, gotReceipt.BlockNumber)
 				require.Equal(t, expReceipt.TxnHash, gotReceipt.TxnHash)
@@ -409,7 +410,7 @@ type aclMock struct{}
 
 func (acl *aclMock) CheckPrivileges(
 	ctx context.Context,
-	tx pgx.Tx,
+	tx *sql.Tx,
 	controller common.Address,
 	id tableland.TableID,
 	op tableland.Operation) (bool, error) {
