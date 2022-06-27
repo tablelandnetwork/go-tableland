@@ -555,9 +555,8 @@ func (b *batch) executeWriteStmt(
 		if err != nil {
 			return fmt.Errorf("get rows affected: %s", err)
 		}
-		// TODO(parser-merge): ask the query to detect if is an insert.
-		isInsert := strings.Contains(query, "INSERT")
 
+		isInsert := ws.Operation() == tableland.OpInsert
 		if err := b.checkRowCountLimit(ra, isInsert, beforeRowCount); err != nil {
 			return fmt.Errorf("check row limit: %w", err)
 		}
@@ -585,9 +584,7 @@ func (b *batch) executeWriteStmt(
 		return fmt.Errorf("get rows ids: %s", err)
 	}
 
-	// TODO(parser-merge): change with query method
-	isInsert := strings.Contains(query, "INSERT")
-
+	isInsert := ws.Operation() == tableland.OpInsert
 	if err := b.checkRowCountLimit(int64(len(affectedRowIDs)), isInsert, beforeRowCount); err != nil {
 		return fmt.Errorf("check row limit: %w", err)
 	}
