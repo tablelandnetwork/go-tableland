@@ -29,6 +29,8 @@ import (
 )
 
 func TestTracker(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	tracker, backend, contract, txOpts, wallet, _ := setup(ctx, t)
 
@@ -69,6 +71,8 @@ func TestTracker(t *testing.T) {
 }
 
 func TestTrackerUnlock(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	tracker, backend, contract, txOpts, wallet, _ := setup(ctx, t)
 	_, err := contract.CreateTable(txOpts, txOpts.From, "CREATE TABLE Foo_1337 (bar int)")
@@ -99,6 +103,8 @@ func TestTrackerUnlock(t *testing.T) {
 }
 
 func TestTrackerPendingTxGotStuck(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	tracker, backend, contract, txOpts, wallet, sqlstore := setup(ctx, t)
 	_, err := contract.CreateTable(txOpts, txOpts.From, "CREATE TABLE Foo_1337 (bar int)")
@@ -129,8 +135,10 @@ func TestTrackerPendingTxGotStuck(t *testing.T) {
 }
 
 func TestInitialization(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
-	url := tests.PostgresURL(t)
+	url := tests.Sqlite3URL()
 
 	key, err := crypto.GenerateKey()
 	require.NoError(t, err)
@@ -199,8 +207,10 @@ func TestInitialization(t *testing.T) {
 }
 
 func TestMinBlockDepth(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
-	url := tests.PostgresURL(t)
+	url := tests.Sqlite3URL()
 
 	key, err := crypto.GenerateKey()
 	require.NoError(t, err)
@@ -354,8 +364,10 @@ func TestRinkebyUnblockingTx(t *testing.T) {
 }
 
 func TestCheckIfPendingTxIsStuck(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
-	url := tests.PostgresURL(t)
+	url := tests.Sqlite3URL()
 
 	key, err := crypto.GenerateKey()
 	require.NoError(t, err)
@@ -465,7 +477,7 @@ func setup(ctx context.Context, t *testing.T) (
 	*bind.TransactOpts,
 	*wallet.Wallet,
 	sqlstore.SystemStore) {
-	url := tests.PostgresURL(t)
+	url := tests.Sqlite3URL()
 
 	backend, _, contract, txOptsFrom, sk := testutil.Setup(t)
 

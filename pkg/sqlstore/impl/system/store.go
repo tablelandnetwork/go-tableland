@@ -184,9 +184,9 @@ func (s *SystemStore) DeletePendingTxByHash(ctx context.Context, hash common.Has
 // ReplacePendingTxByHash replaces the txn hash of a pending txn and bumps the counter of how many times this happened.
 func (s *SystemStore) ReplacePendingTxByHash(ctx context.Context, oldHash common.Hash, newHash common.Hash) error {
 	err := s.db.queries().ReplacePendingTxByHash(ctx, db.ReplacePendingTxByHashParams{
-		ChainID: int64(s.chainID),
-		Hash:    oldHash.Hex(),
-		Hash_2:  newHash.Hex(),
+		ChainID:      int64(s.chainID),
+		PreviousHash: oldHash.Hex(),
+		NewHash:      newHash.Hex(),
 	})
 	if err != nil {
 		return fmt.Errorf("replace pending tx: %s", err)
