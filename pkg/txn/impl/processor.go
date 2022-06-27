@@ -146,7 +146,7 @@ func (b *batch) InsertTable(
 			b.tp.chainID,
 			id.String(),
 			controller,
-			3, // the abbreviations for PrivInsert, PrivUpdate and PrivDelete TODO(jsign)
+			tableland.PrivInsert.Bitfield|tableland.PrivUpdate.Bitfield|tableland.PrivDelete.Bitfield,
 			time.Now().Unix(),
 		); err != nil {
 			return fmt.Errorf("inserting new entry into system acl: %s", err)
@@ -556,7 +556,7 @@ func (b *batch) executeWriteStmt(
 		if err != nil {
 			return fmt.Errorf("get rows affected: %s", err)
 		}
-		// TODO(jsign): ask the query to detect if is an insert.
+		// TODO(parser-merge): ask the query to detect if is an insert.
 		isInsert := strings.Contains(query, "INSERT")
 
 		if err := b.checkRowCountLimit(ra, isInsert, beforeRowCount); err != nil {
@@ -751,17 +751,17 @@ func (b *batch) executeGrantPrivilegesTx(
 	id tableland.TableID,
 	addr common.Address,
 	privileges tableland.Privileges) error {
-	var privilegesMask int64
+	var privilegesMask int
 	for _, privilege := range privileges {
 		switch privilege {
 		case tableland.PrivInsert:
-			privilegesMask |= 1
+			privilegesMask |= tableland.PrivInsert.Bitfield
 		case tableland.PrivUpdate:
-			privilegesMask |= 1 << 1
+			privilegesMask |= tableland.PrivUpdate.Bitfield
 		case tableland.PrivDelete:
-			privilegesMask |= 1 << 2
+			privilegesMask |= tableland.PrivDelete.Bitfield
 		default:
-			return fmt.Errorf("unknown privilege: %s", privilege)
+			return fmt.Errorf("unknown privilege: %s", privilege.Abbreviation)
 		}
 	}
 
@@ -795,7 +795,7 @@ func (b *batch) executeRevokePrivilegesTx(
 	id tableland.TableID,
 	addr common.Address,
 	privileges tableland.Privileges) error {
-	privilegesMask := 1<<3 - 1 // All privileges mask: 111
+	privilegesMask := tableland.PrivInsert.Bitfield | tableland.PrivUpdate.Bitfield | tableland.PrivDelete.Bitfield
 	// Tune the mask to have a 0 in the places we want to disable the bit.
 	// For example, if we want to remove tableland.PrivUpdate, the following
 	// code will transform 111 -> 101.
@@ -803,13 +803,13 @@ func (b *batch) executeRevokePrivilegesTx(
 	for _, privilege := range privileges {
 		switch privilege {
 		case tableland.PrivInsert:
-			privilegesMask &^= 1
+			privilegesMask &^= tableland.PrivInsert.Bitfield
 		case tableland.PrivUpdate:
-			privilegesMask &^= 1 << 1
+			privilegesMask &^= tableland.PrivUpdate.Bitfield
 		case tableland.PrivDelete:
-			privilegesMask &^= 1 << 2
+			privilegesMask &^= tableland.PrivDelete.Bitfield
 		default:
-			return fmt.Errorf("unknown privilege: %s", privilege)
+			return fmt.Errorf("unknown privilege: %s", privilege.Abbreviation)
 		}
 	}
 
