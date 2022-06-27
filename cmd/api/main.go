@@ -109,12 +109,6 @@ func main() {
 		Handler:      router.Handler(),
 	}
 
-	// Admin endpoint configuration.
-	if config.AdminAPI.Password == "" {
-		log.Warn().
-			Msg("no admin api password set")
-	}
-
 	go func() {
 		if err := server.ListenAndServe(); err != nil {
 			if err == http.ErrServerClosed {

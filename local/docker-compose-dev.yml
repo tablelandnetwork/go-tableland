@@ -17,8 +17,6 @@ services:
     # - REGISTRY_ETHENDPOINT=ws://127.0.0.1:8545 # Linux
       - LOG_HUMAN=true
       - LOG_DEBUG=true
-      - ADMINAPI_USERNAME=admin_user
-      - ADMINAPI_PASSWORD=admin_password
       - POSTGRES_USER=postgres # used only in with-postgres.sh
       - POSTGRES_PASSWORD=postgres # used only in with-postgres.sh
       - OTEL_SERVICE_NAME=tableland:api # this is just to the unknown_service from the metrics label
