@@ -12,6 +12,8 @@ import (
 )
 
 func TestSystemControllerMock(t *testing.T) {
+	t.Parallel()
+
 	req, err := http.NewRequest("GET", "/tables/100", nil)
 	require.NoError(t, err)
 
@@ -36,6 +38,8 @@ func TestSystemControllerMock(t *testing.T) {
 }
 
 func TestInvalidID(t *testing.T) {
+	t.Parallel()
+
 	id := "invalid integer"
 	path := fmt.Sprintf("/tables/%s", id)
 	req, err := http.NewRequest("GET", path, nil)
@@ -57,6 +61,8 @@ func TestInvalidID(t *testing.T) {
 }
 
 func TestTableNotFoundMock(t *testing.T) {
+	t.Parallel()
+
 	req, err := http.NewRequest("GET", "/tables/100", nil)
 	require.NoError(t, err)
 

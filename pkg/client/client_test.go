@@ -32,11 +32,15 @@ import (
 )
 
 func TestCreate(t *testing.T) {
+	t.Parallel()
+
 	calls := setup(t)
 	requireCreate(t, calls)
 }
 
 func TestList(t *testing.T) {
+	t.Parallel()
+
 	calls := setup(t)
 	requireCreate(t, calls)
 	res := calls.list()
@@ -44,12 +48,16 @@ func TestList(t *testing.T) {
 }
 
 func TestWrite(t *testing.T) {
+	t.Parallel()
+
 	calls := setup(t)
 	_, table := requireCreate(t, calls)
 	requireWrite(t, calls, table)
 }
 
 func TestRead(t *testing.T) {
+	t.Parallel()
+
 	calls := setup(t)
 	_, table := requireCreate(t, calls)
 	hash := requireWrite(t, calls, table)
@@ -59,12 +67,16 @@ func TestRead(t *testing.T) {
 }
 
 func TestHash(t *testing.T) {
+	t.Parallel()
+
 	calls := setup(t)
 	hash := calls.hash("create table foo_1337 (bar text)")
 	require.NotEmpty(t, hash)
 }
 
 func TestSetController(t *testing.T) {
+	t.Parallel()
+
 	calls := setup(t)
 	tableID, _ := requireCreate(t, calls)
 	key, err := crypto.GenerateKey()

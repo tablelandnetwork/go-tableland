@@ -47,6 +47,7 @@ func main() {
 			Msg("could not setup instrumentation")
 	}
 
+	// TODO(jsign)
 	databaseURL := fmt.Sprintf(
 		"postgres://%s:%s@%s:%s/%s?sslmode=disable&timezone=UTC",
 		config.DB.User,
