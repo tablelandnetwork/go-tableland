@@ -160,7 +160,7 @@ func TestExecWriteQueries(t *testing.T) {
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
 
-		wq1 := mustGrantStmt(t, "grant insert, update, delete on foo_1337_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\", \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"") // nolint
+		wq1 := mustGrantStmt(t, "grant insert, update, delete on foo_1337_100 to '0xd43c59d5694ec111eb9e986c233200b14249558d', '0x4afe8e30db4549384b0a05bb796468b130c7d6e0'") // nolint
 		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq1}, true, tableland.AllowAllPolicy{})
 		require.NoError(t, err)
 
@@ -190,11 +190,11 @@ func TestExecWriteQueries(t *testing.T) {
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
 
-		wq1 := mustGrantStmt(t, "grant insert on foo_1337_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\", \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"") // nolint
+		wq1 := mustGrantStmt(t, "grant insert on foo_1337_100 to '0xd43c59d5694ec111eb9e986c233200b14249558d', '0x4afe8e30db4549384b0a05bb796468b130c7d6e0'") // nolint
 		// add the update privilege for role 0xd43c59d5694ec111eb9e986c233200b14249558d
-		wq2 := mustGrantStmt(t, "grant update on foo_1337_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\"")
+		wq2 := mustGrantStmt(t, "grant update on foo_1337_100 to '0xd43c59d5694ec111eb9e986c233200b14249558d'")
 		// add the delete privilege (and mistakenly the insert) grant for role 0x4afe8e30db4549384b0a05bb796468b130c7d6e0
-		wq3 := mustGrantStmt(t, "grant insert, delete on foo_1337_100 to \"0x4afe8e30db4549384b0a05bb796468b130c7d6e0\"")
+		wq3 := mustGrantStmt(t, "grant insert, delete on foo_1337_100 to '0x4afe8e30db4549384b0a05bb796468b130c7d6e0'")
 		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq1, wq2, wq3}, true, tableland.AllowAllPolicy{}) // nolint
 		require.NoError(t, err)
 
@@ -238,8 +238,8 @@ func TestExecWriteQueries(t *testing.T) {
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
 
-		wq1 := mustGrantStmt(t, "grant insert, update, delete on foo_1337_100 to \"0xd43c59d5694ec111eb9e986c233200b14249558d\"") // nolint
-		wq2 := mustGrantStmt(t, "revoke insert, delete on foo_1337_100 from \"0xd43c59d5694ec111eb9e986c233200b14249558d\"")
+		wq1 := mustGrantStmt(t, "grant insert, update, delete on foo_1337_100 to '0xd43c59d5694ec111eb9e986c233200b14249558d'") // nolint
+		wq2 := mustGrantStmt(t, "revoke insert, delete on foo_1337_100 from '0xd43c59d5694ec111eb9e986c233200b14249558d'")
 		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq1, wq2}, true, tableland.AllowAllPolicy{})
 		require.NoError(t, err)
 
@@ -480,8 +480,8 @@ func TestRegisterTable(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, id, table.ID)
 		require.Equal(t, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", table.Controller)
-		// sha256(zar:text) = 926b64e777db62e4d9e9007dc51e3974fce37c50f456177bec98cd797bc819f8
-		require.Equal(t, "926b64e777db62e4d9e9007dc51e3974fce37c50f456177bec98cd797bc819f8", table.Structure)
+		// echo -n zar:TEXT | shasum -a 256
+		require.Equal(t, "7ec5320c16e06e90af5e7131ff0c80d4b0a08fcd62aa6e38ad8d6843bc480d09", table.Structure)
 		require.Equal(t, "bar", table.Prefix)
 		require.NotEqual(t, new(time.Time), table.CreatedAt) // CreatedAt is not the zero value
 

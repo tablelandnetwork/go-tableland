@@ -60,7 +60,6 @@ func TestTodoAppWorkflow(t *testing.T) {
 
 func TestAny(t *testing.T) {
 	t.Parallel()
-	t.Skipf("enable test when we have the new parser")
 
 	ctx, tbld, backend, sc, txOpts := setup(t)
 
@@ -148,7 +147,7 @@ func TestReadSystemTable(t *testing.T) {
 	ctx, tbld, _, sc, txOpts := setup(t)
 	caller := txOpts.From
 
-	_, err := sc.CreateTable(txOpts, caller, `CREATE TABLE foo_1337 (myjson JSON);`)
+	_, err := sc.CreateTable(txOpts, caller, `CREATE TABLE foo_1337 (myjson TEXT);`)
 	require.NoError(t, err)
 
 	res, err := runReadQuery(ctx, t, tbld, "select * from registry", caller.Hex())
@@ -163,7 +162,7 @@ func TestJSON(t *testing.T) {
 	ctx, tbld, backend, sc, txOpts := setup(t)
 	caller := txOpts.From
 
-	_, err := sc.CreateTable(txOpts, caller, `CREATE TABLE foo_1337 (myjson JSON);`)
+	_, err := sc.CreateTable(txOpts, caller, `CREATE TABLE foo_1337 (myjson TEXT);`)
 	require.NoError(t, err)
 
 	processCSV(ctx, t, caller, tbld, "testdata/json_queries.csv", backend)
@@ -210,7 +209,7 @@ func TestCheckInsertPrivileges(t *testing.T) {
 					}
 
 					// execute grant statement according to test case
-					grantQuery := fmt.Sprintf("GRANT %s ON foo_1337_1 TO \"%s\"", strings.Join(privileges, ","), grantee)
+					grantQuery := fmt.Sprintf("GRANT %s ON foo_1337_1 TO '%s'", strings.Join(privileges, ","), grantee)
 					r, err := relayWriteQuery(ctx, t, tbldGranter, grantQuery, granter)
 					require.NoError(t, err)
 					backend.Commit()
@@ -287,7 +286,7 @@ func TestCheckUpdatePrivileges(t *testing.T) {
 					}
 
 					// execute grant statement according to test case
-					grantQuery := fmt.Sprintf("GRANT %s ON foo_1337_1 TO \"%s\"", strings.Join(privileges, ","), grantee)
+					grantQuery := fmt.Sprintf("GRANT %s ON foo_1337_1 TO '%s'", strings.Join(privileges, ","), grantee)
 					r, err := relayWriteQuery(ctx, t, tbldGranter, grantQuery, granter)
 					require.NoError(t, err)
 					backend.Commit()
@@ -362,7 +361,7 @@ func TestCheckDeletePrivileges(t *testing.T) {
 					}
 
 					// execute grant statement according to test case
-					grantQuery := fmt.Sprintf("GRANT %s ON foo_1337_1 TO \"%s\"", strings.Join(privileges, ","), grantee)
+					grantQuery := fmt.Sprintf("GRANT %s ON foo_1337_1 TO '%s'", strings.Join(privileges, ","), grantee)
 					r, err := relayWriteQuery(ctx, t, tbldGranter, grantQuery, granter)
 					require.NoError(t, err)
 					backend.Commit()
@@ -403,7 +402,7 @@ func TestOwnerRevokesItsPrivilegeInsideMultipleStatements(t *testing.T) {
 	multiStatements := `
 		INSERT INTO foo_1337_1 (bar) VALUES ('Hello');
 		UPDATE foo_1337_1 SET bar = 'Hello 2';
-		REVOKE update ON foo_1337_1 FROM "` + caller + `";
+		REVOKE update ON foo_1337_1 FROM '` + caller + `';
 		UPDATE foo_1337_1 SET bar = 'Hello 3';
 	`
 	r, err := relayWriteQuery(ctx, t, tbld, multiStatements, caller)
