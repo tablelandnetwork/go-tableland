@@ -1,5 +1,4 @@
 w,"INSERT INTO foo_1337_1 VALUES ('{""name"":""myname"",""count"":3,""people"":[{""name"":""foo"",""age"":31},{""name"":""var"",""age"":34}]}')",""
-r,"SELECT * FROM foo_1337_1","{""columns"":[{""name"":""myjson""}],""rows"":[[{""count"":3,""name"":""myname"",""people"":[{""age"":31,""name"":""foo""},{""age"":34,""name"":""var""}]}]]}"
-r,"SELECT myjson->>'name' as nameish FROM foo_1337_1","{""columns"":[{""name"":""nameish""}],""rows"":[[""myname""]]}"
-r,"SELECT (myjson->>'count')::int as nameish FROM foo_1337_1","{""columns"":[{""name"":""nameish""}],""rows"":[[3]]}"
-r,"SELECT myjson->'people'->1->>'name' as nameish FROM foo_1337_1","{""columns"":[{""name"":""nameish""}],""rows"":[[""var""]]}"
+r,"SELECT json(myjson)->>'name' as nameish FROM foo_1337_1","{""columns"":[{""name"":""nameish""}],""rows"":[[""myname""]]}"
+r,"SELECT CAST(json(myjson)->>'count' as INTEGER) as nameish FROM foo_1337_1","{""columns"":[{""name"":""nameish""}],""rows"":[[3]]}"
+r,"SELECT json(myjson)->'people'->1->>'name' as nameish FROM foo_1337_1","{""columns"":[{""name"":""nameish""}],""rows"":[[""var""]]}"

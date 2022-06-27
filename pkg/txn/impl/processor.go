@@ -42,6 +42,7 @@ func NewTxnProcessor(
 	if err != nil {
 		return nil, fmt.Errorf("connecting to postgres: %s", err)
 	}
+	pool.SetMaxOpenConns(1)
 	if maxTableRowCount < 0 {
 		return nil, fmt.Errorf("maximum table row count is negative")
 	}

@@ -111,6 +111,7 @@ type TablelandColumnType struct {
 }
 
 var (
+	// TODO(jsign/bruno): we can remove all things from below.
 	// AcceptedTypes contains all the accepted column types in user-defined tables.
 	// It's used by the parser and the JSON marshaler to validate queries, and transform to appropriate
 	// Go types respectively.

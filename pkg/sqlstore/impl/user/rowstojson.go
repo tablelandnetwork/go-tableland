@@ -3,12 +3,8 @@ package user
 import (
 	"database/sql"
 	"fmt"
-	"math/big"
 	"reflect"
-	"strings"
 
-	"github.com/jackc/pgtype"
-	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 )
 
@@ -71,72 +67,48 @@ func getRowsData(rows *sql.Rows) ([][]interface{}, error) {
 
 // do necessary conversions according to the type.
 func getValueFromScanArg(arg interface{}) (interface{}, error) {
-	if _, ok := (arg).(pgtype.Value); ok {
-		if val, ok := (arg).(*pgtype.Numeric); ok {
-			if val.Status == pgtype.Null {
-				return nil, nil
-			}
-			br := &big.Rat{}
-			if err := val.AssignTo(br); err != nil {
-				return nil, fmt.Errorf("parsing numeric to bigrat: %s", err)
-			}
-			if br.IsInt() {
-				return br.Num().String(), nil
-			}
-			return strings.TrimRight(br.FloatString(64), "0"), nil
+	switch arg := arg.(type) {
+	case *sql.NullBool:
+		if !arg.Valid {
+			return nil, nil
 		}
-
-		if val, ok := (arg).(*pgtype.Date); ok {
-			if val.Status == pgtype.Null {
-				return nil, nil
-			}
-
-			buf := make([]byte, 0)
-			buf, _ = val.EncodeText(pgtype.NewConnInfo(), buf)
-			return string(buf), nil
+		return arg.Bool, nil
+	case *sql.NullByte:
+		if !arg.Valid {
+			return nil, nil
 		}
-
-		if val, ok := (arg).(*pgtype.Timestamp); ok {
-			if val.Status == pgtype.Null {
-				return nil, nil
-			}
-
-			buf := make([]byte, 0)
-			buf, _ = val.EncodeText(pgtype.NewConnInfo(), buf)
-			return string(buf), nil
+		return arg.Byte, nil
+	case *sql.NullFloat64:
+		if !arg.Valid {
+			return nil, nil
 		}
-
-		if val, ok := (arg).(*pgtype.Timestamptz); ok {
-			if val.Status == pgtype.Null {
-				return nil, nil
-			}
-
-			buf := make([]byte, 0)
-			buf, _ = val.EncodeText(pgtype.NewConnInfo(), buf)
-			return string(buf), nil
+		return arg.Float64, nil
+	case *sql.NullInt16:
+		if !arg.Valid {
+			return nil, nil
 		}
-
-		if val, ok := (arg).(*pgtype.UUID); ok {
-			if val.Status == pgtype.Null {
-				return nil, nil
-			}
-
-			buf := make([]byte, 0)
-			buf, _ = val.EncodeText(pgtype.NewConnInfo(), buf)
-			return string(buf), nil
+		return arg.Int16, nil
+	case *sql.NullInt32:
+		if !arg.Valid {
+			return nil, nil
 		}
-
-		if val, ok := (arg).(*pgtype.VarcharArray); ok {
-			if val.Status == pgtype.Null {
-				return nil, nil
-			}
-
-			buf := make([]byte, 0)
-			buf, _ = val.EncodeText(pgtype.NewConnInfo(), buf)
-			return string(buf), nil
+		return arg.Int32, nil
+	case *sql.NullInt64:
+		if !arg.Valid {
+			return nil, nil
 		}
+		return arg.Int64, nil
+	case *sql.NullString:
+		if !arg.Valid {
+			return nil, nil
+		}
+		return arg.String, nil
+	case *sql.NullTime:
+		if !arg.Valid {
+			return nil, nil
+		}
+		return arg.Time, nil
 	}
-
 	return arg, nil
 }
 
@@ -147,15 +119,4 @@ func getScanArgs(colTypes []*sql.ColumnType) ([]interface{}, error) {
 	}
 
 	return scanArgs, nil
-}
-
-// given the column type OID find the corresponding Golang's type (it can be either a native or a custom type).
-func getTypeFromOID(oid uint32) (interface{}, error) {
-	at, ok := parsing.AcceptedTypes[oid]
-	if !ok {
-		return nil, fmt.Errorf("column type %d not supported", oid)
-	}
-
-	nt := reflect.New(reflect.TypeOf(at.GoType))
-	return nt.Interface(), nil
 }
