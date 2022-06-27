@@ -42,3 +42,8 @@ CREATE TABLE IF NOT EXISTS system_txn_receipts (
 
     PRIMARY KEY(chain_id, txn_hash)
 );
+
+CREATE TABLE IF NOT EXISTS system_txn_processor (
+    chain_id INTEGER PRIMARY KEY NOT NULL,
+    block_number INTEGER NOT NULL
+);

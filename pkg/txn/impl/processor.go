@@ -229,7 +229,7 @@ func (b *batch) SetController(
 	controller common.Address) error {
 	f := func(ctx context.Context, tx *sql.Tx) error {
 		if controller == common.HexToAddress("0x0") {
-			if _, err := b.txn.ExecContext(ctx,
+			if _, err := tx.ExecContext(ctx,
 				`DELETE FROM system_controller WHERE chain_id = ?1 AND table_id = ?2;`,
 				b.tp.chainID,
 				id.String(),
@@ -243,7 +243,7 @@ func (b *batch) SetController(
 				return fmt.Errorf("deleting entry from system controller: %s", err)
 			}
 		} else {
-			if _, err := b.txn.ExecContext(ctx,
+			if _, err := tx.ExecContext(ctx,
 				`INSERT INTO system_controller ("chain_id", "table_id", "controller") 
 				VALUES (?1, ?2, ?3)
 				ON CONFLICT ("chain_id", "table_id")
@@ -307,108 +307,103 @@ func (b *batch) RevokePrivileges(
 	return nil
 }
 
-// isErrCausedByQuery detects if the query execution failed because of possibly expected
-// bad queries from users. If that's the case the call might want to accept the failure
-// as an expected event in the flow.
-func isErrCausedByQuery(err error) (string, bool) {
-	// This array contains all the sqlite errors that should be query related.
-	// e.g: inserting a column with the wrong type, some function call failing, etc.
-	// All these errors must be errors that will always happen if the query is retried.
-	// (e.g: a timeout error isn't the querys fault, but an infrastructure problem)
-	//
-	// Each error in sqlite3 has an "Error Code" and an "Extended error code".
-	// e.g: a FK violation has "Error Code" 19 (ErrConstraint) and "Extended error code" 787 (SQLITE_CONSTRAINT_FOREIGNKEY).
-	// The complete list of extended errors is found in: https://www.sqlite.org/rescode.html
-	// In this logic if we use "Error Code", with some few cases, we can detect a wide range of errors without
-	// being so exhaustive dealing with "Extended error codes".
-	//
-	// sqlite3ExecutionErrors is probably missing values, but we'll keep discovering and adding them.
-	sqlite3ExecutionErrors := []sqlite3.ErrNo{
-		sqlite3.ErrConstraint, /* Abort due to constraint violation */
-		sqlite3.ErrTooBig,     /* String or BLOB exceeds size limit */
-		sqlite3.ErrMismatch,   /* Data type mismatch */
-	}
-	var sqlErr sqlite3.Error
-	if errors.As(err, &sqlErr) {
-		for _, ee := range sqlite3ExecutionErrors {
-			if sqlErr.Code == ee {
-				return sqlErr.Error(), true
-			}
-		}
-	}
-	return "", false
-}
-
 func (b *batch) GetLastProcessedHeight(ctx context.Context) (int64, error) {
-	r := b.txn.QueryRowContext(ctx, "SELECT block_number FROM system_txn_processor WHERE chain_id=?1 LIMIT 1", b.tp.chainID)
 	var blockNumber int64
-	if err := r.Scan(&blockNumber); err != nil {
-		if err == sql.ErrNoRows {
-			blockNumber = 0
-			return 0, nil
+	f := func(ctx context.Context, tx *sql.Tx) error {
+		r := tx.QueryRowContext(ctx, "SELECT block_number FROM system_txn_processor WHERE chain_id=?1 LIMIT 1", b.tp.chainID)
+		var blockNumber int64
+		if err := r.Scan(&blockNumber); err != nil {
+			if err == sql.ErrNoRows {
+				return nil
+			}
+			return fmt.Errorf("get last block number query: %s", err)
 		}
-		return 0, fmt.Errorf("get last block number query: %s", err)
+		return nil
+	}
+	if err := runWithinSavepoint(ctx, b.txn, f); err != nil {
+		return 0, fmt.Errorf("running within savepoint: %w", err)
 	}
 	return blockNumber, nil
 }
 
 func (b *batch) SetLastProcessedHeight(ctx context.Context, height int64) error {
-	tag, err := b.txn.ExecContext(ctx, "UPDATE system_txn_processor set block_number=?1 WHERE chain_id=?2", height, b.tp.chainID)
-	if err != nil {
-		return fmt.Errorf("update last processed block number: %s", err)
-	}
-	ra, err := tag.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("rows affected: %s", err)
-	}
-	if ra != 1 {
-		if _, err := b.txn.ExecContext(ctx,
-			"INSERT INTO system_txn_processor (block_number, chain_id) VALUES (?1, ?2)",
-			height,
-			b.tp.chainID,
-		); err != nil {
-			return fmt.Errorf("inserting first processed height: %s", err)
+	f := func(ctx context.Context, tx *sql.Tx) error {
+		tag, err := tx.ExecContext(
+			ctx,
+			"UPDATE system_txn_processor SET block_number=?1 WHERE chain_id=?2", height, b.tp.chainID)
+		if err != nil {
+			return fmt.Errorf("update last processed block number: %s", err)
 		}
+		ra, err := tag.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("rows affected: %s", err)
+		}
+		if ra != 1 {
+			if _, err := tx.ExecContext(ctx,
+				"INSERT INTO system_txn_processor (block_number, chain_id) VALUES (?1, ?2)",
+				height,
+				b.tp.chainID,
+			); err != nil {
+				return fmt.Errorf("inserting first processed height: %s", err)
+			}
+		}
+		return nil
+	}
+	if err := runWithinSavepoint(ctx, b.txn, f); err != nil {
+		return fmt.Errorf("running within savepoint: %w", err)
 	}
 	return nil
 }
 
 func (b *batch) SaveTxnReceipts(ctx context.Context, rs []eventprocessor.Receipt) error {
-	for _, r := range rs {
-		dbID := pgtype.Numeric{Status: pgtype.Null}
-		if r.TableID != nil {
-			if err := dbID.Set(r.TableID.String()); err != nil {
-				return fmt.Errorf("parsing table id to numeric: %s", err)
+	f := func(ctx context.Context, tx *sql.Tx) error {
+		for _, r := range rs {
+			tableID := sql.NullInt64{Valid: false}
+			if r.TableID != nil {
+				tableID.Valid = true
+				tableID.Int64 = r.TableID.ToBigInt().Int64()
+			}
+			if r.Error != nil {
+				*r.Error = strings.ToValidUTF8(*r.Error, "")
+			}
+			if _, err := tx.ExecContext(
+				ctx,
+				`INSERT INTO system_txn_receipts (chain_id,txn_hash,error,table_id,block_number,block_order) 
+				 VALUES (?1,?2,?3,?4,?5,?6)`,
+				r.ChainID, r.TxnHash, r.Error, tableID, r.BlockNumber, 0); err != nil { // TODO(jsign): fix ordering
+				return fmt.Errorf("insert txn receipt: %s", err)
 			}
 		}
-		if r.Error != nil {
-			*r.Error = strings.ToValidUTF8(*r.Error, "")
-		}
-		if _, err := b.txn.ExecContext(
-			ctx,
-			`INSERT INTO system_txn_receipts (chain_id,txn_hash,error,table_id,block_number,block_order) 
-				 VALUES (?1,?2,?3,?4,?5,?6)`,
-			r.ChainID, r.TxnHash, r.Error, dbID, r.BlockNumber, 0); err != nil { // TODO(jsign): fix ordering
-			return fmt.Errorf("insert txn receipt: %s", err)
-		}
+		return nil
+	}
+	if err := runWithinSavepoint(ctx, b.txn, f); err != nil {
+		return fmt.Errorf("running within savepoint: %w", err)
 	}
 	return nil
 }
 
 func (b *batch) TxnReceiptExists(ctx context.Context, txnHash common.Hash) (bool, error) {
-	r := b.txn.QueryRowContext(
-		ctx,
-		`SELECT 1 from system_txn_receipts WHERE chain_id=?1 and txn_hash=?2`,
-		b.tp.chainID, txnHash.Hex())
-	var dummy int
-	err := r.Scan(&dummy)
-	if err == sql.ErrNoRows {
-		return false, nil
+	var exists bool
+	f := func(ctx context.Context, tx *sql.Tx) error {
+		r := tx.QueryRowContext(
+			ctx,
+			`SELECT 1 from system_txn_receipts WHERE chain_id=?1 and txn_hash=?2`,
+			b.tp.chainID, txnHash.Hex())
+		var dummy int
+		err := r.Scan(&dummy)
+		if err == sql.ErrNoRows {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("get txn receipt: %s", err)
+		}
+		exists = true
+		return nil
 	}
-	if err != nil {
-		return false, fmt.Errorf("get txn receipt: %s", err)
+	if err := runWithinSavepoint(ctx, b.txn, f); err != nil {
+		return false, fmt.Errorf("running within savepoint: %w", err)
 	}
-	return true, nil
+	return exists, nil
 }
 
 // Close closes gracefully the batch. Clients should *always* `defer Close()` when
@@ -443,14 +438,10 @@ func GetTablePrefixAndRowCountByTableID(
 	chainID tableland.ChainID,
 	tableID tableland.TableID,
 	dbTableName string) (string, int, error) {
-	dbID := pgtype.Numeric{}
-	if err := dbID.Set(tableID.String()); err != nil {
-		return "", 0, fmt.Errorf("parsing table id to numeric: %s", err)
-	}
-
 	q := fmt.Sprintf(
 		"SELECT (SELECT prefix FROM registry where chain_id=?1 AND id=?2), (SELECT count(*) FROM %s)", dbTableName)
-	r := tx.QueryRowContext(ctx, q, chainID, dbID)
+	r := tx.QueryRowContext(ctx, q, chainID, tableID.String())
+
 	var tablePrefix string
 	var rowCount int
 	err := r.Scan(&tablePrefix, &rowCount)
@@ -851,4 +842,37 @@ func (b *batch) executeRevokePrivilegesTx(
 	}
 
 	return nil
+}
+
+// isErrCausedByQuery detects if the query execution failed because of possibly expected
+// bad queries from users. If that's the case the call might want to accept the failure
+// as an expected event in the flow.
+func isErrCausedByQuery(err error) (string, bool) {
+	// This array contains all the sqlite errors that should be query related.
+	// e.g: inserting a column with the wrong type, some function call failing, etc.
+	// All these errors must be errors that will always happen if the query is retried.
+	// (e.g: a timeout error isn't the querys fault, but an infrastructure problem)
+	//
+	// Each error in sqlite3 has an "Error Code" and an "Extended error code".
+	// e.g: a FK violation has "Error Code" 19 (ErrConstraint) and "Extended error code" 787 (SQLITE_CONSTRAINT_FOREIGNKEY).
+	// The complete list of extended errors is found in: https://www.sqlite.org/rescode.html
+	// In this logic if we use "Error Code", with some few cases, we can detect a wide range of errors without
+	// being so exhaustive dealing with "Extended error codes".
+	//
+	// sqlite3ExecutionErrors is probably missing values, but we'll keep discovering and adding them.
+	sqlite3ExecutionErrors := []sqlite3.ErrNo{
+		sqlite3.ErrError,      /* SQL error or missing database */
+		sqlite3.ErrConstraint, /* Abort due to constraint violation */
+		sqlite3.ErrTooBig,     /* String or BLOB exceeds size limit */
+		sqlite3.ErrMismatch,   /* Data type mismatch */
+	}
+	var sqlErr sqlite3.Error
+	if errors.As(err, &sqlErr) {
+		for _, ee := range sqlite3ExecutionErrors {
+			if sqlErr.Code == ee {
+				return sqlErr.Error(), true
+			}
+		}
+	}
+	return "", false
 }
