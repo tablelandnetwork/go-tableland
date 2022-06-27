@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS registry (
     PRIMARY KEY(chain_id, id),
     CHECK(id >= 0)
 );
+CREATE INDEX registry_chain_id_controller on registry(chain_id, controller);
 
 CREATE TABLE IF NOT EXISTS system_acl (
     table_id INTEGER NOT NULL,
@@ -40,8 +41,9 @@ CREATE TABLE IF NOT EXISTS system_txn_receipts (
     error TEXT,
     table_id INTEGER,
 
-    PRIMARY KEY(chain_id, txn_hash)
+    PRIMARY KEY(chain_id, block_number, index_in_block)
 );
+CREATE UNIQUE INDEX system_txn_receipts_txn_hash on system_txn_receipts(chain_id, txn_hash);
 
 CREATE TABLE IF NOT EXISTS system_txn_processor (
     chain_id INTEGER PRIMARY KEY NOT NULL,
