@@ -7,8 +7,6 @@ package db
 
 import (
 	"context"
-
-	"github.com/jackc/pgtype"
 )
 
 const getTable = `-- name: GetTable :one
@@ -17,11 +15,11 @@ SELECT created_at, id, structure, controller, prefix, chain_id FROM registry WHE
 
 type GetTableParams struct {
 	ChainID int64
-	ID      pgtype.Numeric
+	ID      string
 }
 
 func (q *Queries) GetTable(ctx context.Context, arg GetTableParams) (Registry, error) {
-	row := q.db.QueryRow(ctx, getTable, arg.ChainID, arg.ID)
+	row := q.queryRow(ctx, q.getTableStmt, getTable, arg.ChainID, arg.ID)
 	var i Registry
 	err := row.Scan(
 		&i.CreatedAt,
@@ -44,7 +42,7 @@ type GetTablesByControllerParams struct {
 }
 
 func (q *Queries) GetTablesByController(ctx context.Context, arg GetTablesByControllerParams) ([]Registry, error) {
-	rows, err := q.db.Query(ctx, getTablesByController, arg.ChainID, arg.Controller)
+	rows, err := q.query(ctx, q.getTablesByControllerStmt, getTablesByController, arg.ChainID, arg.Controller)
 	if err != nil {
 		return nil, err
 	}
@@ -63,6 +61,9 @@ func (q *Queries) GetTablesByController(ctx context.Context, arg GetTablesByCont
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
