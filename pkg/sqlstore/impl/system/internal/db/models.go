@@ -7,7 +7,7 @@ import (
 
 type Registry struct {
 	CreatedAt  time.Time
-	ID         string
+	ID         int64
 	Structure  string
 	Controller string
 	Prefix     string

@@ -579,8 +579,6 @@ func jsonEq(
 		require.NoError(t, err)
 
 		gotJSON := string(b)
-		fmt.Printf("GOT JSON: %s\n", gotJSON)
-		fmt.Printf("EXP JSON: %s\n", expJSON)
 
 		var o1 interface{}
 		var o2 interface{}
@@ -714,7 +712,7 @@ func setup(
 	)
 	require.NoError(t, err)
 
-	userStore, err := user.New(url + "&_mode=ro")
+	userStore, err := user.New(url)
 	require.NoError(t, err)
 
 	tbld := NewTablelandMesa(

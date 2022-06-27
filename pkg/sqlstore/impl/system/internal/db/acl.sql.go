@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-const getAclByTableAndController = `-- name: GetAclByTableAndController :one
+const getAclByTableAndController = `
 SELECT table_id, controller, privileges, created_at, updated_at, chain_id FROM system_acl WHERE chain_id = ?3 AND table_id = ?2 AND upper(controller) LIKE upper(?1)
 `
 
