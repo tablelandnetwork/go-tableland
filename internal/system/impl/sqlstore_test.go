@@ -19,7 +19,7 @@ import (
 var chainID = tableland.ChainID(1337)
 
 func TestSystemSQLStoreService(t *testing.T) {
-	url := tests.PostgresURL(t)
+	url := tests.Sqlite3URL()
 
 	ctx := context.WithValue(context.Background(), middlewares.ContextKeyChainID, tableland.ChainID(1337))
 	store, err := system.New(url, chainID)
@@ -39,8 +39,8 @@ func TestSystemSQLStoreService(t *testing.T) {
 
 	err = b.InsertTable(ctx, id, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", createStmt)
 	require.NoError(t, err)
-	require.NoError(t, b.Commit(ctx))
-	require.NoError(t, b.Close(ctx))
+	require.NoError(t, b.Commit())
+	require.NoError(t, b.Close())
 
 	stack := map[tableland.ChainID]sqlstore.SystemStore{1337: store}
 	svc, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables")
