@@ -5,13 +5,13 @@ import (
 	"time"
 )
 
-const getTable = `-- name: GetTable :one
+const getTable = `
 SELECT created_at, id, structure, controller, prefix, chain_id FROM registry WHERE chain_id =?1 AND id = ?2
 `
 
 type GetTableParams struct {
 	ChainID int64
-	ID      string
+	ID      int64
 }
 
 func (q *Queries) GetTable(ctx context.Context, arg GetTableParams) (Registry, error) {
@@ -31,7 +31,7 @@ func (q *Queries) GetTable(ctx context.Context, arg GetTableParams) (Registry, e
 	return i, err
 }
 
-const getTablesByController = `-- name: GetTablesByController :many
+const getTablesByController = `
 SELECT created_at, id, structure, controller, prefix, chain_id FROM registry WHERE chain_id=?1 AND upper(controller) LIKE upper(?2)
 `
 
@@ -62,9 +62,6 @@ func (q *Queries) GetTablesByController(ctx context.Context, arg GetTablesByCont
 		}
 		i.CreatedAt = time.Unix(createdAtUnix, 0)
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

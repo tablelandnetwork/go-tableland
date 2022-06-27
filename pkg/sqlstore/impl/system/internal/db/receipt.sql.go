@@ -4,7 +4,7 @@ import (
 	"context"
 )
 
-const getReceipt = `-- name: GetReceipt :one
+const getReceipt = `
 SELECT chain_id, block_number, index_in_block, txn_hash, error, table_id from system_txn_receipts WHERE chain_id=?1 and txn_hash=?2
 `
 

@@ -56,7 +56,7 @@ func New(dbURI string, chainID tableland.ChainID) (*SystemStore, error) {
 func (s *SystemStore) GetTable(ctx context.Context, id tableland.TableID) (sqlstore.Table, error) {
 	table, err := s.db.queries().GetTable(ctx, db.GetTableParams{
 		ChainID: int64(s.chainID),
-		ID:      id.String(),
+		ID:      id.ToBigInt().Int64(),
 	})
 	if err != nil {
 		return sqlstore.Table{}, fmt.Errorf("failed to get the table: %s", err)
@@ -277,7 +277,7 @@ func executeMigration(dbURI string, as *bindata.AssetSource) error {
 }
 
 func tableFromSQLToDTO(table db.Registry) (sqlstore.Table, error) {
-	id, err := tableland.NewTableID(table.ID)
+	id, err := tableland.NewTableIDFromInt64(table.ID)
 	if err != nil {
 		return sqlstore.Table{}, fmt.Errorf("parsing id to string: %s", err)
 	}
