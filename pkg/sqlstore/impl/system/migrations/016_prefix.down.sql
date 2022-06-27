@@ -1,1 +1,0 @@
-ALTER TABLE registry RENAME COLUMN prefix TO name;

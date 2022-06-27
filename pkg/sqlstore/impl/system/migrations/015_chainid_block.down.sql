@@ -1,1 +1,0 @@
-ALTER TABLE system_txn_processor DROP COLUMN chain_id;

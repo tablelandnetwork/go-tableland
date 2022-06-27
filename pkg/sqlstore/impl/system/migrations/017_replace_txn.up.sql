@@ -1,1 +1,0 @@
-ALTER TABLE system_pending_tx ADD COLUMN bump_price_count INTEGER NOT NULL DEFAULT 0;
