@@ -450,6 +450,8 @@ func TestExecWriteQueriesWithPolicies(t *testing.T) {
 }
 
 func TestRegisterTable(t *testing.T) {
+	t.Parallel()
+
 	parser := newParser(t, []string{})
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
