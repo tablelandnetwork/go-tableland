@@ -581,23 +581,23 @@ func (b *batch) executeWriteStmt(
 		return fmt.Errorf("get query: %s", err)
 	}
 
-	affectedRowsCtids, err := b.executeQueryAndGetAffectedRows(ctx, tx, query)
+	affectedRowIDs, err := b.executeQueryAndGetAffectedRows(ctx, tx, query)
 	if err != nil {
-		return fmt.Errorf("get rows ctids: %s", err)
+		return fmt.Errorf("get rows ids: %s", err)
 	}
 
-	// TODO(jsign): change with query method
+	// TODO(parser-merge): change with query method
 	isInsert := strings.Contains(query, "INSERT")
 
-	if err := b.checkRowCountLimit(int64(len(affectedRowsCtids)), isInsert, beforeRowCount); err != nil {
+	if err := b.checkRowCountLimit(int64(len(affectedRowIDs)), isInsert, beforeRowCount); err != nil {
 		return fmt.Errorf("check row limit: %w", err)
 	}
 
-	// If the executed query returned ctids for the affected rows,
+	// If the executed query returned rowids for the affected rows,
 	// we need to execute an auditing SQL built from the policy
 	// and match the result of this SQL to the number of affected rows
-	sql := b.buildAuditingQueryFromPolicy(ws.GetDBTableName(), affectedRowsCtids, policy)
-	if err := b.checkAffectedRowsAgainstAuditingQuery(ctx, tx, len(affectedRowsCtids), sql); err != nil {
+	sql := b.buildAuditingQueryFromPolicy(ws.GetDBTableName(), affectedRowIDs, policy)
+	if err := b.checkAffectedRowsAgainstAuditingQuery(ctx, tx, len(affectedRowIDs), sql); err != nil {
 		return fmt.Errorf("check affected rows against auditing query: %w", err)
 	}
 
@@ -660,11 +660,10 @@ func (b *batch) applyPolicy(ws parsing.WriteStmt, policy tableland.Policy) error
 	return nil
 }
 
-// TODO(jsign): rename ctids to rowid
 func (b *batch) executeQueryAndGetAffectedRows(
 	ctx context.Context,
 	tx *sql.Tx,
-	query string) (affectedRowsCtids []int64, err error) {
+	query string) (affectedRowIDs []int64, err error) {
 	rows, err := tx.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("executing query: %s", err)
@@ -687,9 +686,9 @@ func (b *batch) executeQueryAndGetAffectedRows(
 			return nil, fmt.Errorf("scan row column: %s", err)
 		}
 
-		affectedRowsCtids = append(affectedRowsCtids, rowID)
+		affectedRowIDs = append(affectedRowIDs, rowID)
 	}
-	return affectedRowsCtids, nil
+	return affectedRowIDs, nil
 }
 
 func (b *batch) checkRowCountLimit(rowsAffected int64, isInsert bool, beforeRowCount int) error {
@@ -822,7 +821,7 @@ func (b *batch) executeRevokePrivilegesTx(
 		id.String(),
 		addr.Hex(),
 		privilegesMask,
-		time.Now().Unix(), // TODO(jsign): check all updated_at uses time.Now.Unix()
+		time.Now().Unix(),
 	); err != nil {
 		if code, ok := isErrCausedByQuery(err); ok {
 			return &txn.ErrQueryExecution{
