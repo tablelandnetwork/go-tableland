@@ -177,7 +177,7 @@ func TestExecWriteQueries(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, wq1.GetTableID(), aclRow.TableID)
 			require.Equal(t, role.String(), aclRow.Controller)
-			require.Equal(t, ss.GetPrivileges(), aclRow.Privileges)
+			require.ElementsMatch(t, ss.GetPrivileges(), aclRow.Privileges)
 		}
 	})
 
