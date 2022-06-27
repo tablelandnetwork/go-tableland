@@ -18,16 +18,16 @@ func (q *Queries) GetTable(ctx context.Context, arg GetTableParams) (Registry, e
 	row := q.queryRow(ctx, q.getTableStmt, getTable, arg.ChainID, arg.ID)
 	var i Registry
 
-	var createdAtEpoch int64
+	var createdAtUnix int64
 	err := row.Scan(
-		&createdAtEpoch,
+		&createdAtUnix,
 		&i.ID,
 		&i.Structure,
 		&i.Controller,
 		&i.Prefix,
 		&i.ChainID,
 	)
-	i.CreatedAt = time.Unix(createdAtEpoch, 0)
+	i.CreatedAt = time.Unix(createdAtUnix, 0)
 	return i, err
 }
 
@@ -49,8 +49,9 @@ func (q *Queries) GetTablesByController(ctx context.Context, arg GetTablesByCont
 	var items []Registry
 	for rows.Next() {
 		var i Registry
+		var createdAtUnix int64
 		if err := rows.Scan(
-			&i.CreatedAt,
+			&createdAtUnix,
 			&i.ID,
 			&i.Structure,
 			&i.Controller,
@@ -59,6 +60,7 @@ func (q *Queries) GetTablesByController(ctx context.Context, arg GetTablesByCont
 		); err != nil {
 			return nil, err
 		}
+		i.CreatedAt = time.Unix(createdAtUnix, 0)
 		items = append(items, i)
 	}
 	if err := rows.Close(); err != nil {
