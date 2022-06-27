@@ -5,12 +5,13 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/jackc/pgconn"
 	"github.com/jackc/pgtype"
+	"github.com/mattn/go-sqlite3"
 	"github.com/rs/zerolog"
 	logger "github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/tableland"
@@ -129,7 +130,7 @@ func (b *batch) InsertTable(
 	f := func(ctx context.Context, txn *sql.Tx) error {
 		if _, err := txn.ExecContext(ctx,
 			`INSERT INTO registry ("chain_id", "id","controller","prefix","structure", "created_at") 
-		  	 VALUES ($1,$2,$3,$4,$5,$6);`,
+		  	 VALUES (?1,?2,?3,?4,?5,?6);`,
 			b.tp.chainID,
 			id.String(),
 			controller,
@@ -141,7 +142,7 @@ func (b *batch) InsertTable(
 
 		if _, err := txn.ExecContext(ctx,
 			`INSERT INTO system_acl ("chain_id","table_id","controller","privileges","created_at") 
-			 VALUES ($1,$2,$3,$4,$5);`,
+			 VALUES (?1,?2,?3,?4,?5);`,
 			b.tp.chainID,
 			id.String(),
 			controller,
@@ -162,7 +163,7 @@ func (b *batch) InsertTable(
 		return nil
 	}
 	if err := runWithinSavepoint(ctx, b.txn, f); err != nil {
-		return fmt.Errorf("running within savepoint: %s", err)
+		return fmt.Errorf("running within savepoint: %w", err)
 	}
 	return nil
 }
@@ -215,7 +216,7 @@ func (b *batch) ExecWriteQueries(
 		return nil
 	}
 	if err := runWithinSavepoint(ctx, b.txn, f); err != nil {
-		return fmt.Errorf("running within savepoint: %s", err)
+		return fmt.Errorf("running within savepoint: %w", err)
 	}
 
 	return nil
@@ -226,43 +227,45 @@ func (b *batch) SetController(
 	ctx context.Context,
 	id tableland.TableID,
 	controller common.Address) error {
-	dbID := pgtype.Numeric{}
-	if err := dbID.Set(id.String()); err != nil {
-		return fmt.Errorf("parsing table id to numeric: %s", err)
+	f := func(ctx context.Context, tx *sql.Tx) error {
+		if controller == common.HexToAddress("0x0") {
+			if _, err := b.txn.ExecContext(ctx,
+				`DELETE FROM system_controller WHERE chain_id = ?1 AND table_id = ?2;`,
+				b.tp.chainID,
+				id.String(),
+			); err != nil {
+				if code, ok := isErrCausedByQuery(err); ok {
+					return &txn.ErrQueryExecution{
+						Code: "SQLITE_" + code,
+						Msg:  err.Error(),
+					}
+				}
+				return fmt.Errorf("deleting entry from system controller: %s", err)
+			}
+		} else {
+			if _, err := b.txn.ExecContext(ctx,
+				`INSERT INTO system_controller ("chain_id", "table_id", "controller") 
+				VALUES (?1, ?2, ?3)
+				ON CONFLICT ("chain_id", "table_id")
+				DO UPDATE set controller = ?3;`,
+				b.tp.chainID,
+				id.String(),
+				controller.Hex(),
+			); err != nil {
+				if code, ok := isErrCausedByQuery(err); ok {
+					return &txn.ErrQueryExecution{
+						Code: "SQLITE_" + code,
+						Msg:  err.Error(),
+					}
+				}
+				return fmt.Errorf("inserting new entry into system controller: %s", err)
+			}
+		}
+		return nil
 	}
 
-	if controller == common.HexToAddress("0x0") {
-		if _, err := b.txn.ExecContext(ctx,
-			`DELETE FROM system_controller WHERE chain_id = $1 AND table_id = $2;`,
-			b.tp.chainID,
-			dbID,
-		); err != nil {
-			if code, ok := isErrCausedByQuery(err); ok {
-				return &txn.ErrQueryExecution{
-					Code: "POSTGRES_" + code,
-					Msg:  err.Error(),
-				}
-			}
-			return fmt.Errorf("deleting entry from system controller: %s", err)
-		}
-	} else {
-		if _, err := b.txn.ExecContext(ctx,
-			`INSERT INTO system_controller ("chain_id", "table_id", "controller") 
-				VALUES ($1, $2, $3)
-				ON CONFLICT ("chain_id", "table_id")
-				DO UPDATE set controller = $3;`,
-			b.tp.chainID,
-			dbID,
-			controller.Hex(),
-		); err != nil {
-			if code, ok := isErrCausedByQuery(err); ok {
-				return &txn.ErrQueryExecution{
-					Code: "POSTGRES_" + code,
-					Msg:  err.Error(),
-				}
-			}
-			return fmt.Errorf("inserting new entry into system controller: %s", err)
-		}
+	if err := runWithinSavepoint(ctx, b.txn, f); err != nil {
+		return fmt.Errorf("running within savepoint: %w", err)
 	}
 
 	return nil
@@ -274,8 +277,14 @@ func (b *batch) GrantPrivileges(
 	id tableland.TableID,
 	addr common.Address,
 	privileges tableland.Privileges) error {
-	if err := b.executeGrantPrivilegesTx(ctx, b.txn, id, addr, privileges); err != nil {
-		return fmt.Errorf("executing grant privileges tx: %w", err)
+	f := func(ctx context.Context, tx *sql.Tx) error {
+		if err := b.executeGrantPrivilegesTx(ctx, tx, id, addr, privileges); err != nil {
+			return fmt.Errorf("executing grant privileges tx: %w", err)
+		}
+		return nil
+	}
+	if err := runWithinSavepoint(ctx, b.txn, f); err != nil {
+		return fmt.Errorf("running within savepoint: %w", err)
 	}
 	return nil
 }
@@ -286,8 +295,14 @@ func (b *batch) RevokePrivileges(
 	id tableland.TableID,
 	addr common.Address,
 	privileges tableland.Privileges) error {
-	if err := b.executeRevokePrivilegesTx(ctx, b.txn, id, addr, privileges); err != nil {
-		return fmt.Errorf("executing revoke privileges tx: %w", err)
+	f := func(ctx context.Context, tx *sql.Tx) error {
+		if err := b.executeRevokePrivilegesTx(ctx, tx, id, addr, privileges); err != nil {
+			return fmt.Errorf("executing revoke privileges tx: %w", err)
+		}
+		return nil
+	}
+	if err := runWithinSavepoint(ctx, b.txn, f); err != nil {
+		return fmt.Errorf("running within savepoint: %w", err)
 	}
 	return nil
 }
@@ -296,37 +311,28 @@ func (b *batch) RevokePrivileges(
 // bad queries from users. If that's the case the call might want to accept the failure
 // as an expected event in the flow.
 func isErrCausedByQuery(err error) (string, bool) {
-	// This array contains all the postgres errors that should be query related.
+	// This array contains all the sqlite errors that should be query related.
 	// e.g: inserting a column with the wrong type, some function call failing, etc.
 	// All these errors must be errors that will always happen if the query is retried.
 	// (e.g: a timeout error isn't the querys fault, but an infrastructure problem)
-	// The complete list of errors is found in: https://www.postgresql.org/docs/current/errcodes-appendix.html
-	// pgExecutionErrors is probably missing values, but we'll keep discovering and adding them.
-	pgExecutionErrors := []string{
-		// Class 22 — Data Exception
-		"22P02", // invalid_text_representation (Caused by a query trying to insert a wrong column type.)
-		"22021", // invalid byte sequence encoding
-
-		// Class 23 — Integrity Constraint Violation
-		"23502", // not_null_violation
-		"23505", // unique_violation
-		"23514", // check_violation
-
-		// Class 0L - Invalid Grantor
-		"0L000", //	invalid_grantor
-		"0LP01", //	invalid_grant_operation
-
-		// Class 0P — Invalid Role Specification
-		"0P000", //	invalid_role_specification
-
-		// Class 42 - Syntax Error or Access Rule Violation
-		"42703", // undefined_column
+	//
+	// Each error in sqlite3 has an "Error Code" and an "Extended error code".
+	// e.g: a FK violation has "Error Code" 19 (ErrConstraint) and "Extended error code" 787 (SQLITE_CONSTRAINT_FOREIGNKEY).
+	// The complete list of extended errors is found in: https://www.sqlite.org/rescode.html
+	// In this logic if we use "Error Code", with some few cases, we can detect a wide range of errors without
+	// being so exhaustive dealing with "Extended error codes".
+	//
+	// sqlite3ExecutionErrors is probably missing values, but we'll keep discovering and adding them.
+	sqlite3ExecutionErrors := []sqlite3.ErrNo{
+		sqlite3.ErrConstraint, /* Abort due to constraint violation */
+		sqlite3.ErrTooBig,     /* String or BLOB exceeds size limit */
+		sqlite3.ErrMismatch,   /* Data type mismatch */
 	}
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) {
-		for _, ee := range pgExecutionErrors {
-			if pgErr.Code == ee {
-				return pgErr.Code, true
+	var sqlErr sqlite3.Error
+	if errors.As(err, &sqlErr) {
+		for _, ee := range sqlite3ExecutionErrors {
+			if sqlErr.Code == ee {
+				return sqlErr.Error(), true
 			}
 		}
 	}
@@ -334,7 +340,7 @@ func isErrCausedByQuery(err error) (string, bool) {
 }
 
 func (b *batch) GetLastProcessedHeight(ctx context.Context) (int64, error) {
-	r := b.txn.QueryRowContext(ctx, "SELECT block_number FROM system_txn_processor WHERE chain_id=$1 LIMIT 1", b.tp.chainID)
+	r := b.txn.QueryRowContext(ctx, "SELECT block_number FROM system_txn_processor WHERE chain_id=?1 LIMIT 1", b.tp.chainID)
 	var blockNumber int64
 	if err := r.Scan(&blockNumber); err != nil {
 		if err == sql.ErrNoRows {
@@ -347,7 +353,7 @@ func (b *batch) GetLastProcessedHeight(ctx context.Context) (int64, error) {
 }
 
 func (b *batch) SetLastProcessedHeight(ctx context.Context, height int64) error {
-	tag, err := b.txn.ExecContext(ctx, "UPDATE system_txn_processor set block_number=$1 WHERE chain_id=$2", height, b.tp.chainID)
+	tag, err := b.txn.ExecContext(ctx, "UPDATE system_txn_processor set block_number=?1 WHERE chain_id=?2", height, b.tp.chainID)
 	if err != nil {
 		return fmt.Errorf("update last processed block number: %s", err)
 	}
@@ -357,7 +363,7 @@ func (b *batch) SetLastProcessedHeight(ctx context.Context, height int64) error 
 	}
 	if ra != 1 {
 		if _, err := b.txn.ExecContext(ctx,
-			"INSERT INTO system_txn_processor (block_number, chain_id) VALUES ($1, $2)",
+			"INSERT INTO system_txn_processor (block_number, chain_id) VALUES (?1, ?2)",
 			height,
 			b.tp.chainID,
 		); err != nil {
@@ -381,7 +387,7 @@ func (b *batch) SaveTxnReceipts(ctx context.Context, rs []eventprocessor.Receipt
 		if _, err := b.txn.ExecContext(
 			ctx,
 			`INSERT INTO system_txn_receipts (chain_id,txn_hash,error,table_id,block_number,block_order) 
-				 VALUES ($1,$2,$3,$4,$5,$6)`,
+				 VALUES (?1,?2,?3,?4,?5,?6)`,
 			r.ChainID, r.TxnHash, r.Error, dbID, r.BlockNumber, 0); err != nil { // TODO(jsign): fix ordering
 			return fmt.Errorf("insert txn receipt: %s", err)
 		}
@@ -392,7 +398,7 @@ func (b *batch) SaveTxnReceipts(ctx context.Context, rs []eventprocessor.Receipt
 func (b *batch) TxnReceiptExists(ctx context.Context, txnHash common.Hash) (bool, error) {
 	r := b.txn.QueryRowContext(
 		ctx,
-		`SELECT 1 from system_txn_receipts WHERE chain_id=$1 and txn_hash=$2`,
+		`SELECT 1 from system_txn_receipts WHERE chain_id=?1 and txn_hash=?2`,
 		b.tp.chainID, txnHash.Hex())
 	var dummy int
 	err := r.Scan(&dummy)
@@ -443,7 +449,7 @@ func GetTablePrefixAndRowCountByTableID(
 	}
 
 	q := fmt.Sprintf(
-		"SELECT (SELECT prefix FROM registry where chain_id=$1 AND id=$2), (SELECT count(*) FROM %s)", dbTableName)
+		"SELECT (SELECT prefix FROM registry where chain_id=?1 AND id=?2), (SELECT count(*) FROM %s)", dbTableName)
 	r := tx.QueryRowContext(ctx, q, chainID, dbID)
 	var tablePrefix string
 	var rowCount int
@@ -471,7 +477,7 @@ func getController(
 		}
 	}
 
-	q := "SELECT controller FROM system_controller where chain_id=$1 AND table_id=$2"
+	q := "SELECT controller FROM system_controller where chain_id=?1 AND table_id=?2"
 	r := tx.QueryRowContext(ctx, q, chainID, dbID)
 	var controller string
 	err := r.Scan(&controller)
@@ -490,16 +496,6 @@ func (b *batch) executeGrantStmt(
 	tx *sql.Tx,
 	gs parsing.GrantStmt,
 	isOwner bool) error {
-	tableID := gs.GetTableID()
-
-	dbID := pgtype.Numeric{}
-	if err := dbID.Set(tableID.String()); err != nil {
-		return &txn.ErrQueryExecution{
-			Code: "ACL_TABLE_ID",
-			Msg:  fmt.Sprintf("parsing table id to numeric: %s", err),
-		}
-	}
-
 	if !isOwner {
 		return &txn.ErrQueryExecution{
 			Code: "ACL_NOT_OWNER",
@@ -566,18 +562,18 @@ func (b *batch) executeWriteStmt(
 		if err != nil {
 			if code, ok := isErrCausedByQuery(err); ok {
 				return &txn.ErrQueryExecution{
-					Code: "POSTGRES_" + code,
+					Code: "SQLITE_" + code,
 					Msg:  err.Error(),
 				}
 			}
 			return fmt.Errorf("exec query: %s", err)
 		}
 
-		// TODO(jsign): ask the query to detect if is an insert.
 		ra, err := cmdTag.RowsAffected()
 		if err != nil {
 			return fmt.Errorf("get rows affected: %s", err)
 		}
+		// TODO(jsign): ask the query to detect if is an insert.
 		isInsert := strings.Contains(query, "INSERT")
 
 		if err := b.checkRowCountLimit(ra, isInsert, beforeRowCount); err != nil {
@@ -619,7 +615,7 @@ func (b *batch) executeWriteStmt(
 	// and match the result of this SQL to the number of affected rows
 	sql := b.buildAuditingQueryFromPolicy(ws.GetDBTableName(), affectedRowsCtids, policy)
 	if err := b.checkAffectedRowsAgainstAuditingQuery(ctx, tx, len(affectedRowsCtids), sql); err != nil {
-		return fmt.Errorf("check affexted rows against auditing query: %w", err)
+		return fmt.Errorf("check affected rows against auditing query: %w", err)
 	}
 
 	return nil
@@ -681,17 +677,21 @@ func (b *batch) applyPolicy(ws parsing.WriteStmt, policy tableland.Policy) error
 	return nil
 }
 
+// TODO(jsign): rename ctids to rowid
 func (b *batch) executeQueryAndGetAffectedRows(
 	ctx context.Context,
 	tx *sql.Tx,
-	query string) (affectedRowsCtids []string, err error) {
+	query string) (affectedRowsCtids []int64, err error) {
 	rows, err := tx.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("executing query: %s", err)
+	}
 	defer rows.Close()
 
 	if err != nil {
 		if code, ok := isErrCausedByQuery(err); ok {
 			return nil, &txn.ErrQueryExecution{
-				Code: "POSTGRES_" + code,
+				Code: "SQLITE_" + code,
 				Msg:  err.Error(),
 			}
 		}
@@ -699,12 +699,12 @@ func (b *batch) executeQueryAndGetAffectedRows(
 	}
 
 	for rows.Next() {
-		var ctid pgtype.TID
-		if err := rows.Scan(&ctid); err != nil {
+		var rowID int64
+		if err := rows.Scan(&rowID); err != nil {
 			return nil, fmt.Errorf("scan row column: %s", err)
 		}
 
-		affectedRowsCtids = append(affectedRowsCtids, fmt.Sprintf("'(%d, %d)'", ctid.BlockNumber, ctid.OffsetNumber))
+		affectedRowsCtids = append(affectedRowsCtids, rowID)
 	}
 	return affectedRowsCtids, nil
 }
@@ -733,7 +733,7 @@ func (b *batch) checkAffectedRowsAgainstAuditingQuery(
 	if err := tx.QueryRowContext(ctx, sql).Scan(&count); err != nil {
 		if code, ok := isErrCausedByQuery(err); ok {
 			return &txn.ErrQueryExecution{
-				Code: "POSTGRES_" + code,
+				Code: "SQLITE_" + code,
 				Msg:  err.Error(),
 			}
 		}
@@ -750,12 +750,16 @@ func (b *batch) checkAffectedRowsAgainstAuditingQuery(
 	return nil
 }
 
-func (b *batch) buildAuditingQueryFromPolicy(dbTableName string, ctids []string, policy tableland.Policy) string {
+func (b *batch) buildAuditingQueryFromPolicy(dbTableName string, rowIDs []int64, policy tableland.Policy) string {
+	ids := make([]string, len(rowIDs))
+	for i, id := range rowIDs {
+		ids[i] = strconv.FormatInt(id, 10)
+	}
 	return fmt.Sprintf(
-		"SELECT count(1) FROM %s WHERE (%s) AND ctid in (%s) LIMIT 1",
+		"SELECT count(1) FROM %s WHERE (%s) AND rowid in (%s) LIMIT 1",
 		dbTableName,
 		policy.WithCheck(),
-		strings.Join(ctids, ","),
+		strings.Join(ids, ","),
 	)
 }
 
@@ -782,17 +786,18 @@ func (b *batch) executeGrantPrivilegesTx(
 	// Upserts the privileges into the acl table,
 	// making sure the array has unique elements.
 	if _, err := tx.ExecContext(ctx,
-		`INSERT INTO system_acl ("chain_id","table_id","controller","privileges")
-		 VALUES ($1, $2, $3, $4)
+		`INSERT INTO system_acl ("chain_id","table_id","controller","privileges","created_at")
+		 VALUES (?1, ?2, ?3, ?4, ?5)
 		 ON CONFLICT (chain_id,table_id,controller)
-		 DO UPDATE SET privileges = privileges | $4, updated_at = current_timestamp`,
+		 DO UPDATE SET privileges = privileges | ?4, updated_at = current_timestamp`,
 		b.tp.chainID,
 		id.ToBigInt().Int64(),
 		addr.Hex(),
-		privilegesMask); err != nil {
+		privilegesMask,
+		time.Now().Unix()); err != nil {
 		if code, ok := isErrCausedByQuery(err); ok {
 			return &txn.ErrQueryExecution{
-				Code: "POSTGRES_" + code,
+				Code: "SQLITE_" + code,
 				Msg:  err.Error(),
 			}
 		}
@@ -808,11 +813,6 @@ func (b *batch) executeRevokePrivilegesTx(
 	id tableland.TableID,
 	addr common.Address,
 	privileges tableland.Privileges) error {
-	dbID := pgtype.Numeric{}
-	if err := dbID.Set(id.String()); err != nil {
-		return fmt.Errorf("parsing table id to numeric: %s", err)
-	}
-
 	privilegesMask := 1<<3 - 1 // All privileges mask: 111
 	// Tune the mask to have a 0 in the places we want to disable the bit.
 	// For example, if we want to remove tableland.PrivUpdate, the following
@@ -831,24 +831,23 @@ func (b *batch) executeRevokePrivilegesTx(
 		}
 	}
 
-	for _, privAbbr := range privileges {
-		if _, err := tx.ExecContext(ctx,
-			`UPDATE system_acl
-			 SET privileges = privileges & $4, updated_at = current_timestamp
-			 WHERE chain_id=$1 AND table_id = $2 AND controller = $3;`,
-			b.tp.chainID,
-			dbID,
-			addr.Hex(),
-			privAbbr,
-		); err != nil {
-			if code, ok := isErrCausedByQuery(err); ok {
-				return &txn.ErrQueryExecution{
-					Code: "POSTGRES_" + code,
-					Msg:  err.Error(),
-				}
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE system_acl 
+	     SET privileges = privileges & ?4, updated_at = ?5
+		 WHERE chain_id=?1 AND table_id = ?2 AND controller = ?3`,
+		b.tp.chainID,
+		id.String(),
+		addr.Hex(),
+		privilegesMask,
+		time.Now().Unix(), // TODO(jsign): check all updated_at uses time.Now.Unix()
+	); err != nil {
+		if code, ok := isErrCausedByQuery(err); ok {
+			return &txn.ErrQueryExecution{
+				Code: "SQLITE_" + code,
+				Msg:  err.Error(),
 			}
-			return fmt.Errorf("removing acl entry from system acl: %s", err)
 		}
+		return fmt.Errorf("removing acl entry from system acl: %s", err)
 	}
 
 	return nil
