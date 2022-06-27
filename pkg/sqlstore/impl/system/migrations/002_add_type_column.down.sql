@@ -1,1 +1,0 @@
-ALTER TABLE system_tables DROP COLUMN type;

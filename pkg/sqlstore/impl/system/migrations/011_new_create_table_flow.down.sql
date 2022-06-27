@@ -1,1 +1,0 @@
-ALTER TABLE registry ADD COLUMN description VARCHAR(100) NOT NULL;
