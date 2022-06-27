@@ -62,8 +62,8 @@ publish:
 
 # Test
 
-test:
-	go test -v ./...
+test: 
+	go test ./... -race
 .PHONY: test
 
 # Lint
