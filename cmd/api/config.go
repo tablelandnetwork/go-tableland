@@ -2,13 +2,15 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
+	"flag"
 	"os"
+	"path"
 	"strings"
 
 	"github.com/omeid/uconfig"
 	"github.com/omeid/uconfig/plugins"
 	"github.com/omeid/uconfig/plugins/file"
+	"github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/tableland"
 )
 
@@ -25,13 +27,6 @@ type config struct {
 	}
 	Gateway struct {
 		ExternalURIPrefix string `default:"https://testnet.tableland.network"`
-	}
-	DB struct {
-		Host string `default:"database"`
-		Port string `default:"5432"`
-		User string `default:"dev_user"`
-		Pass string `default:"dev_password"`
-		Name string `default:"dev_database"`
 	}
 	TableConstraints TableConstraints
 	QueryConstraints QueryConstraints
@@ -74,10 +69,9 @@ type ChainConfig struct {
 		PrivateKey string `default:""`
 	}
 	EventFeed struct {
-		ChainAPIBackoff    string `default:"15s"`
-		MaxBlocksFetchSize int    `default:"10000"`
-		MinBlockDepth      int    `default:"5"`
-		NewBlockTimeout    string `default:"30s"`
+		ChainAPIBackoff string `default:"15s"`
+		MinBlockDepth   int    `default:"5"`
+		NewBlockTimeout string `default:"30s"`
 	}
 	EventProcessor struct {
 		BlockFailedExecutionBackoff string `default:"10s"`
@@ -90,22 +84,35 @@ type ChainConfig struct {
 	}
 }
 
-func setupConfig() *config {
-	fileBytes, err := os.ReadFile(configFilename)
-	fileStr := string(fileBytes)
+func setupConfig() (*config, string) {
+	flagDirPath := flag.String("dir", "${HOME}/.tableland", "Directory where the configuration and DB exist")
+	flag.Parse()
+	if flagDirPath == nil {
+		log.Fatal().Msg("--dir is null")
+		return nil, "" // Helping the linter know the next line is safe.
+	}
+	dirPath := os.ExpandEnv(*flagDirPath)
+
+	_ = os.MkdirAll(dirPath, 0755)
+
 	var plugins []plugins.Plugin
-	if err != os.ErrNotExist {
-		fileStr = os.ExpandEnv(fileStr)
+	fullPath := path.Join(dirPath, configFilename)
+	configFileBytes, err := os.ReadFile(fullPath)
+	if os.IsNotExist(err) {
+		log.Info().Str("configFilePath", fullPath).Msg("config file not found")
+	} else if err != nil {
+		log.Fatal().Str("configFilePath", fullPath).Err(err).Msg("opening config file")
+	} else {
+		fileStr := os.ExpandEnv(string(configFileBytes))
 		plugins = append(plugins, file.NewReader(strings.NewReader(fileStr), json.Unmarshal))
 	}
 
 	conf := &config{}
 	c, err := uconfig.Classic(&conf, file.Files{}, plugins...)
 	if err != nil {
-		fmt.Printf("invalid configuration: %s", err)
 		c.Usage()
-		os.Exit(1)
+		log.Fatal().Err(err).Msg("invalid configuration")
 	}
 
-	return conf
+	return conf, dirPath
 }

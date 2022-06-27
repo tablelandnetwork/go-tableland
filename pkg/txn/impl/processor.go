@@ -311,7 +311,6 @@ func (b *batch) GetLastProcessedHeight(ctx context.Context) (int64, error) {
 	var blockNumber int64
 	f := func(ctx context.Context, tx *sql.Tx) error {
 		r := tx.QueryRowContext(ctx, "SELECT block_number FROM system_txn_processor WHERE chain_id=?1 LIMIT 1", b.tp.chainID)
-		var blockNumber int64
 		if err := r.Scan(&blockNumber); err != nil {
 			if err == sql.ErrNoRows {
 				return nil
@@ -581,7 +580,7 @@ func (b *batch) executeWriteStmt(
 		return fmt.Errorf("get query: %s", err)
 	}
 
-	affectedRowIDs, err := b.executeQueryAndGetAffectedRows(ctx, tx, query)
+	affectedRowIDs, err := executeQueryAndGetAffectedRows(ctx, tx, query)
 	if err != nil {
 		return fmt.Errorf("get rows ids: %s", err)
 	}
@@ -596,8 +595,8 @@ func (b *batch) executeWriteStmt(
 	// If the executed query returned rowids for the affected rows,
 	// we need to execute an auditing SQL built from the policy
 	// and match the result of this SQL to the number of affected rows
-	sql := b.buildAuditingQueryFromPolicy(ws.GetDBTableName(), affectedRowIDs, policy)
-	if err := b.checkAffectedRowsAgainstAuditingQuery(ctx, tx, len(affectedRowIDs), sql); err != nil {
+	sql := buildAuditingQueryFromPolicy(ws.GetDBTableName(), affectedRowIDs, policy)
+	if err := checkAffectedRowsAgainstAuditingQuery(ctx, tx, len(affectedRowIDs), sql); err != nil {
 		return fmt.Errorf("check affected rows against auditing query: %w", err)
 	}
 
@@ -660,7 +659,7 @@ func (b *batch) applyPolicy(ws parsing.WriteStmt, policy tableland.Policy) error
 	return nil
 }
 
-func (b *batch) executeQueryAndGetAffectedRows(
+func executeQueryAndGetAffectedRows(
 	ctx context.Context,
 	tx *sql.Tx,
 	query string) (affectedRowIDs []int64, err error) {
@@ -706,7 +705,7 @@ func (b *batch) checkRowCountLimit(rowsAffected int64, isInsert bool, beforeRowC
 	return nil
 }
 
-func (b *batch) checkAffectedRowsAgainstAuditingQuery(
+func checkAffectedRowsAgainstAuditingQuery(
 	ctx context.Context,
 	tx *sql.Tx,
 	affectedRowsCount int,
@@ -732,7 +731,7 @@ func (b *batch) checkAffectedRowsAgainstAuditingQuery(
 	return nil
 }
 
-func (b *batch) buildAuditingQueryFromPolicy(dbTableName string, rowIDs []int64, policy tableland.Policy) string {
+func buildAuditingQueryFromPolicy(dbTableName string, rowIDs []int64, policy tableland.Policy) string {
 	ids := make([]string, len(rowIDs))
 	for i, id := range rowIDs {
 		ids[i] = strconv.FormatInt(id, 10)

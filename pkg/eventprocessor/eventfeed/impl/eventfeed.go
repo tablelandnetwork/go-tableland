@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum"
@@ -21,14 +22,19 @@ import (
 	"go.uber.org/atomic"
 )
 
+const (
+	maxBlocksFetchSizeStart = 100_000
+)
+
 // EventFeed provides a stream of filtered events from a SC.
 type EventFeed struct {
-	log       zerolog.Logger
-	chainID   tableland.ChainID
-	ethClient eventfeed.ChainClient
-	scAddress common.Address
-	scABI     *abi.ABI
-	config    *eventfeed.Config
+	log                zerolog.Logger
+	chainID            tableland.ChainID
+	ethClient          eventfeed.ChainClient
+	scAddress          common.Address
+	scABI              *abi.ABI
+	config             *eventfeed.Config
+	maxBlocksFetchSize int
 
 	// Metrics
 	mBaseLabels       []attribute.KeyValue
@@ -57,12 +63,13 @@ func New(
 		Int64("chainID", int64(chainID)).
 		Logger()
 	ef := &EventFeed{
-		log:       log,
-		chainID:   chainID,
-		ethClient: ethClient,
-		scAddress: scAddress,
-		scABI:     scABI,
-		config:    config,
+		log:                log,
+		chainID:            chainID,
+		ethClient:          ethClient,
+		scAddress:          scAddress,
+		scABI:              scABI,
+		config:             config,
+		maxBlocksFetchSize: maxBlocksFetchSizeStart,
 	}
 	if err := ef.initMetrics(chainID); err != nil {
 		return nil, fmt.Errorf("initializing metrics instruments: %s", err)
@@ -102,9 +109,11 @@ func (ef *EventFeed) Start(
 	// Listen for new blocks, and get new events.
 	for h := range chHeads {
 		if h.Number.Int64()%100 == 0 {
-			ef.log.Debug().Int64("height", h.Number.Int64()).Msg("received new chain header")
+			ef.log.Debug().
+				Int64("height", h.Number.Int64()).
+				Int64("maxBlocksFetchSize", int64(ef.maxBlocksFetchSize)).
+				Msg("received new chain header")
 		}
-
 		// We do a for loop since we'll try to catch from fromHeight to the new reported
 		// head in batches with max size MaxEventsBatchSize. This is important to
 		// avoid asking the API for very big ranges (e.g: newHead - fromHeight > 100k) since
@@ -122,8 +131,8 @@ func (ef *EventFeed) Start(
 				break
 			}
 
-			if toHeight-fromHeight+1 > int64(ef.config.MaxBlocksFetchSize) {
-				toHeight = fromHeight + int64(ef.config.MaxBlocksFetchSize) - 1
+			if toHeight-fromHeight+1 > int64(ef.maxBlocksFetchSize) {
+				toHeight = fromHeight + int64(ef.maxBlocksFetchSize) - 1
 			}
 
 			// Ask for the desired events between fromHeight to toHeight.
@@ -138,7 +147,11 @@ func (ef *EventFeed) Start(
 				// If we got an error here, log it but allow to be retried
 				// in the next head. Probably the API can have transient unavailability.
 				ef.log.Warn().Err(err).Msgf("filter logs from %d to %d", fromHeight, toHeight)
-				time.Sleep(ef.config.ChainAPIBackoff)
+				if strings.Contains(err.Error(), "read limit exceeded") {
+					ef.maxBlocksFetchSize = ef.maxBlocksFetchSize * 80 / 100
+				} else {
+					time.Sleep(ef.config.ChainAPIBackoff)
+				}
 				continue
 			}
 
@@ -170,6 +183,10 @@ func (ef *EventFeed) Start(
 			// Update our fromHeight to the latest processed height plus one.
 			fromHeight = toHeight + 1
 			ef.mCurrentHeight.Store(fromHeight)
+			ef.log.Debug().
+				Int64("height", fromHeight).
+				Str("progress", fmt.Sprintf("%d%%", fromHeight*100/h.Number.Int64())).
+				Msg("processing height")
 		}
 	}
 	return nil
