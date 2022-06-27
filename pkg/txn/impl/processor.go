@@ -40,7 +40,7 @@ func NewTxnProcessor(
 	acl tableland.ACL) (*TblTxnProcessor, error) {
 	pool, err := sql.Open("sqlite3", dbURI)
 	if err != nil {
-		return nil, fmt.Errorf("connecting to postgres: %s", err)
+		return nil, fmt.Errorf("connecting to db: %s", err)
 	}
 	pool.SetMaxOpenConns(1)
 	if maxTableRowCount < 0 {
@@ -78,7 +78,7 @@ func (tp *TblTxnProcessor) OpenBatch(ctx context.Context) (txn.Batch, error) {
 	txn, err := tp.pool.BeginTx(ctx, &ops)
 	if err != nil {
 		tp.chBatch <- struct{}{}
-		return nil, fmt.Errorf("opening postgres transaction: %s", err)
+		return nil, fmt.Errorf("opening db transaction: %s", err)
 	}
 
 	return &batch{txn: txn, tp: tp}, nil
@@ -772,7 +772,7 @@ func (b *batch) executeGrantPrivilegesTx(
 		`INSERT INTO system_acl ("chain_id","table_id","controller","privileges","created_at")
 		 VALUES (?1, ?2, ?3, ?4, ?5)
 		 ON CONFLICT (chain_id,table_id,controller)
-		 DO UPDATE SET privileges = privileges | ?4, updated_at = current_timestamp`,
+		 DO UPDATE SET privileges = privileges | ?4, updated_at = ?5`,
 		b.tp.chainID,
 		id.ToBigInt().Int64(),
 		addr.Hex(),
