@@ -16,7 +16,7 @@ import (
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
 )
 
-// InstrumentedSystemStore implements a instrumented SQLStore interface using pgx.
+// InstrumentedSystemStore implements a instrumented SQLStore.
 type InstrumentedSystemStore struct {
 	chainID          tableland.ChainID
 	store            sqlstore.SystemStore
@@ -24,7 +24,7 @@ type InstrumentedSystemStore struct {
 	latencyHistogram syncint64.Histogram
 }
 
-// NewInstrumentedSystemStore creates a new pgx pool and instantiate both the user and system stores.
+// NewInstrumentedSystemStore creates a new db pool and instantiate both the user and system stores.
 func NewInstrumentedSystemStore(chainID tableland.ChainID, store sqlstore.SystemStore) (sqlstore.SystemStore, error) {
 	meter := global.MeterProvider().Meter("tableland")
 	callCount, err := meter.SyncInt64().Counter("tableland.sqlstore.call.count")
@@ -194,7 +194,7 @@ func (s *InstrumentedSystemStore) Close() error {
 	return s.store.Close()
 }
 
-// WithTx returns a copy of the current InstrumentedSQLStorePGX with a tx attached.
+// WithTx returns a copy of the current InstrumentedSQLStore with a tx attached.
 func (s *InstrumentedSystemStore) WithTx(tx *sql.Tx) sqlstore.SystemStore {
 	return s.store.WithTx(tx)
 }

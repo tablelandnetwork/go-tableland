@@ -44,10 +44,10 @@ type SystemTxnProcessor struct {
 }
 
 type SystemTxnReceipt struct {
-	ChainID     int64
-	BlockNumber int64
-	BlockOrder  int64
-	TxnHash     string
-	Error       sql.NullString
-	TableID     sql.NullInt64
+	ChainID      int64
+	BlockNumber  int64
+	IndexInBlock int64
+	TxnHash      string
+	Error        sql.NullString
+	TableID      sql.NullInt64
 }

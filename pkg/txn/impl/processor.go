@@ -368,9 +368,9 @@ func (b *batch) SaveTxnReceipts(ctx context.Context, rs []eventprocessor.Receipt
 			}
 			if _, err := tx.ExecContext(
 				ctx,
-				`INSERT INTO system_txn_receipts (chain_id,txn_hash,error,table_id,block_number,block_order) 
+				`INSERT INTO system_txn_receipts (chain_id,txn_hash,error,table_id,block_number,index_in_block) 
 				 VALUES (?1,?2,?3,?4,?5,?6)`,
-				r.ChainID, r.TxnHash, r.Error, tableID, r.BlockNumber, 0); err != nil { // TODO(jsign): fix ordering
+				r.ChainID, r.TxnHash, r.Error, tableID, r.BlockNumber, r.IndexInBlock); err != nil {
 				return fmt.Errorf("insert txn receipt: %s", err)
 			}
 		}
@@ -413,7 +413,7 @@ func (b *batch) Close() error {
 
 	// Calling rollback is always safe:
 	// - If Commit() wasn't called, the result is a rollback.
-	// - If Commit() was called, pgx.Txn guarantees is a noop.
+	// - If Commit() was called, *sql.Txn guarantees is a noop.
 	if err := b.txn.Rollback(); err != nil {
 		if err != sql.ErrTxDone {
 			return fmt.Errorf("closing batch: %s", err)
