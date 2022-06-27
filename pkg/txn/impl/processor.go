@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/jackc/pgtype"
 	"github.com/mattn/go-sqlite3"
 	"github.com/rs/zerolog"
 	logger "github.com/rs/zerolog/log"
@@ -460,16 +459,8 @@ func getController(
 	tx *sql.Tx,
 	chainID tableland.ChainID,
 	tableID tableland.TableID) (string, error) {
-	dbID := pgtype.Numeric{}
-	if err := dbID.Set(tableID.String()); err != nil {
-		return "", &txn.ErrQueryExecution{
-			Code: "CONTROLLER_TABLE_ID",
-			Msg:  fmt.Sprintf("parsing table id to numeric: %s", err),
-		}
-	}
-
 	q := "SELECT controller FROM system_controller where chain_id=?1 AND table_id=?2"
-	r := tx.QueryRowContext(ctx, q, chainID, dbID)
+	r := tx.QueryRowContext(ctx, q, chainID, tableID.ToBigInt().Uint64())
 	var controller string
 	err := r.Scan(&controller)
 	if err == sql.ErrNoRows {
