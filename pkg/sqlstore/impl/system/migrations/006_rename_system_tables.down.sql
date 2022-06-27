@@ -1,1 +1,0 @@
-ALTER TABLE registry RENAME TO system_tables;
