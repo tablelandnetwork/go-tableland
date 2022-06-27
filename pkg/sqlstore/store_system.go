@@ -2,6 +2,7 @@ package sqlstore
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
@@ -19,7 +20,7 @@ type SystemStore interface {
 	InsertPendingTx(context.Context, common.Address, int64, common.Hash) error
 	DeletePendingTxByHash(context.Context, common.Hash) error
 	ReplacePendingTxByHash(context.Context, common.Hash, common.Hash) error
-	WithTx(tx pgx.Tx) SystemStore
+	WithTx(tx *sql.Tx) SystemStore
 	Begin(context.Context) (pgx.Tx, error)
 	GetReceipt(context.Context, string) (eventprocessor.Receipt, bool, error)
 	Close() error
