@@ -20,7 +20,7 @@ var (
 	errUnexpectedNodeType = errors.New("unexpected node type")
 )
 
-// QueryValidator enforces PostgresSQL constraints for Tableland.
+// QueryValidator enforces the Tablealnd SQL spec.
 type QueryValidator struct {
 	systemTablePrefixes  []string
 	acceptedTypesNames   []string

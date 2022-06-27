@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"time"
 )
 
@@ -19,14 +20,19 @@ func (q *Queries) GetAclByTableAndController(ctx context.Context, arg GetAclByTa
 	row := q.queryRow(ctx, q.getAclByTableAndControllerStmt, getAclByTableAndController, arg.Controller, arg.TableID, arg.ChainID)
 	var i SystemAcl
 	var createdAtUnix int64
+	var updatedAtUnix sql.NullInt64
 	err := row.Scan(
 		&i.TableID,
 		&i.Controller,
 		&i.Privileges,
 		&createdAtUnix,
-		&i.UpdatedAt,
+		&updatedAtUnix,
 		&i.ChainID,
 	)
 	i.CreatedAt = time.Unix(createdAtUnix, 0)
+	if updatedAtUnix.Valid {
+		updatedAt := time.Unix(updatedAtUnix.Int64, 0)
+		i.UpdatedAt = &updatedAt
+	}
 	return i, err
 }
