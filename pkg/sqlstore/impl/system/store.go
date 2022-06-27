@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -14,11 +13,10 @@ import (
 	"strings"
 
 	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres" // triggers something?
+	_ "github.com/golang-migrate/migrate/v4/database/sqlite3"
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
-	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/pgxpool"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/nonce"
@@ -34,41 +32,37 @@ import (
 type SystemStore struct {
 	chainID tableland.ChainID
 	db      dbWithTx
-	pool    *pgxpool.Pool
+	pool    *sql.DB
 }
 
 // New returns a new SystemStore backed by `pgxpool.Pool`.
-func New(postgresURI string, chainID tableland.ChainID) (*SystemStore, error) {
-	ctx, cls := context.WithTimeout(context.Background(), time.Second*15)
-	defer cls()
-	pool, err := pgxpool.Connect(ctx, postgresURI)
+func New(dbURI string, chainID tableland.ChainID) (*SystemStore, error) {
+	dbc, err := sql.Open("sqlite3", dbURI)
 	if err != nil {
-		return nil, fmt.Errorf("connecting to postgres: %s", err)
+		return nil, fmt.Errorf("connecting to db: %s", err)
 	}
+	dbc.SetMaxOpenConns(1)
+
 	as := bindata.Resource(migrations.AssetNames(),
 		func(name string) ([]byte, error) {
 			return migrations.Asset(name)
 		})
-	if err := executeMigration(pool.Config().ConnString(), as); err != nil {
+	if err := executeMigration(dbURI, as); err != nil {
 		return nil, fmt.Errorf("initializing db connection: %s", err)
 	}
 
 	return &SystemStore{
-		db:      &dbWithTxImpl{db: db.New(pool)},
-		pool:    pool,
+		db:      &dbWithTxImpl{db: db.New(dbc)},
+		pool:    dbc,
 		chainID: chainID,
 	}, nil
 }
 
 // GetTable fetchs a table from its UUID.
 func (s *SystemStore) GetTable(ctx context.Context, id tableland.TableID) (sqlstore.Table, error) {
-	dbID := pgtype.Numeric{}
-	if err := dbID.Set(id.String()); err != nil {
-		return sqlstore.Table{}, fmt.Errorf("parsing id to numeric: %s", err)
-	}
 	table, err := s.db.queries().GetTable(ctx, db.GetTableParams{
 		ChainID: int64(s.chainID),
-		ID:      dbID,
+		ID:      id.String(),
 	})
 	if err != nil {
 		return sqlstore.Table{}, fmt.Errorf("failed to get the table: %s", err)
@@ -105,19 +99,14 @@ func (s *SystemStore) GetACLOnTableByController(
 	ctx context.Context,
 	id tableland.TableID,
 	controller string) (sqlstore.SystemACL, error) {
-	dbID := pgtype.Numeric{}
-	if err := dbID.Set(id.String()); err != nil {
-		return sqlstore.SystemACL{}, fmt.Errorf("parsing table id to numeric: %s", err)
-	}
-
 	params := db.GetAclByTableAndControllerParams{
 		ChainID:    int64(s.chainID),
 		Controller: controller,
-		TableID:    dbID,
+		TableID:    id.ToBigInt().Int64(),
 	}
 
 	systemACL, err := s.db.queries().GetAclByTableAndController(ctx, params)
-	if err == pgx.ErrNoRows {
+	if err == sql.ErrNoRows {
 		return sqlstore.SystemACL{
 			Controller: controller,
 			TableID:    id,
@@ -219,8 +208,8 @@ func (s *SystemStore) WithTx(tx *sql.Tx) sqlstore.SystemStore {
 }
 
 // Begin returns a new tx.
-func (s *SystemStore) Begin(ctx context.Context) (pgx.Tx, error) {
-	return s.pool.Begin(ctx)
+func (s *SystemStore) Begin(ctx context.Context) (*sql.Tx, error) {
+	return s.pool.Begin()
 }
 
 // GetReceipt returns a event receipt by transaction hash.
@@ -248,15 +237,8 @@ func (s *SystemStore) GetReceipt(
 	if res.Error.Valid {
 		receipt.Error = &res.Error.String
 	}
-	if res.TableID.Status == pgtype.Present {
-		br := &big.Rat{}
-		if err := res.TableID.AssignTo(br); err != nil {
-			return eventprocessor.Receipt{}, false, fmt.Errorf("parsing numeric to bigrat: %s", err)
-		}
-		if !br.IsInt() {
-			return eventprocessor.Receipt{}, false, errors.New("parsed numeric isn't an integer")
-		}
-		id, err := tableland.NewTableID(br.Num().String())
+	if res.TableID.Valid {
+		id, err := tableland.NewTableID(res.TableID.String)
 		if err != nil {
 			return eventprocessor.Receipt{}, false, fmt.Errorf("parsing id to string: %s", err)
 		}
@@ -273,17 +255,13 @@ func (s *SystemStore) Close() error {
 }
 
 // executeMigration run db migrations and return a ready to use connection to the Postgres database.
-func executeMigration(postgresURI string, as *bindata.AssetSource) error {
-	// To avoid dealing with time zone issues, we just enforce UTC timezone
-	if !strings.Contains(postgresURI, "timezone=UTC") {
-		return errors.New("timezone=UTC is required in postgres URI")
-	}
+func executeMigration(dbURI string, as *bindata.AssetSource) error {
 	d, err := bindata.WithInstance(as)
 	if err != nil {
 		return fmt.Errorf("creating source driver: %s", err)
 	}
 
-	m, err := migrate.NewWithSourceInstance("go-bindata", d, postgresURI)
+	m, err := migrate.NewWithSourceInstance("go-bindata", d, "sqlite3://"+dbURI)
 	if err != nil {
 		return fmt.Errorf("creating migration: %s", err)
 	}
@@ -302,14 +280,7 @@ func executeMigration(postgresURI string, as *bindata.AssetSource) error {
 }
 
 func tableFromSQLToDTO(table db.Registry) (sqlstore.Table, error) {
-	br := &big.Rat{}
-	if err := table.ID.AssignTo(br); err != nil {
-		return sqlstore.Table{}, fmt.Errorf("parsing numeric to bigrat: %s", err)
-	}
-	if !br.IsInt() {
-		return sqlstore.Table{}, errors.New("parsed numeric isn't an integer")
-	}
-	id, err := tableland.NewTableID(br.Num().String())
+	id, err := tableland.NewTableID(table.ID)
 	if err != nil {
 		return sqlstore.Table{}, fmt.Errorf("parsing id to string: %s", err)
 	}
@@ -324,21 +295,20 @@ func tableFromSQLToDTO(table db.Registry) (sqlstore.Table, error) {
 }
 
 func aclFromSQLtoDTO(acl db.SystemAcl) (sqlstore.SystemACL, error) {
-	br := &big.Rat{}
-	if err := acl.TableID.AssignTo(br); err != nil {
-		return sqlstore.SystemACL{}, fmt.Errorf("parsing numeric to bigrat: %s", err)
-	}
-	if !br.IsInt() {
-		return sqlstore.SystemACL{}, errors.New("parsed numeric isn't an integer")
-	}
-	id, err := tableland.NewTableID(br.Num().String())
+	id, err := tableland.NewTableIDFromInt64(acl.TableID)
 	if err != nil {
 		return sqlstore.SystemACL{}, fmt.Errorf("parsing id to string: %s", err)
 	}
 
-	privileges := make(tableland.Privileges, len(acl.Privileges))
-	for i, priv := range acl.Privileges {
-		privileges[i] = tableland.Privilege(priv)
+	var privileges tableland.Privileges
+	if acl.Privileges&1 > 0 {
+		privileges = append(privileges, tableland.PrivInsert)
+	}
+	if acl.Privileges&(1<<1) > 0 {
+		privileges = append(privileges, tableland.PrivUpdate)
+	}
+	if acl.Privileges&(1<<2) > 0 {
+		privileges = append(privileges, tableland.PrivDelete)
 	}
 
 	systemACL := sqlstore.SystemACL{
@@ -346,11 +316,12 @@ func aclFromSQLtoDTO(acl db.SystemAcl) (sqlstore.SystemACL, error) {
 		TableID:    id,
 		Controller: acl.Controller,
 		Privileges: privileges,
-		CreatedAt:  acl.CreatedAt,
+		CreatedAt:  time.Now(), // TODO(jsign): fix it's not time.Now()
 	}
 
 	if acl.UpdatedAt.Valid {
-		systemACL.UpdatedAt = &acl.UpdatedAt.Time
+		now := time.Now()
+		systemACL.UpdatedAt = &now // TODO(jsign): fix, should be: &acl.UpdatedAt.String
 	}
 
 	return systemACL, nil
@@ -374,6 +345,7 @@ type dbWithTxImpl struct {
 	tx *sql.Tx
 }
 
+// TODO(jsign): revisit this... ???
 func (d *dbWithTxImpl) queries() *db.Queries {
 	if d.tx == nil {
 		return d.db

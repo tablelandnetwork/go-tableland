@@ -96,6 +96,6 @@ type ReplacePendingTxByHashParams struct {
 }
 
 func (q *Queries) ReplacePendingTxByHash(ctx context.Context, arg ReplacePendingTxByHashParams) error {
-	_, err := q.db.Exec(ctx, replacePendingTxByHash, arg.ChainID, arg.Hash, arg.Hash_2)
+	_, err := q.db.ExecContext(ctx, replacePendingTxByHash, arg.ChainID, arg.Hash, arg.Hash_2)
 	return err
 }

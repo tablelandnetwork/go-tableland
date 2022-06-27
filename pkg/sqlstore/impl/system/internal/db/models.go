@@ -19,11 +19,11 @@ type Registry struct {
 }
 
 type SystemAcl struct {
-	TableID    string
+	TableID    int64
 	Controller string
-	Privileges []string
-	CreatedAt  time.Time
-	UpdatedAt  sql.NullTime
+	Privileges int
+	CreatedAt  string
+	UpdatedAt  sql.NullString
 	ChainID    int64
 }
 
