@@ -19,7 +19,7 @@ type GetReceiptParams struct {
 }
 
 func (q *Queries) GetReceipt(ctx context.Context, arg GetReceiptParams) (SystemTxnReceipt, error) {
-	row := q.db.QueryRow(ctx, getReceipt, arg.ChainID, arg.TxnHash)
+	row := q.queryRow(ctx, q.getReceiptStmt, getReceipt, arg.ChainID, arg.TxnHash)
 	var i SystemTxnReceipt
 	err := row.Scan(
 		&i.ID,

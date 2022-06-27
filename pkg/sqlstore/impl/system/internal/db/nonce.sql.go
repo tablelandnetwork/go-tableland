@@ -19,7 +19,7 @@ type DeletePendingTxByHashParams struct {
 }
 
 func (q *Queries) DeletePendingTxByHash(ctx context.Context, arg DeletePendingTxByHashParams) error {
-	_, err := q.db.Exec(ctx, deletePendingTxByHash, arg.ChainID, arg.Hash)
+	_, err := q.exec(ctx, q.deletePendingTxByHashStmt, deletePendingTxByHash, arg.ChainID, arg.Hash)
 	return err
 }
 
@@ -35,7 +35,7 @@ type InsertPendingTxParams struct {
 }
 
 func (q *Queries) InsertPendingTx(ctx context.Context, arg InsertPendingTxParams) error {
-	_, err := q.db.Exec(ctx, insertPendingTx,
+	_, err := q.exec(ctx, q.insertPendingTxStmt, insertPendingTx,
 		arg.ChainID,
 		arg.Address,
 		arg.Hash,
@@ -54,7 +54,7 @@ type ListPendingTxParams struct {
 }
 
 func (q *Queries) ListPendingTx(ctx context.Context, arg ListPendingTxParams) ([]SystemPendingTx, error) {
-	rows, err := q.db.Query(ctx, listPendingTx, arg.Address, arg.ChainID)
+	rows, err := q.query(ctx, q.listPendingTxStmt, listPendingTx, arg.Address, arg.ChainID)
 	if err != nil {
 		return nil, err
 	}
@@ -73,6 +73,9 @@ func (q *Queries) ListPendingTx(ctx context.Context, arg ListPendingTxParams) ([
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
