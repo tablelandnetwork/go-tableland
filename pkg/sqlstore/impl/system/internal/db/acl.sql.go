@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"time"
 )
 
 const getAclByTableAndController = `-- name: GetAclByTableAndController :one
@@ -17,13 +18,15 @@ type GetAclByTableAndControllerParams struct {
 func (q *Queries) GetAclByTableAndController(ctx context.Context, arg GetAclByTableAndControllerParams) (SystemAcl, error) {
 	row := q.queryRow(ctx, q.getAclByTableAndControllerStmt, getAclByTableAndController, arg.Controller, arg.TableID, arg.ChainID)
 	var i SystemAcl
+	var createdAtUnix int64
 	err := row.Scan(
 		&i.TableID,
 		&i.Controller,
 		&i.Privileges,
-		&i.CreatedAt,
+		&createdAtUnix,
 		&i.UpdatedAt,
 		&i.ChainID,
 	)
+	i.CreatedAt = time.Unix(createdAtUnix, 0)
 	return i, err
 }

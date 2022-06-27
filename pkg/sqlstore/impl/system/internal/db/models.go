@@ -18,7 +18,7 @@ type SystemAcl struct {
 	TableID    int64
 	Controller string
 	Privileges int
-	CreatedAt  string
+	CreatedAt  time.Time
 	UpdatedAt  sql.NullString
 	ChainID    int64
 }
