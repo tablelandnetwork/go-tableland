@@ -1,23 +1,23 @@
 package user
 
 import (
+	"database/sql"
 	"fmt"
 	"math/big"
 	"reflect"
 	"strings"
 
-	"github.com/jackc/pgproto3/v2"
 	"github.com/jackc/pgtype"
-	"github.com/jackc/pgx/v4"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 )
 
-func rowsToJSON(rows pgx.Rows) (interface{}, error) {
-	fields := rows.FieldDescriptions()
-
-	columnsData := getColumnsData(fields)
-	rowsData, err := getRowsData(rows, fields, len(columnsData))
+func rowsToJSON(rows *sql.Rows) (interface{}, error) {
+	columnsData, err := getColumnsData(rows)
+	if err != nil {
+		return nil, fmt.Errorf("get columns from rows: %s", err)
+	}
+	rowsData, err := getRowsData(rows)
 	if err != nil {
 		return nil, err
 	}
@@ -28,21 +28,26 @@ func rowsToJSON(rows pgx.Rows) (interface{}, error) {
 	}, nil
 }
 
-func getColumnsData(fields []pgproto3.FieldDescription) []sqlstore.UserColumn {
-	columns := make([]sqlstore.UserColumn, 0)
-	for _, col := range fields {
-		columns = append(columns, struct {
-			Name string `json:"name"`
-		}{string(col.Name)})
+func getColumnsData(rows *sql.Rows) ([]sqlstore.UserColumn, error) {
+	cols, err := rows.Columns()
+	if err != nil {
+		return nil, fmt.Errorf("get columns from sql.Rows: %s", err)
 	}
-
-	return columns
+	columns := make([]sqlstore.UserColumn, len(cols))
+	for i := range cols {
+		columns[i] = sqlstore.UserColumn{Name: cols[i]}
+	}
+	return columns, nil
 }
 
-func getRowsData(rows pgx.Rows, fields []pgproto3.FieldDescription, nColumns int) ([][]interface{}, error) {
+func getRowsData(rows *sql.Rows) ([][]interface{}, error) {
 	rowsData := make([][]interface{}, 0)
 	for rows.Next() {
-		scanArgs, err := getScanArgs(fields, nColumns)
+		colTypes, err := rows.ColumnTypes()
+		if err != nil {
+			return nil, fmt.Errorf("get column types from sql.Rows: %s", err)
+		}
+		scanArgs, err := getScanArgs(colTypes)
 		if err != nil {
 			return nil, err
 		}
@@ -50,8 +55,8 @@ func getRowsData(rows pgx.Rows, fields []pgproto3.FieldDescription, nColumns int
 		if err := rows.Scan(scanArgs...); err != nil {
 			return nil, fmt.Errorf("scan row column: %s", err)
 		}
-		rowData := make([]interface{}, nColumns)
-		for i := 0; i < nColumns; i++ {
+		rowData := make([]interface{}, len(scanArgs))
+		for i := 0; i < len(scanArgs); i++ {
 			rowData[i], err = getValueFromScanArg(scanArgs[i])
 			if err != nil {
 				return nil, fmt.Errorf("get value from scan: %s", err)
@@ -135,14 +140,10 @@ func getValueFromScanArg(arg interface{}) (interface{}, error) {
 	return arg, nil
 }
 
-func getScanArgs(fields []pgproto3.FieldDescription, nColumns int) ([]interface{}, error) {
-	scanArgs := make([]interface{}, nColumns)
-	for i := 0; i < nColumns; i++ {
-		t, err := getTypeFromOID(fields[i].DataTypeOID)
-		if err != nil {
-			return nil, err
-		}
-		scanArgs[i] = t
+func getScanArgs(colTypes []*sql.ColumnType) ([]interface{}, error) {
+	scanArgs := make([]interface{}, len(colTypes))
+	for i := range colTypes {
+		scanArgs[i] = reflect.New(colTypes[i].ScanType()).Interface()
 	}
 
 	return scanArgs, nil
