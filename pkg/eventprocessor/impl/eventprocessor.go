@@ -229,7 +229,7 @@ func (ep *EventProcessor) runBlockQueries(ctx context.Context, bqs eventfeed.Blo
 	}
 
 	receipts := make([]eventprocessor.Receipt, 0, len(bqs.Events))
-	for _, e := range bqs.Events {
+	for i, e := range bqs.Events {
 		if ep.config.DedupExecutedTxns {
 			ok, err := b.TxnReceiptExists(ctx, e.TxnHash)
 			if err != nil {
@@ -244,7 +244,7 @@ func (ep *EventProcessor) runBlockQueries(ctx context.Context, bqs eventfeed.Blo
 		}
 
 		start := time.Now()
-		receipt, err := ep.executeEvent(ctx, b, bqs.BlockNumber, e)
+		receipt, err := ep.executeEvent(ctx, b, bqs.BlockNumber, int64(i), e)
 		if err != nil {
 			// Some retriable error happened, abort the block execution
 			// and retry later.
@@ -298,11 +298,12 @@ func (ep *EventProcessor) executeEvent(
 	ctx context.Context,
 	b txn.Batch,
 	blockNumber int64,
+	idxInBlock int64,
 	be eventfeed.BlockEvent) (eventprocessor.Receipt, error) {
 	switch e := be.Event.(type) {
 	case *ethereum.ContractRunSQL:
 		ep.log.Debug().Str("statement", e.Statement).Msgf("executing run-sql event")
-		receipt, err := ep.executeRunSQLEvent(ctx, b, blockNumber, be, e)
+		receipt, err := ep.executeRunSQLEvent(ctx, b, blockNumber, idxInBlock, be, e)
 		if err != nil {
 			return eventprocessor.Receipt{}, fmt.Errorf("executing runsql event: %s", err)
 		}
@@ -313,7 +314,7 @@ func (ep *EventProcessor) executeEvent(
 			Str("tokenId", e.TableId.String()).
 			Str("statement", e.Statement).
 			Msgf("executing create-table event")
-		receipt, err := ep.executeCreateTableEvent(ctx, b, blockNumber, be, e)
+		receipt, err := ep.executeCreateTableEvent(ctx, b, blockNumber, idxInBlock, be, e)
 		if err != nil {
 			return eventprocessor.Receipt{}, fmt.Errorf("executing create-table event: %s", err)
 		}
@@ -323,7 +324,7 @@ func (ep *EventProcessor) executeEvent(
 			Str("controller", e.Controller.Hex()).
 			Str("tokenId", e.TableId.String()).
 			Msgf("executing set-controller event")
-		receipt, err := ep.executeSetControllerEvent(ctx, b, blockNumber, be, e)
+		receipt, err := ep.executeSetControllerEvent(ctx, b, blockNumber, idxInBlock, be, e)
 		if err != nil {
 			return eventprocessor.Receipt{}, fmt.Errorf("executing set-controller event: %s", err)
 		}
@@ -335,7 +336,7 @@ func (ep *EventProcessor) executeEvent(
 			Str("tableId", e.TableId.String()).
 			Msgf("executing table transfer event")
 
-		receipt, err := ep.executeTransferEvent(ctx, b, blockNumber, be, e)
+		receipt, err := ep.executeTransferEvent(ctx, b, blockNumber, idxInBlock, be, e)
 		if err != nil {
 			return eventprocessor.Receipt{}, fmt.Errorf("executing transfer event: %s", err)
 		}
@@ -349,12 +350,14 @@ func (ep *EventProcessor) executeCreateTableEvent(
 	ctx context.Context,
 	b txn.Batch,
 	blockNumber int64,
+	idxInBlock int64,
 	be eventfeed.BlockEvent,
 	e *ethereum.ContractCreateTable) (eventprocessor.Receipt, error) {
 	receipt := eventprocessor.Receipt{
-		ChainID:     ep.chainID,
-		BlockNumber: blockNumber,
-		TxnHash:     be.TxnHash.String(),
+		ChainID:      ep.chainID,
+		BlockNumber:  blockNumber,
+		IndexInBlock: idxInBlock,
+		TxnHash:      be.TxnHash.String(),
 	}
 	createStmt, err := ep.parser.ValidateCreateTable(e.Statement, ep.chainID)
 	if err != nil {
@@ -387,12 +390,14 @@ func (ep *EventProcessor) executeRunSQLEvent(
 	ctx context.Context,
 	b txn.Batch,
 	blockNumber int64,
+	idxInBlock int64,
 	be eventfeed.BlockEvent,
 	e *ethereum.ContractRunSQL) (eventprocessor.Receipt, error) {
 	receipt := eventprocessor.Receipt{
-		ChainID:     ep.chainID,
-		BlockNumber: blockNumber,
-		TxnHash:     be.TxnHash.String(),
+		ChainID:      ep.chainID,
+		BlockNumber:  blockNumber,
+		IndexInBlock: idxInBlock,
+		TxnHash:      be.TxnHash.String(),
 	}
 
 	mutatingStmts, err := ep.parser.ValidateMutatingQuery(e.Statement, ep.chainID)
@@ -427,12 +432,14 @@ func (ep *EventProcessor) executeSetControllerEvent(
 	ctx context.Context,
 	b txn.Batch,
 	blockNumber int64,
+	idxInBlock int64,
 	be eventfeed.BlockEvent,
 	e *ethereum.ContractSetController) (eventprocessor.Receipt, error) {
 	receipt := eventprocessor.Receipt{
-		ChainID:     ep.chainID,
-		BlockNumber: blockNumber,
-		TxnHash:     be.TxnHash.String(),
+		ChainID:      ep.chainID,
+		BlockNumber:  blockNumber,
+		IndexInBlock: idxInBlock,
+		TxnHash:      be.TxnHash.String(),
 	}
 
 	if e.TableId == nil {
@@ -460,12 +467,14 @@ func (ep *EventProcessor) executeTransferEvent(
 	ctx context.Context,
 	b txn.Batch,
 	blockNumber int64,
+	idxInBlock int64,
 	be eventfeed.BlockEvent,
 	e *ethereum.ContractTransferTable) (eventprocessor.Receipt, error) {
 	receipt := eventprocessor.Receipt{
-		ChainID:     ep.chainID,
-		BlockNumber: blockNumber,
-		TxnHash:     be.TxnHash.String(),
+		ChainID:      ep.chainID,
+		BlockNumber:  blockNumber,
+		IndexInBlock: idxInBlock,
+		TxnHash:      be.TxnHash.String(),
 	}
 
 	if e.TableId == nil {

@@ -537,10 +537,10 @@ func TestSetController(t *testing.T) {
 
 	t.Run("controller-is-not-set-default", func(t *testing.T) {
 		t.Parallel()
-		_, _, pgxpool := newTxnProcessorWithTable(t, 0)
+		_, _, db := newTxnProcessorWithTable(t, 0)
 
 		// Let's test first that the controller is not set (it's the default behavior)
-		tx, err := pgxpool.BeginTx(ctx, &sql.TxOptions{
+		tx, err := db.BeginTx(ctx, &sql.TxOptions{
 			Isolation: sql.LevelSerializable,
 			ReadOnly:  false,
 		})
@@ -571,7 +571,7 @@ func TestSetController(t *testing.T) {
 
 	t.Run("set-unset-controller", func(t *testing.T) {
 		t.Parallel()
-		txnp, _, pgxpool := newTxnProcessorWithTable(t, 0)
+		txnp, _, db := newTxnProcessorWithTable(t, 0)
 
 		// sets
 		b, err := txnp.OpenBatch(ctx)
@@ -581,7 +581,7 @@ func TestSetController(t *testing.T) {
 		require.NoError(t, b.Close())
 		require.NoError(t, err)
 
-		tx, err := pgxpool.BeginTx(ctx, &sql.TxOptions{
+		tx, err := db.BeginTx(ctx, &sql.TxOptions{
 			Isolation: sql.LevelSerializable,
 			ReadOnly:  false,
 		})
@@ -599,7 +599,7 @@ func TestSetController(t *testing.T) {
 		require.NoError(t, b.Close())
 		require.NoError(t, err)
 
-		tx, err = pgxpool.BeginTx(ctx, &sql.TxOptions{
+		tx, err = db.BeginTx(ctx, &sql.TxOptions{
 			Isolation: sql.LevelSerializable,
 			ReadOnly:  false,
 		})
@@ -614,7 +614,7 @@ func TestSetController(t *testing.T) {
 
 	t.Run("upsert", func(t *testing.T) {
 		t.Parallel()
-		txnp, _, pgxpool := newTxnProcessorWithTable(t, 0)
+		txnp, _, db := newTxnProcessorWithTable(t, 0)
 
 		{
 			b, err := txnp.OpenBatch(ctx)
@@ -634,7 +634,7 @@ func TestSetController(t *testing.T) {
 			require.NoError(t, b.Close())
 		}
 
-		tx, err := pgxpool.BeginTx(ctx, &sql.TxOptions{
+		tx, err := db.BeginTx(ctx, &sql.TxOptions{
 			Isolation: sql.LevelSerializable,
 			ReadOnly:  false,
 		})

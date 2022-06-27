@@ -173,7 +173,7 @@ func createChainIDStack(
 
 	systemStore, err := sqlstoreimpl.NewInstrumentedSystemStore(config.ChainID, store)
 	if err != nil {
-		return chains.ChainStack{}, fmt.Errorf("instrumenting system store pgx: %s", err)
+		return chains.ChainStack{}, fmt.Errorf("instrumenting system store: %s", err)
 	}
 
 	conn, err := ethclient.Dial(config.Registry.EthEndpoint)
