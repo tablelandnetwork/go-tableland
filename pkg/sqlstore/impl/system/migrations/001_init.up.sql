@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS system_controller (
 CREATE TABLE IF NOT EXISTS system_txn_receipts (
     chain_id INTEGER NOT NULL,
     block_number INTEGER NOT NULL,
-    block_order INTEGER NOT NULL,
+    index_in_block INTEGER NOT NULL,
     txn_hash TEXT NOT NULL,
     error TEXT,
     table_id INTEGER,

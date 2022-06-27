@@ -33,7 +33,7 @@ type SystemStore struct {
 	pool    *sql.DB
 }
 
-// New returns a new SystemStore backed by `pgxpool.Pool`.
+// New returns a new SystemStore backed by database/sql.
 func New(dbURI string, chainID tableland.ChainID) (*SystemStore, error) {
 	dbc, err := sql.Open("sqlite3", dbURI)
 	if err != nil {
@@ -228,9 +228,10 @@ func (s *SystemStore) GetReceipt(
 	}
 
 	receipt := eventprocessor.Receipt{
-		ChainID:     s.chainID,
-		BlockNumber: res.BlockNumber,
-		TxnHash:     txnHash,
+		ChainID:      s.chainID,
+		BlockNumber:  res.BlockNumber,
+		IndexInBlock: res.IndexInBlock,
+		TxnHash:      txnHash,
 	}
 	if res.Error.Valid {
 		receipt.Error = &res.Error.String

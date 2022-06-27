@@ -94,10 +94,11 @@ func TestRunSQLBlockProcessing(t *testing.T) {
 		expReceipts := make([]eventprocessor.Receipt, len(txnHashes))
 		for i, th := range txnHashes {
 			expReceipts[i] = eventprocessor.Receipt{
-				ChainID: chainID,
-				TxnHash: th.String(),
-				Error:   nil,
-				TableID: &tableID,
+				ChainID:      chainID,
+				TxnHash:      th.String(),
+				IndexInBlock: int64(i),
+				Error:        nil,
+				TableID:      &tableID,
 			}
 		}
 		require.Eventually(t, checkReceipts(t, expReceipts...), time.Second*5, time.Millisecond*100)
@@ -114,16 +115,18 @@ func TestRunSQLBlockProcessing(t *testing.T) {
 
 		expReceipts := make([]eventprocessor.Receipt, len(txnHashes))
 		expReceipts[0] = eventprocessor.Receipt{
-			ChainID: chainID,
-			TxnHash: txnHashes[0].String(),
-			Error:   &expWrongTypeErr,
-			TableID: nil,
+			ChainID:      chainID,
+			TxnHash:      txnHashes[0].String(),
+			IndexInBlock: 0,
+			Error:        &expWrongTypeErr,
+			TableID:      nil,
 		}
 		expReceipts[1] = eventprocessor.Receipt{
-			ChainID: chainID,
-			TxnHash: txnHashes[1].String(),
-			Error:   nil,
-			TableID: &tableID,
+			ChainID:      chainID,
+			TxnHash:      txnHashes[1].String(),
+			IndexInBlock: 1,
+			Error:        nil,
+			TableID:      &tableID,
 		}
 		require.Eventually(t, checkReceipts(t, expReceipts...), time.Second*5, time.Millisecond*100)
 
@@ -138,16 +141,18 @@ func TestRunSQLBlockProcessing(t *testing.T) {
 
 		expReceipts := make([]eventprocessor.Receipt, len(txnHashes))
 		expReceipts[0] = eventprocessor.Receipt{
-			ChainID: chainID,
-			TxnHash: txnHashes[0].String(),
-			Error:   nil,
-			TableID: &tableID,
+			ChainID:      chainID,
+			TxnHash:      txnHashes[0].String(),
+			IndexInBlock: 0,
+			Error:        nil,
+			TableID:      &tableID,
 		}
 		expReceipts[1] = eventprocessor.Receipt{
-			ChainID: chainID,
-			TxnHash: txnHashes[1].String(),
-			Error:   &expWrongTypeErr,
-			TableID: nil,
+			ChainID:      chainID,
+			TxnHash:      txnHashes[1].String(),
+			IndexInBlock: 1,
+			Error:        &expWrongTypeErr,
+			TableID:      nil,
 		}
 		require.Eventually(t, checkReceipts(t, expReceipts...), time.Second*5, time.Millisecond*100)
 
@@ -289,7 +294,7 @@ type contractCalls struct {
 }
 
 type dbReader func(string) []int64
-type contractRunSQLBlockSender func([]string) []common.Hash
+type contractRunSQLBlockSender func(...[]string) []common.Hash
 type contractCreateTableSender func(string) common.Hash
 type contractSetControllerSender func(controller common.Address) common.Hash
 type contractTransferFromSender func(controller common.Address) common.Hash
@@ -320,13 +325,15 @@ func setup(t *testing.T) (
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	contractSendRunSQL := func(queries []string) []common.Hash {
-		txnHashes := make([]common.Hash, len(queries))
-		for i, q := range queries {
-			txn, err := sc.RunSQL(authOpts, authOpts.From, big.NewInt(1), q)
+	contractSendRunSQL := func(queries ...[]string) []common.Hash {
+		var txnHashes []common.Hash
+		for _, qs := range queries {
+			for _, q := range qs {
+				txn, err := sc.RunSQL(authOpts, authOpts.From, big.NewInt(1), q)
 
-			require.NoError(t, err)
-			txnHashes[i] = txn.Hash()
+				require.NoError(t, err)
+				txnHashes = append(txnHashes, txn.Hash())
+			}
 		}
 		backend.Commit()
 		return txnHashes
@@ -384,6 +391,7 @@ func setup(t *testing.T) (
 				}
 				require.Equal(t, expReceipt.ChainID, gotReceipt.ChainID)
 				require.NotZero(t, gotReceipt.BlockNumber)
+				require.Equal(t, expReceipt.IndexInBlock, gotReceipt.IndexInBlock)
 				require.Equal(t, expReceipt.TxnHash, gotReceipt.TxnHash)
 				require.Equal(t, expReceipt.Error, gotReceipt.Error)
 				require.Equal(t, expReceipt.TableID, gotReceipt.TableID)

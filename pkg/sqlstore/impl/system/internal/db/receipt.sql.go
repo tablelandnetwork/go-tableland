@@ -5,7 +5,7 @@ import (
 )
 
 const getReceipt = `-- name: GetReceipt :one
-SELECT chain_id, block_number, block_order, txn_hash, error, table_id from system_txn_receipts WHERE chain_id=?1 and txn_hash=?2
+SELECT chain_id, block_number, index_in_block, txn_hash, error, table_id from system_txn_receipts WHERE chain_id=?1 and txn_hash=?2
 `
 
 type GetReceiptParams struct {
@@ -19,7 +19,7 @@ func (q *Queries) GetReceipt(ctx context.Context, arg GetReceiptParams) (SystemT
 	err := row.Scan(
 		&i.ChainID,
 		&i.BlockNumber,
-		&i.BlockOrder,
+		&i.IndexInBlock,
 		&i.TxnHash,
 		&i.Error,
 		&i.TableID,
