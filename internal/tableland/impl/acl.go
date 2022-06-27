@@ -2,10 +2,10 @@ package impl
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/jackc/pgx/v4"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/tables"
@@ -27,7 +27,7 @@ func NewACL(store sqlstore.SystemStore, registry tables.TablelandTables) tablela
 // CheckPrivileges checks if an address can execute a specific operation on a table.
 func (acl *acl) CheckPrivileges(
 	ctx context.Context,
-	tx pgx.Tx,
+	tx *sql.Tx,
 	controller common.Address,
 	id tableland.TableID,
 	op tableland.Operation) (bool, error) {

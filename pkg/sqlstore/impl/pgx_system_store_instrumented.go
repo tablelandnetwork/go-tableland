@@ -2,11 +2,11 @@ package impl
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/jackc/pgx/v4"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/nonce"
@@ -195,12 +195,12 @@ func (s *InstrumentedSystemStore) Close() error {
 }
 
 // WithTx returns a copy of the current InstrumentedSQLStorePGX with a tx attached.
-func (s *InstrumentedSystemStore) WithTx(tx pgx.Tx) sqlstore.SystemStore {
+func (s *InstrumentedSystemStore) WithTx(tx *sql.Tx) sqlstore.SystemStore {
 	return s.store.WithTx(tx)
 }
 
 // Begin returns a new tx.
-func (s *InstrumentedSystemStore) Begin(ctx context.Context) (pgx.Tx, error) {
+func (s *InstrumentedSystemStore) Begin(ctx context.Context) (*sql.Tx, error) {
 	return s.store.Begin(ctx)
 }
 

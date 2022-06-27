@@ -3,6 +3,7 @@ package impl
 import (
 	"context"
 	"crypto/ecdsa"
+	"database/sql"
 	"encoding/csv"
 	"encoding/hex"
 	"encoding/json"
@@ -19,7 +20,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/chains"
 	"github.com/textileio/go-tableland/internal/router/middlewares"
@@ -663,7 +663,7 @@ func setup(
 	*bind.TransactOpts) {
 	t.Helper()
 
-	url := tests.PostgresURL(t)
+	url := tests.Sqlite3URL()
 
 	ctx := context.WithValue(context.Background(), middlewares.ContextKeyChainID, tableland.ChainID(1337))
 	store, err := system.New(url, tableland.ChainID(1337))
@@ -724,7 +724,7 @@ func setupTablelandForTwoAddresses(t *testing.T) (context.Context,
 	*bind.TransactOpts) {
 	t.Helper()
 
-	url := tests.PostgresURL(t)
+	url := tests.Sqlite3URL()
 
 	ctx := context.WithValue(context.Background(), middlewares.ContextKeyChainID, tableland.ChainID(1337))
 	store, err := system.New(url, tableland.ChainID(1337))
@@ -806,7 +806,7 @@ type aclHalfMock struct {
 
 func (acl *aclHalfMock) CheckPrivileges(
 	ctx context.Context,
-	tx pgx.Tx,
+	tx *sql.Tx,
 	controller common.Address,
 	id tableland.TableID,
 	op tableland.Operation) (bool, error) {
