@@ -580,7 +580,7 @@ func (b *batch) executeWriteStmt(
 		return fmt.Errorf("get query: %s", err)
 	}
 
-	affectedRowIDs, err := executeQueryAndGetAffectedRows(ctx, tx, query)
+	affectedRowIDs, err := b.executeQueryAndGetAffectedRows(ctx, tx, query)
 	if err != nil {
 		return fmt.Errorf("get rows ids: %s", err)
 	}
@@ -659,7 +659,7 @@ func (b *batch) applyPolicy(ws parsing.WriteStmt, policy tableland.Policy) error
 	return nil
 }
 
-func executeQueryAndGetAffectedRows(
+func (b *batch) executeQueryAndGetAffectedRows(
 	ctx context.Context,
 	tx *sql.Tx,
 	query string) (affectedRowIDs []int64, err error) {
@@ -667,7 +667,11 @@ func executeQueryAndGetAffectedRows(
 	if err != nil {
 		return nil, fmt.Errorf("executing query: %s", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			b.tp.log.Warn().Err(err).Msg("closing rows")
+		}
+	}()
 
 	if err != nil {
 		if code, ok := isErrCausedByQuery(err); ok {
@@ -844,7 +848,8 @@ func isErrCausedByQuery(err error) (string, bool) {
 	// (e.g: a timeout error isn't the querys fault, but an infrastructure problem)
 	//
 	// Each error in sqlite3 has an "Error Code" and an "Extended error code".
-	// e.g: a FK violation has "Error Code" 19 (ErrConstraint) and "Extended error code" 787 (SQLITE_CONSTRAINT_FOREIGNKEY).
+	// e.g: a FK violation has "Error Code" 19 (ErrConstraint) and
+	// "Extended error code" 787 (SQLITE_CONSTRAINT_FOREIGNKEY).
 	// The complete list of extended errors is found in: https://www.sqlite.org/rescode.html
 	// In this logic if we use "Error Code", with some few cases, we can detect a wide range of errors without
 	// being so exhaustive dealing with "Extended error codes".

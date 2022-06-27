@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-const deletePendingTxByHash = `-- name: DeletePendingTxByHash :exec
+const deletePendingTxByHash = `
 DELETE FROM system_pending_tx WHERE chain_id=?1 AND hash=?2
 `
 
@@ -19,8 +19,9 @@ func (q *Queries) DeletePendingTxByHash(ctx context.Context, arg DeletePendingTx
 	return err
 }
 
-const insertPendingTx = `-- name: InsertPendingTx :exec
-INSERT INTO system_pending_tx ("chain_id", "address", "hash", "nonce", "created_at") VALUES (?1, ?2, ?3, ?4, ?5)
+const insertPendingTx = `
+INSERT INTO system_pending_tx ("chain_id", "address", "hash", "nonce", "created_at") 
+VALUES (?1, ?2, ?3, ?4, ?5)
 `
 
 type InsertPendingTxParams struct {
@@ -41,7 +42,7 @@ func (q *Queries) InsertPendingTx(ctx context.Context, arg InsertPendingTxParams
 	return err
 }
 
-const listPendingTx = `-- name: ListPendingTx :many
+const listPendingTx = `
 SELECT chain_id, address, hash, nonce, created_at, bump_price_count FROM system_pending_tx WHERE address = ?1 AND chain_id = ?2 order by nonce
 `
 
@@ -82,7 +83,7 @@ func (q *Queries) ListPendingTx(ctx context.Context, arg ListPendingTxParams) ([
 	return items, nil
 }
 
-const replacePendingTxByHash = `-- name: ReplacePendingTxByHash :exec
+const replacePendingTxByHash = `
 UPDATE system_pending_tx 
 SET hash=?3, bump_price_count=bump_price_count+1, updated_at=?4
 WHERE chain_id=?1 AND hash=?2

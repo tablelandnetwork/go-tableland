@@ -288,7 +288,7 @@ func (t *LocalTracker) checkPendingTxns() error {
 		return fmt.Errorf("get chain tip header: %s", err)
 	}
 
-	//copy to avoid data race
+	// copy to avoid data race
 	t.mu.Lock()
 	pendingTxs := make([]noncepkg.PendingTx, len(t.pendingTxs))
 	copy(pendingTxs, t.pendingTxs)

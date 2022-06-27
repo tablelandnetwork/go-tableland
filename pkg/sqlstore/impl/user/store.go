@@ -5,10 +5,13 @@ import (
 	"database/sql"
 	"fmt"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/mattn/go-sqlite3" // sqlite3 driver
+	logger "github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 )
+
+var log = logger.With().Str("component", "userstore").Logger()
 
 // UserStore provides access to the db store.
 type UserStore struct {
@@ -41,7 +44,9 @@ func (db *UserStore) Read(ctx context.Context, rq parsing.ReadStmt) (interface{}
 
 // Close closes the store.
 func (db *UserStore) Close() error {
-	db.pool.Close()
+	if err := db.pool.Close(); err != nil {
+		return fmt.Errorf("closing db: %s", err)
+	}
 	return nil
 }
 
@@ -50,6 +55,10 @@ func execReadQuery(ctx context.Context, tx *sql.DB, q string) (*sqlstore.UserRow
 	if err != nil {
 		return nil, fmt.Errorf("executing query: %s", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err = rows.Close(); err != nil {
+			log.Warn().Err(err).Msg("closing rows")
+		}
+	}()
 	return rowsToJSON(rows)
 }
