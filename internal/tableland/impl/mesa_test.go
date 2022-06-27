@@ -48,10 +48,10 @@ func TestTodoAppWorkflow(t *testing.T) {
 	caller := txOpts.From
 	_, err := sc.CreateTable(txOpts, caller,
 		`CREATE TABLE todoapp_1337 (
-			complete BOOLEAN DEFAULT false,
-			name     VARCHAR DEFAULT '',
-			deleted  BOOLEAN DEFAULT false,
-			id       SERIAL
+			complete INTEGER DEFAULT 0,
+			name     TEXT DEFAULT '',
+			deleted  INTEGER DEFAULT 0,
+			id       INTEGER
 		  );`)
 	require.NoError(t, err)
 
@@ -104,7 +104,7 @@ func TestMultiStatement(t *testing.T) {
 
 	_, err := sc.CreateTable(txOpts, caller,
 		`CREATE TABLE foo_1337 (
-			name text unique
+			name TEXT unique
 		);`)
 	require.NoError(t, err)
 
@@ -547,7 +547,7 @@ func jsonEq(
 	return func() bool {
 		r, err := tbld.RunReadQuery(ctx, req)
 		// if we get a table undefined error, try again
-		if err != nil && strings.Contains(err.Error(), "SQLSTATE 42P01") {
+		if err != nil && strings.Contains(err.Error(), "no such table") {
 			return false
 		}
 		require.NoError(t, err)
@@ -556,6 +556,8 @@ func jsonEq(
 		require.NoError(t, err)
 
 		gotJSON := string(b)
+		fmt.Printf("GOT JSON: %s\n", gotJSON)
+		fmt.Printf("EXP JSON: %s\n", expJSON)
 
 		var o1 interface{}
 		var o2 interface{}
@@ -689,7 +691,7 @@ func setup(
 	)
 	require.NoError(t, err)
 
-	userStore, err := user.New(url)
+	userStore, err := user.New(url + "&_mode=ro")
 	require.NoError(t, err)
 
 	tbld := NewTablelandMesa(

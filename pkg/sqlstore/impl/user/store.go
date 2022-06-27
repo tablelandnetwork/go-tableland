@@ -27,15 +27,16 @@ func New(sqliteURI string) (*UserStore, error) {
 
 // Read executes a read statement on the db.
 func (db *UserStore) Read(ctx context.Context, rq parsing.ReadStmt) (interface{}, error) {
-	tx, err := db.pool.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, fmt.Errorf("begin transaction: %s", err)
-	}
 	query, err := rq.GetQuery()
 	if err != nil {
 		return nil, fmt.Errorf("get query: %s", err)
 	}
-	ret, err := execReadQuery(ctx, tx, query)
+	rows, err := db.pool.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("executing query: %s", err)
+	}
+	defer rows.Close()
+	ret, err := rowsToJSON(rows)
 	if err != nil {
 		return nil, fmt.Errorf("parsing result to json: %s", err)
 	}
@@ -46,13 +47,4 @@ func (db *UserStore) Read(ctx context.Context, rq parsing.ReadStmt) (interface{}
 func (db *UserStore) Close() error {
 	db.pool.Close()
 	return nil
-}
-
-func execReadQuery(ctx context.Context, tx *sql.Tx, q string) (interface{}, error) {
-	rows, err := tx.QueryContext(ctx, q)
-	if err != nil {
-		return nil, fmt.Errorf("executing query: %s", err)
-	}
-	defer rows.Close()
-	return rowsToJSON(rows)
 }
