@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"path"
 	"sync"
 	"time"
 
@@ -36,7 +37,7 @@ import (
 )
 
 func main() {
-	config := setupConfig()
+	config, dirPath := setupConfig()
 	logging.SetupLogger(buildinfo.GitCommit, config.Log.Debug, config.Log.Human)
 
 	// Validator instrumentation configuration.
@@ -47,14 +48,9 @@ func main() {
 			Msg("could not setup instrumentation")
 	}
 
-	// TODO(jsign)
 	databaseURL := fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?sslmode=disable&timezone=UTC",
-		config.DB.User,
-		config.DB.Pass,
-		config.DB.Host,
-		config.DB.Port,
-		config.DB.Name,
+		"file://%s?_busy_timeout=5000&_foreign_keys=on&_journal_mode=WAL",
+		path.Join(dirPath, "database.db"),
 	)
 
 	parserOpts := []parsing.Option{
@@ -243,7 +239,6 @@ func createChainIDStack(
 	}
 	efOpts := []eventfeed.Option{
 		eventfeed.WithChainAPIBackoff(chainAPIBackoff),
-		eventfeed.WithMaxBlocksFetchSize(config.EventFeed.MaxBlocksFetchSize),
 		eventfeed.WithMinBlockDepth(config.EventFeed.MinBlockDepth),
 		eventfeed.WithNewBlockTimeout(newBlockTimeout),
 	}

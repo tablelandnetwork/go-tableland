@@ -71,7 +71,6 @@ var (
 // Config contains configuration parameters for an event feed.
 type Config struct {
 	MinBlockChainDepth int
-	MaxBlocksFetchSize int
 	ChainAPIBackoff    time.Duration
 	NewBlockTimeout    time.Duration
 }
@@ -80,7 +79,6 @@ type Config struct {
 func DefaultConfig() *Config {
 	return &Config{
 		MinBlockChainDepth: 5,
-		MaxBlocksFetchSize: 10000,
 		ChainAPIBackoff:    time.Second * 15,
 		NewBlockTimeout:    time.Second * 30,
 	}
@@ -97,19 +95,6 @@ func WithMinBlockDepth(depth int) Option {
 			return fmt.Errorf("depth must non-negative")
 		}
 		c.MinBlockChainDepth = depth
-		return nil
-	}
-}
-
-// WithMaxBlocksFetchSize provides a limit on the maximum number of blocks
-// to query the node api asking for events. This allows to bound the node api
-// load, and also processing cpu/memory.
-func WithMaxBlocksFetchSize(batchSize int) Option {
-	return func(c *Config) error {
-		if batchSize <= 0 {
-			return fmt.Errorf("batch size should greater than zero")
-		}
-		c.MaxBlocksFetchSize = batchSize
 		return nil
 	}
 }
