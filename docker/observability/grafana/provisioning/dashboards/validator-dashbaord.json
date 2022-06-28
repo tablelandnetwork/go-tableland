@@ -195,7 +195,7 @@
             "uid": "P1809F7CD0C75ACF3"
           },
           "exemplar": true,
-          "expr": "time() - sum by (chain_name) (tableland_healthbot_e2eprobe_last_check{namespace=\"$namespace\"})",
+          "expr": "time() - sum by (chain_name) (tableland_healthbot_e2eprobe_last_check)",
           "interval": "",
           "legendFormat": "Last check {{chain_name}}",
           "refId": "A"
@@ -206,7 +206,7 @@
             "uid": "P1809F7CD0C75ACF3"
           },
           "exemplar": true,
-          "expr": "time() - sum by (chain_name) (tableland_healthbot_e2eprobe_last_successful_check{namespace=\"$namespace\"})",
+          "expr": "time() - sum by (chain_name) (tableland_healthbot_e2eprobe_last_successful_check)",
           "hide": false,
           "interval": "",
           "legendFormat": "Last success {{chain_name}}",

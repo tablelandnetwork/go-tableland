@@ -1,0 +1,21 @@
+{
+    "Metrics": {
+        "Port": "9090"
+    },
+    "Log": {
+        "Human": false,
+        "Debug": true
+    },
+    "Target": "https://staging.tableland.network/rpc",
+    "Chains": [
+        {
+            "Name": "optimism-kovan",
+            "Probe": {
+                "CheckInterval": "15s",
+                "ReceiptTimeout": "20s",
+                "SIWE": "${HEALTHBOT_OPTIMISM_KOVAN_SIWE}",
+                "Tablename": "Healthbot_69_1"
+            }
+        }
+    ]
+}
