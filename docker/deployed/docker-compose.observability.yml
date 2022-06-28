@@ -9,8 +9,6 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
     restart: unless-stopped
     user: root
-    ports:
-      - "127.0.0.1:9091:9090"
     restart: unless-stopped
 
   grafana:
