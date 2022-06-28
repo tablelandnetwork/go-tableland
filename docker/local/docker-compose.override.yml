@@ -1,0 +1,8 @@
+version: "3"
+services:
+  api:
+    build:
+      dockerfile: ./cmd/api/Dockerfile.debug
+    entrypoint: ["./dlv", "--listen=:40000", "--headless=true", "--accept-multiclient", "--continue", "--api-version=2", "exec", "./api"]
+    ports: 
+      - "127.0.0.1:40000:40000"

@@ -1,4 +1,8 @@
 {
+  "Log": {
+    "Human": true,
+    "Debug": true
+  },
   "Chains": [
     {
       "Name": "Local Hardhat",
