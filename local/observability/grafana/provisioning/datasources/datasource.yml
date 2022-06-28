@@ -1,14 +1,13 @@
 apiVersion: 1
 
 deleteDatasources:
-  - name: Prometheus
+  - name: prometheus
     orgId: 1
 
 datasources:
-- name: Prometheus
+- name: prometheus
   type: prometheus
   access: proxy
   url: http://prometheus:9090
   version: 1
-  # <bool> allow users to edit datasources from the UI.
   editable: false
