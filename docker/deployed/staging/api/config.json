@@ -5,13 +5,17 @@
     "MaxRequestPerInterval": 10
   },
   "Gateway": {
-    "ExternalURIPrefix": "http://localhost:8080"
+    "ExternalURIPrefix": "https://staging.tableland.network/tables"
   },
   "DB": {
     "Port": "5432"
   },
   "TableConstraints": {
     "MaxRowCount": 100000,
+  },
+  "QueryConstraints": {
+    "MaxWriteQuerySize": 35000,
+    "MaxReadQuerySize": 35000
   },
   "Metrics": {
     "Port": "9090"
@@ -25,12 +29,12 @@
       "Name": "Optimism Kovan",
       "ChainID": 69,
       "Registry": {
-        "EthEndpoint": "wss://opt-kovan.g.alchemy.com/v2/${ALCHEMY_KOVAN_API_KEY}",
+        "EthEndpoint": "wss://opt-kovan.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_OPTIMISM_KOVAN_API_KEY}",
         "ChainID": 69,
-        "ContractAddress": "0xDE231D5774e79F039B84d82325b4e5d20F7FdFfF"
+        "ContractAddress": "0x322F01e81c38B4211529f334864fA630F6aeA408"
       },
       "Signer": {
-        "PrivateKey": "${KOVAN_SIGNER_PRIVATE_KEY}"
+        "PrivateKey": "${VALIDATOR_OPTIMISM_KOVAN_SIGNER_PRIVATE_KEY}"
       },
       "EventFeed": {
         "ChainAPIBackoff": "15s",
@@ -38,7 +42,8 @@
         "MinBlockDepth": 0
       },
       "EventProcessor": {
-        "BlockFailedExecutionBackoff": "10s"
+        "BlockFailedExecutionBackoff": "10s",
+        "DedupExecutedTxns": true
       },
       "NonceTracker": {
         "CheckInterval": "10s",
