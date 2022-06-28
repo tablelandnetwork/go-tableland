@@ -3,9 +3,8 @@ services:
   api:
     build:
       context: ..
-      dockerfile: ./cmd/api/Dockerfile.debug
+      dockerfile: ./cmd/api/Dockerfile
     platform: linux/{{platform}}
-    entrypoint: ["./dlv", "--listen=:40000", "--headless=true", "--accept-multiclient", "--continue", "--api-version=2", "exec", "./api"]
     environment:
       - OTEL_SERVICE_NAME=tableland:api # this is just to the unknown_service from the metrics label
     env_file:
@@ -13,7 +12,6 @@ services:
     ports:
       - "127.0.0.1:8080:8080" 
       - "127.0.0.1:9090:9090"
-      - "127.0.0.1:40000:40000"
     volumes:
       - ${PWD}/${ENVIROMENT}/api:/root/.tableland
     security_opt:
@@ -21,6 +19,7 @@ services:
     cap_add:
       - SYS_PTRACE
     restart: unless-stopped
+
   prometheus:
     image: prom/prometheus:v2.36.2
     container_name: prometheus
@@ -32,3 +31,17 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:9091:9090"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:9.0.1
+    container_name: grafana
+    volumes:
+      - ${PWD}/observability/grafana/provisioning:/etc/grafana/provisioning
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
