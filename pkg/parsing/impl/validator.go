@@ -20,7 +20,7 @@ var (
 	errUnexpectedNodeType = errors.New("unexpected node type")
 )
 
-// QueryValidator enforces the Tablealnd SQL spec.
+// QueryValidator enforces the Tablealand SQL spec.
 type QueryValidator struct {
 	systemTablePrefixes  []string
 	acceptedTypesNames   []string
