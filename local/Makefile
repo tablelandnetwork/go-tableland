@@ -12,10 +12,10 @@ down:
 
 staging-up:
 	sed "s/{{platform}}/$(PLATFORM)/g" docker-compose-live.yml | \
-	ENV_FILE=.env_kovan-staging \
+	ENV_FILE=api/.env_validator \
 	ENVIROMENT=staging \
 	COMPOSE_DOCKER_CLI_BUILD=1 \
-	docker-compose -f - up --build -V
+	docker-compose -f - up --build
 .PHONY: kovan-staging-up
 
 kovan-staging-down:
