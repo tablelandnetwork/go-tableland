@@ -7,17 +7,18 @@ It makes use of Docker Compose to build and run a local api and a local database
 ## Commands
 
 For a validator stack against a local hardhat network:
-- `make up`
-- `make down`
 
-For a validator stack against different real EVM chain enviroments run:
-- `make {network-name}-up` 
-- `make {network-name}-down`
+- `make local-up`
+- `make local-down`
 
-Note that every enviroment has two files:
-- `.env_{network-name}` which allows to configure enviroments to fill secrets for the validator, plus expand variables present in the config file.
-- `config-{network-name}.json` is the configuration file for the validator.
+For a validator stack against deployed enviroments:
+
+- `make staging-up` / `make staging-down`
 
 
-To connect to the database run:
-- `make psql`
+## Configuration
+
+Note that for deployed enviroments, there're two relevant configuration files in each folder `deployed/<enviroment>`:
+
+- `.env_validator` which allows to configure enviroments to fill secrets for the validator, plus expand variables present in the config file. There's a `.env_validator.example` with the expected keys to be filled.
+- `config.json` is the configuration file for the validator.
