@@ -12,8 +12,6 @@
   },
   "TableConstraints": {
     "MaxRowCount": 100000,
-    "MaxColumns": 24,
-    "MaxTextLength": 1024
   },
   "Metrics": {
     "Port": "9090"
