@@ -214,7 +214,7 @@ func TestExecWriteQueries(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, wq2.GetTableID(), aclRow.TableID)
 			require.Equal(t, "0xD43C59d5694eC111Eb9e986C233200b14249558D", aclRow.Controller)
-			require.Equal(t, tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate}, aclRow.Privileges)
+			require.ElementsMatch(t, tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate}, aclRow.Privileges)
 		}
 
 		{
@@ -225,7 +225,7 @@ func TestExecWriteQueries(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, wq3.GetTableID(), aclRow.TableID)
 			require.Equal(t, "0x4afE8e30DB4549384b0a05bb796468B130c7D6E0", aclRow.Controller)
-			require.Equal(t, tableland.Privileges{tableland.PrivInsert, tableland.PrivDelete}, aclRow.Privileges)
+			require.ElementsMatch(t, tableland.Privileges{tableland.PrivInsert, tableland.PrivDelete}, aclRow.Privileges)
 		}
 	})
 
@@ -259,7 +259,7 @@ func TestExecWriteQueries(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, wq2.GetTableID(), aclRow.TableID)
 			require.Equal(t, "0xD43C59d5694eC111Eb9e986C233200b14249558D", aclRow.Controller)
-			require.Equal(t, tableland.Privileges{tableland.PrivUpdate}, aclRow.Privileges)
+			require.ElementsMatch(t, tableland.Privileges{tableland.PrivUpdate}, aclRow.Privileges)
 		}
 	})
 }
