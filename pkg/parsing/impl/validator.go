@@ -309,6 +309,10 @@ func (ws *writeStmt) AddWhereClause(whereClauses string) error {
 		return fmt.Errorf("parsing where clauses: %s", err)
 	}
 
+	if helper.Errors[0] != nil {
+		return fmt.Errorf("parsing where clauses: %s", err)
+	}
+
 	whereNode := helper.Statements[0].(sqlparser.WriteStatement).(*sqlparser.Update).Where
 	if updateStmt, ok := ws.node.(sqlparser.WriteStatement).(*sqlparser.Update); ok {
 		updateStmt.AddWhereClause(whereNode)
