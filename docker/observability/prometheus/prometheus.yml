@@ -7,6 +7,11 @@ scrape_configs:
     scrape_interval: 10s
     static_configs:
       - targets: ['api:9090']
+  - job_name: 'healthbot'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['healthbot:9090']
+
   - job_name: 'prometheus'
     scrape_interval: 10s
     static_configs:
