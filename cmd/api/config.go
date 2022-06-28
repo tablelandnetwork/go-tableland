@@ -41,9 +41,7 @@ type config struct {
 
 // TableConstraints describes contraints to be enforced for Tableland tables.
 type TableConstraints struct {
-	MaxRowCount   int `default:"100_000"`
-	MaxColumns    int `default:"24"`
-	MaxTextLength int `default:"1024"`
+	MaxRowCount int `default:"100_000"`
 }
 
 // QueryConstraints describes constraints to be enforced on queries.

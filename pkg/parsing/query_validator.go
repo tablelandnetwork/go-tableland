@@ -205,8 +205,6 @@ func (e *ErrWriteQueryTooLong) Error() string {
 
 // Config contains configuration parameters for tableland.
 type Config struct {
-	MaxAllowedColumns int
-	MaxTextLength     int
 	MaxReadQuerySize  int
 	MaxWriteQuerySize int
 }
@@ -216,35 +214,11 @@ func DefaultConfig() *Config {
 	return &Config{
 		MaxReadQuerySize:  35000,
 		MaxWriteQuerySize: 35000,
-		MaxAllowedColumns: 0,
-		MaxTextLength:     0,
 	}
 }
 
 // Option modifies a configuration attribute.
 type Option func(*Config) error
-
-// WithMaxAllowedColumns limits the number of columns in a table.
-func WithMaxAllowedColumns(max int) Option {
-	return func(c *Config) error {
-		if max < 0 {
-			return fmt.Errorf("max should be non-negative")
-		}
-		c.MaxAllowedColumns = max
-		return nil
-	}
-}
-
-// WithMaxTextLength limits the length of a text field.
-func WithMaxTextLength(length int) Option {
-	return func(c *Config) error {
-		if length < 0 {
-			return fmt.Errorf("length should be non-negative")
-		}
-		c.MaxTextLength = length
-		return nil
-	}
-}
 
 // WithMaxReadQuerySize limits the size of a read query.
 func WithMaxReadQuerySize(size int) Option {
