@@ -16,7 +16,7 @@
 .vscode/
 
 docker/**/*.db*
-docker/**/prometheus
+docker/deployed/**/prometheus
 
 # Project
 .env*
