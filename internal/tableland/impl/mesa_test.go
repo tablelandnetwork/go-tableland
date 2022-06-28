@@ -190,52 +190,53 @@ func TestCheckInsertPrivileges(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		test := test
-		t.Run(fmt.Sprint(i+1), func(t *testing.T) {
-			t.Parallel()
+		t.Run(fmt.Sprint(i+1), func(test testCase) func(t *testing.T) {
+			return func(t *testing.T) {
+				t.Parallel()
 
-			ctx, tbldGranter, tbldGrantee, backend, sc, txOptsGranter, txOptsGrantee := setupTablelandForTwoAddresses(t)
-			granter := txOptsGranter.From.Hex()
-			grantee := txOptsGrantee.From.Hex()
+				ctx, tbldGranter, tbldGrantee, backend, sc, txOptsGranter, txOptsGrantee := setupTablelandForTwoAddresses(t)
+				granter := txOptsGranter.From.Hex()
+				grantee := txOptsGrantee.From.Hex()
 
-			_, err := sc.CreateTable(txOptsGranter, common.HexToAddress(granter), `CREATE TABLE foo_1337 (bar text);`)
-			require.NoError(t, err)
-			backend.Commit()
-
-			var successfulTxnHashes []string
-			if len(test.privileges) > 0 {
-				privileges := make([]string, len(test.privileges))
-				for i, priv := range test.privileges {
-					privileges[i] = priv.ToSQLString()
-				}
-
-				// execute grant statement according to test case
-				grantQuery := fmt.Sprintf("GRANT %s ON foo_1337_1 TO \"%s\"", strings.Join(privileges, ","), grantee)
-				r, err := relayWriteQuery(ctx, t, tbldGranter, grantQuery, granter)
+				_, err := sc.CreateTable(txOptsGranter, common.HexToAddress(granter), `CREATE TABLE foo_1337 (bar text);`)
 				require.NoError(t, err)
 				backend.Commit()
-				successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
-			}
 
-			r, err := relayWriteQuery(ctx, t, tbldGrantee, test.query, grantee)
-			require.NoError(t, err)
-			backend.Commit()
+				var successfulTxnHashes []string
+				if len(test.privileges) > 0 {
+					privileges := make([]string, len(test.privileges))
+					for i, priv := range test.privileges {
+						privileges[i] = priv.ToSQLString()
+					}
 
-			testQuery := "SELECT * FROM foo_1337_1 WHERE bar ='Hello';"
-			if test.isAllowed {
-				require.Eventually(t,
-					runSQLCountEq(ctx, t, tbldGrantee, testQuery, grantee, 1),
-					5*time.Second,
-					100*time.Millisecond,
-				)
-				successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
-				requireReceipts(ctx, t, tbldGrantee, successfulTxnHashes, true)
-			} else {
-				require.Never(t, runSQLCountEq(ctx, t, tbldGrantee, testQuery, grantee, 1), 5*time.Second, 100*time.Millisecond)
-				requireReceipts(ctx, t, tbldGrantee, successfulTxnHashes, true)
-				requireReceipts(ctx, t, tbldGrantee, []string{r.Transaction.Hash}, false)
+					// execute grant statement according to test case
+					grantQuery := fmt.Sprintf("GRANT %s ON foo_1337_1 TO \"%s\"", strings.Join(privileges, ","), grantee)
+					r, err := relayWriteQuery(ctx, t, tbldGranter, grantQuery, granter)
+					require.NoError(t, err)
+					backend.Commit()
+					successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
+				}
+
+				r, err := relayWriteQuery(ctx, t, tbldGrantee, test.query, grantee)
+				require.NoError(t, err)
+				backend.Commit()
+
+				testQuery := "SELECT * FROM foo_1337_1 WHERE bar ='Hello';"
+				if test.isAllowed {
+					require.Eventually(t,
+						runSQLCountEq(ctx, t, tbldGrantee, testQuery, grantee, 1),
+						5*time.Second,
+						100*time.Millisecond,
+					)
+					successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
+					requireReceipts(ctx, t, tbldGrantee, successfulTxnHashes, true)
+				} else {
+					require.Never(t, runSQLCountEq(ctx, t, tbldGrantee, testQuery, grantee, 1), 5*time.Second, 100*time.Millisecond)
+					requireReceipts(ctx, t, tbldGrantee, successfulTxnHashes, true)
+					requireReceipts(ctx, t, tbldGrantee, []string{r.Transaction.Hash}, false)
+				}
 			}
-		})
+		}(test))
 	}
 }
 
@@ -260,58 +261,59 @@ func TestCheckUpdatePrivileges(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		test := test
-		t.Run(fmt.Sprint(i+1), func(t *testing.T) {
-			t.Parallel()
+		t.Run(fmt.Sprint(i+1), func(test testCase) func(t *testing.T) {
+			return func(t *testing.T) {
+				t.Parallel()
 
-			ctx, tbldGranter, tbldGrantee, backend, sc, txOptsGranter, txOptsGrantee := setupTablelandForTwoAddresses(t)
-			granter := txOptsGranter.From.Hex()
-			grantee := txOptsGrantee.From.Hex()
+				ctx, tbldGranter, tbldGrantee, backend, sc, txOptsGranter, txOptsGrantee := setupTablelandForTwoAddresses(t)
+				granter := txOptsGranter.From.Hex()
+				grantee := txOptsGrantee.From.Hex()
 
-			_, err := sc.CreateTable(txOptsGranter, common.HexToAddress(granter), `CREATE TABLE foo_1337 (bar text);`)
-			require.NoError(t, err)
-			backend.Commit()
-			var successfulTxnHashes []string
+				_, err := sc.CreateTable(txOptsGranter, common.HexToAddress(granter), `CREATE TABLE foo_1337 (bar text);`)
+				require.NoError(t, err)
+				backend.Commit()
+				var successfulTxnHashes []string
 
-			// we initilize the table with a row to be updated
-			r, err := relayWriteQuery(ctx, t, tbldGranter, "INSERT INTO foo_1337_1 (bar) VALUES ('Hello')", granter) // nolint
-			require.NoError(t, err)
-			backend.Commit()
-			successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
-
-			if len(test.privileges) > 0 {
-				privileges := make([]string, len(test.privileges))
-				for i, priv := range test.privileges {
-					privileges[i] = priv.ToSQLString()
-				}
-
-				// execute grant statement according to test case
-				grantQuery := fmt.Sprintf("GRANT %s ON foo_1337_1 TO \"%s\"", strings.Join(privileges, ","), grantee)
-				r, err := relayWriteQuery(ctx, t, tbldGranter, grantQuery, granter)
+				// we initilize the table with a row to be updated
+				r, err := relayWriteQuery(ctx, t, tbldGranter, "INSERT INTO foo_1337_1 (bar) VALUES ('Hello')", granter) // nolint
 				require.NoError(t, err)
 				backend.Commit()
 				successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
-			}
 
-			r, err = relayWriteQuery(ctx, t, tbldGrantee, test.query, grantee)
-			require.NoError(t, err)
-			backend.Commit()
+				if len(test.privileges) > 0 {
+					privileges := make([]string, len(test.privileges))
+					for i, priv := range test.privileges {
+						privileges[i] = priv.ToSQLString()
+					}
 
-			testQuery := "SELECT * FROM foo_1337_1 WHERE bar='Hello 2';"
-			if test.isAllowed {
-				require.Eventually(t,
-					runSQLCountEq(ctx, t, tbldGrantee, testQuery, grantee, 1),
-					5*time.Second,
-					100*time.Millisecond,
-				)
-				successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
-				requireReceipts(ctx, t, tbldGrantee, successfulTxnHashes, true)
-			} else {
-				require.Never(t, runSQLCountEq(ctx, t, tbldGrantee, testQuery, grantee, 1), 5*time.Second, 100*time.Millisecond)
-				requireReceipts(ctx, t, tbldGrantee, successfulTxnHashes, true)
-				requireReceipts(ctx, t, tbldGrantee, []string{r.Transaction.Hash}, false)
+					// execute grant statement according to test case
+					grantQuery := fmt.Sprintf("GRANT %s ON foo_1337_1 TO \"%s\"", strings.Join(privileges, ","), grantee)
+					r, err := relayWriteQuery(ctx, t, tbldGranter, grantQuery, granter)
+					require.NoError(t, err)
+					backend.Commit()
+					successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
+				}
+
+				r, err = relayWriteQuery(ctx, t, tbldGrantee, test.query, grantee)
+				require.NoError(t, err)
+				backend.Commit()
+
+				testQuery := "SELECT * FROM foo_1337_1 WHERE bar='Hello 2';"
+				if test.isAllowed {
+					require.Eventually(t,
+						runSQLCountEq(ctx, t, tbldGrantee, testQuery, grantee, 1),
+						5*time.Second,
+						100*time.Millisecond,
+					)
+					successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
+					requireReceipts(ctx, t, tbldGrantee, successfulTxnHashes, true)
+				} else {
+					require.Never(t, runSQLCountEq(ctx, t, tbldGrantee, testQuery, grantee, 1), 5*time.Second, 100*time.Millisecond)
+					requireReceipts(ctx, t, tbldGrantee, successfulTxnHashes, true)
+					requireReceipts(ctx, t, tbldGrantee, []string{r.Transaction.Hash}, false)
+				}
 			}
-		})
+		}(test))
 	}
 }
 
@@ -336,55 +338,56 @@ func TestCheckDeletePrivileges(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		test := test
-		t.Run(fmt.Sprint(i+1), func(t *testing.T) {
-			t.Parallel()
+		t.Run(fmt.Sprint(i+1), func(test testCase) func(t *testing.T) {
+			return func(t *testing.T) {
+				t.Parallel()
 
-			ctx, tbldGranter, tbldGrantee, backend, sc, txOptsGranter, txOptsGrantee := setupTablelandForTwoAddresses(t)
-			granter := txOptsGranter.From.Hex()
-			grantee := txOptsGrantee.From.Hex()
+				ctx, tbldGranter, tbldGrantee, backend, sc, txOptsGranter, txOptsGrantee := setupTablelandForTwoAddresses(t)
+				granter := txOptsGranter.From.Hex()
+				grantee := txOptsGrantee.From.Hex()
 
-			_, err := sc.CreateTable(txOptsGranter, common.HexToAddress(granter), `CREATE TABLE foo_1337 (bar text);`)
-			require.NoError(t, err)
-			var successfulTxnHashes []string
+				_, err := sc.CreateTable(txOptsGranter, common.HexToAddress(granter), `CREATE TABLE foo_1337 (bar text);`)
+				require.NoError(t, err)
+				var successfulTxnHashes []string
 
-			// we initilize the table with a row to be delete
-			_, err = relayWriteQuery(ctx, t, tbldGranter, "INSERT INTO foo_1337_1 (bar) VALUES ('Hello')", granter) // nolint
-			require.NoError(t, err)
-			backend.Commit()
-
-			if len(test.privileges) > 0 {
-				privileges := make([]string, len(test.privileges))
-				for i, priv := range test.privileges {
-					privileges[i] = priv.ToSQLString()
-				}
-
-				// execute grant statement according to test case
-				grantQuery := fmt.Sprintf("GRANT %s ON foo_1337_1 TO \"%s\"", strings.Join(privileges, ","), grantee)
-				r, err := relayWriteQuery(ctx, t, tbldGranter, grantQuery, granter)
+				// we initilize the table with a row to be delete
+				_, err = relayWriteQuery(ctx, t, tbldGranter, "INSERT INTO foo_1337_1 (bar) VALUES ('Hello')", granter) // nolint
 				require.NoError(t, err)
 				backend.Commit()
-				successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
-			}
 
-			r, err := relayWriteQuery(ctx, t, tbldGrantee, test.query, grantee)
-			require.NoError(t, err)
-			backend.Commit()
+				if len(test.privileges) > 0 {
+					privileges := make([]string, len(test.privileges))
+					for i, priv := range test.privileges {
+						privileges[i] = priv.ToSQLString()
+					}
 
-			testQuery := "SELECT * FROM foo_1337_1"
-			if test.isAllowed {
-				require.Eventually(t,
-					runSQLCountEq(ctx, t, tbldGrantee, testQuery, grantee, 0),
-					5*time.Second,
-					100*time.Millisecond,
-				)
-				successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
-				requireReceipts(ctx, t, tbldGrantee, successfulTxnHashes, true)
-			} else {
-				require.Never(t, runSQLCountEq(ctx, t, tbldGrantee, testQuery, grantee, 0), 5*time.Second, 100*time.Millisecond)
-				requireReceipts(ctx, t, tbldGrantee, []string{r.Transaction.Hash}, false)
+					// execute grant statement according to test case
+					grantQuery := fmt.Sprintf("GRANT %s ON foo_1337_1 TO \"%s\"", strings.Join(privileges, ","), grantee)
+					r, err := relayWriteQuery(ctx, t, tbldGranter, grantQuery, granter)
+					require.NoError(t, err)
+					backend.Commit()
+					successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
+				}
+
+				r, err := relayWriteQuery(ctx, t, tbldGrantee, test.query, grantee)
+				require.NoError(t, err)
+				backend.Commit()
+
+				testQuery := "SELECT * FROM foo_1337_1"
+				if test.isAllowed {
+					require.Eventually(t,
+						runSQLCountEq(ctx, t, tbldGrantee, testQuery, grantee, 0),
+						5*time.Second,
+						100*time.Millisecond,
+					)
+					successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
+					requireReceipts(ctx, t, tbldGrantee, successfulTxnHashes, true)
+				} else {
+					require.Never(t, runSQLCountEq(ctx, t, tbldGrantee, testQuery, grantee, 0), 5*time.Second, 100*time.Millisecond)
+					requireReceipts(ctx, t, tbldGrantee, []string{r.Transaction.Hash}, false)
+				}
 			}
-		})
+		}(test))
 	}
 }
 
