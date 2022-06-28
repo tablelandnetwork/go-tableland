@@ -15,7 +15,8 @@
 .idea/
 .vscode/
 
-local/**/*.db*
+docker/**/*.db*
+docker/**/prometheus
 
 # Project
 .env*
