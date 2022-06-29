@@ -21,14 +21,3 @@ staging-up:
 staging-down:
 	docker compose -f docker-compose.yml -f deployed/docker-compose.observability.yml $(HEALTHBOT_OVERRIDE)  down
 .PHONY: staging-down
-
-
-lolz:
-    d=$(date +%s) \
-    i=0 \
-    for file in $(find $1  -name 'Dockerfile') do \
-        i=$(( i + 1 )) \
-        echo "patching timestamp for $file" \
-        touch -d @$(( d + i )) "$file" \
-    done
-.PHONY: lolz
