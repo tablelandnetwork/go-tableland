@@ -9,7 +9,7 @@ local-down:
 	docker compose -f docker-compose.yml -f local/docker-compose.override.yml down
 .PHONY: local-down
 
-HEALTHBOT_OVERRIDE=$(shell if [ ${HEALTHBOT_ENABLED} = "true" ]; then echo -n "-f deployed/docker-compose.healthbot.yml"; fi)
+HEALTHBOT_OVERRIDE=$(shell if [ ${HEALTHBOT_ENABLED} = "true" ]; then echo "-f deployed/docker-compose.healthbot.yml"; fi)
 
 staging-up:
 	PLATFORM=$(shell uname -m) \
