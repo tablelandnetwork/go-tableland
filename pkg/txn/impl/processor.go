@@ -190,7 +190,7 @@ func (b *batch) ExecWriteQueries(
 
 		for _, mq := range mqueries {
 			mqPrefix := mq.GetPrefix()
-			if mqPrefix != "" && tablePrefix != mqPrefix {
+			if mqPrefix != "" && !strings.EqualFold(tablePrefix, mqPrefix) {
 				return &txn.ErrQueryExecution{
 					Code: "TABLE_PREFIX",
 					Msg:  fmt.Sprintf("table prefix doesn't match (exp %s, got %s)", tablePrefix, mqPrefix),
