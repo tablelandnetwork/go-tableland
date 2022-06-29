@@ -15,7 +15,7 @@ require (
 	github.com/jackc/pgx/v4 v4.16.1
 	github.com/omeid/uconfig v1.2.0
 	github.com/ory/dockertest/v3 v3.9.1
-	github.com/pganalyze/pg_query_go/v2 v2.1.0
+	github.com/pganalyze/pg_query_go/v2 v2.1.2
 	github.com/rs/zerolog v1.27.0
 	github.com/sethvargo/go-limiter v0.7.2
 	github.com/spruceid/siwe-go v0.2.0
