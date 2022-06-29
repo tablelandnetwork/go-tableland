@@ -122,7 +122,7 @@ func (pp *QueryValidator) ValidateMutatingQuery(
 	var targetTable, refTable string
 	for i := range ast.Statements {
 		if ast.Errors[i] != nil {
-			return nil, fmt.Errorf("non syntax error: %w", ast.Errors[i])
+			return nil, fmt.Errorf("non sysntax error in %d-th statement: %w", i, ast.Errors[i])
 		}
 
 		stmt := ast.Statements[i]
@@ -313,13 +313,13 @@ func (ws *writeStmt) AddWhereClause(whereClauses string) error {
 		return fmt.Errorf("parsing where clauses: %s", err)
 	}
 
-	whereNode := helper.Statements[0].(sqlparser.WriteStatement).(*sqlparser.Update).Where
-	if updateStmt, ok := ws.node.(sqlparser.WriteStatement).(*sqlparser.Update); ok {
+	whereNode := helper.Statements[0].(*sqlparser.Update).Where
+	if updateStmt, ok := ws.node.(*sqlparser.Update); ok {
 		updateStmt.AddWhereClause(whereNode)
 		return nil
 	}
 
-	if deleteStmt, ok := ws.node.(sqlparser.WriteStatement).(*sqlparser.Delete); ok {
+	if deleteStmt, ok := ws.node.(*sqlparser.Delete); ok {
 		deleteStmt.AddWhereClause(whereNode)
 		return nil
 	}
@@ -334,13 +334,13 @@ func (ws *writeStmt) AddReturningClause() error {
 	}
 
 	if ws.Operation() == tableland.OpUpdate {
-		updateStmt := ws.node.(sqlparser.WriteStatement).(*sqlparser.Update)
+		updateStmt := ws.node.(*sqlparser.Update)
 		updateStmt.ReturningClause = sqlparser.Exprs{&sqlparser.Column{Name: "rowid"}}
 		return nil
 	}
 
 	if ws.Operation() == tableland.OpInsert {
-		insertStmt := ws.node.(sqlparser.WriteStatement).(*sqlparser.Insert)
+		insertStmt := ws.node.(*sqlparser.Insert)
 		insertStmt.ReturningClause = sqlparser.Exprs{&sqlparser.Column{Name: "rowid"}}
 		return nil
 	}
