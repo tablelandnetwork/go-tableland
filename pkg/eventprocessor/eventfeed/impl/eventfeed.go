@@ -88,7 +88,6 @@ func (ef *EventFeed) Start(
 	filterEventTypes []eventfeed.EventType) error {
 	ef.log.Debug().Msg("starting...")
 	defer ef.log.Debug().Msg("stopped")
-	time.Sleep(time.Hour)
 
 	// Spinup a background process that will post to chHeads when a new block is detected.
 	// This channel will be the heart-beat to pull new logs from the chain.
