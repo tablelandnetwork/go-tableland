@@ -169,7 +169,7 @@ func TestCreateTableBlockProcessing(t *testing.T) {
 
 		contractCalls, checkReceipts, _ := setup(t)
 		for i := 0; i < 2; i++ {
-			txnHash := contractCalls.createTable("CREATE TABLE Foo_1337 (bar bigint)")
+			txnHash := contractCalls.createTable("CREATE TABLE Foo_1337 (bar int)")
 
 			tableID, err := tableland.NewTableID(strconv.Itoa(i + 2))
 			require.NoError(t, err)
@@ -183,12 +183,12 @@ func TestCreateTableBlockProcessing(t *testing.T) {
 		}
 	})
 
-	expWrongTypeErr := "query validation: unable to parse the query: syntax error at or near \"CREATEZ\""
+	expWrongTypeErr := "query validation: unable to parse the query: syntax error at position 7 near 'CREATEZ'"
 	t.Run("failure", func(t *testing.T) {
 		t.Parallel()
 
 		contractCalls, checkReceipts, _ := setup(t)
-		txnHash := contractCalls.createTable("CREATEZ TABLE Foo_1337 (bar bigint)")
+		txnHash := contractCalls.createTable("CREATEZ TABLE Foo_1337 (bar int)")
 
 		expReceipt := eventprocessor.Receipt{
 			ChainID: chainID,
@@ -260,7 +260,7 @@ func TestTransfer(t *testing.T) {
 
 	contractCalls, checkReceipts, _ := setup(t)
 
-	txnHash := contractCalls.createTable("CREATE TABLE Foo_1337 (bar bigint)")
+	txnHash := contractCalls.createTable("CREATE TABLE Foo_1337 (bar int)")
 	tableID, err := tableland.NewTableID("2")
 	require.NoError(t, err)
 	expReceipt := eventprocessor.Receipt{
