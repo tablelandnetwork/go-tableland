@@ -1,7 +1,5 @@
 package buildinfo
 
-import "fmt"
-
 var (
 	// GitCommit is set by govvv at build time.
 	GitCommit = "n/a"
@@ -17,15 +15,24 @@ var (
 	Version = "n/a"
 )
 
-// Summary prints a summary of all build info.
-func Summary() string {
-	return fmt.Sprintf(
-		"\tversion:\t%s\n\tbuild date:\t%s\n\tgit summary:\t%s\n\tgit branch:\t%s\n\tgit commit:\t%s\n\tgit state:\t%s",
-		Version,
-		BuildDate,
-		GitSummary,
-		GitBranch,
-		GitCommit,
-		GitState,
-	)
+type Summary struct {
+	GitCommit  string
+	GitBranch  string
+	GitState   string
+	GitSummary string
+	BuildDate  string
+	Version    string
+}
+
+// GetSummary returns a JSON string with a summary of git information.
+func GetSummary() (Summary, error) {
+	summary := Summary{
+		GitCommit:  GitCommit,
+		GitBranch:  GitBranch,
+		GitState:   GitState,
+		GitSummary: GitSummary,
+		BuildDate:  BuildDate,
+		Version:    Version,
+	}
+	return summary, nil
 }
