@@ -39,6 +39,7 @@ func ConfiguredRouter(
 		log.Fatal().Err(err).Msg("failed to register a json-rpc service")
 	}
 	userController := controllers.NewUserController(svc)
+	infraController := controllers.NewInfraController()
 
 	stores := make(map[tableland.ChainID]sqlstore.SystemStore, len(chainStacks))
 	for chainID, stack := range chainStacks {
@@ -80,6 +81,7 @@ func ConfiguredRouter(
 	router.Get("/chain/{chainID}/tables/{id}/{key}/{value}", userController.GetTableRow, middlewares.RESTChainID, rateLim, middlewares.OtelHTTP("GetTableRow"))                         // nolint
 	router.Get("/chain/{chainID}/tables/controller/{address}", systemController.GetTablesByController, middlewares.RESTChainID, rateLim, middlewares.OtelHTTP("GetTablesByController")) // nolint
 	router.Get("/query", userController.GetTableQuery, rateLim, middlewares.OtelHTTP("GetTableQuery"))                                                                                  // nolint
+	router.Get("/version", infraController.Version, rateLim, middlewares.OtelHTTP("Version"))                                                                                           // nolint
 
 	// Health endpoint configuration.
 	router.Get("/healthz", healthHandler)
