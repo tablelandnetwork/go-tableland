@@ -10,7 +10,7 @@ services:
     env_file:
       - ${PWD}/${ENVIROMENT}/api/.env_validator
     ports:
-      - "127.0.0.1:8080:8080" 
+      - "0.0.0.0:80:8080" 
     volumes:
       - ${PWD}/${ENVIROMENT}/api:/root/.tableland
     security_opt:
