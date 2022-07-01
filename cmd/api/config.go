@@ -21,6 +21,9 @@ type config struct {
 	HTTP struct {
 		Port string `default:"8080"` // HTTP port (e.g. 8080)
 
+		TLSCert string `default:""`
+		TLSKey  string `default:""`
+
 		RateLimInterval       string `default:"1s"`
 		MaxRequestPerInterval uint64 `default:"10"`
 	}

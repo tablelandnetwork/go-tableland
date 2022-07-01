@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"path"
@@ -108,15 +110,52 @@ func main() {
 	}
 
 	go func() {
-		if err := server.ListenAndServe(); err != nil {
-			if err == http.ErrServerClosed {
-				log.Info().Msg("http serve gracefully closed")
-				return
+		if config.HTTP.TLSCert != "" {
+			tlsCert, err := base64.StdEncoding.DecodeString(config.HTTP.TLSCert)
+			if err != nil {
+				log.Fatal().
+					Err(err).
+					Msg("could not base64 decode tls cert")
+
 			}
-			log.Fatal().
-				Err(err).
-				Str("port", config.HTTP.Port).
-				Msg("could not start server")
+			tlsKey, err := base64.StdEncoding.DecodeString(config.HTTP.TLSKey)
+			if err != nil {
+				log.Fatal().
+					Err(err).
+					Msg("could not base64 decode tls cert")
+			}
+
+			cert, err := tls.X509KeyPair(tlsCert, tlsKey)
+			if err != nil {
+				log.Fatal().
+					Err(err).
+					Msg("parsing tls certificate")
+			}
+			server.TLSConfig = &tls.Config{
+				Certificates: []tls.Certificate{cert},
+			}
+
+			server.Addr = ":443"
+			if err := server.ListenAndServeTLS("", ""); err != nil {
+				if err == http.ErrServerClosed {
+					log.Info().Msg("https serve gracefully closed")
+					return
+				}
+				log.Fatal().
+					Err(err).
+					Msg("could not start https server")
+			}
+		} else {
+			if err := server.ListenAndServe(); err != nil {
+				if err == http.ErrServerClosed {
+					log.Info().Msg("http serve gracefully closed")
+					return
+				}
+				log.Fatal().
+					Err(err).
+					Str("port", config.HTTP.Port).
+					Msg("could not start http server")
+			}
 		}
 	}()
 
