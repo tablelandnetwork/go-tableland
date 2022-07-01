@@ -318,7 +318,7 @@ func (c *UserController) GetTableQuery(rw http.ResponseWriter, r *http.Request) 
 func (c *UserController) runReadRequest(
 	ctx context.Context,
 	stm string,
-	rw http.ResponseWriter) (sqlstore.UserRows, bool) {
+	rw http.ResponseWriter) (*sqlstore.UserRows, bool) {
 	req := tableland.RunReadQueryRequest{
 		Statement: stm,
 	}
@@ -331,10 +331,10 @@ func (c *UserController) runReadRequest(
 			Err(err)
 
 		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: err.Error()})
-		return sqlstore.UserRows{}, false
+		return nil, false
 	}
 
-	rows, ok := res.Result.(sqlstore.UserRows)
+	rows, ok := res.Result.(*sqlstore.UserRows)
 	if !ok {
 		rw.WriteHeader(http.StatusBadRequest)
 		log.Ctx(ctx).
@@ -343,7 +343,7 @@ func (c *UserController) runReadRequest(
 			Msg("bad query result")
 
 		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Bad query result"})
-		return sqlstore.UserRows{}, false
+		return nil, false
 	}
 	if len(rows.Rows) == 0 {
 		rw.WriteHeader(http.StatusNotFound)
@@ -353,7 +353,7 @@ func (c *UserController) runReadRequest(
 			Msg("row not found")
 
 		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Row not found"})
-		return sqlstore.UserRows{}, false
+		return nil, false
 	}
 	return rows, true
 }
