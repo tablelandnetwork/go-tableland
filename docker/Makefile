@@ -15,9 +15,11 @@ staging-up:
 	PLATFORM=$(shell uname -m) \
 	ENVIROMENT=deployed/staging \
 	COMPOSE_DOCKER_CLI_BUILD=1 \
-	docker compose -f docker-compose.yml -f deployed/docker-compose.observability.yml $(HEALTHBOT_OVERRIDE) up --build --remove-orphans
+	docker compose -f docker-compose.yml -f deployed/docker-compose.observability.yml $(HEALTHBOT_OVERRIDE) up --build --remove-orphans --detach
 .PHONY: staging-up
 
 staging-down:
+	PLATFORM=$(shell uname -m) \
+	ENVIROMENT=deployed/staging \
 	docker compose -f docker-compose.yml -f deployed/docker-compose.observability.yml $(HEALTHBOT_OVERRIDE)  down
 .PHONY: staging-down
