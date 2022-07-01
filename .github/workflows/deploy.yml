@@ -12,98 +12,50 @@ on:
     types:
       - created
 
-env:
-  GKE_REGION: us-west1
-  GKE_CLUSTER: main
-  CONTAINER_REGISTRY: us-west1-docker.pkg.dev
-
 jobs:
   deploy:
     if: github.event_name == 'release' || github.ref == 'refs/heads/main' || contains(github.event.head_commit.message, '[stagingdeploy]') || contains(github.event.head_commit.message, '[testnetdeploy]')
     name: Deploy
     runs-on: ubuntu-latest
     steps:
-      - name: Dump GitHub context
-        env:
-          GITHUB_CONTEXT: ${{ toJSON(github) }}
-        run: echo "$GITHUB_CONTEXT"
-
-      - name: Install Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: v1.17
-
       - name: Checkout
         uses: actions/checkout@v2
 
       - name: Prepare
+        shell: bash
         id: prep
         run: |
           if [[ ${{ github.ref }} == refs/heads/main ]] || [[ "${{github.event.head_commit.message}}" == *"[testnetdeploy]"* ]]; then
-            echo "::set-output name=deployment::testnet"
+            echo "::set-output name=deployment::testnet" 
           else
             echo "::set-output name=deployment::staging"
+            echo "::set-output name=vm_host::${{ secrets.STAGING_VM_HOST }}"
           fi
+
+          # This is the official way to setup secret values that are multi-line, such as an SSH private key.
+          echo 'vm_ssh_key<<EOF' >> $GITHUB_ENV
+          echo "${{ secrets.VM_SSH_KEY }}" >> $GITHUB_ENV
+          echo 'EOF' >> $GITHUB_ENV
+
           echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
 
-      - name: Set up Docker Buildx
-        id: buildx
-        uses: docker/setup-buildx-action@v1
-
-      - name: Cache Docker layers
-        uses: actions/cache@v2
+      - name: Connect via SSH, update the repo and run
+        uses: appleboy/ssh-action@master
         with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-
+          host: ${{ steps.prep.outputs.vm_host }}
+          username: validator
+          key: ${{ env.vm_ssh_key }}
+          port: 22
+          script_stop: true
+          script: |
+            cd go-tableland
+            git fetch && git checkout -f ${{ github.sha }}
+            cd docker
+            HEALTHBOT_ENABLED=true make ${{ steps.prep.outputs.deployment }}-up
 
-      - name: Buildx patch
-        run: |
-          Dockfiles="$(find $1  -name 'Dockerfile')"
-          d=$(date +%s)
-          i=0
-          for file in $Dockfiles; do
-            i=$(( i + 1 ))
-            echo "patching timestamp for $file"
-            touch -d @$(( d + i )) "$file"
-          done
+            # Wait to start and double-check we're running the expected version.
+            # This helps having a green check in the GH Action be high-signal that everything is fine.
+            sleep 5;
+            for i in 1 2 3 4; do [ $(curl --silent http://127.0.0.1/version | jq .GitCommit) = "\"${{ steps.prep.outputs.sha_short}}\"" ] && break || (if [ $i = 4 ]; then exit -1; else sleep 5; fi ) done 
+            echo "All healthy!"
 
-      - name: Install Cloud SDK
-        uses: google-github-actions/setup-gcloud@v0
-        with:
-          version: 367.0.0
-          service_account_key: ${{ secrets.GKE_SA_KEY }}
-          project_id: ${{ secrets.GKE_PROJECT }}
-      
-      - name: Configure Docker
-        run: gcloud auth configure-docker $CONTAINER_REGISTRY
-
-      - name: Build and push api
-        uses: docker/build-push-action@v2
-        with:
-          context: ./
-          file: ./cmd/api/Dockerfile
-          builder: ${{ steps.buildx.outputs.name }}
-          push: true
-          tags: ${{ env.CONTAINER_REGISTRY }}/${{ secrets.GKE_PROJECT }}/textile/tableland/api:sha-${{ steps.prep.outputs.sha_short }}
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache
-      - name: Build and push healthbot
-        uses: docker/build-push-action@v2
-        with:
-          context: ./
-          file: ./cmd/healthbot/Dockerfile
-          builder: ${{ steps.buildx.outputs.name }}
-          push: true
-          tags: ${{ env.CONTAINER_REGISTRY }}/${{ secrets.GKE_PROJECT }}/textile/tableland/healthbot:sha-${{ steps.prep.outputs.sha_short }}
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache
-
-      - name: Deploy to GKE
-        working-directory: ./k8
-        run: |
-          gcloud container clusters get-credentials $GKE_CLUSTER --region $GKE_REGION --project ${{ secrets.GKE_PROJECT }}
-          export API_IMAGE=$CONTAINER_REGISTRY/${{ secrets.GKE_PROJECT }}/textile/tableland/api:sha-${{ steps.prep.outputs.sha_short }}
-          export HEALTHBOT_IMAGE=$CONTAINER_REGISTRY/${{ secrets.GKE_PROJECT }}/textile/tableland/healthbot:sha-${{ steps.prep.outputs.sha_short }}
-          DEPLOYMENT=${{ steps.prep.outputs.deployment }} make deploy
