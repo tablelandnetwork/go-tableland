@@ -6,7 +6,7 @@
         "Human": false,
         "Debug": true
     },
-    "Target": "http://api:8080/rpc",
+    "Target": "https://staging.tableland.network/rpc",
     "Chains": [
         {
             "Name": "optimism-kovan",
