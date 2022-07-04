@@ -22,3 +22,5 @@ Note that for deployed enviroments, there're two relevant configuration files in
 
 - `.env_validator` which allows to configure enviroments to fill secrets for the validator, plus expand variables present in the config file. There's a `.env_validator.example` with the expected keys to be filled.
 - `config.json` is the configuration file for the validator.
+
+Besides that, you may want to configure Grafana's `admin_user` and `admin_password`. To do that, configure the `.env_grafana` file with the values of the expected keys shown in `.env_grafana.example`.
