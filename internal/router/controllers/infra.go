@@ -18,6 +18,7 @@ func NewInfraController() *InfraController {
 	return &InfraController{}
 }
 
+// Version returns git information of the running binary.
 func (c *InfraController) Version(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-type", "application/json")
 	summary, err := buildinfo.GetSummary()

@@ -15,6 +15,7 @@ var (
 	Version = "n/a"
 )
 
+// Summary provides a summary of git information in the binary.
 type Summary struct {
 	GitCommit  string
 	GitBranch  string
