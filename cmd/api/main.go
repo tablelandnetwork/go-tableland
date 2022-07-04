@@ -116,7 +116,6 @@ func main() {
 				log.Fatal().
 					Err(err).
 					Msg("could not base64 decode tls cert")
-
 			}
 			tlsKey, err := base64.StdEncoding.DecodeString(config.HTTP.TLSKey)
 			if err != nil {
