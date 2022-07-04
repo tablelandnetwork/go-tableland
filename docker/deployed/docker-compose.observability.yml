@@ -18,6 +18,8 @@ services:
       - ${PWD}/observability/grafana/provisioning:/etc/grafana/provisioning
     environment:
       - GF_USERS_ALLOW_SIGN_UP=false
+    env_file:
+      - ${PWD}/${ENVIROMENT}/grafana/.env_grafana
     restart: unless-stopped
     ports:
       - "0.0.0.0:3000:3000"
