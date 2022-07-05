@@ -27,6 +27,7 @@ jobs:
         run: |
           if [[ ${{ github.ref }} == refs/heads/main ]] || [[ "${{github.event.head_commit.message}}" == *"[testnetdeploy]"* ]]; then
             echo "::set-output name=deployment::testnet" 
+            echo "::set-output name=vm_host::${{ secrets.TESTNET_VM_HOST }}"
           else
             echo "::set-output name=deployment::staging"
             echo "::set-output name=vm_host::${{ secrets.STAGING_VM_HOST }}"
@@ -51,6 +52,10 @@ jobs:
             cd go-tableland
             git fetch && git checkout -f ${{ github.sha }}
             cd docker
+            
+            # TODO(jsign): stopping early until we have the deployed contracts.
+            exit 0
+
             HEALTHBOT_ENABLED=true make ${{ steps.prep.outputs.deployment }}-up
 
             # Wait to start and double-check we're running the expected version.

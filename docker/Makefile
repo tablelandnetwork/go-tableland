@@ -23,3 +23,16 @@ staging-down:
 	ENVIROMENT=deployed/staging \
 	docker compose -f docker-compose.yml -f deployed/docker-compose.observability.yml $(HEALTHBOT_OVERRIDE)  down
 .PHONY: staging-down
+
+testnet-up:
+	PLATFORM=$(shell uname -m) \
+	ENVIROMENT=deployed/testnet \
+	COMPOSE_DOCKER_CLI_BUILD=1 \
+	docker compose -f docker-compose.yml -f deployed/docker-compose.observability.yml $(HEALTHBOT_OVERRIDE) up --build --remove-orphans --detach
+.PHONY: testnet-up
+
+testnet-down:
+	PLATFORM=$(shell uname -m) \
+	ENVIROMENT=deployed/testnet \
+	docker compose -f docker-compose.yml -f deployed/docker-compose.observability.yml $(HEALTHBOT_OVERRIDE)  down
+.PHONY: testnet-down
