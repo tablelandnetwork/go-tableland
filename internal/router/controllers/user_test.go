@@ -161,13 +161,13 @@ func (rm *runnerMock) RunReadQuery(
 		str := "foo"
 		ptrStr := &str
 		return tableland.RunReadQueryResponse{
-			Result: sqlstore.UserRows{
+			Result: &sqlstore.UserRows{
 				Rows: [][]interface{}{{&ptrStr}},
 			},
 		}, nil
 	}
 	return tableland.RunReadQueryResponse{
-		Result: sqlstore.UserRows{
+		Result: &sqlstore.UserRows{
 			Columns: []sqlstore.UserColumn{
 				{Name: "id"},
 				{Name: "description"},
@@ -220,7 +220,7 @@ func (*notFoundRunnerMock) RunReadQuery(
 	ctx context.Context,
 	req tableland.RunReadQueryRequest) (tableland.RunReadQueryResponse, error) {
 	return tableland.RunReadQueryResponse{
-		Result: sqlstore.UserRows{
+		Result: &sqlstore.UserRows{
 			Columns: []sqlstore.UserColumn{
 				{Name: "id"},
 				{Name: "description"},
@@ -247,7 +247,7 @@ func (rm *queryRunnerMock) RunReadQuery(
 	ctx context.Context,
 	req tableland.RunReadQueryRequest) (tableland.RunReadQueryResponse, error) {
 	return tableland.RunReadQueryResponse{
-		Result: sqlstore.UserRows{
+		Result: &sqlstore.UserRows{
 			Columns: []sqlstore.UserColumn{
 				{Name: "id"},
 				{Name: "eyes"},
