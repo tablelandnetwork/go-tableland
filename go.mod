@@ -15,7 +15,7 @@ require (
 	github.com/sethvargo/go-limiter v0.7.2
 	github.com/spruceid/siwe-go v0.2.0
 	github.com/stretchr/testify v1.7.4
-	github.com/tablelandnetwork/sqlparser v0.0.0-20220627210906-4f88b6ff9726
+	github.com/tablelandnetwork/sqlparser v0.0.0-20220706201905-0ca67a566c4e
 	github.com/textileio/cli v1.0.2
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.32.0
 	go.opentelemetry.io/contrib/instrumentation/runtime v0.32.0
