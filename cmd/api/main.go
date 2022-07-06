@@ -60,7 +60,11 @@ func main() {
 		parsing.WithMaxWriteQuerySize(config.QueryConstraints.MaxWriteQuerySize),
 	}
 
-	parser, err := parserimpl.New([]string{systemimpl.SystemTablesPrefix, systemimpl.RegistryTableName}, parserOpts...)
+	parser, err := parserimpl.New([]string{
+		"sqlite_",
+		systemimpl.SystemTablesPrefix,
+		systemimpl.RegistryTableName,
+	}, parserOpts...)
 	if err != nil {
 		log.Fatal().Err(err).Msg("new parser")
 	}
