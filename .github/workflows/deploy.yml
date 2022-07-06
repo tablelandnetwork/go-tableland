@@ -53,9 +53,6 @@ jobs:
             git fetch && git checkout -f ${{ github.sha }}
             cd docker
             
-            # TODO(jsign): stopping early until we have the deployed contracts.
-            exit 0
-
             HEALTHBOT_ENABLED=true make ${{ steps.prep.outputs.deployment }}-up
 
             # Wait to start and double-check we're running the expected version.
