@@ -35,4 +35,4 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
       - name: Test
-        run: for i in 1 2 3; do make test && break || sleep 1; done
+        run: for i in 1 2 3; do make test && break || (if [ $i = 3 ]; then exit -1; else sleep 1; fi ); done
