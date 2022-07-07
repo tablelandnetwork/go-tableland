@@ -293,17 +293,20 @@ type contractCalls struct {
 	transfer      contractTransferFromSender
 }
 
-type dbReader func(string) []int64
-type contractRunSQLBlockSender func([]string) []common.Hash
-type contractCreateTableSender func(string) common.Hash
-type contractSetControllerSender func(controller common.Address) common.Hash
-type contractTransferFromSender func(controller common.Address) common.Hash
-type checkReceipts func(*testing.T, ...eventprocessor.Receipt) func() bool
+type (
+	dbReader                    func(string) []int64
+	contractRunSQLBlockSender   func([]string) []common.Hash
+	contractCreateTableSender   func(string) common.Hash
+	contractSetControllerSender func(controller common.Address) common.Hash
+	contractTransferFromSender  func(controller common.Address) common.Hash
+	checkReceipts               func(*testing.T, ...eventprocessor.Receipt) func() bool
+)
 
 func setup(t *testing.T) (
 	contractCalls,
 	checkReceipts,
-	dbReader) {
+	dbReader,
+) {
 	t.Helper()
 
 	// Spin up the EVM chain with the contract.
@@ -374,7 +377,7 @@ func setup(t *testing.T) (
 		queryRes := res.(*sqlstore.UserRows)
 		ret := make([]int64, len(queryRes.Rows))
 		for i := range queryRes.Rows {
-			ret[i] = (*queryRes.Rows[i][0].(*interface{})).(int64)
+			ret[i] = (*queryRes.Rows[i][0].(*sqlstore.UserData)).Value().(int64)
 		}
 		return ret
 	}
@@ -419,6 +422,7 @@ func (acl *aclMock) CheckPrivileges(
 	tx *sql.Tx,
 	controller common.Address,
 	id tableland.TableID,
-	op tableland.Operation) (bool, error) {
+	op tableland.Operation,
+) (bool, error) {
 	return true, nil
 }
