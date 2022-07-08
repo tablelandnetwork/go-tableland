@@ -147,7 +147,8 @@ func (ef *EventFeed) Start(
 				// If we got an error here, log it but allow to be retried
 				// in the next head. Probably the API can have transient unavailability.
 				ef.log.Warn().Err(err).Msgf("filter logs from %d to %d", fromHeight, toHeight)
-				if strings.Contains(err.Error(), "read limit exceeded") {
+				if strings.Contains(err.Error(), "read limit exceeded") ||
+					strings.Contains(err.Error(), "is greater than the limit") {
 					ef.maxBlocksFetchSize = ef.maxBlocksFetchSize * 80 / 100
 				} else {
 					time.Sleep(ef.config.ChainAPIBackoff)
