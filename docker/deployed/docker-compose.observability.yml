@@ -4,7 +4,7 @@ services:
     container_name: prometheus
     volumes:
       - ${PWD}/observability/prometheus:/etc/prometheus
-      - ${PWD}/${ENVIROMENT}/prometheus:/prometheus/data
+      - ${PWD}/${ENVIRONMENT}/prometheus:/prometheus/data
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
     restart: unless-stopped
@@ -16,10 +16,12 @@ services:
     container_name: grafana
     volumes:
       - ${PWD}/observability/grafana/provisioning:/etc/grafana/provisioning
+      - ${PWD}/${ENVIRONMENT}/grafana/data:/var/lib/grafana
     environment:
       - GF_USERS_ALLOW_SIGN_UP=false
+    user: ${USER}
     env_file:
-      - ${PWD}/${ENVIROMENT}/grafana/.env_grafana
+      - ${PWD}/${ENVIRONMENT}/grafana/.env_grafana
     restart: unless-stopped
     ports:
       - "0.0.0.0:3000:3000"

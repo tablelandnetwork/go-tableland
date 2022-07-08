@@ -8,12 +8,12 @@ services:
     environment:
       - OTEL_SERVICE_NAME=tableland:api # this is just to the unknown_service from the metrics label
     env_file:
-      - ${PWD}/${ENVIROMENT}/api/.env_validator
+      - ${PWD}/${ENVIRONMENT}/api/.env_validator
     ports:
       - "0.0.0.0:8080:8080" 
       - "0.0.0.0:443:443" 
     volumes:
-      - ${PWD}/${ENVIROMENT}/api:/root/.tableland
+      - ${PWD}/${ENVIRONMENT}/api:/root/.tableland
     security_opt:
       - "seccomp:unconfined"
     cap_add:

@@ -7,9 +7,9 @@ services:
     environment:
       - OTEL_SERVICE_NAME=tableland:healthbot # this is just to the unknown_service from the metrics label
     env_file:
-      - ${PWD}/${ENVIROMENT}/healthbot/.env_healthbot
+      - ${PWD}/${ENVIRONMENT}/healthbot/.env_healthbot
     volumes:
-      - ${PWD}/${ENVIROMENT}/healthbot/config.json:/app/config.json
+      - ${PWD}/${ENVIRONMENT}/healthbot/config.json:/app/config.json
     security_opt:
       - "seccomp:unconfined"
     cap_add:
