@@ -39,7 +39,8 @@ func (u *UserData) Scan(src interface{}) error {
 	u.otherValue = nil
 	switch src := src.(type) {
 	case string:
-		if (strings.HasPrefix(src, "{") || strings.HasPrefix(src, "[")) && json.Valid([]byte(src)) {
+		trimmed := strings.TrimLeft(src, " ")
+		if (strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "[")) && json.Valid([]byte(src)) {
 			u.jsonValue = []byte(src)
 		} else {
 			u.otherValue = src
