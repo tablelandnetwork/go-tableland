@@ -3,6 +3,7 @@ package sqlstore
 import (
 	"context"
 	"encoding/json"
+	"strings"
 
 	"github.com/textileio/go-tableland/pkg/parsing"
 )
@@ -38,7 +39,7 @@ func (u *UserData) Scan(src interface{}) error {
 	u.otherValue = nil
 	switch src := src.(type) {
 	case string:
-		if json.Valid([]byte(src)) {
+		if (strings.HasPrefix(src, "{") || strings.HasPrefix(src, "[")) && json.Valid([]byte(src)) {
 			u.jsonValue = []byte(src)
 		} else {
 			u.otherValue = src
