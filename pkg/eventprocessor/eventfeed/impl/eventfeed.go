@@ -162,13 +162,19 @@ func (ef *EventFeed) Start(
 				bq := eventfeed.BlockEvents{
 					BlockNumber: int64(logs[0].BlockNumber),
 				}
+				observedTxns := map[string]struct{}{}
 				for _, l := range logs {
 					if bq.BlockNumber != int64(l.BlockNumber) {
 						ch <- bq
 						bq = eventfeed.BlockEvents{
 							BlockNumber: int64(l.BlockNumber),
 						}
+						observedTxns = map[string]struct{}{}
 					}
+					if _, ok := observedTxns[l.TxHash.Hex()]; ok {
+						continue
+					}
+					observedTxns[l.TxHash.Hex()] = struct{}{}
 
 					event, err := ef.parseEvent(l)
 					if err != nil {
