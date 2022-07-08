@@ -147,7 +147,8 @@ func (ef *EventFeed) Start(
 				// If we got an error here, log it but allow to be retried
 				// in the next head. Probably the API can have transient unavailability.
 				ef.log.Warn().Err(err).Msgf("filter logs from %d to %d", fromHeight, toHeight)
-				if strings.Contains(err.Error(), "read limit exceeded") {
+				if strings.Contains(err.Error(), "read limit exceeded") ||
+					strings.Contains(err.Error(), "is greater than the limit") {
 					ef.maxBlocksFetchSize = ef.maxBlocksFetchSize * 80 / 100
 				} else {
 					time.Sleep(ef.config.ChainAPIBackoff)
@@ -162,13 +163,20 @@ func (ef *EventFeed) Start(
 				bq := eventfeed.BlockEvents{
 					BlockNumber: int64(logs[0].BlockNumber),
 				}
+				observedTxns := map[string]struct{}{}
 				for _, l := range logs {
 					if bq.BlockNumber != int64(l.BlockNumber) {
 						ch <- bq
 						bq = eventfeed.BlockEvents{
 							BlockNumber: int64(l.BlockNumber),
 						}
+						observedTxns = map[string]struct{}{}
 					}
+					if _, ok := observedTxns[l.TxHash.Hex()]; ok {
+						ef.log.Warn().Str("txnHash", l.TxHash.String()).Msg("txn has more than one event")
+						continue
+					}
+					observedTxns[l.TxHash.Hex()] = struct{}{}
 
 					event, err := ef.parseEvent(l)
 					if err != nil {

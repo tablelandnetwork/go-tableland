@@ -15,13 +15,13 @@ import (
 func TestUserController(t *testing.T) {
 	t.Parallel()
 
-	req, err := http.NewRequest("GET", "/tables/100/id/1", nil)
+	req, err := http.NewRequest("GET", "/chain/69/tables/100/id/1", nil)
 	require.NoError(t, err)
 
 	userController := NewUserController(&runnerMock{})
 
 	router := mux.NewRouter()
-	router.HandleFunc("/tables/{id}/{key}/{value}", userController.GetTableRow)
+	router.HandleFunc("/chain/{chainID}/tables/{id}/{key}/{value}", userController.GetTableRow)
 
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
@@ -34,13 +34,13 @@ func TestUserController(t *testing.T) {
 func TestUserControllerERC721Metadata(t *testing.T) {
 	t.Parallel()
 
-	req, err := http.NewRequest("GET", "/tables/100/id/1?format=erc721&name=id&image=image&description=description&external_url=external_url&attributes[0][column]=base&attributes[0][trait_type]=Base&attributes[1][column]=eyes&attributes[1][trait_type]=Eyes&attributes[2][column]=mouth&attributes[2][trait_type]=Mouth&attributes[3][column]=level&attributes[3][trait_type]=Level&attributes[4][column]=stamina&attributes[4][trait_type]=Stamina&attributes[5][column]=personality&attributes[5][trait_type]=Personality&attributes[6][column]=aqua_power&attributes[6][display_type]=boost_number&attributes[6][trait_type]=Aqua%20Power&attributes[7][column]=stamina_increase&attributes[7][display_type]=boost_percentage&attributes[7][trait_type]=Stamina%20Increase&attributes[8][column]=generation&attributes[8][display_type]=number&attributes[8][trait_type]=Generation", nil) // nolint
+	req, err := http.NewRequest("GET", "/chain/69/tables/100/id/1?format=erc721&name=id&image=image&description=description&external_url=external_url&attributes[0][column]=base&attributes[0][trait_type]=Base&attributes[1][column]=eyes&attributes[1][trait_type]=Eyes&attributes[2][column]=mouth&attributes[2][trait_type]=Mouth&attributes[3][column]=level&attributes[3][trait_type]=Level&attributes[4][column]=stamina&attributes[4][trait_type]=Stamina&attributes[5][column]=personality&attributes[5][trait_type]=Personality&attributes[6][column]=aqua_power&attributes[6][display_type]=boost_number&attributes[6][trait_type]=Aqua%20Power&attributes[7][column]=stamina_increase&attributes[7][display_type]=boost_percentage&attributes[7][trait_type]=Stamina%20Increase&attributes[8][column]=generation&attributes[8][display_type]=number&attributes[8][trait_type]=Generation", nil) // nolint
 	require.NoError(t, err)
 
 	userController := NewUserController(&runnerMock{})
 
 	router := mux.NewRouter()
-	router.HandleFunc("/tables/{id}/{key}/{value}", userController.GetTableRow)
+	router.HandleFunc("/chain/{chainID}/tables/{id}/{key}/{value}", userController.GetTableRow)
 
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
@@ -53,13 +53,13 @@ func TestUserControllerERC721Metadata(t *testing.T) {
 func TestUserControllerInvalidColumn(t *testing.T) {
 	t.Parallel()
 
-	req, err := http.NewRequest("GET", "/tables/100/invalid_column/0", nil)
+	req, err := http.NewRequest("GET", "/chain/69/tables/100/invalid_column/0", nil)
 	require.NoError(t, err)
 
 	userController := NewUserController(&badRequestRunnerMock{})
 
 	router := mux.NewRouter()
-	router.HandleFunc("/tables/{id}/{key}/{value}", userController.GetTableRow)
+	router.HandleFunc("/chain/{chainID}/tables/{id}/{key}/{value}", userController.GetTableRow)
 
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
@@ -73,13 +73,13 @@ func TestUserControllerInvalidColumn(t *testing.T) {
 func TestUserControllerRowNotFound(t *testing.T) {
 	t.Parallel()
 
-	req, err := http.NewRequest("GET", "/tables/100/id/1", nil)
+	req, err := http.NewRequest("GET", "/chain/69/tables/100/id/1", nil)
 	require.NoError(t, err)
 
 	userController := NewUserController(&notFoundRunnerMock{})
 
 	router := mux.NewRouter()
-	router.HandleFunc("/tables/{id}/{key}/{value}", userController.GetTableRow)
+	router.HandleFunc("/chain/{chainID}/tables/{id}/{key}/{value}", userController.GetTableRow)
 
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
@@ -158,11 +158,12 @@ func (rm *runnerMock) RunReadQuery(
 	req tableland.RunReadQueryRequest) (tableland.RunReadQueryResponse, error) {
 	if rm.counter == 0 {
 		rm.counter++
-		str := "foo"
-		ptrStr := &str
+		ptr := new(interface{}) // nolint
+		var str interface{} = "foo"
+		ptr = &str
 		return tableland.RunReadQueryResponse{
 			Result: &sqlstore.UserRows{
-				Rows: [][]interface{}{{&ptrStr}},
+				Rows: [][]interface{}{{ptr}},
 			},
 		}, nil
 	}
