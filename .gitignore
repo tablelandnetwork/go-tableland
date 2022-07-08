@@ -17,6 +17,7 @@
 
 docker/**/*.db*
 docker/deployed/**/prometheus
+docker/deployed/**/grafana/data
 
 # Project
 .env*
