@@ -329,6 +329,8 @@ func isErrCausedByQuery(err error) (string, bool) {
 
 		// Class 42 - Syntax Error or Access Rule Violation
 		"42703", // undefined_column
+
+		"42883",
 	}
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
