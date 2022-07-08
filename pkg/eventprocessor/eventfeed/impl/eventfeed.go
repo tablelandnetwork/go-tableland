@@ -172,6 +172,7 @@ func (ef *EventFeed) Start(
 						observedTxns = map[string]struct{}{}
 					}
 					if _, ok := observedTxns[l.TxHash.Hex()]; ok {
+						ef.log.Warn().Str("txnHash", l.TxHash.String()).Msg("txn has more than one event")
 						continue
 					}
 					observedTxns[l.TxHash.Hex()] = struct{}{}
