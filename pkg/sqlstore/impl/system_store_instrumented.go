@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
@@ -208,6 +209,7 @@ func (s *InstrumentedSystemStore) Begin(ctx context.Context) (*sql.Tx, error) {
 func (s *InstrumentedSystemStore) GetReceipt(
 	ctx context.Context,
 	txnHash string) (eventprocessor.Receipt, bool, error) {
+	log.Debug().Str("hash", txnHash).Msg("call GetReceipt")
 	start := time.Now()
 	receipt, ok, err := s.store.GetReceipt(ctx, txnHash)
 	latency := time.Since(start).Milliseconds()

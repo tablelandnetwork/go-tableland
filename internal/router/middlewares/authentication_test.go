@@ -51,6 +51,7 @@ func TestOptionality(t *testing.T) {
 		{rpcMethodName: "tableland_runReadQuery", expStatusCode: http.StatusOK},
 		{rpcMethodName: "tableland_relayWriteQuery", expStatusCode: http.StatusUnauthorized},
 		{rpcMethodName: "tableland_validateCreateTable", expStatusCode: http.StatusUnauthorized},
+		{rpcMethodName: "tableland_validateWriteQuery", expStatusCode: http.StatusUnauthorized},
 		{rpcMethodName: "tableland_getReceipt", expStatusCode: http.StatusUnauthorized},
 		{rpcMethodName: "tableland_setController", expStatusCode: http.StatusUnauthorized},
 	}
