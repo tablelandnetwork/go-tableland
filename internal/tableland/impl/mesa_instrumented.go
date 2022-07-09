@@ -54,6 +54,17 @@ func (t *InstrumentedTablelandMesa) ValidateCreateTable(ctx context.Context,
 	return resp, err
 }
 
+// ValidateWriteQuery validates a statement that would mutate a table and returns the table ID.
+func (t *InstrumentedTablelandMesa) ValidateWriteQuery(ctx context.Context,
+	req tableland.ValidateWriteQueryRequest) (tableland.ValidateWriteQueryResponse, error) {
+	start := time.Now()
+	resp, err := t.tableland.ValidateWriteQuery(ctx, req)
+	latency := time.Since(start).Milliseconds()
+	chainID, _ := ctx.Value(middlewares.ContextKeyChainID).(tableland.ChainID)
+	t.record(ctx, recordData{"ValidateWriteQuery", "", "", err == nil, latency, chainID})
+	return resp, err
+}
+
 // RunReadQuery allows the user to run SQL.
 func (t *InstrumentedTablelandMesa) RunReadQuery(ctx context.Context,
 	req tableland.RunReadQueryRequest) (tableland.RunReadQueryResponse, error) {

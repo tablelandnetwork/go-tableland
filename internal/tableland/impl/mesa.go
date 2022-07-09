@@ -50,6 +50,37 @@ func (t *TablelandMesa) ValidateCreateTable(
 }
 
 // RelayWriteQuery allows the user to rely on the validator wrapping the query in a chain transaction.
+func (t *TablelandMesa) ValidateWriteQuery(
+	ctx context.Context,
+	req tableland.ValidateWriteQueryRequest) (tableland.ValidateWriteQueryResponse, error) {
+	ctxController := ctx.Value(middlewares.ContextKeyAddress)
+	controller, ok := ctxController.(string)
+	if !ok || controller == "" {
+		return tableland.ValidateWriteQueryResponse{}, errors.New("no controller address found in context")
+	}
+	ctxChainID := ctx.Value(middlewares.ContextKeyChainID)
+	chainID, ok := ctxChainID.(tableland.ChainID)
+	if !ok {
+		return tableland.ValidateWriteQueryResponse{}, errors.New("no chain id found in context")
+	}
+	_, chainOk := t.chainStacks[chainID]
+	if !chainOk {
+		return tableland.ValidateWriteQueryResponse{}, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
+	}
+
+	mutatingStmts, err := t.parser.ValidateMutatingQuery(req.Statement, chainID)
+	if err != nil {
+		return tableland.ValidateWriteQueryResponse{}, fmt.Errorf("validating query: %s", err)
+	}
+
+	tableID := mutatingStmts[0].GetTableID()
+
+	response := tableland.ValidateWriteQueryResponse{}
+	response.TableID = tableID.String()
+	return response, nil
+}
+
+// RelayWriteQuery allows the user to rely on the validator wrapping the query in a chain transaction.
 func (t *TablelandMesa) RelayWriteQuery(
 	ctx context.Context,
 	req tableland.RelayWriteQueryRequest) (tableland.RelayWriteQueryResponse, error) {
@@ -104,6 +135,7 @@ func (t *TablelandMesa) RunReadQuery(
 func (t *TablelandMesa) GetReceipt(
 	ctx context.Context,
 	req tableland.GetReceiptRequest) (tableland.GetReceiptResponse, error) {
+
 	if err := (&common.Hash{}).UnmarshalText([]byte(req.TxnHash)); err != nil {
 		return tableland.GetReceiptResponse{}, fmt.Errorf("invalid txn hash: %s", err)
 	}
@@ -134,6 +166,7 @@ func (t *TablelandMesa) GetReceipt(
 			Error:       receipt.Error,
 		},
 	}
+
 	if receipt.TableID != nil {
 		tID := receipt.TableID.String()
 		ret.Receipt.TableID = &tID

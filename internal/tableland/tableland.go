@@ -58,6 +58,16 @@ type ValidateCreateTableResponse struct {
 	StructureHash string `json:"structure_hash"`
 }
 
+// ValidateWriteQueryRequest is a ValidateWriteQuery request.
+type ValidateWriteQueryRequest struct {
+	Statement string `json:"statement"`
+}
+
+// ValidateWriteQueryResponse is a ValidateWriteQuery response.
+type ValidateWriteQueryResponse struct {
+	TableID string `json:"table_id"`
+}
+
 // SetControllerRequest is a user SetController request.
 type SetControllerRequest struct {
 	Controller string `json:"controller"`
@@ -80,6 +90,7 @@ type SQLRunner interface {
 type Tableland interface {
 	SQLRunner
 	ValidateCreateTable(context.Context, ValidateCreateTableRequest) (ValidateCreateTableResponse, error)
+	ValidateWriteQuery(context.Context, ValidateWriteQueryRequest) (ValidateWriteQueryResponse, error)
 	RelayWriteQuery(context.Context, RelayWriteQueryRequest) (RelayWriteQueryResponse, error)
 	GetReceipt(context.Context, GetReceiptRequest) (GetReceiptResponse, error)
 	SetController(context.Context, SetControllerRequest) (SetControllerResponse, error)

@@ -46,6 +46,14 @@ paths:
                   params:
                     - id: "0"
                       create_statement: "CREATE TABLE myname_31337 (column_a int, column_b text);"
+              validateWriteQuery:
+                value:
+                  jsonrpc: "2.0"
+                  method: tableland_validateWriteQuery
+                  id: 1
+                  params:
+                    - id: "0"
+                      statement: "INSERT INTO myname_31337_2 (column_a, column_b) VALUES (1, 'b');"
               runReadQuery:
                 value:
                   jsonrpc: "2.0"
@@ -111,6 +119,12 @@ paths:
                     id: 1
                     result:
                       structure_hash: "ef7be01282ea97380e4d3bbcba6774cbc7242c46ee51b7e611f1efdfa3623e53"
+                validateWriteQuery:
+                  value:
+                    jsonrpc: "2.0"
+                    id: 1
+                    result:
+                      table_id: "1"
                 relayWriteQuery:
                   value:
                     jsonrpc: "2.0"
@@ -415,6 +429,35 @@ components:
               - "create_statement"
             properties:
               create_statement:
+                type: "string"
+    validateWriteQuery:
+      type: "object"
+      required:
+        - "method"
+        - "id"
+        - "jsonrpc"
+        - "params"
+      properties:
+        method:
+          type: "string"
+          description: "Method name"
+        id:
+          type: "integer"
+          default: 1
+          format: int32
+          description: "Request ID"
+        jsonrpc:
+          type: "string"
+          default: "2.0"
+          description: "JSON-RPC Version (2.0)"
+        params:
+          type: "array"
+          items:
+            type: "object"
+            required:
+              - "statement"
+            properties:
+              statement:
                 type: "string"
     getReceipt:
       type: "object"
