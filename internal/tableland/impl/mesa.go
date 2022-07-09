@@ -49,7 +49,7 @@ func (t *TablelandMesa) ValidateCreateTable(
 	return tableland.ValidateCreateTableResponse{StructureHash: createStmt.GetStructureHash()}, nil
 }
 
-// RelayWriteQuery allows the user to rely on the validator wrapping the query in a chain transaction.
+// ValidateWriteQuery allows the user to validate a write query.
 func (t *TablelandMesa) ValidateWriteQuery(
 	ctx context.Context,
 	req tableland.ValidateWriteQueryRequest) (tableland.ValidateWriteQueryResponse, error) {
@@ -135,7 +135,6 @@ func (t *TablelandMesa) RunReadQuery(
 func (t *TablelandMesa) GetReceipt(
 	ctx context.Context,
 	req tableland.GetReceiptRequest) (tableland.GetReceiptResponse, error) {
-
 	if err := (&common.Hash{}).UnmarshalText([]byte(req.TxnHash)); err != nil {
 		return tableland.GetReceiptResponse{}, fmt.Errorf("invalid txn hash: %s", err)
 	}
