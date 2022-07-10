@@ -47,7 +47,8 @@ func New(
 	siwe string,
 	tableName string,
 	checkInterval time.Duration,
-	receiptTimeout time.Duration) (*CounterProbe, error) {
+	receiptTimeout time.Duration,
+) (*CounterProbe, error) {
 	log := logger.With().
 		Str("component", "healthbot").
 		Str("chainName", chainName).
@@ -178,6 +179,7 @@ func (cp *CounterProbe) increaseCounterValue(ctx context.Context) error {
 func (cp *CounterProbe) getCurrentCounterValue(ctx context.Context) (int64, error) {
 	getCounterReq := tableland.RunReadQueryRequest{
 		Statement: fmt.Sprintf("select * from %s", cp.tableName),
+		Output:    tableland.Table,
 	}
 
 	type data struct {

@@ -21,7 +21,7 @@ func TestReadGeneralTypeCorrectness(t *testing.T) {
 
 	// INTEGER
 	{
-		data, err := execReadQuery(ctx, db, "SELECT cast(1 as INTEGER) one")
+		data, err := execReadQuery(ctx, db, "SELECT cast(1 as INTEGER) one", true)
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
@@ -30,7 +30,7 @@ func TestReadGeneralTypeCorrectness(t *testing.T) {
 
 	// Two INTEGERs without cast.
 	{
-		data, err := execReadQuery(ctx, db, "SELECT 1 a, 2 b")
+		data, err := execReadQuery(ctx, db, "SELECT 1 a, 2 b", true)
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
@@ -39,7 +39,7 @@ func TestReadGeneralTypeCorrectness(t *testing.T) {
 
 	// REAL
 	{
-		data, err := execReadQuery(ctx, db, "SELECT cast(1.2 as REAL) real")
+		data, err := execReadQuery(ctx, db, "SELECT cast(1.2 as REAL) real", true)
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
@@ -48,7 +48,7 @@ func TestReadGeneralTypeCorrectness(t *testing.T) {
 
 	// TEXT
 	{
-		data, err := execReadQuery(ctx, db, "SELECT 'hello' text")
+		data, err := execReadQuery(ctx, db, "SELECT 'hello' text", true)
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)
@@ -57,7 +57,7 @@ func TestReadGeneralTypeCorrectness(t *testing.T) {
 
 	// BLOB
 	{
-		data, err := execReadQuery(ctx, db, "SELECT cast(X'4141414141414141414141' as BLOB) blob")
+		data, err := execReadQuery(ctx, db, "SELECT cast(X'4141414141414141414141' as BLOB) blob", true)
 		require.NoError(t, err)
 		b, err := json.Marshal(data)
 		require.NoError(t, err)

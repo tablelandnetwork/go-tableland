@@ -371,13 +371,12 @@ func setup(t *testing.T) (
 		rq, err := parser.ValidateReadQuery(readQuery)
 		require.NoError(t, err)
 		require.NotNil(t, rq)
-		res, err := userStore.Read(ctx, rq)
+		res, err := userStore.Read(ctx, rq, true)
 		require.NoError(t, err)
 
-		queryRes := res.(*sqlstore.UserRows)
-		ret := make([]int64, len(queryRes.Rows))
-		for i := range queryRes.Rows {
-			ret[i] = (*queryRes.Rows[i][0].(*sqlstore.UserData)).Value().(int64)
+		ret := make([]int64, len(res.Rows))
+		for i := range res.Rows {
+			ret[i] = (*res.Rows[i][0].(*sqlstore.UserValue)).Value().(int64)
 		}
 		return ret
 	}

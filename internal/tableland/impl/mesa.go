@@ -1,7 +1,9 @@
 package impl
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -24,7 +26,8 @@ type TablelandMesa struct {
 func NewTablelandMesa(
 	parser parsing.SQLValidator,
 	userStore sqlstore.UserStore,
-	chainStacks map[tableland.ChainID]chains.ChainStack) tableland.Tableland {
+	chainStacks map[tableland.ChainID]chains.ChainStack,
+) tableland.Tableland {
 	return &TablelandMesa{
 		parser:      parser,
 		userStore:   userStore,
@@ -36,7 +39,8 @@ func NewTablelandMesa(
 // This RPC method is stateless.
 func (t *TablelandMesa) ValidateCreateTable(
 	ctx context.Context,
-	req tableland.ValidateCreateTableRequest) (tableland.ValidateCreateTableResponse, error) {
+	req tableland.ValidateCreateTableRequest,
+) (tableland.ValidateCreateTableResponse, error) {
 	ctxChainID := ctx.Value(middlewares.ContextKeyChainID)
 	chainID, ok := ctxChainID.(tableland.ChainID)
 	if !ok {
@@ -52,7 +56,8 @@ func (t *TablelandMesa) ValidateCreateTable(
 // RelayWriteQuery allows the user to rely on the validator wrapping the query in a chain transaction.
 func (t *TablelandMesa) RelayWriteQuery(
 	ctx context.Context,
-	req tableland.RelayWriteQueryRequest) (tableland.RelayWriteQueryResponse, error) {
+	req tableland.RelayWriteQueryRequest,
+) (tableland.RelayWriteQueryResponse, error) {
 	ctxController := ctx.Value(middlewares.ContextKeyAddress)
 	controller, ok := ctxController.(string)
 	if !ok || controller == "" {
@@ -87,23 +92,47 @@ func (t *TablelandMesa) RelayWriteQuery(
 // RunReadQuery allows the user to run SQL.
 func (t *TablelandMesa) RunReadQuery(
 	ctx context.Context,
-	req tableland.RunReadQueryRequest) (tableland.RunReadQueryResponse, error) {
+	req tableland.RunReadQueryRequest,
+) (tableland.RunReadQueryResponse, error) {
 	readStmt, err := t.parser.ValidateReadQuery(req.Statement)
 	if err != nil {
 		return tableland.RunReadQueryResponse{}, fmt.Errorf("validating query: %s", err)
 	}
 
-	queryResult, err := t.runSelect(ctx, readStmt)
+	queryResult, err := t.runSelect(ctx, readStmt, req.JSONStrings)
 	if err != nil {
 		return tableland.RunReadQueryResponse{}, fmt.Errorf("running read statement: %s", err)
 	}
-	return tableland.RunReadQueryResponse{Result: queryResult}, nil
+
+	if req.Output == tableland.Table {
+		return tableland.RunReadQueryResponse{Result: queryResult}, nil
+	}
+
+	res := toObjects(queryResult)
+	if req.Extract {
+		res, err = extract(res)
+		if err != nil {
+			return tableland.RunReadQueryResponse{}, fmt.Errorf("extracting values: %s", err)
+		}
+	}
+
+	if !req.Unwrap {
+		return tableland.RunReadQueryResponse{Result: res}, nil
+	}
+
+	unwrapped, err := unwrap(res)
+	if err != nil {
+		return tableland.RunReadQueryResponse{}, fmt.Errorf("unwrapping values: %s", err)
+	}
+
+	return tableland.RunReadQueryResponse{Result: unwrapped}, nil
 }
 
 // GetReceipt returns the receipt of a processed event by txn hash.
 func (t *TablelandMesa) GetReceipt(
 	ctx context.Context,
-	req tableland.GetReceiptRequest) (tableland.GetReceiptResponse, error) {
+	req tableland.GetReceiptRequest,
+) (tableland.GetReceiptResponse, error) {
 	if err := (&common.Hash{}).UnmarshalText([]byte(req.TxnHash)); err != nil {
 		return tableland.GetReceiptResponse{}, fmt.Errorf("invalid txn hash: %s", err)
 	}
@@ -145,7 +174,8 @@ func (t *TablelandMesa) GetReceipt(
 // SetController allows users to the controller for a token id.
 func (t *TablelandMesa) SetController(
 	ctx context.Context,
-	req tableland.SetControllerRequest) (tableland.SetControllerResponse, error) {
+	req tableland.SetControllerRequest,
+) (tableland.SetControllerResponse, error) {
 	ctxCaller := ctx.Value(middlewares.ContextKeyAddress)
 	caller, ok := ctxCaller.(string)
 	if !ok || caller == "" {
@@ -179,11 +209,55 @@ func (t *TablelandMesa) SetController(
 
 func (t *TablelandMesa) runSelect(
 	ctx context.Context,
-	stmt parsing.ReadStmt) (interface{}, error) {
-	queryResult, err := t.userStore.Read(ctx, stmt)
+	stmt parsing.ReadStmt,
+	jsonStrings bool,
+) (*sqlstore.UserRows, error) {
+	queryResult, err := t.userStore.Read(ctx, stmt, jsonStrings)
 	if err != nil {
 		return nil, fmt.Errorf("executing read-query: %s", err)
 	}
 
 	return queryResult, nil
+}
+
+func toObjects(in *sqlstore.UserRows) []interface{} {
+	objects := make([]interface{}, len(in.Rows))
+	for i, row := range in.Rows {
+		object := make(map[string]interface{}, len(row))
+		for j, val := range row {
+			object[in.Columns[j].Name] = val
+		}
+		objects[i] = object
+	}
+	return objects
+}
+
+func extract(in []interface{}) ([]interface{}, error) {
+	extracted := make([]interface{}, len(in))
+	for i, item := range in {
+		object := item.(map[string]interface{})
+		if len(object) != 1 {
+			return nil, fmt.Errorf("can only extract values for result sets with one column but this has %d", len(object))
+		}
+		for _, val := range object {
+			extracted[i] = val
+			break
+		}
+	}
+	return extracted, nil
+}
+
+func unwrap(in []interface{}) ([]byte, error) {
+	buf := bytes.NewBuffer([]byte{})
+	for i, item := range in {
+		if i != 0 {
+			_, _ = buf.Write([]byte("\n"))
+		}
+		b, err := json.Marshal(item)
+		if err != nil {
+			return nil, err
+		}
+		_, _ = buf.Write(b)
+	}
+	return buf.Bytes(), nil
 }

@@ -7,12 +7,12 @@ import (
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 )
 
-func rowsToJSON(rows *sql.Rows) (*sqlstore.UserRows, error) {
+func rowsToJSON(rows *sql.Rows, jsonStrings bool) (*sqlstore.UserRows, error) {
 	columns, err := getColumnsData(rows)
 	if err != nil {
 		return nil, fmt.Errorf("get columns from rows: %s", err)
 	}
-	rowsData, err := getRowsData(rows, len(columns))
+	rowsData, err := getRowsData(rows, len(columns), jsonStrings)
 	if err != nil {
 		return nil, err
 	}
@@ -35,12 +35,12 @@ func getColumnsData(rows *sql.Rows) ([]sqlstore.UserColumn, error) {
 	return columns, nil
 }
 
-func getRowsData(rows *sql.Rows, numColumns int) ([][]interface{}, error) {
+func getRowsData(rows *sql.Rows, numColumns int, jsonStrings bool) ([][]interface{}, error) {
 	rowsData := make([][]interface{}, 0)
 	for rows.Next() {
 		scanArgs := make([]interface{}, numColumns)
 		for i := range scanArgs {
-			scanArgs[i] = &sqlstore.UserData{}
+			scanArgs[i] = &sqlstore.UserValue{JSONStrings: jsonStrings}
 		}
 		if err := rows.Scan(scanArgs...); err != nil {
 			return nil, fmt.Errorf("scan row column: %s", err)

@@ -18,9 +18,34 @@ type RelayWriteQueryResponse struct {
 	} `json:"tx"`
 }
 
+// Output is used to control the output format of a query specified with the "output" query param.
+type Output string
+
+const (
+	// Table returns the query results as a JSON object with columns and rows properties.
+	Table Output = "output"
+	// Objects returns the query results as a JSON array of JSON objects. This is the default.
+	Objects Output = "objects"
+)
+
+var outputsMap = map[string]Output{
+	"table":   Table,
+	"objects": Objects,
+}
+
+// OutputFromString converts a string into an Output.
+func OutputFromString(o string) (Output, bool) {
+	output, ok := outputsMap[o]
+	return output, ok
+}
+
 // RunReadQueryRequest is a user RunReadQuery request.
 type RunReadQueryRequest struct {
-	Statement string `json:"statement"`
+	Statement   string `json:"statement"`
+	Output      Output `json:"output"`
+	Unwrap      bool   `json:"unwrap"`
+	JSONStrings bool   `json:"json_strings"`
+	Extract     bool   `json:"extract"`
 }
 
 // RunReadQueryResponse is a RunReadQuery response.

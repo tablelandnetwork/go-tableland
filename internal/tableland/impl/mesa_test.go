@@ -101,7 +101,7 @@ func TestInsertOnConflict(t *testing.T) {
 		txnHashes = append(txnHashes, r.Transaction.Hash)
 	}
 
-	readReq := tableland.RunReadQueryRequest{Statement: "SELECT count FROM foo_1337_1"}
+	readReq := tableland.RunReadQueryRequest{Statement: "SELECT count FROM foo_1337_1", Output: tableland.Table}
 	require.Eventually(
 		t,
 		jsonEq(ctx, t, tbld, readReq, `{"columns":[{"name":"count"}],"rows":[[9]]}`),
@@ -131,7 +131,7 @@ func TestMultiStatement(t *testing.T) {
 	require.NoError(t, err)
 	backend.Commit()
 
-	readReq := tableland.RunReadQueryRequest{Statement: "SELECT name from foo_1337_1"}
+	readReq := tableland.RunReadQueryRequest{Statement: "SELECT name from foo_1337_1", Output: tableland.Table}
 	require.Eventually(
 		t,
 		jsonEq(ctx, t, tbld, readReq, `{"columns":[{"name":"name"}],"rows":[["zoo"]]}`),
@@ -513,6 +513,7 @@ func TestQueryConstraints(t *testing.T) {
 			func() bool {
 				_, err := tbld.RunReadQuery(ctx, tableland.RunReadQueryRequest{
 					Statement: "SELECT * FROM foo_1337_1 WHERE bar = 'hello'", // length of 44 bytes
+					Output:    tableland.Table,
 				})
 				return err == nil
 			},
@@ -533,10 +534,215 @@ func TestQueryConstraints(t *testing.T) {
 		ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller.Hex())
 		_, err := tbld.RunReadQuery(ctx, tableland.RunReadQueryRequest{
 			Statement: "SELECT * FROM foo_1337_1 WHERE bar = 'hello2'", // length of 45 bytes
+			Output:    tableland.Table,
 		})
 		require.Error(t, err)
 		require.ErrorContains(t, err, "read query size is too long")
 	})
+}
+
+func TestRunReadQueryParams(t *testing.T) {
+	ctx, tbld, backend, sc, txOpts := setup(t)
+	caller := txOpts.From
+
+	awaitReceipt := func(hash string) {
+		require.Eventually(t, func() bool {
+			res, err := tbld.GetReceipt(ctx, tableland.GetReceiptRequest{TxnHash: hash})
+			require.NoError(t, err)
+			return res.Receipt.Error == nil && res.Ok
+		}, time.Second*5, time.Millisecond*500)
+	}
+
+	txn, err := sc.CreateTable(txOpts, caller, `create table foo_1337 (name text, age integer, info text)`)
+	require.NoError(t, err)
+	backend.Commit()
+	awaitReceipt(txn.Hash().Hex())
+
+	ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller.Hex())
+	res, err := tbld.RelayWriteQuery(ctx, tableland.RelayWriteQueryRequest{
+		Statement: "insert into foo_1337_1 (name,age,info) values ('bob',40,'{\"country\":\"CO\"}'),('jane',50,'{\"country\":\"NZ\"}'),('mark',20,'{\"country\":\"FR\"}')", // nolint
+	})
+	require.NoError(t, err)
+	backend.Commit()
+	awaitReceipt(res.Transaction.Hash)
+
+	type args struct {
+		ctx context.Context
+		req tableland.RunReadQueryRequest
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "table, json strings",
+			args: args{ctx: ctx, req: tableland.RunReadQueryRequest{
+				Statement:   "select * from foo_1337_1",
+				Output:      tableland.Table,
+				JSONStrings: true,
+			}},
+			want:    `{"columns":[{"name":"name"},{"name":"age"},{"name":"info"}],"rows":[["bob",40,"{\"country\":\"CO\"}"],["jane",50,"{\"country\":\"NZ\"}"],["mark",20,"{\"country\":\"FR\"}"]]}`, // nolint
+			wantErr: false,
+		},
+		{
+			name: "table",
+			args: args{ctx: ctx, req: tableland.RunReadQueryRequest{
+				Statement: "select * from foo_1337_1",
+				Output:    tableland.Table,
+			}},
+			want:    `{"columns":[{"name":"name"},{"name":"age"},{"name":"info"}],"rows":[["bob",40,{"country":"CO"}],["jane",50,{"country":"NZ"}],["mark",20,{"country":"FR"}]]}`, // nolint
+			wantErr: false,
+		},
+		{
+			name: "objects, json strings",
+			args: args{ctx: ctx, req: tableland.RunReadQueryRequest{
+				Statement:   "select * from foo_1337_1",
+				Output:      tableland.Objects,
+				JSONStrings: true,
+			}},
+			want:    `[{"name":"bob","age":40,"info":"{\"country\":\"CO\"}"},{"name":"jane","age":50,"info":"{\"country\":\"NZ\"}"},{"name":"mark","age":20,"info":"{\"country\":\"FR\"}"}]`, // nolint
+			wantErr: false,
+		},
+		{
+			name: "objects",
+			args: args{ctx: ctx, req: tableland.RunReadQueryRequest{
+				Statement: "select * from foo_1337_1",
+				Output:    tableland.Objects,
+			}},
+			want:    `[{"name":"bob","age":40,"info":{"country":"CO"}},{"name":"jane","age":50,"info":{"country":"NZ"}},{"name":"mark","age":20,"info":{"country":"FR"}}]`, // nolint
+			wantErr: false,
+		},
+		{
+			name: "objects, json strings, extract",
+			args: args{ctx: ctx, req: tableland.RunReadQueryRequest{
+				Statement:   "select info from foo_1337_1",
+				Output:      tableland.Objects,
+				JSONStrings: true,
+				Extract:     true,
+			}},
+			want:    `["{\"country\":\"CO\"}","{\"country\":\"NZ\"}","{\"country\":\"FR\"}"]`,
+			wantErr: false,
+		},
+		{
+			name: "objects, extract",
+			args: args{ctx: ctx, req: tableland.RunReadQueryRequest{
+				Statement: "select info from foo_1337_1",
+				Output:    tableland.Objects,
+				Extract:   true,
+			}},
+			want:    `[{"country":"CO"},{"country":"NZ"},{"country":"FR"}]`,
+			wantErr: false,
+		},
+		{
+			name: "objects, extract error",
+			args: args{ctx: ctx, req: tableland.RunReadQueryRequest{
+				Statement: "select * from foo_1337_1",
+				Output:    tableland.Objects,
+				Extract:   true,
+			}},
+			wantErr: true,
+		},
+		{
+			name: "objects, unwrap",
+			args: args{ctx: ctx, req: tableland.RunReadQueryRequest{
+				Statement: "select * from foo_1337_1",
+				Output:    tableland.Objects,
+				Unwrap:    true,
+			}},
+			want: `{"name":"bob","age":40,"info":{"country":"CO"}}
+{"name":"jane","age":50,"info":{"country":"NZ"}}
+{"name":"mark","age":20,"info":{"country":"FR"}}`,
+			wantErr: false,
+		},
+		{
+			name: "objects, unwrap, json strings",
+			args: args{ctx: ctx, req: tableland.RunReadQueryRequest{
+				Statement:   "select * from foo_1337_1",
+				Output:      tableland.Objects,
+				Unwrap:      true,
+				JSONStrings: true,
+			}},
+			want: `{"name":"bob","age":40,"info":"{\"country\":\"CO\"}"}
+{"name":"jane","age":50,"info":"{\"country\":\"NZ\"}"}
+{"name":"mark","age":20,"info":"{\"country\":\"FR\"}"}`,
+			wantErr: false,
+		},
+
+		{
+			name: "objects, unwrap, extract",
+			args: args{ctx: ctx, req: tableland.RunReadQueryRequest{
+				Statement: "select info from foo_1337_1",
+				Output:    tableland.Objects,
+				Unwrap:    true,
+				Extract:   true,
+			}},
+			want: `{"country":"CO"}
+{"country":"NZ"}
+{"country":"FR"}`,
+			wantErr: false,
+		},
+		{
+			name: "objects, unwrap, extract, json strings",
+			args: args{ctx: ctx, req: tableland.RunReadQueryRequest{
+				Statement:   "select info from foo_1337_1",
+				Output:      tableland.Objects,
+				Unwrap:      true,
+				Extract:     true,
+				JSONStrings: true,
+			}},
+			want: `"{\"country\":\"CO\"}"
+			"{\"country\":\"NZ\"}"
+			"{\"country\":\"FR\"}"`,
+		},
+		{
+			name: "single string",
+			args: args{ctx: ctx, req: tableland.RunReadQueryRequest{
+				Statement: "select name from foo_1337_1 where name = 'bob'",
+				Output:    tableland.Objects,
+				Unwrap:    true,
+				Extract:   true,
+			}},
+			want: `"bob"`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := tbld.RunReadQuery(tt.args.ctx, tt.args.req)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("TablelandMesa.RunReadQuery() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if tt.wantErr {
+				return
+			}
+
+			var gotJSON string
+			if tt.args.req.Unwrap {
+				tt.want = "[" + tt.want + "]"
+				tt.want = strings.ReplaceAll(tt.want, "\n", ",")
+				gotJSON = string(got.Result.([]byte))
+				gotJSON = "[" + gotJSON + "]"
+				gotJSON = strings.ReplaceAll(gotJSON, "\n", ",")
+			} else {
+				b, err := json.Marshal(got.Result)
+				require.NoError(t, err)
+				gotJSON = string(b)
+			}
+
+			var o1 interface{}
+			var o2 interface{}
+			err = json.Unmarshal([]byte(tt.want), &o1)
+			require.NoError(t, err)
+			err = json.Unmarshal([]byte(gotJSON), &o2)
+			require.NoError(t, err)
+			if !reflect.DeepEqual(o1, o2) {
+				t.Errorf("TablelandMesa.RunReadQuery() = %v, want %v", gotJSON, tt.want)
+			}
+		})
+	}
 }
 
 func processCSV(
@@ -545,14 +751,15 @@ func processCSV(
 	caller common.Address,
 	tbld tableland.Tableland,
 	csvPath string,
-	backend *backends.SimulatedBackend) {
+	backend *backends.SimulatedBackend,
+) {
 	t.Helper()
 
 	ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller.Hex())
 	records := readCsvFile(t, csvPath)
 	for _, record := range records {
 		if record[0] == "r" {
-			req := tableland.RunReadQueryRequest{Statement: record[1]}
+			req := tableland.RunReadQueryRequest{Statement: record[1], Output: tableland.Table}
 			require.Eventually(t, jsonEq(ctx, t, tbld, req, record[2]), time.Second*5, time.Millisecond*100)
 		} else {
 			req := tableland.RelayWriteQueryRequest{Statement: record[1]}
@@ -568,7 +775,8 @@ func jsonEq(
 	t *testing.T,
 	tbld tableland.Tableland,
 	req tableland.RunReadQueryRequest,
-	expJSON string) func() bool {
+	expJSON string,
+) func() bool {
 	return func() bool {
 		r, err := tbld.RunReadQuery(ctx, req)
 		// if we get a table undefined error, try again
@@ -604,7 +812,8 @@ func runSQLCountEq(
 	tbld tableland.Tableland,
 	sql string,
 	address string,
-	expCount int) func() bool {
+	expCount int,
+) func() bool {
 	return func() bool {
 		response, err := runReadQuery(ctx, t, tbld, sql, address)
 		// if we get a table undefined error, try again
@@ -634,12 +843,14 @@ func runReadQuery(
 	t *testing.T,
 	tbld tableland.Tableland,
 	sql string,
-	controller string) (tableland.RunReadQueryResponse, error) {
+	controller string,
+) (tableland.RunReadQueryResponse, error) {
 	t.Helper()
 
 	ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, controller)
 	req := tableland.RunReadQueryRequest{
 		Statement: sql,
+		Output:    tableland.Table,
 	}
 
 	return tbld.RunReadQuery(ctx, req)
@@ -650,7 +861,8 @@ func relayWriteQuery(
 	t *testing.T,
 	tbld tableland.Tableland,
 	sql string,
-	controller string) (tableland.RelayWriteQueryResponse, error) {
+	controller string,
+) (tableland.RelayWriteQueryResponse, error) {
 	t.Helper()
 
 	ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, controller)
@@ -685,7 +897,8 @@ func setup(
 	tableland.Tableland,
 	*backends.SimulatedBackend,
 	*ethereum.Contract,
-	*bind.TransactOpts) {
+	*bind.TransactOpts,
+) {
 	t.Helper()
 
 	url := tests.Sqlite3URI()
@@ -746,7 +959,8 @@ func setupTablelandForTwoAddresses(t *testing.T) (context.Context,
 	*backends.SimulatedBackend,
 	*ethereum.Contract,
 	*bind.TransactOpts,
-	*bind.TransactOpts) {
+	*bind.TransactOpts,
+) {
 	t.Helper()
 
 	url := tests.Sqlite3URI()
@@ -834,7 +1048,8 @@ func (acl *aclHalfMock) CheckPrivileges(
 	tx *sql.Tx,
 	controller common.Address,
 	id tableland.TableID,
-	op tableland.Operation) (bool, error) {
+	op tableland.Operation,
+) (bool, error) {
 	aclImpl := NewACL(acl.sqlStore, nil)
 	return aclImpl.CheckPrivileges(ctx, tx, controller, id, op)
 }

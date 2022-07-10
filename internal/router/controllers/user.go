@@ -127,43 +127,57 @@ func (c *UserController) GetTableRow(rw http.ResponseWriter, r *http.Request) {
 	id, err := tableland.NewTableID(vars["id"])
 	if err != nil {
 		rw.WriteHeader(http.StatusBadRequest)
-		log.Ctx(r.Context()).
-			Error().
-			Err(err).
-			Msg("invalid id format")
-
 		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Invalid id format"})
+		log.Ctx(r.Context()).Error().Err(err).Msg("invalid id format")
 		return
 	}
 
 	chainID := vars["chainID"]
 	stm := fmt.Sprintf("select prefix from registry where id=%s and chain_id=%s LIMIT 1", id.String(), chainID)
-	prefixRow, ok := c.runReadRequest(r.Context(), stm, rw)
-	if !ok {
+	res, err := c.runReadRequest(r.Context(), tableland.RunReadQueryRequest{Statement: stm, Unwrap: true, Extract: true})
+	if err != nil {
+		rw.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: err.Error()})
+		log.Ctx(r.Context()).Error().Str("sqlRequest", stm).Err(err)
 		return
 	}
 
-	prefix := (*prefixRow.Rows[0][0].(*interface{})).(string)
+	var prefix string
+	if err := json.Unmarshal(res.([]byte), &prefix); err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: err.Error()})
+		log.Ctx(r.Context()).Error().Err(err)
+		return
+	}
 
 	stm = fmt.Sprintf(
-		"SELECT * FROM %s_%s_%s WHERE %s=%s LIMIT 1", prefix, chainID, id.String(), vars["key"], vars["value"])
-	rows, ok := c.runReadRequest(r.Context(), stm, rw)
-	if !ok {
+		"SELECT * FROM %s_%s_%s WHERE %s=%s LIMIT 1", prefix, chainID, id.String(), vars["key"], vars["value"],
+	)
+	req := tableland.RunReadQueryRequest{Statement: stm}
+	if err := setReadParams(&req, r); err != nil {
+		rw.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: err.Error()})
+		log.Ctx(r.Context()).Error().Err(err)
 		return
 	}
 
 	var out interface{}
 	switch format {
 	case "erc721":
+		req.Output = tableland.Table
+		res, err := c.runReadRequest(r.Context(), req)
+		if err != nil {
+			rw.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: err.Error()})
+			log.Ctx(r.Context()).Error().Str("sqlRequest", stm).Err(err)
+			return
+		}
+		rows := res.(*sqlstore.UserRows)
 		var mdc MetadataConfig
 		if err := urlquery.Unmarshal([]byte(r.URL.RawQuery), &mdc); err != nil {
 			rw.WriteHeader(http.StatusBadRequest)
-			log.Ctx(r.Context()).
-				Error().
-				Err(err).
-				Msg("invalid metadata config")
-
 			_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Invalid metadata config"})
+			log.Ctx(r.Context()).Error().Err(err).Msg("invalid metadata config")
 			return
 		}
 
@@ -180,180 +194,96 @@ func (c *UserController) GetTableRow(rw http.ResponseWriter, r *http.Request) {
 		}
 		out = md
 	default:
-		out = rows
+		res, err := c.runReadRequest(r.Context(), req)
+		if err != nil {
+			rw.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: err.Error()})
+			log.Ctx(r.Context()).Error().Str("sqlRequest", stm).Err(err)
+			return
+		}
+		out = res
 	}
 
 	rw.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(rw).Encode(out)
 }
 
-// FormatMode is used to contract the output format of a query specified with a "mode" query param.
-type FormatMode string
-
-const (
-	// ColumnsMode returns the query result with columns. This is the default mode.
-	ColumnsMode FormatMode = "columns"
-	// RowsMode returns the query result with rows only (no columns).
-	RowsMode FormatMode = "rows"
-	// JSONMode returns the query result as JSON key-value pairs.
-	JSONMode FormatMode = "json"
-	// CSVMode returns the query result as a comma-separated values. The first line contains the column header.
-	CSVMode FormatMode = "csv"
-	// ListMode returns the query result with each row on a new line. Column values are pipe-separated.
-	ListMode FormatMode = "list"
-)
-
-var modes = map[string]FormatMode{
-	"columns": ColumnsMode,
-	"rows":    RowsMode,
-	"json":    JSONMode,
-	"csv":     CSVMode,
-	"list":    ListMode,
-}
-
-func modeFromString(m string) (FormatMode, bool) {
-	mode, ok := modes[m]
-	return mode, ok
-}
-
 // GetTableQuery handles the GET /query?s=[statement] call.
-// Use mode=columns|rows|json|lines query param to control output format.
+// Use output=table|objects, unwrap=true|false, json_strings=true|false, extract=true|false
+// query params to control output format.
 func (c *UserController) GetTableQuery(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-type", "application/json")
 
-	stm := r.URL.Query().Get("s")
-	rows, ok := c.runReadRequest(r.Context(), stm, rw)
-	if !ok {
+	req := tableland.RunReadQueryRequest{}
+	if err := setReadParams(&req, r); err != nil {
+		rw.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: err.Error()})
+		log.Ctx(r.Context()).Error().Err(err)
+		return
+	}
+
+	res, err := c.runReadRequest(r.Context(), req)
+	if err != nil {
+		rw.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: err.Error()})
+		log.Ctx(r.Context()).Error().Str("sqlRequest", req.Statement).Err(err)
 		return
 	}
 
 	rw.WriteHeader(http.StatusOK)
 	encoder := json.NewEncoder(rw)
 
-	modestr := r.URL.Query().Get("mode")
-	mode, ok := modeFromString(modestr)
-	if !ok {
-		mode = ColumnsMode
+	_ = encoder.Encode(res)
+}
+
+func setReadParams(req *tableland.RunReadQueryRequest, r *http.Request) error {
+	stm := r.URL.Query().Get("s")
+	output := r.URL.Query().Get("output")
+	extract := r.URL.Query().Get("extract")
+	unwrap := r.URL.Query().Get("unwrap")
+	jsonStrings := r.URL.Query().Get("json_strings")
+
+	if stm != "" {
+		req.Statement = stm
 	}
-	switch mode {
-	case ColumnsMode:
-		_ = encoder.Encode(rows)
-	case RowsMode:
-		_ = encoder.Encode(rows.Rows)
-	case JSONMode:
-		jsonrows := make([]map[string]interface{}, len(rows.Rows))
-		for i, row := range rows.Rows {
-			jsonrow := make(map[string]interface{}, len(row))
-			for j, col := range row {
-				jsonrow[rows.Columns[j].Name] = col
-			}
-			jsonrows[i] = jsonrow
+	if output != "" {
+		output, ok := tableland.OutputFromString(output)
+		if !ok {
+			return fmt.Errorf("bad output query parameter")
 		}
-		_ = encoder.Encode(jsonrows)
-	case CSVMode:
-		rw.Header().Set("Content-type", "text/csv")
-		for i, col := range rows.Columns {
-			if i > 0 {
-				_, _ = rw.Write([]byte(","))
-			}
-			_, _ = rw.Write([]byte(col.Name))
-		}
-		_, _ = rw.Write([]byte("\n"))
-		for _, row := range rows.Rows {
-			for j, col := range row {
-				if j > 0 {
-					_, _ = rw.Write([]byte(","))
-				}
-
-				b, err := json.Marshal(col)
-				if err != nil {
-					rw.WriteHeader(http.StatusBadRequest)
-					log.Ctx(r.Context()).
-						Error().
-						Str("sqlRequest", stm).
-						Err(err)
-
-					_ = encoder.Encode(errors.ServiceError{Message: err.Error()})
-					return
-				}
-				_, _ = rw.Write(b)
-			}
-			_, _ = rw.Write([]byte("\n"))
-		}
-	case ListMode:
-		rw.Header().Set("Content-type", "application/jsonl+json")
-		for _, row := range rows.Rows {
-			for j, col := range row {
-				if j > 0 {
-					_, _ = rw.Write([]byte("|"))
-				}
-
-				b, err := json.Marshal(col)
-				if err != nil {
-					rw.WriteHeader(http.StatusBadRequest)
-					log.Ctx(r.Context()).
-						Error().
-						Str("sqlRequest", stm).
-						Err(err)
-
-					_ = encoder.Encode(errors.ServiceError{Message: err.Error()})
-					return
-				}
-				_, _ = rw.Write(b)
-			}
-			_, _ = rw.Write([]byte("\n"))
-		}
-	default:
-		rw.WriteHeader(http.StatusBadRequest)
-		err := fmt.Errorf("unrecognized mode: %s", modestr)
-		log.Ctx(r.Context()).
-			Error().
-			Str("mode", modestr).
-			Err(err)
-
-		_ = encoder.Encode(errors.ServiceError{Message: err.Error()})
+		req.Output = output
 	}
+	if extract != "" {
+		extract, err := strconv.ParseBool(extract)
+		if err != nil {
+			return err
+		}
+		req.Extract = extract
+	}
+	if unwrap != "" {
+		unwrap, err := strconv.ParseBool(unwrap)
+		if err != nil {
+			return err
+		}
+		req.Unwrap = unwrap
+	}
+	if jsonStrings != "" {
+		jsonStrings, err := strconv.ParseBool(jsonStrings)
+		if err != nil {
+			return err
+		}
+		req.JSONStrings = jsonStrings
+	}
+	return nil
 }
 
 func (c *UserController) runReadRequest(
 	ctx context.Context,
-	stm string,
-	rw http.ResponseWriter) (*sqlstore.UserRows, bool) {
-	req := tableland.RunReadQueryRequest{
-		Statement: stm,
-	}
+	req tableland.RunReadQueryRequest,
+) (interface{}, error) {
 	res, err := c.runner.RunReadQuery(ctx, req)
 	if err != nil {
-		rw.WriteHeader(http.StatusBadRequest)
-		log.Ctx(ctx).
-			Error().
-			Str("sqlRequest", req.Statement).
-			Err(err)
-
-		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: err.Error()})
-		return nil, false
+		return nil, err
 	}
-
-	rows, ok := res.Result.(*sqlstore.UserRows)
-	if !ok {
-		rw.WriteHeader(http.StatusBadRequest)
-		log.Ctx(ctx).
-			Error().
-			Err(err).
-			Msg("bad query result")
-
-		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Bad query result"})
-		return nil, false
-	}
-	if len(rows.Rows) == 0 {
-		rw.WriteHeader(http.StatusNotFound)
-		log.Ctx(ctx).
-			Error().
-			Err(err).
-			Msg("row not found")
-
-		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Row not found"})
-		return nil, false
-	}
-	return rows, true
+	return res.Result, nil
 }

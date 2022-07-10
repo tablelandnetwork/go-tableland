@@ -30,12 +30,12 @@ func New(sqliteURI string) (*UserStore, error) {
 }
 
 // Read executes a read statement on the db.
-func (db *UserStore) Read(ctx context.Context, rq parsing.ReadStmt) (interface{}, error) {
+func (db *UserStore) Read(ctx context.Context, rq parsing.ReadStmt, jsonStrings bool) (*sqlstore.UserRows, error) {
 	query, err := rq.GetQuery()
 	if err != nil {
 		return nil, fmt.Errorf("get query: %s", err)
 	}
-	ret, err := execReadQuery(ctx, db.pool, query)
+	ret, err := execReadQuery(ctx, db.pool, query, jsonStrings)
 	if err != nil {
 		return nil, fmt.Errorf("parsing result to json: %s", err)
 	}
@@ -50,7 +50,7 @@ func (db *UserStore) Close() error {
 	return nil
 }
 
-func execReadQuery(ctx context.Context, tx *sql.DB, q string) (*sqlstore.UserRows, error) {
+func execReadQuery(ctx context.Context, tx *sql.DB, q string, jsonStrings bool) (*sqlstore.UserRows, error) {
 	rows, err := tx.QueryContext(ctx, q)
 	if err != nil {
 		return nil, fmt.Errorf("executing query: %s", err)
@@ -60,5 +60,5 @@ func execReadQuery(ctx context.Context, tx *sql.DB, q string) (*sqlstore.UserRow
 			log.Warn().Err(err).Msg("closing rows")
 		}
 	}()
-	return rowsToJSON(rows)
+	return rowsToJSON(rows, jsonStrings)
 }
