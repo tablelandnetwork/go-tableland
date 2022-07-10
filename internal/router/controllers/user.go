@@ -141,6 +141,13 @@ func (c *UserController) GetTableRow(rw http.ResponseWriter, r *http.Request) {
 		log.Ctx(r.Context()).Error().Str("sqlRequest", stm).Err(err)
 		return
 	}
+	bytes := res.([]byte)
+	if len(bytes) == 0 {
+		rw.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "table not found"})
+		log.Ctx(r.Context()).Info().Str("sqlRequest", stm).Msg("table not found")
+		return
+	}
 
 	var prefix string
 	if err := json.Unmarshal(res.([]byte), &prefix); err != nil {

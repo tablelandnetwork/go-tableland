@@ -706,6 +706,16 @@ func TestRunReadQueryParams(t *testing.T) {
 			}},
 			want: `"bob"`,
 		},
+		{
+			name: "single not found string",
+			args: args{ctx: ctx, req: tableland.RunReadQueryRequest{
+				Statement: "select name from foo_1337_1 where name = 'alice'",
+				Output:    tableland.Objects,
+				Unwrap:    true,
+				Extract:   true,
+			}},
+			want: "",
+		},
 	}
 
 	for _, tt := range tests {
