@@ -58,12 +58,14 @@ func (t *TablelandMesa) ValidateWriteQuery(
 	if !ok || controller == "" {
 		return tableland.ValidateWriteQueryResponse{}, errors.New("no controller address found in context")
 	}
+
 	ctxChainID := ctx.Value(middlewares.ContextKeyChainID)
 	chainID, ok := ctxChainID.(tableland.ChainID)
 	if !ok {
 		return tableland.ValidateWriteQueryResponse{}, errors.New("no chain id found in context")
 	}
-	_, chainOk := t.chainStacks[chainID]
+
+	stack, chainOk := t.chainStacks[chainID]
 	if !chainOk {
 		return tableland.ValidateWriteQueryResponse{}, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
 	}
@@ -74,6 +76,19 @@ func (t *TablelandMesa) ValidateWriteQuery(
 	}
 
 	tableID := mutatingStmts[0].GetTableID()
+
+	table, err := stack.Store.GetTable(ctx, tableID)
+
+	// if the tableID is not valid err will exist
+	if err != nil {
+		return tableland.ValidateWriteQueryResponse{}, fmt.Errorf("getting table: %s", err)
+	}
+	// if the prefix is wrong the statement is not valid
+	prefix := mutatingStmts[0].GetPrefix()
+	if table.Prefix != prefix {
+		return tableland.ValidateWriteQueryResponse{}, fmt.Errorf(
+			"table prefix doesn't match (exp %s, got %s)", table.Prefix, prefix)
+	}
 
 	response := tableland.ValidateWriteQueryResponse{}
 	response.TableID = tableID.String()
