@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUserData(t *testing.T) {
-	ud := &UserData{}
+func TestUserValue(t *testing.T) {
+	ud := &UserValue{}
 
 	var in0 int64 = 100
 	require.NoError(t, ud.Scan(in0))

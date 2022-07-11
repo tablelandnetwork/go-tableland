@@ -377,7 +377,7 @@ func setup(t *testing.T) (
 		queryRes := res.(*sqlstore.UserRows)
 		ret := make([]int64, len(queryRes.Rows))
 		for i := range queryRes.Rows {
-			ret[i] = (*queryRes.Rows[i][0].(*sqlstore.UserData)).Value().(int64)
+			ret[i] = (*queryRes.Rows[i][0].(*sqlstore.UserValue)).Value().(int64)
 		}
 		return ret
 	}
