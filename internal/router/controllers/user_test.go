@@ -155,15 +155,13 @@ type runnerMock struct {
 
 func (rm *runnerMock) RunReadQuery(
 	ctx context.Context,
-	req tableland.RunReadQueryRequest) (tableland.RunReadQueryResponse, error) {
+	req tableland.RunReadQueryRequest,
+) (tableland.RunReadQueryResponse, error) {
 	if rm.counter == 0 {
 		rm.counter++
-		ptr := new(interface{}) // nolint
-		var str interface{} = "foo"
-		ptr = &str
 		return tableland.RunReadQueryResponse{
 			Result: &sqlstore.UserRows{
-				Rows: [][]interface{}{{ptr}},
+				Rows: [][]*sqlstore.UserValue{{sqlstore.OtherUserValue("foo")}},
 			},
 		}, nil
 	}
@@ -184,21 +182,21 @@ func (rm *runnerMock) RunReadQuery(
 				{Name: "stamina_increase"},
 				{Name: "generation"},
 			},
-			Rows: [][]interface{}{
+			Rows: [][]*sqlstore.UserValue{
 				{
-					1,
-					"Friendly OpenSea Creature that enjoys long swims in the ocean.",
-					"https://storage.googleapis.com/opensea-prod.appspot.com/creature/3.png",
-					"https://example.com/?token_id=3",
-					"Starfish",
-					"Big",
-					"Surprised",
-					5,
-					1.4,
-					"Sad",
-					40,
-					10,
-					2,
+					sqlstore.OtherUserValue(1),
+					sqlstore.OtherUserValue("Friendly OpenSea Creature that enjoys long swims in the ocean."),
+					sqlstore.OtherUserValue("https://storage.googleapis.com/opensea-prod.appspot.com/creature/3.png"),
+					sqlstore.OtherUserValue("https://example.com/?token_id=3"),
+					sqlstore.OtherUserValue("Starfish"),
+					sqlstore.OtherUserValue("Big"),
+					sqlstore.OtherUserValue("Surprised"),
+					sqlstore.OtherUserValue(5),
+					sqlstore.OtherUserValue(1.4),
+					sqlstore.OtherUserValue("Sad"),
+					sqlstore.OtherUserValue(40),
+					sqlstore.OtherUserValue(10),
+					sqlstore.OtherUserValue(2),
 				},
 			},
 		},
@@ -209,7 +207,8 @@ type badRequestRunnerMock struct{}
 
 func (*badRequestRunnerMock) RunReadQuery(
 	ctx context.Context,
-	req tableland.RunReadQueryRequest) (tableland.RunReadQueryResponse, error) {
+	req tableland.RunReadQueryRequest,
+) (tableland.RunReadQueryResponse, error) {
 	return tableland.RunReadQueryResponse{
 		Result: "bad result",
 	}, nil
@@ -219,7 +218,8 @@ type notFoundRunnerMock struct{}
 
 func (*notFoundRunnerMock) RunReadQuery(
 	ctx context.Context,
-	req tableland.RunReadQueryRequest) (tableland.RunReadQueryResponse, error) {
+	req tableland.RunReadQueryRequest,
+) (tableland.RunReadQueryResponse, error) {
 	return tableland.RunReadQueryResponse{
 		Result: &sqlstore.UserRows{
 			Columns: []sqlstore.UserColumn{
@@ -237,7 +237,7 @@ func (*notFoundRunnerMock) RunReadQuery(
 				{Name: "stamina_increase"},
 				{Name: "generation"},
 			},
-			Rows: [][]interface{}{},
+			Rows: [][]*sqlstore.UserValue{},
 		},
 	}, nil
 }
@@ -246,7 +246,8 @@ type queryRunnerMock struct{}
 
 func (rm *queryRunnerMock) RunReadQuery(
 	ctx context.Context,
-	req tableland.RunReadQueryRequest) (tableland.RunReadQueryResponse, error) {
+	req tableland.RunReadQueryRequest,
+) (tableland.RunReadQueryResponse, error) {
 	return tableland.RunReadQueryResponse{
 		Result: &sqlstore.UserRows{
 			Columns: []sqlstore.UserColumn{
@@ -254,21 +255,21 @@ func (rm *queryRunnerMock) RunReadQuery(
 				{Name: "eyes"},
 				{Name: "mouth"},
 			},
-			Rows: [][]interface{}{
+			Rows: [][]*sqlstore.UserValue{
 				{
-					1,
-					"Big",
-					"Surprised",
+					sqlstore.OtherUserValue(1),
+					sqlstore.OtherUserValue("Big"),
+					sqlstore.OtherUserValue("Surprised"),
 				},
 				{
-					2,
-					"Medium",
-					"Sad",
+					sqlstore.OtherUserValue(2),
+					sqlstore.OtherUserValue("Medium"),
+					sqlstore.OtherUserValue("Sad"),
 				},
 				{
-					3,
-					"Small",
-					"Happy",
+					sqlstore.OtherUserValue(3),
+					sqlstore.OtherUserValue("Small"),
+					sqlstore.OtherUserValue("Happy"),
 				},
 			},
 		},

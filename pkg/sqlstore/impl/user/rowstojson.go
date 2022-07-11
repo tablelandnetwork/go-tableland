@@ -2,9 +2,7 @@ package user
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 )
@@ -37,31 +35,22 @@ func getColumnsData(rows *sql.Rows) ([]sqlstore.UserColumn, error) {
 	return columns, nil
 }
 
-func getRowsData(rows *sql.Rows, numColumns int) ([][]interface{}, error) {
-	rowsData := make([][]interface{}, 0)
+func getRowsData(rows *sql.Rows, numColumns int) ([][]*sqlstore.UserValue, error) {
+	rowsData := make([][]*sqlstore.UserValue, 0)
 	for rows.Next() {
-		scanArgs := make([]interface{}, numColumns)
-		for i := range scanArgs {
-			scanArgs[i] = new(interface{})
+		vals := make([]*sqlstore.UserValue, numColumns)
+		for i := range vals {
+			val := &sqlstore.UserValue{}
+			vals[i] = val
+		}
+		scanArgs := make([]interface{}, len(vals))
+		for i := range vals {
+			scanArgs[i] = vals[i]
 		}
 		if err := rows.Scan(scanArgs...); err != nil {
 			return nil, fmt.Errorf("scan row column: %s", err)
 		}
-		for i, scanArg := range scanArgs {
-			switch src := (*scanArg.(*interface{})).(type) {
-			case string:
-				trimmed := strings.TrimLeft(src, " ")
-				if (strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "[")) && json.Valid([]byte(trimmed)) {
-					scanArgs[i] = []byte(trimmed)
-				}
-			case []byte:
-				tmp := make([]byte, len(src))
-				copy(tmp, src)
-				scanArgs[i] = tmp
-			}
-		}
-		rowsData = append(rowsData, scanArgs)
+		rowsData = append(rowsData, vals)
 	}
-
 	return rowsData, nil
 }
