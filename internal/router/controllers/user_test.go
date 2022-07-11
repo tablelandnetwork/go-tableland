@@ -84,7 +84,7 @@ func TestUserControllerRowNotFound(t *testing.T) {
 
 	require.Equal(t, http.StatusNotFound, rr.Code)
 
-	expJSON := `{"message": "Row not found"}`
+	expJSON := `{"message": "table not found"}`
 	require.JSONEq(t, expJSON, rr.Body.String())
 }
 

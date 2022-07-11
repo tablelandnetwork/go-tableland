@@ -3,6 +3,7 @@ package impl
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -104,28 +105,37 @@ func (t *TablelandMesa) RunReadQuery(
 		return tableland.RunReadQueryResponse{}, fmt.Errorf("running read statement: %s", err)
 	}
 
+	count := len(queryResult.Rows)
+
 	if req.Output == tableland.Table {
-		return tableland.RunReadQueryResponse{Result: queryResult}, nil
+		return tableland.RunReadQueryResponse{Result: queryResult, RowCount: count}, nil
 	}
 
-	res := toObjects(queryResult)
+	objects := toObjects(queryResult)
 	if req.Extract {
-		res, err = extract(res)
+		objects, err = extract(objects)
 		if err != nil {
 			return tableland.RunReadQueryResponse{}, fmt.Errorf("extracting values: %s", err)
 		}
 	}
 
 	if !req.Unwrap {
-		return tableland.RunReadQueryResponse{Result: res}, nil
+		return tableland.RunReadQueryResponse{Result: objects, RowCount: count}, nil
 	}
 
-	unwrapped, err := unwrap(res)
+	unwrapped, err := unwrap(objects)
 	if err != nil {
 		return tableland.RunReadQueryResponse{}, fmt.Errorf("unwrapping values: %s", err)
 	}
 
-	return tableland.RunReadQueryResponse{Result: unwrapped}, nil
+	var res interface{} = unwrapped
+	if ctx.Value(tableland.UserControllerContextKey) == nil && count > 1 {
+		// This is a JSON RPC request so we can't embed multiline
+		// jsonl without encoding it as base64.
+		res = base64.StdEncoding.EncodeToString(unwrapped)
+	}
+
+	return tableland.RunReadQueryResponse{Result: res, RowCount: count}, nil
 }
 
 // GetReceipt returns the receipt of a processed event by txn hash.

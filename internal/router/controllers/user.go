@@ -120,6 +120,7 @@ func userRowToMap(cols []sqlstore.UserColumn, row []interface{}) map[string]inte
 // GetTableRow handles the GET /chain/{chainID}/tables/{id}/{key}/{value} call.
 // Use format=erc721 query param to generate JSON for ERC721 metadata.
 func (c *UserController) GetTableRow(rw http.ResponseWriter, r *http.Request) {
+	ctx := context.WithValue(r.Context(), tableland.UserControllerContextKey, true)
 	rw.Header().Set("Content-type", "application/json")
 	vars := mux.Vars(r)
 	format := r.URL.Query().Get("format")
@@ -128,32 +129,32 @@ func (c *UserController) GetTableRow(rw http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		rw.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Invalid id format"})
-		log.Ctx(r.Context()).Error().Err(err).Msg("invalid id format")
+		log.Ctx(ctx).Error().Err(err).Msg("invalid id format")
 		return
 	}
 
 	chainID := vars["chainID"]
 	stm := fmt.Sprintf("select prefix from registry where id=%s and chain_id=%s LIMIT 1", id.String(), chainID)
-	res, err := c.runReadRequest(r.Context(), tableland.RunReadQueryRequest{Statement: stm, Unwrap: true, Extract: true})
+	res, err := c.runner.RunReadQuery(ctx, tableland.RunReadQueryRequest{Statement: stm, Unwrap: true, Extract: true})
 	if err != nil {
 		rw.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: err.Error()})
-		log.Ctx(r.Context()).Error().Str("sqlRequest", stm).Err(err)
+		log.Ctx(ctx).Error().Str("sqlRequest", stm).Err(err)
 		return
 	}
-	bytes := res.([]byte)
+	bytes := res.Result.([]byte)
 	if len(bytes) == 0 {
 		rw.WriteHeader(http.StatusNotFound)
 		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "table not found"})
-		log.Ctx(r.Context()).Info().Str("sqlRequest", stm).Msg("table not found")
+		log.Ctx(ctx).Info().Str("sqlRequest", stm).Msg("table not found")
 		return
 	}
 
 	var prefix string
-	if err := json.Unmarshal(res.([]byte), &prefix); err != nil {
+	if err := json.Unmarshal(bytes, &prefix); err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: err.Error()})
-		log.Ctx(r.Context()).Error().Err(err)
+		log.Ctx(ctx).Error().Err(err)
 		return
 	}
 
@@ -164,7 +165,7 @@ func (c *UserController) GetTableRow(rw http.ResponseWriter, r *http.Request) {
 	if err := setReadParams(&req, r); err != nil {
 		rw.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: err.Error()})
-		log.Ctx(r.Context()).Error().Err(err)
+		log.Ctx(ctx).Error().Err(err)
 		return
 	}
 
@@ -172,19 +173,19 @@ func (c *UserController) GetTableRow(rw http.ResponseWriter, r *http.Request) {
 	switch format {
 	case "erc721":
 		req.Output = tableland.Table
-		res, err := c.runReadRequest(r.Context(), req)
+		res, err := c.runner.RunReadQuery(ctx, req)
 		if err != nil {
 			rw.WriteHeader(http.StatusBadRequest)
 			_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: err.Error()})
-			log.Ctx(r.Context()).Error().Str("sqlRequest", stm).Err(err)
+			log.Ctx(ctx).Error().Str("sqlRequest", stm).Err(err)
 			return
 		}
-		rows := res.(*sqlstore.UserRows)
+		rows := res.Result.(*sqlstore.UserRows)
 		var mdc MetadataConfig
 		if err := urlquery.Unmarshal([]byte(r.URL.RawQuery), &mdc); err != nil {
 			rw.WriteHeader(http.StatusBadRequest)
 			_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Invalid metadata config"})
-			log.Ctx(r.Context()).Error().Err(err).Msg("invalid metadata config")
+			log.Ctx(ctx).Error().Err(err).Msg("invalid metadata config")
 			return
 		}
 
@@ -201,14 +202,17 @@ func (c *UserController) GetTableRow(rw http.ResponseWriter, r *http.Request) {
 		}
 		out = md
 	default:
-		res, err := c.runReadRequest(r.Context(), req)
+		res, err := c.runner.RunReadQuery(ctx, req)
 		if err != nil {
 			rw.WriteHeader(http.StatusBadRequest)
 			_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: err.Error()})
-			log.Ctx(r.Context()).Error().Str("sqlRequest", stm).Err(err)
+			log.Ctx(ctx).Error().Str("sqlRequest", stm).Err(err)
 			return
 		}
-		out = res
+		if res.RowCount > 1 && req.Unwrap {
+			rw.Header().Set("Content-type", "application/jsonl+json")
+		}
+		out = res.Result
 	}
 
 	rw.WriteHeader(http.StatusOK)
@@ -219,28 +223,33 @@ func (c *UserController) GetTableRow(rw http.ResponseWriter, r *http.Request) {
 // Use output=table|objects, unwrap=true|false, json_strings=true|false, extract=true|false
 // query params to control output format.
 func (c *UserController) GetTableQuery(rw http.ResponseWriter, r *http.Request) {
+	ctx := context.WithValue(r.Context(), tableland.UserControllerContextKey, true)
 	rw.Header().Set("Content-type", "application/json")
 
 	req := tableland.RunReadQueryRequest{}
 	if err := setReadParams(&req, r); err != nil {
 		rw.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: err.Error()})
-		log.Ctx(r.Context()).Error().Err(err)
+		log.Ctx(ctx).Error().Err(err)
 		return
 	}
 
-	res, err := c.runReadRequest(r.Context(), req)
+	res, err := c.runner.RunReadQuery(ctx, req)
 	if err != nil {
 		rw.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: err.Error()})
-		log.Ctx(r.Context()).Error().Str("sqlRequest", req.Statement).Err(err)
+		log.Ctx(ctx).Error().Str("sqlRequest", req.Statement).Err(err)
 		return
+	}
+
+	if res.RowCount > 1 && req.Unwrap {
+		rw.Header().Set("Content-type", "application/jsonl+json")
 	}
 
 	rw.WriteHeader(http.StatusOK)
 	encoder := json.NewEncoder(rw)
 
-	_ = encoder.Encode(res)
+	_ = encoder.Encode(res.Result)
 }
 
 func setReadParams(req *tableland.RunReadQueryRequest, r *http.Request) error {
@@ -282,15 +291,4 @@ func setReadParams(req *tableland.RunReadQueryRequest, r *http.Request) error {
 		req.JSONStrings = jsonStrings
 	}
 	return nil
-}
-
-func (c *UserController) runReadRequest(
-	ctx context.Context,
-	req tableland.RunReadQueryRequest,
-) (interface{}, error) {
-	res, err := c.runner.RunReadQuery(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-	return res.Result, nil
 }

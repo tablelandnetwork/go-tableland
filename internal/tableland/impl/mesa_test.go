@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"database/sql"
+	"encoding/base64"
 	"encoding/csv"
 	"encoding/hex"
 	"encoding/json"
@@ -693,8 +694,8 @@ func TestRunReadQueryParams(t *testing.T) {
 				JSONStrings: true,
 			}},
 			want: `"{\"country\":\"CO\"}"
-			"{\"country\":\"NZ\"}"
-			"{\"country\":\"FR\"}"`,
+"{\"country\":\"NZ\"}"
+"{\"country\":\"FR\"}"`,
 		},
 		{
 			name: "single string",
@@ -733,8 +734,14 @@ func TestRunReadQueryParams(t *testing.T) {
 			if tt.args.req.Unwrap {
 				tt.want = "[" + tt.want + "]"
 				tt.want = strings.ReplaceAll(tt.want, "\n", ",")
-				gotJSON = string(got.Result.([]byte))
-				gotJSON = "[" + gotJSON + "]"
+				var gotBytes []byte
+				if got.RowCount > 1 {
+					gotBytes, err = base64.StdEncoding.DecodeString(got.Result.(string))
+					require.NoError(t, err)
+				} else {
+					gotBytes = got.Result.([]byte)
+				}
+				gotJSON = "[" + string(gotBytes) + "]"
 				gotJSON = strings.ReplaceAll(gotJSON, "\n", ",")
 			} else {
 				b, err := json.Marshal(got.Result)

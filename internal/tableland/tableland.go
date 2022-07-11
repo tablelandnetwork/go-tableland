@@ -6,6 +6,12 @@ import (
 	"math/big"
 )
 
+// TablelandContextKey is used for context keys.
+type TablelandContextKey string
+
+// UserControllerContextKey is set by the user controller to indicate requests coming form the user controller.
+const UserControllerContextKey TablelandContextKey = "usercontroller"
+
 // RelayWriteQueryRequest is a user RelayWriteQuery request.
 type RelayWriteQueryRequest struct {
 	Statement string `json:"statement"`
@@ -50,7 +56,8 @@ type RunReadQueryRequest struct {
 
 // RunReadQueryResponse is a RunReadQuery response.
 type RunReadQueryResponse struct {
-	Result interface{} `json:"data"`
+	Result   interface{} `json:"data"`
+	RowCount int         `json:"row_count"`
 }
 
 // GetReceiptRequest is a GetTxnReceipt request.
