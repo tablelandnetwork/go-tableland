@@ -19,14 +19,14 @@ type UserRows struct {
 	Rows    [][]interface{} `json:"rows"`
 }
 
-// UserData wraps data from the db that may be raw json or any other value.
-type UserData struct {
+// UserValue wraps data from the db that may be raw json or any other value.
+type UserValue struct {
 	jsonValue  json.RawMessage
 	otherValue interface{}
 }
 
 // Value returns the underlying value.
-func (u *UserData) Value() interface{} {
+func (u *UserValue) Value() interface{} {
 	if u.jsonValue != nil {
 		return u.jsonValue
 	}
@@ -34,7 +34,7 @@ func (u *UserData) Value() interface{} {
 }
 
 // Scan implements Scan.
-func (u *UserData) Scan(src interface{}) error {
+func (u *UserValue) Scan(src interface{}) error {
 	u.jsonValue = nil
 	u.otherValue = nil
 	switch src := src.(type) {
@@ -55,7 +55,7 @@ func (u *UserData) Scan(src interface{}) error {
 }
 
 // MarshalJSON implements MarshalJSON.
-func (u *UserData) MarshalJSON() ([]byte, error) {
+func (u *UserValue) MarshalJSON() ([]byte, error) {
 	if u.jsonValue != nil {
 		return u.jsonValue, nil
 	}

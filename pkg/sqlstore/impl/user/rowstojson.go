@@ -40,7 +40,7 @@ func getRowsData(rows *sql.Rows, numColumns int) ([][]interface{}, error) {
 	for rows.Next() {
 		scanArgs := make([]interface{}, numColumns)
 		for i := range scanArgs {
-			scanArgs[i] = &sqlstore.UserData{}
+			scanArgs[i] = &sqlstore.UserValue{}
 		}
 		if err := rows.Scan(scanArgs...); err != nil {
 			return nil, fmt.Errorf("scan row column: %s", err)
