@@ -53,7 +53,7 @@ paths:
                   id: 1
                   params:
                     - id: "0"
-                      statement: "INSERT INTO myname_31337_2 (column_a, column_b) VALUES (1, 'b');"
+                      statement: "INSERT INTO healthbot_31337_1 VALUES (1);"
               runReadQuery:
                 value:
                   jsonrpc: "2.0"
