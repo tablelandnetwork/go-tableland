@@ -15,8 +15,8 @@ type UserColumn struct {
 
 // UserRows defines a row result.
 type UserRows struct {
-	Columns []UserColumn    `json:"columns"`
-	Rows    [][]interface{} `json:"rows"`
+	Columns []UserColumn   `json:"columns"`
+	Rows    [][]*UserValue `json:"rows"`
 }
 
 // UserValue wraps data from the db that may be raw json or any other value.
@@ -46,7 +46,8 @@ func (u *UserValue) Scan(src interface{}) error {
 			u.otherValue = src
 		}
 	case []byte:
-		tmp := src
+		tmp := make([]byte, len(src))
+		copy(tmp, src)
 		u.otherValue = tmp
 	default:
 		u.otherValue = src
@@ -60,6 +61,16 @@ func (u *UserValue) MarshalJSON() ([]byte, error) {
 		return u.jsonValue, nil
 	}
 	return json.Marshal(u.otherValue)
+}
+
+// JSONUserValue creates a UserValue with the provided json.
+func JSONUserValue(v json.RawMessage) *UserValue {
+	return &UserValue{jsonValue: v}
+}
+
+// OtherUserValue creates a UserValue with the provided other value.
+func OtherUserValue(v interface{}) *UserValue {
+	return &UserValue{otherValue: v}
 }
 
 // UserStore defines the methods for interacting with user data.

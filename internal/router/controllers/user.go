@@ -70,7 +70,7 @@ type Attribute struct {
 	Value       interface{} `json:"value"`
 }
 
-func metadataConfigToMetadata(row map[string]interface{}, config MetadataConfig) Metadata {
+func metadataConfigToMetadata(row map[string]*sqlstore.UserValue, config MetadataConfig) Metadata {
 	var md Metadata
 	if v, ok := row[config.Image]; ok {
 		md.Image = v
@@ -89,9 +89,9 @@ func metadataConfigToMetadata(row map[string]interface{}, config MetadataConfig)
 	}
 	if v, ok := row[config.Name]; ok {
 		// Handle the special case where the source column for name is a number
-		if x, ok := v.(int); ok {
+		if x, ok := v.Value().(int); ok {
 			md.Name = "#" + strconv.Itoa(x)
-		} else if y, ok := v.(**int); ok {
+		} else if y, ok := v.Value().(**int); ok {
 			md.Name = "#" + strconv.Itoa(*(*y))
 		} else {
 			md.Name = v
@@ -109,8 +109,8 @@ func metadataConfigToMetadata(row map[string]interface{}, config MetadataConfig)
 	return md
 }
 
-func userRowToMap(cols []sqlstore.UserColumn, row []interface{}) map[string]interface{} {
-	m := make(map[string]interface{})
+func userRowToMap(cols []sqlstore.UserColumn, row []*sqlstore.UserValue) map[string]*sqlstore.UserValue {
+	m := make(map[string]*sqlstore.UserValue)
 	for i := range cols {
 		m[cols[i].Name] = row[i]
 	}
@@ -143,7 +143,7 @@ func (c *UserController) GetTableRow(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	prefix := (*prefixRow.Rows[0][0].(*interface{})).(string)
+	prefix := prefixRow.Rows[0][0].Value().(string)
 
 	stm = fmt.Sprintf(
 		"SELECT * FROM %s_%s_%s WHERE %s=%s LIMIT 1", prefix, chainID, id.String(), vars["key"], vars["value"])
@@ -318,7 +318,8 @@ func (c *UserController) GetTableQuery(rw http.ResponseWriter, r *http.Request) 
 func (c *UserController) runReadRequest(
 	ctx context.Context,
 	stm string,
-	rw http.ResponseWriter) (*sqlstore.UserRows, bool) {
+	rw http.ResponseWriter,
+) (*sqlstore.UserRows, bool) {
 	req := tableland.RunReadQueryRequest{
 		Statement: stm,
 	}
