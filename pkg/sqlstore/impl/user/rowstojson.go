@@ -2,7 +2,9 @@ package user
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 )
@@ -40,10 +42,23 @@ func getRowsData(rows *sql.Rows, numColumns int) ([][]interface{}, error) {
 	for rows.Next() {
 		scanArgs := make([]interface{}, numColumns)
 		for i := range scanArgs {
-			scanArgs[i] = &sqlstore.UserValue{}
+			scanArgs[i] = new(interface{})
 		}
 		if err := rows.Scan(scanArgs...); err != nil {
 			return nil, fmt.Errorf("scan row column: %s", err)
+		}
+		for i, scanArg := range scanArgs {
+			switch src := (*scanArg.(*interface{})).(type) {
+			case string:
+				trimmed := strings.TrimLeft(src, " ")
+				if (strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "[")) && json.Valid([]byte(trimmed)) {
+					scanArgs[i] = []byte(trimmed)
+				}
+			case []byte:
+				tmp := make([]byte, len(src))
+				copy(tmp, src)
+				scanArgs[i] = tmp
+			}
 		}
 		rowsData = append(rowsData, scanArgs)
 	}
