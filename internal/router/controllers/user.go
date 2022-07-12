@@ -70,7 +70,7 @@ type Attribute struct {
 	Value       interface{} `json:"value"`
 }
 
-func metadataConfigToMetadata(row map[string]*sqlstore.UserValue, config MetadataConfig) Metadata {
+func metadataConfigToMetadata(row map[string]*sqlstore.ColValue, config MetadataConfig) Metadata {
 	var md Metadata
 	if v, ok := row[config.Image]; ok {
 		md.Image = v
@@ -109,8 +109,8 @@ func metadataConfigToMetadata(row map[string]*sqlstore.UserValue, config Metadat
 	return md
 }
 
-func userRowToMap(cols []sqlstore.UserColumn, row []*sqlstore.UserValue) map[string]*sqlstore.UserValue {
-	m := make(map[string]*sqlstore.UserValue)
+func userRowToMap(cols []sqlstore.UserColumn, row []*sqlstore.ColValue) map[string]*sqlstore.ColValue {
+	m := make(map[string]*sqlstore.ColValue)
 	for i := range cols {
 		m[cols[i].Name] = row[i]
 	}

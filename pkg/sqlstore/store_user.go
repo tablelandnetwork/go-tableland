@@ -15,18 +15,18 @@ type UserColumn struct {
 
 // UserRows defines a row result.
 type UserRows struct {
-	Columns []UserColumn   `json:"columns"`
-	Rows    [][]*UserValue `json:"rows"`
+	Columns []UserColumn  `json:"columns"`
+	Rows    [][]*ColValue `json:"rows"`
 }
 
-// UserValue wraps data from the db that may be raw json or any other value.
-type UserValue struct {
+// ColValue wraps data from the db that may be raw json or any other value.
+type ColValue struct {
 	jsonValue  json.RawMessage
 	otherValue interface{}
 }
 
 // Value returns the underlying value.
-func (u *UserValue) Value() interface{} {
+func (u *ColValue) Value() interface{} {
 	if u.jsonValue != nil {
 		return u.jsonValue
 	}
@@ -34,7 +34,7 @@ func (u *UserValue) Value() interface{} {
 }
 
 // Scan implements Scan.
-func (u *UserValue) Scan(src interface{}) error {
+func (u *ColValue) Scan(src interface{}) error {
 	u.jsonValue = nil
 	u.otherValue = nil
 	switch src := src.(type) {
@@ -56,7 +56,7 @@ func (u *UserValue) Scan(src interface{}) error {
 }
 
 // MarshalJSON implements MarshalJSON.
-func (u *UserValue) MarshalJSON() ([]byte, error) {
+func (u *ColValue) MarshalJSON() ([]byte, error) {
 	if u.jsonValue != nil {
 		return u.jsonValue, nil
 	}
@@ -64,13 +64,13 @@ func (u *UserValue) MarshalJSON() ([]byte, error) {
 }
 
 // JSONUserValue creates a UserValue with the provided json.
-func JSONUserValue(v json.RawMessage) *UserValue {
-	return &UserValue{jsonValue: v}
+func JSONUserValue(v json.RawMessage) *ColValue {
+	return &ColValue{jsonValue: v}
 }
 
 // OtherUserValue creates a UserValue with the provided other value.
-func OtherUserValue(v interface{}) *UserValue {
-	return &UserValue{otherValue: v}
+func OtherUserValue(v interface{}) *ColValue {
+	return &ColValue{otherValue: v}
 }
 
 // UserStore defines the methods for interacting with user data.
