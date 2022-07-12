@@ -35,12 +35,12 @@ func getColumnsData(rows *sql.Rows) ([]sqlstore.UserColumn, error) {
 	return columns, nil
 }
 
-func getRowsData(rows *sql.Rows, numColumns int) ([][]*sqlstore.UserValue, error) {
-	rowsData := make([][]*sqlstore.UserValue, 0)
+func getRowsData(rows *sql.Rows, numColumns int) ([][]*sqlstore.ColValue, error) {
+	rowsData := make([][]*sqlstore.ColValue, 0)
 	for rows.Next() {
-		vals := make([]*sqlstore.UserValue, numColumns)
+		vals := make([]*sqlstore.ColValue, numColumns)
 		for i := range vals {
-			val := &sqlstore.UserValue{}
+			val := &sqlstore.ColValue{}
 			vals[i] = val
 		}
 		scanArgs := make([]interface{}, len(vals))

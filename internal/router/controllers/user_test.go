@@ -161,7 +161,7 @@ func (rm *runnerMock) RunReadQuery(
 		rm.counter++
 		return tableland.RunReadQueryResponse{
 			Result: &sqlstore.UserRows{
-				Rows: [][]*sqlstore.UserValue{{sqlstore.OtherUserValue("foo")}},
+				Rows: [][]*sqlstore.ColValue{{sqlstore.OtherUserValue("foo")}},
 			},
 		}, nil
 	}
@@ -182,7 +182,7 @@ func (rm *runnerMock) RunReadQuery(
 				{Name: "stamina_increase"},
 				{Name: "generation"},
 			},
-			Rows: [][]*sqlstore.UserValue{
+			Rows: [][]*sqlstore.ColValue{
 				{
 					sqlstore.OtherUserValue(1),
 					sqlstore.OtherUserValue("Friendly OpenSea Creature that enjoys long swims in the ocean."),
@@ -237,7 +237,7 @@ func (*notFoundRunnerMock) RunReadQuery(
 				{Name: "stamina_increase"},
 				{Name: "generation"},
 			},
-			Rows: [][]*sqlstore.UserValue{},
+			Rows: [][]*sqlstore.ColValue{},
 		},
 	}, nil
 }
@@ -255,7 +255,7 @@ func (rm *queryRunnerMock) RunReadQuery(
 				{Name: "eyes"},
 				{Name: "mouth"},
 			},
-			Rows: [][]*sqlstore.UserValue{
+			Rows: [][]*sqlstore.ColValue{
 				{
 					sqlstore.OtherUserValue(1),
 					sqlstore.OtherUserValue("Big"),
