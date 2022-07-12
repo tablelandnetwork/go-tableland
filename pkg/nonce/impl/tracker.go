@@ -197,7 +197,8 @@ func (t *LocalTracker) initialize(ctx context.Context) error {
 func (t *LocalTracker) checkIfPendingTxWasIncluded(
 	ctx context.Context,
 	pendingTx noncepkg.PendingTx,
-	h *types.Header) error {
+	h *types.Header,
+) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -393,8 +394,8 @@ func (t *LocalTracker) bumpTxnGas(ctx context.Context, txnHash common.Hash) (com
 	if err != nil {
 		return common.Hash{}, fmt.Errorf("get suggested gas price: %s", err)
 	}
-	candidateOldGasPricePlus25 :=
-		big.NewInt(0).Div(big.NewInt(0).Mul(pendingTxn.GasPrice(), big.NewInt(125)), big.NewInt(100))
+	candidateOldGasPricePlus25 := big.NewInt(0).
+		Div(big.NewInt(0).Mul(pendingTxn.GasPrice(), big.NewInt(125)), big.NewInt(100))
 
 	newGasPrice := candidateOldGasPricePlus25
 	if newGasPrice.Cmp(candidateGasPriceSuggested) < 0 {

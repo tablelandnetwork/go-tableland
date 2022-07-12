@@ -89,7 +89,7 @@ func setupConfig() (*config, string) {
 	}
 	dirPath := os.ExpandEnv(*flagDirPath)
 
-	_ = os.MkdirAll(dirPath, 0755)
+	_ = os.MkdirAll(dirPath, 0o755)
 
 	var plugins []plugins.Plugin
 	fullPath := path.Join(dirPath, configFilename)

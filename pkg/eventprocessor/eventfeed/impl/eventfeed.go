@@ -47,7 +47,8 @@ func New(
 	chainID tableland.ChainID,
 	ethClient eventfeed.ChainClient,
 	scAddress common.Address,
-	opts ...eventfeed.Option) (*EventFeed, error) {
+	opts ...eventfeed.Option,
+) (*EventFeed, error) {
 	config := eventfeed.DefaultConfig()
 	for _, o := range opts {
 		if err := o(config); err != nil {
@@ -85,7 +86,8 @@ func (ef *EventFeed) Start(
 	ctx context.Context,
 	fromHeight int64,
 	ch chan<- eventfeed.BlockEvents,
-	filterEventTypes []eventfeed.EventType) error {
+	filterEventTypes []eventfeed.EventType,
+) error {
 	ef.log.Debug().Msg("starting...")
 	defer ef.log.Debug().Msg("stopped")
 

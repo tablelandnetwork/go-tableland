@@ -456,7 +456,8 @@ func (m *ChainMock) BalanceAt(ctx context.Context, account common.Address, block
 // this is not used by any test.
 func (m *ChainMock) TransactionByHash(
 	ctx context.Context,
-	hash common.Hash) (tx *types.Transaction, isPending bool, err error) {
+	hash common.Hash,
+) (tx *types.Transaction, isPending bool, err error) {
 	return nil, true, nil
 }
 
@@ -476,7 +477,8 @@ func setup(ctx context.Context, t *testing.T) (
 	*ethereum.Contract,
 	*bind.TransactOpts,
 	*wallet.Wallet,
-	sqlstore.SystemStore) {
+	sqlstore.SystemStore,
+) {
 	url := tests.Sqlite3URI()
 
 	backend, _, contract, txOptsFrom, sk := testutil.Setup(t)

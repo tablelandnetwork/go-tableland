@@ -22,7 +22,8 @@ func Setup(t *testing.T) (
 	common.Address,
 	*ethereum.Contract,
 	*bind.TransactOpts,
-	*ecdsa.PrivateKey) {
+	*ecdsa.PrivateKey,
+) {
 	key, err := crypto.GenerateKey()
 	require.NoError(t, err)
 	auth, err := bind.NewKeyedTransactorWithChainID(key, big.NewInt(1337)) // nolint

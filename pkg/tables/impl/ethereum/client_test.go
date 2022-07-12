@@ -408,7 +408,8 @@ func setupWithLocalTracker(t *testing.T) (
 	*backends.SimulatedBackend,
 	*bind.TransactOpts,
 	*Contract,
-	*Client) {
+	*Client,
+) {
 	key, auth := requireNewAuth(t)
 
 	alloc := make(core.GenesisAlloc)

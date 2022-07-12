@@ -99,7 +99,8 @@ func (pp *QueryValidator) ValidateCreateTable(query string, chainID tableland.Ch
 // contained in it.
 func (pp *QueryValidator) ValidateMutatingQuery(
 	query string,
-	chainID tableland.ChainID) ([]parsing.MutatingStmt, error) {
+	chainID tableland.ChainID,
+) ([]parsing.MutatingStmt, error) {
 	if len(query) > pp.config.MaxWriteQuerySize {
 		return nil, &parsing.ErrWriteQueryTooLong{
 			Length:     len(query),
@@ -463,9 +464,11 @@ func (cs *createStmt) GetRawQueryForTableID(id tableland.TableID) (string, error
 	cs.cNode.StrictMode = true
 	return cs.cNode.String(), nil
 }
+
 func (cs *createStmt) GetStructureHash() string {
 	return cs.structureHash
 }
+
 func (cs *createStmt) GetPrefix() string {
 	return cs.prefix
 }

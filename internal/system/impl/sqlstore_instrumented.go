@@ -39,7 +39,8 @@ func NewInstrumentedSystemSQLStoreService(system system.SystemService) (system.S
 // GetTableMetadata returns table's metadata fetched from SQLStore.
 func (s *InstrumentedSystemSQLStoreService) GetTableMetadata(
 	ctx context.Context,
-	id tableland.TableID) (sqlstore.TableMetadata, error) {
+	id tableland.TableID,
+) (sqlstore.TableMetadata, error) {
 	start := time.Now()
 	metadata, err := s.system.GetTableMetadata(ctx, id)
 	latency := time.Since(start).Milliseconds()
@@ -61,7 +62,8 @@ func (s *InstrumentedSystemSQLStoreService) GetTableMetadata(
 
 // GetTablesByController returns table's fetched from SQLStore by controller address.
 func (s *InstrumentedSystemSQLStoreService) GetTablesByController(ctx context.Context,
-	controller string) ([]sqlstore.Table, error) {
+	controller string,
+) ([]sqlstore.Table, error) {
 	start := time.Now()
 	tables, err := s.system.GetTablesByController(ctx, controller)
 	latency := time.Since(start).Milliseconds()

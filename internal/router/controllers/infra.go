@@ -8,8 +8,7 @@ import (
 )
 
 // InfraController defines the HTTP handlers for infrastructure APIs.
-type InfraController struct {
-}
+type InfraController struct{}
 
 // NewInfraController creates a new InfraController.
 func NewInfraController() *InfraController {

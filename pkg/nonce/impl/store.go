@@ -22,7 +22,8 @@ func NewNonceStore(systemStore sqlstore.SystemStore) nonce.NonceStore {
 // ListPendingTx lists all pendings txs.
 func (s *NonceStore) ListPendingTx(
 	ctx context.Context,
-	addr common.Address) ([]nonce.PendingTx, error) {
+	addr common.Address,
+) ([]nonce.PendingTx, error) {
 	txs, err := s.systemStore.ListPendingTx(ctx, addr)
 	if err != nil {
 		return []nonce.PendingTx{}, fmt.Errorf("nonce store list pending tx: %s", err)
@@ -35,7 +36,8 @@ func (s *NonceStore) ListPendingTx(
 func (s *NonceStore) InsertPendingTx(
 	ctx context.Context,
 	addr common.Address,
-	nonce int64, hash common.Hash) error {
+	nonce int64, hash common.Hash,
+) error {
 	if err := s.systemStore.InsertPendingTx(ctx, addr, nonce, hash); err != nil {
 		return fmt.Errorf("nonce store insert pending tx: %s", err)
 	}

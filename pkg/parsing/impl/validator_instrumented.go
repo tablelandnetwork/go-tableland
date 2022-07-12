@@ -43,7 +43,8 @@ func NewInstrumentedSQLValidator(p parsing.SQLValidator) (parsing.SQLValidator, 
 // ValidateCreateTable register metrics for its corresponding wrapped parser.
 func (ip *InstrumentedSQLValidator) ValidateCreateTable(
 	query string,
-	chainID tableland.ChainID) (parsing.CreateStmt, error) {
+	chainID tableland.ChainID,
+) (parsing.CreateStmt, error) {
 	log.Debug().Str("query", query).Msg("call ValidateCreateTable")
 	start := time.Now()
 	cs, err := ip.parser.ValidateCreateTable(query, chainID)
@@ -63,7 +64,8 @@ func (ip *InstrumentedSQLValidator) ValidateCreateTable(
 // ValidateMutatingQuery register metrics for its corresponding wrapped parser.
 func (ip *InstrumentedSQLValidator) ValidateMutatingQuery(
 	query string,
-	chainID tableland.ChainID) ([]parsing.MutatingStmt, error) {
+	chainID tableland.ChainID,
+) ([]parsing.MutatingStmt, error) {
 	log.Debug().Str("query", query).Msg("call ValidateMutatingQuery")
 	start := time.Now()
 	mutatingStmts, err := ip.parser.ValidateMutatingQuery(query, chainID)

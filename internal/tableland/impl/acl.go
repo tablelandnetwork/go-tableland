@@ -30,7 +30,8 @@ func (acl *acl) CheckPrivileges(
 	tx *sql.Tx,
 	controller common.Address,
 	id tableland.TableID,
-	op tableland.Operation) (bool, error) {
+	op tableland.Operation,
+) (bool, error) {
 	aclRule, err := acl.store.WithTx(tx).GetACLOnTableByController(ctx, id, controller.String())
 	if err != nil {
 		return false, fmt.Errorf("privileges lookup: %s", err)

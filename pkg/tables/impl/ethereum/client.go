@@ -32,7 +32,8 @@ func NewClient(
 	chainID tableland.ChainID,
 	contractAddr common.Address,
 	wallet *wallet.Wallet,
-	tracker nonce.NonceTracker) (*Client, error) {
+	tracker nonce.NonceTracker,
+) (*Client, error) {
 	contract, err := NewContract(contractAddr, backend)
 	if err != nil {
 		return nil, fmt.Errorf("creating contract: %v", err)
@@ -77,7 +78,6 @@ func (c *Client) CreateTable(ctx context.Context, owner common.Address, statemen
 		registerPendingTx(tx.Hash())
 		return tx, nil
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("retryable CreateTable call: %s", err)
 	}
@@ -130,7 +130,6 @@ func (c *Client) RunSQL(
 		registerPendingTx(tx.Hash())
 		return tx, nil
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("retryable RunSQL call: %s", err)
 	}
@@ -142,7 +141,8 @@ func (c *Client) SetController(
 	ctx context.Context,
 	caller common.Address,
 	table tableland.TableID,
-	controller common.Address) (tables.Transaction, error) {
+	controller common.Address,
+) (tables.Transaction, error) {
 	gasPrice, err := c.backend.SuggestGasPrice(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("suggest gas price: %s", err)

@@ -45,7 +45,8 @@ func NewInstrumentedTablelandMesa(t tableland.Tableland) (tableland.Tableland, e
 
 // ValidateCreateTable validates a CREATE TABLE statement and returns its structure hash.
 func (t *InstrumentedTablelandMesa) ValidateCreateTable(ctx context.Context,
-	req tableland.ValidateCreateTableRequest) (tableland.ValidateCreateTableResponse, error) {
+	req tableland.ValidateCreateTableRequest,
+) (tableland.ValidateCreateTableResponse, error) {
 	start := time.Now()
 	resp, err := t.tableland.ValidateCreateTable(ctx, req)
 	latency := time.Since(start).Milliseconds()
@@ -56,7 +57,8 @@ func (t *InstrumentedTablelandMesa) ValidateCreateTable(ctx context.Context,
 
 // ValidateWriteQuery validates a statement that would mutate a table and returns the table ID.
 func (t *InstrumentedTablelandMesa) ValidateWriteQuery(ctx context.Context,
-	req tableland.ValidateWriteQueryRequest) (tableland.ValidateWriteQueryResponse, error) {
+	req tableland.ValidateWriteQueryRequest,
+) (tableland.ValidateWriteQueryResponse, error) {
 	start := time.Now()
 	resp, err := t.tableland.ValidateWriteQuery(ctx, req)
 	latency := time.Since(start).Milliseconds()
@@ -67,7 +69,8 @@ func (t *InstrumentedTablelandMesa) ValidateWriteQuery(ctx context.Context,
 
 // RunReadQuery allows the user to run SQL.
 func (t *InstrumentedTablelandMesa) RunReadQuery(ctx context.Context,
-	req tableland.RunReadQueryRequest) (tableland.RunReadQueryResponse, error) {
+	req tableland.RunReadQueryRequest,
+) (tableland.RunReadQueryResponse, error) {
 	start := time.Now()
 	resp, err := t.tableland.RunReadQuery(ctx, req)
 	latency := time.Since(start).Milliseconds()
@@ -80,7 +83,8 @@ func (t *InstrumentedTablelandMesa) RunReadQuery(ctx context.Context,
 // RelayWriteQuery allows the user to rely on the validator to wrap a write-query in a chain transaction.
 func (t *InstrumentedTablelandMesa) RelayWriteQuery(
 	ctx context.Context,
-	req tableland.RelayWriteQueryRequest) (tableland.RelayWriteQueryResponse, error) {
+	req tableland.RelayWriteQueryRequest,
+) (tableland.RelayWriteQueryResponse, error) {
 	start := time.Now()
 	resp, err := t.tableland.RelayWriteQuery(ctx, req)
 	latency := time.Since(start).Milliseconds()
@@ -94,7 +98,8 @@ func (t *InstrumentedTablelandMesa) RelayWriteQuery(
 // GetReceipt returns the receipt for a txn hash.
 func (t *InstrumentedTablelandMesa) GetReceipt(
 	ctx context.Context,
-	req tableland.GetReceiptRequest) (tableland.GetReceiptResponse, error) {
+	req tableland.GetReceiptRequest,
+) (tableland.GetReceiptResponse, error) {
 	start := time.Now()
 	resp, err := t.tableland.GetReceipt(ctx, req)
 	latency := time.Since(start).Milliseconds()
@@ -106,7 +111,8 @@ func (t *InstrumentedTablelandMesa) GetReceipt(
 
 // SetController allows users to the controller for a token id.
 func (t *InstrumentedTablelandMesa) SetController(ctx context.Context,
-	req tableland.SetControllerRequest) (tableland.SetControllerResponse, error) {
+	req tableland.SetControllerRequest,
+) (tableland.SetControllerResponse, error) {
 	start := time.Now()
 	resp, err := t.tableland.SetController(ctx, req)
 	latency := time.Since(start).Milliseconds()
