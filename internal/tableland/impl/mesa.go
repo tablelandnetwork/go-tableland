@@ -49,6 +49,52 @@ func (t *TablelandMesa) ValidateCreateTable(
 	return tableland.ValidateCreateTableResponse{StructureHash: createStmt.GetStructureHash()}, nil
 }
 
+// ValidateWriteQuery allows the user to validate a write query.
+func (t *TablelandMesa) ValidateWriteQuery(
+	ctx context.Context,
+	req tableland.ValidateWriteQueryRequest) (tableland.ValidateWriteQueryResponse, error) {
+	ctxController := ctx.Value(middlewares.ContextKeyAddress)
+	controller, ok := ctxController.(string)
+	if !ok || controller == "" {
+		return tableland.ValidateWriteQueryResponse{}, errors.New("no controller address found in context")
+	}
+
+	ctxChainID := ctx.Value(middlewares.ContextKeyChainID)
+	chainID, ok := ctxChainID.(tableland.ChainID)
+	if !ok {
+		return tableland.ValidateWriteQueryResponse{}, errors.New("no chain id found in context")
+	}
+
+	stack, chainOk := t.chainStacks[chainID]
+	if !chainOk {
+		return tableland.ValidateWriteQueryResponse{}, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
+	}
+
+	mutatingStmts, err := t.parser.ValidateMutatingQuery(req.Statement, chainID)
+	if err != nil {
+		return tableland.ValidateWriteQueryResponse{}, fmt.Errorf("validating query: %s", err)
+	}
+
+	tableID := mutatingStmts[0].GetTableID()
+
+	table, err := stack.Store.GetTable(ctx, tableID)
+
+	// if the tableID is not valid err will exist
+	if err != nil {
+		return tableland.ValidateWriteQueryResponse{}, fmt.Errorf("getting table: %s", err)
+	}
+	// if the prefix is wrong the statement is not valid
+	prefix := mutatingStmts[0].GetPrefix()
+	if table.Prefix != prefix {
+		return tableland.ValidateWriteQueryResponse{}, fmt.Errorf(
+			"table prefix doesn't match (exp %s, got %s)", table.Prefix, prefix)
+	}
+
+	response := tableland.ValidateWriteQueryResponse{}
+	response.TableID = tableID.String()
+	return response, nil
+}
+
 // RelayWriteQuery allows the user to rely on the validator wrapping the query in a chain transaction.
 func (t *TablelandMesa) RelayWriteQuery(
 	ctx context.Context,
@@ -134,6 +180,7 @@ func (t *TablelandMesa) GetReceipt(
 			Error:       receipt.Error,
 		},
 	}
+
 	if receipt.TableID != nil {
 		tID := receipt.TableID.String()
 		ret.Receipt.TableID = &tID
