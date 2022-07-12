@@ -15,6 +15,7 @@ linters:
     - godot
     - lll
     - sqlclosecheck
+    - gofumpt
 
 issues:
   exclude-use-default: false
