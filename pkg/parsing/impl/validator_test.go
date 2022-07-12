@@ -901,10 +901,12 @@ func ptr2ErrNonDeterministicFunction() **sqlparser.ErrKeywordIsNotAllowed {
 	var e *sqlparser.ErrKeywordIsNotAllowed
 	return &e
 }
+
 func ptr2ErrSubquery() **sqlparser.ErrStatementContainsSubquery {
 	var e *sqlparser.ErrStatementContainsSubquery
 	return &e
 }
+
 func ptr2ErrNoTopLevelCreate() **parsing.ErrNoTopLevelCreate {
 	var e *parsing.ErrNoTopLevelCreate
 	return &e
@@ -914,6 +916,7 @@ func ptr2ErrMultiTableReference() **parsing.ErrMultiTableReference {
 	var e *parsing.ErrMultiTableReference
 	return &e
 }
+
 func ptr2ErrInvalidTableName() **parsing.ErrInvalidTableName {
 	var e *parsing.ErrInvalidTableName
 	return &e

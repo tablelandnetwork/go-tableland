@@ -93,7 +93,8 @@ func ConfiguredRouter(
 func getTablelandService(
 	parser parsing.SQLValidator,
 	userStore sqlstore.UserStore,
-	chainStacks map[tableland.ChainID]chains.ChainStack) tableland.Tableland {
+	chainStacks map[tableland.ChainID]chains.ChainStack,
+) tableland.Tableland {
 	instrumentedMesa, err := impl.NewInstrumentedTablelandMesa(
 		impl.NewTablelandMesa(parser, userStore, chainStacks),
 	)

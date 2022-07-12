@@ -31,7 +31,8 @@ type SystemSQLStoreService struct {
 // NewSystemSQLStoreService creates a new SystemSQLStoreService.
 func NewSystemSQLStoreService(
 	stores map[tableland.ChainID]sqlstore.SystemStore,
-	extURLPrefix string) (system.SystemService, error) {
+	extURLPrefix string,
+) (system.SystemService, error) {
 	if _, err := url.ParseRequestURI(extURLPrefix); err != nil {
 		return nil, fmt.Errorf("invalid external url prefix: %s", err)
 	}
@@ -44,7 +45,8 @@ func NewSystemSQLStoreService(
 // GetTableMetadata returns table's metadata fetched from SQLStore.
 func (s *SystemSQLStoreService) GetTableMetadata(
 	ctx context.Context,
-	id tableland.TableID) (sqlstore.TableMetadata, error) {
+	id tableland.TableID,
+) (sqlstore.TableMetadata, error) {
 	ctxChainID := ctx.Value(middlewares.ContextKeyChainID)
 	chainID, ok := ctxChainID.(tableland.ChainID)
 	if !ok {
@@ -76,7 +78,8 @@ func (s *SystemSQLStoreService) GetTableMetadata(
 // GetTablesByController returns table's fetched from SQLStore by controller address.
 func (s *SystemSQLStoreService) GetTablesByController(
 	ctx context.Context,
-	controller string) ([]sqlstore.Table, error) {
+	controller string,
+) ([]sqlstore.Table, error) {
 	ctxChainID := ctx.Value(middlewares.ContextKeyChainID)
 	chainID, ok := ctxChainID.(tableland.ChainID)
 	if !ok {

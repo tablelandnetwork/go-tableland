@@ -24,7 +24,8 @@ type TablelandMesa struct {
 func NewTablelandMesa(
 	parser parsing.SQLValidator,
 	userStore sqlstore.UserStore,
-	chainStacks map[tableland.ChainID]chains.ChainStack) tableland.Tableland {
+	chainStacks map[tableland.ChainID]chains.ChainStack,
+) tableland.Tableland {
 	return &TablelandMesa{
 		parser:      parser,
 		userStore:   userStore,
@@ -36,7 +37,8 @@ func NewTablelandMesa(
 // This RPC method is stateless.
 func (t *TablelandMesa) ValidateCreateTable(
 	ctx context.Context,
-	req tableland.ValidateCreateTableRequest) (tableland.ValidateCreateTableResponse, error) {
+	req tableland.ValidateCreateTableRequest,
+) (tableland.ValidateCreateTableResponse, error) {
 	ctxChainID := ctx.Value(middlewares.ContextKeyChainID)
 	chainID, ok := ctxChainID.(tableland.ChainID)
 	if !ok {
@@ -52,7 +54,8 @@ func (t *TablelandMesa) ValidateCreateTable(
 // ValidateWriteQuery allows the user to validate a write query.
 func (t *TablelandMesa) ValidateWriteQuery(
 	ctx context.Context,
-	req tableland.ValidateWriteQueryRequest) (tableland.ValidateWriteQueryResponse, error) {
+	req tableland.ValidateWriteQueryRequest,
+) (tableland.ValidateWriteQueryResponse, error) {
 	ctxController := ctx.Value(middlewares.ContextKeyAddress)
 	controller, ok := ctxController.(string)
 	if !ok || controller == "" {
@@ -78,7 +81,6 @@ func (t *TablelandMesa) ValidateWriteQuery(
 	tableID := mutatingStmts[0].GetTableID()
 
 	table, err := stack.Store.GetTable(ctx, tableID)
-
 	// if the tableID is not valid err will exist
 	if err != nil {
 		return tableland.ValidateWriteQueryResponse{}, fmt.Errorf("getting table: %s", err)
@@ -98,7 +100,8 @@ func (t *TablelandMesa) ValidateWriteQuery(
 // RelayWriteQuery allows the user to rely on the validator wrapping the query in a chain transaction.
 func (t *TablelandMesa) RelayWriteQuery(
 	ctx context.Context,
-	req tableland.RelayWriteQueryRequest) (tableland.RelayWriteQueryResponse, error) {
+	req tableland.RelayWriteQueryRequest,
+) (tableland.RelayWriteQueryResponse, error) {
 	ctxController := ctx.Value(middlewares.ContextKeyAddress)
 	controller, ok := ctxController.(string)
 	if !ok || controller == "" {
@@ -133,7 +136,8 @@ func (t *TablelandMesa) RelayWriteQuery(
 // RunReadQuery allows the user to run SQL.
 func (t *TablelandMesa) RunReadQuery(
 	ctx context.Context,
-	req tableland.RunReadQueryRequest) (tableland.RunReadQueryResponse, error) {
+	req tableland.RunReadQueryRequest,
+) (tableland.RunReadQueryResponse, error) {
 	readStmt, err := t.parser.ValidateReadQuery(req.Statement)
 	if err != nil {
 		return tableland.RunReadQueryResponse{}, fmt.Errorf("validating query: %s", err)
@@ -149,7 +153,8 @@ func (t *TablelandMesa) RunReadQuery(
 // GetReceipt returns the receipt of a processed event by txn hash.
 func (t *TablelandMesa) GetReceipt(
 	ctx context.Context,
-	req tableland.GetReceiptRequest) (tableland.GetReceiptResponse, error) {
+	req tableland.GetReceiptRequest,
+) (tableland.GetReceiptResponse, error) {
 	if err := (&common.Hash{}).UnmarshalText([]byte(req.TxnHash)); err != nil {
 		return tableland.GetReceiptResponse{}, fmt.Errorf("invalid txn hash: %s", err)
 	}
@@ -192,7 +197,8 @@ func (t *TablelandMesa) GetReceipt(
 // SetController allows users to the controller for a token id.
 func (t *TablelandMesa) SetController(
 	ctx context.Context,
-	req tableland.SetControllerRequest) (tableland.SetControllerResponse, error) {
+	req tableland.SetControllerRequest,
+) (tableland.SetControllerResponse, error) {
 	ctxCaller := ctx.Value(middlewares.ContextKeyAddress)
 	caller, ok := ctxCaller.(string)
 	if !ok || caller == "" {
@@ -226,7 +232,8 @@ func (t *TablelandMesa) SetController(
 
 func (t *TablelandMesa) runSelect(
 	ctx context.Context,
-	stmt parsing.ReadStmt) (interface{}, error) {
+	stmt parsing.ReadStmt,
+) (interface{}, error) {
 	queryResult, err := t.userStore.Read(ctx, stmt)
 	if err != nil {
 		return nil, fmt.Errorf("executing read-query: %s", err)

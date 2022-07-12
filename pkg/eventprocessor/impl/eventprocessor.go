@@ -63,7 +63,8 @@ func New(
 	txnp txn.TxnProcessor,
 	ef eventfeed.EventFeed,
 	chainID tableland.ChainID,
-	opts ...eventprocessor.Option) (*EventProcessor, error) {
+	opts ...eventprocessor.Option,
+) (*EventProcessor, error) {
 	config := eventprocessor.DefaultConfig()
 	for _, op := range opts {
 		if err := op(config); err != nil {
@@ -299,7 +300,8 @@ func (ep *EventProcessor) executeEvent(
 	b txn.Batch,
 	blockNumber int64,
 	idxInBlock int64,
-	be eventfeed.BlockEvent) (eventprocessor.Receipt, error) {
+	be eventfeed.BlockEvent,
+) (eventprocessor.Receipt, error) {
 	switch e := be.Event.(type) {
 	case *ethereum.ContractRunSQL:
 		ep.log.Debug().Str("statement", e.Statement).Msgf("executing run-sql event")
@@ -352,7 +354,8 @@ func (ep *EventProcessor) executeCreateTableEvent(
 	blockNumber int64,
 	idxInBlock int64,
 	be eventfeed.BlockEvent,
-	e *ethereum.ContractCreateTable) (eventprocessor.Receipt, error) {
+	e *ethereum.ContractCreateTable,
+) (eventprocessor.Receipt, error) {
 	receipt := eventprocessor.Receipt{
 		ChainID:      ep.chainID,
 		BlockNumber:  blockNumber,
@@ -392,7 +395,8 @@ func (ep *EventProcessor) executeRunSQLEvent(
 	blockNumber int64,
 	idxInBlock int64,
 	be eventfeed.BlockEvent,
-	e *ethereum.ContractRunSQL) (eventprocessor.Receipt, error) {
+	e *ethereum.ContractRunSQL,
+) (eventprocessor.Receipt, error) {
 	receipt := eventprocessor.Receipt{
 		ChainID:      ep.chainID,
 		BlockNumber:  blockNumber,
@@ -434,7 +438,8 @@ func (ep *EventProcessor) executeSetControllerEvent(
 	blockNumber int64,
 	idxInBlock int64,
 	be eventfeed.BlockEvent,
-	e *ethereum.ContractSetController) (eventprocessor.Receipt, error) {
+	e *ethereum.ContractSetController,
+) (eventprocessor.Receipt, error) {
 	receipt := eventprocessor.Receipt{
 		ChainID:      ep.chainID,
 		BlockNumber:  blockNumber,
@@ -469,7 +474,8 @@ func (ep *EventProcessor) executeTransferEvent(
 	blockNumber int64,
 	idxInBlock int64,
 	be eventfeed.BlockEvent,
-	e *ethereum.ContractTransferTable) (eventprocessor.Receipt, error) {
+	e *ethereum.ContractTransferTable,
+) (eventprocessor.Receipt, error) {
 	receipt := eventprocessor.Receipt{
 		ChainID:      ep.chainID,
 		BlockNumber:  blockNumber,

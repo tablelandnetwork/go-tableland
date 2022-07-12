@@ -904,7 +904,8 @@ func (acl *aclMock) CheckPrivileges(
 	tx *sql.Tx,
 	controller common.Address,
 	id tableland.TableID,
-	op tableland.Operation) (bool, error) {
+	op tableland.Operation,
+) (bool, error) {
 	return true, nil
 }
 

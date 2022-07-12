@@ -114,7 +114,8 @@ func (acl *aclHalfMock) CheckPrivileges(
 	tx *sql.Tx,
 	controller common.Address,
 	id tableland.TableID,
-	op tableland.Operation) (bool, error) {
+	op tableland.Operation,
+) (bool, error) {
 	aclImpl := tblimpl.NewACL(acl.sqlStore, nil)
 	return aclImpl.CheckPrivileges(ctx, tx, controller, id, op)
 }

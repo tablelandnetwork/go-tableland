@@ -67,7 +67,8 @@ func (s *InstrumentedSystemStore) GetTable(ctx context.Context, id tableland.Tab
 // GetTablesByController fetchs a table from controller address.
 func (s *InstrumentedSystemStore) GetTablesByController(
 	ctx context.Context,
-	controller string) ([]sqlstore.Table, error) {
+	controller string,
+) ([]sqlstore.Table, error) {
 	start := time.Now()
 	tables, err := s.store.GetTablesByController(ctx, controller)
 	latency := time.Since(start).Milliseconds()
@@ -90,7 +91,8 @@ func (s *InstrumentedSystemStore) GetTablesByController(
 func (s *InstrumentedSystemStore) GetACLOnTableByController(
 	ctx context.Context,
 	table tableland.TableID,
-	address string) (sqlstore.SystemACL, error) {
+	address string,
+) (sqlstore.SystemACL, error) {
 	start := time.Now()
 	systemACL, err := s.store.GetACLOnTableByController(ctx, table, address)
 	latency := time.Since(start).Milliseconds()
@@ -112,7 +114,8 @@ func (s *InstrumentedSystemStore) GetACLOnTableByController(
 // ListPendingTx lists all pendings txs.
 func (s *InstrumentedSystemStore) ListPendingTx(
 	ctx context.Context,
-	addr common.Address) ([]nonce.PendingTx, error) {
+	addr common.Address,
+) ([]nonce.PendingTx, error) {
 	start := time.Now()
 	data, err := s.store.ListPendingTx(ctx, addr)
 	latency := time.Since(start).Milliseconds()
@@ -134,7 +137,8 @@ func (s *InstrumentedSystemStore) InsertPendingTx(
 	ctx context.Context,
 	addr common.Address,
 	nonce int64,
-	hash common.Hash) error {
+	hash common.Hash,
+) error {
 	start := time.Now()
 	err := s.store.InsertPendingTx(ctx, addr, nonce, hash)
 	latency := time.Since(start).Milliseconds()
@@ -173,7 +177,8 @@ func (s *InstrumentedSystemStore) DeletePendingTxByHash(ctx context.Context, has
 func (s *InstrumentedSystemStore) ReplacePendingTxByHash(
 	ctx context.Context,
 	oldHash common.Hash,
-	newHash common.Hash) error {
+	newHash common.Hash,
+) error {
 	start := time.Now()
 	err := s.store.ReplacePendingTxByHash(ctx, oldHash, newHash)
 	latency := time.Since(start).Milliseconds()
@@ -208,7 +213,8 @@ func (s *InstrumentedSystemStore) Begin(ctx context.Context) (*sql.Tx, error) {
 // GetReceipt returns the receipt of a processed event by txn hash.
 func (s *InstrumentedSystemStore) GetReceipt(
 	ctx context.Context,
-	txnHash string) (eventprocessor.Receipt, bool, error) {
+	txnHash string,
+) (eventprocessor.Receipt, bool, error) {
 	log.Debug().Str("hash", txnHash).Msg("call GetReceipt")
 	start := time.Now()
 	receipt, ok, err := s.store.GetReceipt(ctx, txnHash)

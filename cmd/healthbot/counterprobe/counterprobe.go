@@ -47,7 +47,8 @@ func New(
 	siwe string,
 	tableName string,
 	checkInterval time.Duration,
-	receiptTimeout time.Duration) (*CounterProbe, error) {
+	receiptTimeout time.Duration,
+) (*CounterProbe, error) {
 	log := logger.With().
 		Str("component", "healthbot").
 		Str("chainName", chainName).

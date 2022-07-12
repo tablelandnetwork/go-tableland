@@ -5,11 +5,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog/log"
-
-	"strings"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/sqlite3" // migration for sqlite3
@@ -92,7 +91,8 @@ func (s *SystemStore) GetTablesByController(ctx context.Context, controller stri
 func (s *SystemStore) GetACLOnTableByController(
 	ctx context.Context,
 	id tableland.TableID,
-	controller string) (sqlstore.SystemACL, error) {
+	controller string,
+) (sqlstore.SystemACL, error) {
 	params := db.GetAclByTableAndControllerParams{
 		ChainID:    int64(s.chainID),
 		Controller: controller,
@@ -147,7 +147,8 @@ func (s *SystemStore) ListPendingTx(ctx context.Context, addr common.Address) ([
 func (s *SystemStore) InsertPendingTx(
 	ctx context.Context,
 	addr common.Address,
-	nonce int64, hash common.Hash) error {
+	nonce int64, hash common.Hash,
+) error {
 	params := db.InsertPendingTxParams{
 		Address: addr.Hex(),
 		ChainID: int64(s.chainID),
@@ -209,7 +210,8 @@ func (s *SystemStore) Begin(ctx context.Context) (*sql.Tx, error) {
 // GetReceipt returns a event receipt by transaction hash.
 func (s *SystemStore) GetReceipt(
 	ctx context.Context,
-	txnHash string) (eventprocessor.Receipt, bool, error) {
+	txnHash string,
+) (eventprocessor.Receipt, bool, error) {
 	params := db.GetReceiptParams{
 		ChainID: int64(s.chainID),
 		TxnHash: txnHash,

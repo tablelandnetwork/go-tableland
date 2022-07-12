@@ -44,7 +44,8 @@ func main() {
 func bumpTxnFee(
 	conn *ethclient.Client,
 	pk *ecdsa.PrivateKey,
-	stuckTxnHash common.Hash) (common.Hash, error) {
+	stuckTxnHash common.Hash,
+) (common.Hash, error) {
 	ctx := context.Background()
 
 	pendingTxn, isPending, err := conn.TransactionByHash(ctx, stuckTxnHash)
@@ -59,8 +60,8 @@ func bumpTxnFee(
 	if err != nil {
 		return common.Hash{}, fmt.Errorf("get suggested gas price: %s", err)
 	}
-	candidateOldGasPricePlus25 :=
-		big.NewInt(0).Div(big.NewInt(0).Mul(pendingTxn.GasPrice(), big.NewInt(125)), big.NewInt(100))
+	candidateOldGasPricePlus25 := big.NewInt(0).
+		Div(big.NewInt(0).Mul(pendingTxn.GasPrice(), big.NewInt(125)), big.NewInt(100))
 
 	newGasPrice := candidateOldGasPricePlus25
 	if newGasPrice.Cmp(candidateGasPriceSuggested) < 0 {

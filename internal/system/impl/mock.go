@@ -11,8 +11,7 @@ import (
 )
 
 // SystemMockService is a dummy implementation that returns a fixed value.
-type SystemMockService struct {
-}
+type SystemMockService struct{}
 
 // NewSystemMockService creates a new SystemMockService.
 func NewSystemMockService() system.SystemService {
@@ -41,8 +40,7 @@ func (s *SystemMockService) GetTablesByController(ctx context.Context, controlle
 }
 
 // SystemMockErrService is a dummy implementation that returns a fixed value.
-type SystemMockErrService struct {
-}
+type SystemMockErrService struct{}
 
 // NewSystemMockErrService creates a new SystemMockErrService.
 func NewSystemMockErrService() system.SystemService {
@@ -52,7 +50,8 @@ func NewSystemMockErrService() system.SystemService {
 // GetTableMetadata returns a fixed value for testing and demo purposes.
 func (*SystemMockErrService) GetTableMetadata(
 	ctx context.Context,
-	id tableland.TableID) (sqlstore.TableMetadata, error) {
+	id tableland.TableID,
+) (sqlstore.TableMetadata, error) {
 	return sqlstore.TableMetadata{}, errors.New("table not found")
 }
 

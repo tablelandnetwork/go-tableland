@@ -37,7 +37,8 @@ func NewTxnProcessor(
 	chainID tableland.ChainID,
 	dbURI string,
 	maxTableRowCount int,
-	acl tableland.ACL) (*TblTxnProcessor, error) {
+	acl tableland.ACL,
+) (*TblTxnProcessor, error) {
 	pool, err := sql.Open("sqlite3", dbURI)
 	if err != nil {
 		return nil, fmt.Errorf("connecting to db: %s", err)
@@ -126,7 +127,8 @@ func (b *batch) InsertTable(
 	ctx context.Context,
 	id tableland.TableID,
 	controller string,
-	createStmt parsing.CreateStmt) error {
+	createStmt parsing.CreateStmt,
+) error {
 	f := func(ctx context.Context, txn *sql.Tx) error {
 		if _, err := txn.ExecContext(ctx,
 			`INSERT INTO registry ("chain_id", "id","controller","prefix","structure") 
@@ -171,7 +173,8 @@ func (b *batch) ExecWriteQueries(
 	controller common.Address,
 	mqueries []parsing.MutatingStmt,
 	isOwner bool,
-	policy tableland.Policy) error {
+	policy tableland.Policy,
+) error {
 	if len(mqueries) == 0 {
 		b.tp.log.Warn().Msg("no mutating-queries to execute in a batch")
 		return nil
@@ -224,7 +227,8 @@ func (b *batch) ExecWriteQueries(
 func (b *batch) SetController(
 	ctx context.Context,
 	id tableland.TableID,
-	controller common.Address) error {
+	controller common.Address,
+) error {
 	f := func(ctx context.Context, tx *sql.Tx) error {
 		if controller == common.HexToAddress("0x0") {
 			if _, err := tx.ExecContext(ctx,
@@ -274,7 +278,8 @@ func (b *batch) GrantPrivileges(
 	ctx context.Context,
 	id tableland.TableID,
 	addr common.Address,
-	privileges tableland.Privileges) error {
+	privileges tableland.Privileges,
+) error {
 	f := func(ctx context.Context, tx *sql.Tx) error {
 		if err := b.executeGrantPrivilegesTx(ctx, tx, id, addr, privileges); err != nil {
 			return fmt.Errorf("executing grant privileges tx: %w", err)
@@ -292,7 +297,8 @@ func (b *batch) RevokePrivileges(
 	ctx context.Context,
 	id tableland.TableID,
 	addr common.Address,
-	privileges tableland.Privileges) error {
+	privileges tableland.Privileges,
+) error {
 	f := func(ctx context.Context, tx *sql.Tx) error {
 		if err := b.executeRevokePrivilegesTx(ctx, tx, id, addr, privileges); err != nil {
 			return fmt.Errorf("executing revoke privileges tx: %w", err)
@@ -434,7 +440,8 @@ func GetTablePrefixAndRowCountByTableID(
 	tx *sql.Tx,
 	chainID tableland.ChainID,
 	tableID tableland.TableID,
-	dbTableName string) (string, int, error) {
+	dbTableName string,
+) (string, int, error) {
 	q := fmt.Sprintf(
 		"SELECT (SELECT prefix FROM registry where chain_id=?1 AND id=?2), (SELECT count(*) FROM %s)", dbTableName)
 	r := tx.QueryRowContext(ctx, q, chainID, tableID.String())
@@ -456,7 +463,8 @@ func getController(
 	ctx context.Context,
 	tx *sql.Tx,
 	chainID tableland.ChainID,
-	tableID tableland.TableID) (string, error) {
+	tableID tableland.TableID,
+) (string, error) {
 	q := "SELECT controller FROM system_controller where chain_id=?1 AND table_id=?2"
 	r := tx.QueryRowContext(ctx, q, chainID, tableID.ToBigInt().Uint64())
 	var controller string
@@ -475,7 +483,8 @@ func (b *batch) executeGrantStmt(
 	ctx context.Context,
 	tx *sql.Tx,
 	gs parsing.GrantStmt,
-	isOwner bool) error {
+	isOwner bool,
+) error {
 	if !isOwner {
 		return &txn.ErrQueryExecution{
 			Code: "ACL_NOT_OWNER",
@@ -510,7 +519,8 @@ func (b *batch) executeWriteStmt(
 	ws parsing.WriteStmt,
 	addr common.Address,
 	policy tableland.Policy,
-	beforeRowCount int) error {
+	beforeRowCount int,
+) error {
 	controller, err := getController(ctx, tx, b.tp.chainID, ws.GetTableID())
 	if err != nil {
 		return fmt.Errorf("checking controller is set: %w", err)
@@ -657,7 +667,8 @@ func (b *batch) applyPolicy(ws parsing.WriteStmt, policy tableland.Policy) error
 func (b *batch) executeQueryAndGetAffectedRows(
 	ctx context.Context,
 	tx *sql.Tx,
-	query string) (affectedRowIDs []int64, err error) {
+	query string,
+) (affectedRowIDs []int64, err error) {
 	rows, err := tx.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("executing query: %s", err)
@@ -708,7 +719,8 @@ func checkAffectedRowsAgainstAuditingQuery(
 	ctx context.Context,
 	tx *sql.Tx,
 	affectedRowsCount int,
-	sql string) error {
+	sql string,
+) error {
 	var count int
 	if err := tx.QueryRowContext(ctx, sql).Scan(&count); err != nil {
 		if code, ok := isErrCausedByQuery(err); ok {
@@ -748,7 +760,8 @@ func (b *batch) executeGrantPrivilegesTx(
 	tx *sql.Tx,
 	id tableland.TableID,
 	addr common.Address,
-	privileges tableland.Privileges) error {
+	privileges tableland.Privileges,
+) error {
 	var privilegesMask int
 	for _, privilege := range privileges {
 		switch privilege {
@@ -792,7 +805,8 @@ func (b *batch) executeRevokePrivilegesTx(
 	tx *sql.Tx,
 	id tableland.TableID,
 	addr common.Address,
-	privileges tableland.Privileges) error {
+	privileges tableland.Privileges,
+) error {
 	privilegesMask := tableland.PrivInsert.Bitfield | tableland.PrivUpdate.Bitfield | tableland.PrivDelete.Bitfield
 	// Tune the mask to have a 0 in the places we want to disable the bit.
 	// For example, if we want to remove tableland.PrivUpdate, the following

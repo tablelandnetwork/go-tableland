@@ -545,7 +545,8 @@ func processCSV(
 	caller common.Address,
 	tbld tableland.Tableland,
 	csvPath string,
-	backend *backends.SimulatedBackend) {
+	backend *backends.SimulatedBackend,
+) {
 	t.Helper()
 
 	ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller.Hex())
@@ -568,7 +569,8 @@ func jsonEq(
 	t *testing.T,
 	tbld tableland.Tableland,
 	req tableland.RunReadQueryRequest,
-	expJSON string) func() bool {
+	expJSON string,
+) func() bool {
 	return func() bool {
 		r, err := tbld.RunReadQuery(ctx, req)
 		// if we get a table undefined error, try again
@@ -604,7 +606,8 @@ func runSQLCountEq(
 	tbld tableland.Tableland,
 	sql string,
 	address string,
-	expCount int) func() bool {
+	expCount int,
+) func() bool {
 	return func() bool {
 		response, err := runReadQuery(ctx, t, tbld, sql, address)
 		// if we get a table undefined error, try again
@@ -634,7 +637,8 @@ func runReadQuery(
 	t *testing.T,
 	tbld tableland.Tableland,
 	sql string,
-	controller string) (tableland.RunReadQueryResponse, error) {
+	controller string,
+) (tableland.RunReadQueryResponse, error) {
 	t.Helper()
 
 	ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, controller)
@@ -650,7 +654,8 @@ func relayWriteQuery(
 	t *testing.T,
 	tbld tableland.Tableland,
 	sql string,
-	controller string) (tableland.RelayWriteQueryResponse, error) {
+	controller string,
+) (tableland.RelayWriteQueryResponse, error) {
 	t.Helper()
 
 	ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, controller)
@@ -685,7 +690,8 @@ func setup(
 	tableland.Tableland,
 	*backends.SimulatedBackend,
 	*ethereum.Contract,
-	*bind.TransactOpts) {
+	*bind.TransactOpts,
+) {
 	t.Helper()
 
 	url := tests.Sqlite3URI()
@@ -746,7 +752,8 @@ func setupTablelandForTwoAddresses(t *testing.T) (context.Context,
 	*backends.SimulatedBackend,
 	*ethereum.Contract,
 	*bind.TransactOpts,
-	*bind.TransactOpts) {
+	*bind.TransactOpts,
+) {
 	t.Helper()
 
 	url := tests.Sqlite3URI()
@@ -834,7 +841,8 @@ func (acl *aclHalfMock) CheckPrivileges(
 	tx *sql.Tx,
 	controller common.Address,
 	id tableland.TableID,
-	op tableland.Operation) (bool, error) {
+	op tableland.Operation,
+) (bool, error) {
 	aclImpl := NewACL(acl.sqlStore, nil)
 	return aclImpl.CheckPrivileges(ctx, tx, controller, id, op)
 }

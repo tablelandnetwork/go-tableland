@@ -180,8 +180,10 @@ func TestInfura(t *testing.T) {
 		err := qf.Start(ctx,
 			int64(contractDeploymentBlockNumber),
 			ch,
-			[]eventfeed.EventType{eventfeed.RunSQL,
-				eventfeed.CreateTable})
+			[]eventfeed.EventType{
+				eventfeed.RunSQL,
+				eventfeed.CreateTable,
+			})
 		require.NoError(t, err)
 		close(chFeedClosed)
 	}()
