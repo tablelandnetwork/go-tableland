@@ -14,6 +14,7 @@ require (
 	github.com/omeid/uconfig v1.2.0
 	github.com/rs/zerolog v1.27.0
 	github.com/sethvargo/go-limiter v0.7.2
+	github.com/spf13/cobra v1.1.3
 	github.com/spruceid/siwe-go v0.2.1-0.20220711143404-817846826282
 	github.com/stretchr/testify v1.8.0
 	github.com/tablelandnetwork/sqlparser v0.0.0-20220706202446-651da656fce8
@@ -59,6 +60,7 @@ require (
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/holiman/bloomfilter/v2 v2.0.3 // indirect
 	github.com/holiman/uint256 v1.2.0 // indirect
+	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/magiconair/properties v1.8.5 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect

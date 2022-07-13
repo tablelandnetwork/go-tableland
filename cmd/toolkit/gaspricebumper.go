@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"crypto/ecdsa"
-	"flag"
+	"errors"
 	"fmt"
 	"log"
 	"math/big"
@@ -12,33 +12,43 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/spf13/cobra"
 )
 
-func main() {
-	ethEndpoint := flag.String("ethendpoint", "", "URL of an Ethereum node API (i.e: Alchemy/Infura)")
-	privateKey := flag.String("privatekey", "", "Hex encoded private key of the wallet address")
-	flag.Parse()
+var gasPriceBumperCmd = &cobra.Command{
+	Use:   "gaspricebump",
+	Short: "Bumps gas price for a stuck transaction",
+	Long:  `Bumps gas price for a stuck transaction`,
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		privateKey, err := cmd.Flags().GetString("privatekey")
+		if err != nil {
+			return errors.New("failed to parse privatekey")
+		}
+		gatewayEndpoint, err := cmd.Flags().GetString("gateway")
+		if err != nil {
+			return errors.New("failed to parse gateway")
+		}
 
-	if len(flag.Args()) < 1 {
-		log.Fatalf("we expect one argument\n./gaspricebumper [flags] <stuck-txn-hash>")
-	}
-	stuckTxnHash := common.HexToHash(flag.Args()[0])
+		stuckTxnHash := common.HexToHash(args[0])
+		pk, err := crypto.HexToECDSA(privateKey)
+		if err != nil {
+			log.Fatalf("decoding private key: %s", err)
+		}
 
-	pk, err := crypto.HexToECDSA(*privateKey)
-	if err != nil {
-		log.Fatalf("decoding private key: %s", err)
-	}
+		conn, err := ethclient.Dial(gatewayEndpoint)
+		if err != nil {
+			log.Fatalf("failed to connect to ethereum endpoint: %s", err)
+		}
 
-	conn, err := ethclient.Dial(*ethEndpoint)
-	if err != nil {
-		log.Fatalf("failed to connect to ethereum endpoint: %s", err)
-	}
+		newTxnHash, err := bumpTxnFee(conn, pk, stuckTxnHash)
+		if err != nil {
+			log.Fatalf("bumpint txn fee: %s", err)
+		}
+		fmt.Printf("The new transaction hash is: %s\n", newTxnHash)
 
-	newTxnHash, err := bumpTxnFee(conn, pk, stuckTxnHash)
-	if err != nil {
-		log.Fatalf("bumpint txn fee: %s", err)
-	}
-	fmt.Printf("The new transaction hash is: %s\n", newTxnHash)
+		return nil
+	},
 }
 
 func bumpTxnFee(
