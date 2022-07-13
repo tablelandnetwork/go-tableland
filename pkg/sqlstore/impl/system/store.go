@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/XSAM/otelsql"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog/log"
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/sqlite3" // migration for sqlite3
@@ -34,9 +36,18 @@ type SystemStore struct {
 
 // New returns a new SystemStore backed by database/sql.
 func New(dbURI string, chainID tableland.ChainID) (*SystemStore, error) {
-	dbc, err := sql.Open("sqlite3", dbURI)
+	dbc, err := otelsql.Open("sqlite3", dbURI, otelsql.WithAttributes(
+		attribute.String("name", "systemstore"),
+		attribute.Int64("chain_id", int64(chainID)),
+	))
 	if err != nil {
 		return nil, fmt.Errorf("connecting to db: %s", err)
+	}
+	if err := otelsql.RegisterDBStatsMetrics(dbc, otelsql.WithAttributes(
+		attribute.String("name", "systemstore"),
+		attribute.Int64("chain_id", int64(chainID)),
+	)); err != nil {
+		return nil, fmt.Errorf("registering dbstats: %s", err)
 	}
 
 	as := bindata.Resource(migrations.AssetNames(), migrations.Asset)

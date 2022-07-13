@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/XSAM/otelsql"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/mattn/go-sqlite3"
 	"github.com/rs/zerolog"
@@ -17,6 +18,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/txn"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // TblTxnProcessor executes mutating actions in a Tableland database.
@@ -39,9 +41,18 @@ func NewTxnProcessor(
 	maxTableRowCount int,
 	acl tableland.ACL,
 ) (*TblTxnProcessor, error) {
-	pool, err := sql.Open("sqlite3", dbURI)
+	pool, err := otelsql.Open("sqlite3", dbURI, otelsql.WithAttributes(
+		attribute.String("name", "processor"),
+		attribute.Int64("chain_id", int64(chainID)),
+	))
 	if err != nil {
 		return nil, fmt.Errorf("connecting to db: %s", err)
+	}
+	if err := otelsql.RegisterDBStatsMetrics(pool, otelsql.WithAttributes(
+		attribute.String("name", "processor"),
+		attribute.Int64("chain_id", int64(chainID)),
+	)); err != nil {
+		return nil, fmt.Errorf("registering dbstats: %s", err)
 	}
 	pool.SetMaxOpenConns(1)
 	if maxTableRowCount < 0 {
