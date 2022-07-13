@@ -317,6 +317,7 @@ func (ef *EventFeed) notifyNewBlocks(ctx context.Context, clientCh chan *types.H
 			}
 			sub, err = ef.ethClient.SubscribeNewHead(ctx, ch)
 			if err != nil {
+				sub = nil
 				ef.log.Error().Err(err).Msg("subscribing to blocks")
 				continue
 			}
