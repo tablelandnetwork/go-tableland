@@ -39,9 +39,13 @@ func (cp *CounterProbe) initMetrics(chainName string) error {
 		cp.lock.RLock()
 		defer cp.lock.RUnlock()
 
-		mLastCheck.Observe(ctx, cp.mLastCheck.Unix(), cp.mBaseLabels...)
-		mLastSuccessfulCheck.Observe(ctx, cp.mLastSuccessfulCheck.Unix(), cp.mBaseLabels...)
-		mCounterValue.Observe(ctx, cp.mLastCounterValue, cp.mBaseLabels...)
+		if !cp.mLastCheck.IsZero() {
+			mLastCheck.Observe(ctx, cp.mLastCheck.Unix(), cp.mBaseLabels...)
+		}
+		if !cp.mLastSuccessfulCheck.IsZero() {
+			mLastSuccessfulCheck.Observe(ctx, cp.mLastSuccessfulCheck.Unix(), cp.mBaseLabels...)
+			mCounterValue.Observe(ctx, cp.mLastCounterValue, cp.mBaseLabels...)
+		}
 	}); err != nil {
 		return fmt.Errorf("registering callback on instruments: %s", err)
 	}
