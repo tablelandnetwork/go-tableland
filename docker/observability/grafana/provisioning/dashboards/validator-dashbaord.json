@@ -25,7 +25,6 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 1,
-  "iteration": 1656425327037,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -1122,7 +1121,7 @@
         "x": 0,
         "y": 32
       },
-      "id": 60,
+      "id": 12,
       "panels": [],
       "targets": [
         {
@@ -1133,7 +1132,7 @@
           "refId": "A"
         }
       ],
-      "title": "Wallet",
+      "title": "SQL Database",
       "type": "row"
     },
     {
@@ -1174,7 +1173,6 @@
               "mode": "off"
             }
           },
-          "displayName": "${__series.name}",
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -1182,6 +1180,10 @@
               {
                 "color": "green",
                 "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
               }
             ]
           }
@@ -1189,145 +1191,12 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 7,
+        "h": 8,
         "w": 6,
         "x": 0,
         "y": 33
       },
-      "id": 66,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "8.2.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
-          },
-          "exemplar": true,
-          "expr": "sum by(chain_id) (tableland_wallettracker_nonce{service_name=\"tableland:api\"})",
-          "interval": "",
-          "legendFormat": "ChainID {{chain_id}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Nonces",
-      "type": "timeseries"
-    },
-    {
-      "collapsed": false,
-      "datasource": {
-        "type": "datasource",
-        "uid": "grafana"
-      },
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 40
-      },
-      "id": 8,
-      "panels": [],
-      "targets": [
-        {
-          "datasource": {
-            "type": "datasource",
-            "uid": "grafana"
-          },
-          "refId": "A"
-        }
-      ],
-      "title": "HTTP Requests",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "reqps"
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "500"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "red",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 6,
-        "x": 0,
-        "y": 41
-      },
-      "id": 37,
+      "id": 17,
       "options": {
         "legend": {
           "calcs": [],
@@ -1346,129 +1215,13 @@
             "uid": "P1809F7CD0C75ACF3"
           },
           "exemplar": true,
-          "expr": "sum by (http_status_code) (\n  rate(http_server_request_count{service_name=\"tableland:api\"}[10m])\n)",
-          "interval": "",
-          "legendFormat": "",
-          "refId": "A"
-        }
-      ],
-      "title": "Status Code Rate",
-      "type": "timeseries"
-    },
-    {
-      "collapsed": false,
-      "datasource": {
-        "type": "datasource",
-        "uid": "grafana"
-      },
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 49
-      },
-      "id": 10,
-      "panels": [],
-      "targets": [
-        {
-          "datasource": {
-            "type": "datasource",
-            "uid": "grafana"
-          },
-          "refId": "A"
-        }
-      ],
-      "title": "Public APIs",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "reqps"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 6,
-        "x": 0,
-        "y": 50
-      },
-      "id": 6,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
-          },
-          "exemplar": true,
-          "expr": "sum by (method) (\n  rate(tableland_mesa_call_count{service_name=\"tableland:api\"}[5m])\n)\n",
+          "expr": "sum by (method) (\n  rate(tableland_sqlstore_call_count{service_name=\"tableland:api\"}[5m])\n)",
           "interval": "",
           "legendFormat": "{{method}}",
           "refId": "A"
         }
       ],
-      "title": "JSON RPC Request/s",
+      "title": "Method Request/s",
       "type": "timeseries"
     },
     {
@@ -1498,8 +1251,7 @@
             "lineWidth": 1,
             "pointSize": 5,
             "scaleDistribution": {
-              "log": 2,
-              "type": "log"
+              "type": "linear"
             },
             "showPoints": "auto",
             "spanNulls": false,
@@ -1512,6 +1264,7 @@
             }
           },
           "mappings": [],
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -1533,9 +1286,9 @@
         "h": 8,
         "w": 6,
         "x": 6,
-        "y": 50
+        "y": 33
       },
-      "id": 56,
+      "id": 57,
       "maxDataPoints": 25,
       "options": {
         "legend": {
@@ -1555,15 +1308,15 @@
             "uid": "P1809F7CD0C75ACF3"
           },
           "exemplar": false,
-          "expr": "histogram_quantile(0.95, sum(rate(tableland_mesa_call_latency_bucket{service_name=\"tableland:api\"}[10m])) by (le, method))",
-          "format": "time_series",
+          "expr": "histogram_quantile(0.95, sum(rate(tableland_sqlstore_call_latency_bucket{service_name=\"tableland:api\"}[5m])) by (le, method))",
+          "format": "heatmap",
           "instant": false,
           "interval": "",
-          "legendFormat": "{{method}}",
+          "legendFormat": "{{le}}",
           "refId": "A"
         }
       ],
-      "title": "JSON RPC 95-tile latency",
+      "title": "Methods 95-tile latency",
       "type": "timeseries"
     },
     {
@@ -1571,6 +1324,7 @@
         "type": "prometheus",
         "uid": "P1809F7CD0C75ACF3"
       },
+      "description": "Number of open connections.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1605,6 +1359,7 @@
             }
           },
           "mappings": [],
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -1617,17 +1372,19 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "none"
         },
         "overrides": []
       },
       "gridPos": {
         "h": 8,
         "w": 6,
-        "x": 12,
-        "y": 50
+        "x": 0,
+        "y": 41
       },
-      "id": 15,
+      "id": 74,
+      "maxDataPoints": 25,
       "options": {
         "legend": {
           "calcs": [],
@@ -1645,14 +1402,29 @@
             "type": "prometheus",
             "uid": "P1809F7CD0C75ACF3"
           },
-          "exemplar": true,
-          "expr": "sum by (method) (\n  rate(tableland_system_call_count{service_name=\"tableland:api\"}[$__rate_interval])\n)",
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "sum by (chain_id, name, status) (db_sql_connection_open{name=~\"processor|systemstore\"})",
+          "format": "time_series",
+          "instant": false,
           "interval": "",
-          "legendFormat": "{{method}}",
+          "legendFormat": "{{chain_id}} - {{name}} - {{status}}",
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P1809F7CD0C75ACF3"
+          },
+          "editorMode": "code",
+          "expr": "sum by (name, status) (db_sql_connection_open{name=~\"userstore\"})",
+          "hide": false,
+          "legendFormat": "{{name}} - {{status}}",
+          "range": true,
+          "refId": "B"
         }
       ],
-      "title": "REST Requests/s",
+      "title": "Open connections",
       "type": "timeseries"
     },
     {
@@ -1660,7 +1432,7 @@
         "type": "prometheus",
         "uid": "P1809F7CD0C75ACF3"
       },
-      "description": "The latency of 95% tile. Note that CreateTable is a long running request since requires sending a txn to Ethereum. The rest should have low-ish latencies.",
+      "description": "Raw 95th tile latency of all executed queries in the database.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1695,6 +1467,7 @@
             }
           },
           "mappings": [],
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -1715,10 +1488,10 @@
       "gridPos": {
         "h": 8,
         "w": 6,
-        "x": 18,
-        "y": 50
+        "x": 6,
+        "y": 41
       },
-      "id": 58,
+      "id": 75,
       "maxDataPoints": 25,
       "options": {
         "legend": {
@@ -1737,16 +1510,29 @@
             "type": "prometheus",
             "uid": "P1809F7CD0C75ACF3"
           },
+          "editorMode": "code",
           "exemplar": false,
-          "expr": "histogram_quantile(0.95, sum(rate(tableland_system_call_latency_bucket{service_name=\"tableland:api\"}[10m])) by (le, method))",
+          "expr": "histogram_quantile(0.95, sum(rate(db_sql_latency_bucket{name=~\"processor|systemstore\"}[$__rate_interval])) by (chain_id, name, le))",
           "format": "heatmap",
           "instant": false,
           "interval": "",
-          "legendFormat": "{{le}}",
+          "legendFormat": "{{chain_id}}- {{name}}",
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P1809F7CD0C75ACF3"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum(rate(db_sql_latency_bucket{name=~\"userstore\"}[$__rate_interval])) by (chain_id, name, le))",
+          "hide": false,
+          "legendFormat": "{{name}}",
+          "range": true,
+          "refId": "B"
         }
       ],
-      "title": "REST 95-tile latency",
+      "title": "Overall SQL query 95-th latency",
       "type": "timeseries"
     },
     {
@@ -1759,9 +1545,9 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 58
+        "y": 49
       },
-      "id": 12,
+      "id": 8,
       "panels": [
         {
           "datasource": {
@@ -1806,7 +1592,114 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "reqps"
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "500"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "red",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 0,
+            "y": 34
+          },
+          "id": 37,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P1809F7CD0C75ACF3"
+              },
+              "exemplar": true,
+              "expr": "sum by (http_status_code) (\n  rate(http_server_request_count{service_name=\"tableland:api\"}[10m])\n)",
+              "interval": "",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "title": "Status Code Rate",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P1809F7CD0C75ACF3"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -1820,10 +1713,10 @@
           "gridPos": {
             "h": 8,
             "w": 6,
-            "x": 0,
-            "y": 44
+            "x": 6,
+            "y": 34
           },
-          "id": 17,
+          "id": 15,
           "options": {
             "legend": {
               "calcs": [],
@@ -1831,7 +1724,8 @@
               "placement": "bottom"
             },
             "tooltip": {
-              "mode": "single"
+              "mode": "single",
+              "sort": "none"
             }
           },
           "targets": [
@@ -1841,13 +1735,13 @@
                 "uid": "P1809F7CD0C75ACF3"
               },
               "exemplar": true,
-              "expr": "sum by (method) (\n  rate(tableland_sqlstore_call_count{service_name=\"tableland:api\"}[5m])\n)",
+              "expr": "sum by (method) (\n  rate(tableland_system_call_count{service_name=\"tableland:api\"}[$__rate_interval])\n)",
               "interval": "",
               "legendFormat": "{{method}}",
               "refId": "A"
             }
           ],
-          "title": "Method Request/s",
+          "title": "REST Requests/s",
           "type": "timeseries"
         },
         {
@@ -1890,12 +1784,12 @@
                 }
               },
               "mappings": [],
-              "min": 0,
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -1910,10 +1804,10 @@
           "gridPos": {
             "h": 8,
             "w": 6,
-            "x": 6,
-            "y": 44
+            "x": 12,
+            "y": 34
           },
-          "id": 57,
+          "id": 58,
           "maxDataPoints": 25,
           "options": {
             "legend": {
@@ -1922,7 +1816,8 @@
               "placement": "bottom"
             },
             "tooltip": {
-              "mode": "single"
+              "mode": "single",
+              "sort": "none"
             }
           },
           "targets": [
@@ -1932,7 +1827,7 @@
                 "uid": "P1809F7CD0C75ACF3"
               },
               "exemplar": false,
-              "expr": "histogram_quantile(0.95, sum(rate(tableland_sqlstore_call_latency_bucket{service_name=\"tableland:api\"}[5m])) by (le, method))",
+              "expr": "histogram_quantile(0.95, sum(rate(tableland_system_call_latency_bucket{service_name=\"tableland:api\"}[10m])) by (le, method))",
               "format": "heatmap",
               "instant": false,
               "interval": "",
@@ -1940,7 +1835,192 @@
               "refId": "A"
             }
           ],
-          "title": "SQLStore 95-tile latency",
+          "title": "REST 95-tile latency",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P1809F7CD0C75ACF3"
+          },
+          "description": "The latency of 95% tile. Note that CreateTable is a long running request since requires sending a txn to Ethereum. The rest should have low-ish latencies.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "log": 2,
+                  "type": "log"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "ms"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 0,
+            "y": 42
+          },
+          "id": 56,
+          "maxDataPoints": 25,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P1809F7CD0C75ACF3"
+              },
+              "exemplar": false,
+              "expr": "histogram_quantile(0.95, sum(rate(tableland_mesa_call_latency_bucket{service_name=\"tableland:api\"}[10m])) by (le, method))",
+              "format": "time_series",
+              "instant": false,
+              "interval": "",
+              "legendFormat": "{{method}}",
+              "refId": "A"
+            }
+          ],
+          "title": "JSON RPC 95-tile latency",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P1809F7CD0C75ACF3"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "reqps"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 6,
+            "y": 42
+          },
+          "id": 6,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P1809F7CD0C75ACF3"
+              },
+              "exemplar": true,
+              "expr": "sum by (method) (\n  rate(tableland_mesa_call_count{service_name=\"tableland:api\"}[5m])\n)\n",
+              "interval": "",
+              "legendFormat": "{{method}}",
+              "refId": "A"
+            }
+          ],
+          "title": "JSON RPC Request/s",
           "type": "timeseries"
         }
       ],
@@ -1953,7 +2033,7 @@
           "refId": "A"
         }
       ],
-      "title": "SQL Store calls",
+      "title": "HTTP Requests",
       "type": "row"
     },
     {
@@ -1966,7 +2046,121 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 59
+        "y": 50
+      },
+      "id": 60,
+      "panels": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P1809F7CD0C75ACF3"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "displayName": "${__series.name}",
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 6,
+            "x": 0,
+            "y": 34
+          },
+          "id": 66,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "8.2.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "P1809F7CD0C75ACF3"
+              },
+              "exemplar": true,
+              "expr": "sum by(chain_id) (tableland_wallettracker_nonce{service_name=\"tableland:api\"})",
+              "interval": "",
+              "legendFormat": "ChainID {{chain_id}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Nonces",
+          "type": "timeseries"
+        }
+      ],
+      "targets": [
+        {
+          "datasource": {
+            "type": "datasource",
+            "uid": "grafana"
+          },
+          "refId": "A"
+        }
+      ],
+      "title": "Wallet",
+      "type": "row"
+    },
+    {
+      "collapsed": true,
+      "datasource": {
+        "type": "datasource",
+        "uid": "grafana"
+      },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 51
       },
       "id": 4,
       "panels": [
@@ -2014,8 +2208,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2090,6 +2283,6 @@
   "timezone": "",
   "title": "Validator",
   "uid": "2Le7qt_7z",
-  "version": 3,
+  "version": 1,
   "weekStart": ""
 }
