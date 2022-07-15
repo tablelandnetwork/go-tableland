@@ -81,8 +81,7 @@ paths:
                   method: tableland_setController
                   id: 1
                   params:
-                    - caller: "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
-                      controller: "0x0"
+                    - controller: "0x0"
                       token_id: "1"
       responses:
         "200":

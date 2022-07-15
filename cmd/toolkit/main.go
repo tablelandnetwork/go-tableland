@@ -35,6 +35,7 @@ func init() {
 	scCmd.PersistentFlags().String("gateway", "", "URL of an Ethereum node API (i.e: Alchemy/Infura)")
 	scCmd.AddCommand(runSQLCmd)
 	scCmd.AddCommand(createTableCmd)
+	scCmd.AddCommand(setControllerCmd)
 
 	walletCreateCmd.Flags().String("filename", "privatekey.hex", "Filename to store hex representation of private key")
 	walletCmd.AddCommand(walletCreateCmd)

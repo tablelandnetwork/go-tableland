@@ -202,3 +202,90 @@ var createTableCmd = &cobra.Command{
 		return nil
 	},
 }
+
+var setControllerCmd = &cobra.Command{
+	Use:   "setcontroller",
+	Short: "Do a SetController call to Smart Contract",
+	Long:  `Do a SetController call to Smart Contract`,
+	Args:  cobra.ExactArgs(2),
+	PersistentPreRun: func(c *cobra.Command, args []string) {
+	},
+	RunE: func(cmd *cobra.Command, args []string) error {
+		contractAddress, err := cmd.Flags().GetString("contract-address")
+		if err != nil {
+			return errors.New("failed to parse contract-address")
+		}
+		chainID, err := cmd.Flags().GetInt("chain-id")
+		if err != nil {
+			return errors.New("failed to parse chain-id")
+		}
+		privateKey, err := cmd.Flags().GetString("privatekey")
+		if err != nil {
+			return errors.New("failed to parse privatekey")
+		}
+		gatewayEndpoint, err := cmd.Flags().GetString("gateway")
+		if err != nil {
+			return errors.New("failed to parse gateway")
+		}
+
+		ctx := context.Background()
+		conn, err := ethclient.Dial(gatewayEndpoint)
+		if err != nil {
+			return fmt.Errorf("dial: %s", err)
+		}
+
+		gasPrice, err := conn.SuggestGasPrice(ctx)
+		if err != nil {
+			return fmt.Errorf("suggest gas price: %s", err)
+		}
+
+		wallet, err := wallet.NewWallet(privateKey)
+		if err != nil {
+			return fmt.Errorf("new wallet: %s", err)
+		}
+
+		auth, err := bind.NewKeyedTransactorWithChainID(wallet.PrivateKey(), big.NewInt(int64(chainID)))
+		if err != nil {
+			return fmt.Errorf("new keyed transactor with chain id: %s", err)
+		}
+
+		nonce, err := conn.PendingNonceAt(ctx, wallet.Address())
+		if err != nil {
+			return fmt.Errorf("pending nonce at: %s", err)
+		}
+		opts := &bind.TransactOpts{
+			Context:  ctx,
+			Signer:   auth.Signer,
+			From:     auth.From,
+			Nonce:    big.NewInt(0).SetUint64(nonce),
+			GasPrice: gasPrice,
+		}
+
+		contract, err := ethereum.NewContract(common.HexToAddress(contractAddress), conn)
+		if err != nil {
+			return fmt.Errorf("new contract: %s", err)
+		}
+
+		tableIDStr := args[0]
+		controller := args[1]
+
+		table := new(big.Int)
+		tableID, ok := table.SetString(tableIDStr, 10)
+		if !ok {
+			return fmt.Errorf("set string: %s", err)
+		}
+
+		tx, err := contract.SetController(opts,
+			wallet.Address(),
+			tableID,
+			common.HexToAddress(controller),
+		)
+		if err != nil {
+			return fmt.Errorf("set controller: %s", err)
+		}
+
+		fmt.Printf("%s\n\n", tx.Hash())
+
+		return nil
+	},
+}
