@@ -69,10 +69,8 @@ func (s *InstrumentedSystemSQLStoreService) GetTablesByController(ctx context.Co
 	latency := time.Since(start).Milliseconds()
 	chainID, _ := ctx.Value(middlewares.ContextKeyChainID).(tableland.ChainID)
 
-	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
 	attributes := []attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("GetTablesByController")},
-		{Key: "controller", Value: attribute.StringValue(controller)},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
 		{Key: "chainID", Value: attribute.Int64Value(int64(chainID))},
 	}

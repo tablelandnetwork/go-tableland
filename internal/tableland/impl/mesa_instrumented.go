@@ -127,7 +127,6 @@ func (t *InstrumentedTablelandMesa) record(ctx context.Context, data recordData)
 	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
 	attributes := []attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue(data.method)},
-		{Key: "controller", Value: attribute.StringValue(data.controller)},
 		{Key: "table_id", Value: attribute.StringValue(data.tableID)},
 		{Key: "success", Value: attribute.BoolValue(data.success)},
 	}
