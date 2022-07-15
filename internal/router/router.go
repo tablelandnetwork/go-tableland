@@ -33,12 +33,16 @@ func ConfiguredRouter(
 		log.Fatal().Err(err).Msg("creating instrumented user store")
 	}
 
-	svc := getTablelandService(parser, instrUserStore, chainStacks)
+	mesaService := impl.NewTablelandMesa(parser, instrUserStore, chainStacks)
+	userController := controllers.NewUserController(mesaService)
+	mesaService, err = impl.NewInstrumentedTablelandMesa(mesaService)
+	if err != nil {
+		log.Fatal().Err(err).Msg("instrumenting mesa")
+	}
 	server := rpc.NewServer()
-	if err := server.RegisterName("tableland", svc); err != nil {
+	if err := server.RegisterName("tableland", mesaService); err != nil {
 		log.Fatal().Err(err).Msg("failed to register a json-rpc service")
 	}
-	userController := controllers.NewUserController(svc)
 	infraController := controllers.NewInfraController()
 
 	stores := make(map[tableland.ChainID]sqlstore.SystemStore, len(chainStacks))
@@ -88,20 +92,6 @@ func ConfiguredRouter(
 	router.Get("/health", healthHandler)
 
 	return router
-}
-
-func getTablelandService(
-	parser parsing.SQLValidator,
-	userStore sqlstore.UserStore,
-	chainStacks map[tableland.ChainID]chains.ChainStack,
-) tableland.Tableland {
-	instrumentedMesa, err := impl.NewInstrumentedTablelandMesa(
-		impl.NewTablelandMesa(parser, userStore, chainStacks),
-	)
-	if err != nil {
-		log.Fatal().Err(err).Msg("instrumenting mesa")
-	}
-	return instrumentedMesa
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
