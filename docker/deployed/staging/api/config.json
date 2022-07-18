@@ -7,7 +7,7 @@
     "TLSKey": "${VALIDATOR_TLS_KEY}"
   },
   "Gateway": {
-    "ExternalURIPrefix": "https://staging.tableland.network/tables"
+    "ExternalURIPrefix": "https://staging.tableland.network"
   },
   "DB": {
     "Port": "5432"
