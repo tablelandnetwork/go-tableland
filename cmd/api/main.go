@@ -110,6 +110,7 @@ func main() {
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 20 * time.Second,
 		IdleTimeout:  120 * time.Second,
+		TLSNextProto: map[string]func(*http.Server, *tls.Conn, http.Handler){},
 		Handler:      router.Handler(),
 	}
 
