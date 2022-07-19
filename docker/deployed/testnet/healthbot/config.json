@@ -11,7 +11,7 @@
         {
             "Name": "optimism-kovan",
             "Probe": {
-                "CheckInterval": "30s",
+                "CheckInterval": "60s",
                 "ReceiptTimeout": "25s",
                 "SIWE": "${HEALTHBOT_OPTIMISM_KOVAN_SIWE}",
                 "Tablename": "${HEALTHBOT_OPTIMISM_KOVAN_TABLE}"
