@@ -420,6 +420,38 @@ func (b *batch) TxnReceiptExists(ctx context.Context, txnHash common.Hash) (bool
 	return exists, nil
 }
 
+// ChangeTableOwner changes the owner of the table in the registry table.
+func (b *batch) ChangeTableOwner(
+	ctx context.Context,
+	id tableland.TableID,
+	newOwner common.Address,
+) error {
+	f := func(ctx context.Context, tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE registry SET controller = ?1 WHERE id = ?2 AND chain_id = ?3;`,
+			newOwner.Hex(),
+			id.String(),
+			b.tp.chainID,
+		); err != nil {
+			if code, ok := isErrCausedByQuery(err); ok {
+				return &txn.ErrQueryExecution{
+					Code: "SQLITE_" + code,
+					Msg:  err.Error(),
+				}
+			}
+			return fmt.Errorf("updating table owner: %s", err)
+		}
+
+		return nil
+	}
+
+	if err := runWithinSavepoint(ctx, b.txn, f); err != nil {
+		return fmt.Errorf("running within savepoint: %w", err)
+	}
+
+	return nil
+}
+
 // Close closes gracefully the batch. Clients should *always* `defer Close()` when
 // opening batches.
 func (b *batch) Close() error {

@@ -22,8 +22,10 @@ import (
 
 // Random address for testing. The value isn't important
 // because the ACL is mocked.
-var controller = common.HexToAddress("0x07dfFc57AA386D2b239CaBE8993358DF20BAFBE2")
-var chainID = 1337
+var (
+	controller = common.HexToAddress("0x07dfFc57AA386D2b239CaBE8993358DF20BAFBE2")
+	chainID    = 1337
+)
 
 func TestExecWriteQueries(t *testing.T) {
 	t.Parallel()
@@ -802,6 +804,48 @@ func TestWithCheck(t *testing.T) {
 
 		require.NoError(t, txnp.Close(ctx))
 	})
+}
+
+func TestChangeTableOwner(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	tableID := tableland.TableID(*big.NewInt(100))
+	txnp, _, db := newTxnProcessorWithTable(t, 0)
+
+	require.Equal(t, 1,
+		tableRowCountT100(
+			t,
+			db,
+			fmt.Sprintf(
+				"select count(1) from registry WHERE controller = '%s' and id = %s and chain_id = %d",
+				"0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF",
+				tableID.String(),
+				chainID,
+			),
+		))
+
+	b, err := txnp.OpenBatch(ctx)
+	require.NoError(t, err)
+
+	// change table's owner
+	err = b.ChangeTableOwner(ctx, tableID, controller)
+	require.NoError(t, err)
+	require.NoError(t, b.Commit())
+	require.NoError(t, b.Close())
+	require.NoError(t, txnp.Close(ctx))
+
+	require.Equal(t, 1,
+		tableRowCountT100(
+			t,
+			db,
+			fmt.Sprintf(
+				"select count(1) from registry WHERE controller = '%s' and id = %s and chain_id = %d",
+				controller.Hex(),
+				tableID.String(),
+				chainID,
+			),
+		))
 }
 
 func tableRowCountT100(t *testing.T, pool *sql.DB, query string) int {

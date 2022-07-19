@@ -66,6 +66,8 @@ type Batch interface {
 	SaveTxnReceipts(ctx context.Context, rs []eventprocessor.Receipt) error
 	TxnReceiptExists(ctx context.Context, txnHash common.Hash) (bool, error)
 
+	ChangeTableOwner(ctx context.Context, id tableland.TableID, newOwner common.Address) error
+
 	Commit() error
 	Close() error
 }

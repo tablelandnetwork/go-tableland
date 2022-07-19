@@ -376,9 +376,9 @@ func (ep *EventProcessor) executeCreateTableEvent(
 	tableID := tableland.TableID(*e.TableId)
 
 	if err := b.InsertTable(ctx, tableID, e.Owner.Hex(), createStmt); err != nil {
-		var pgErr *txn.ErrQueryExecution
-		if errors.As(err, &pgErr) {
-			err := fmt.Sprintf("table creation execution failed (code: %s, msg: %s)", pgErr.Code, pgErr.Msg)
+		var dbErr *txn.ErrQueryExecution
+		if errors.As(err, &dbErr) {
+			err := fmt.Sprintf("table creation execution failed (code: %s, msg: %s)", dbErr.Code, dbErr.Msg)
 			receipt.Error = &err
 			return receipt, nil
 		}
@@ -418,9 +418,9 @@ func (ep *EventProcessor) executeRunSQLEvent(
 		return receipt, nil
 	}
 	if err := b.ExecWriteQueries(ctx, e.Caller, mutatingStmts, e.IsOwner, &policy{e.Policy}); err != nil {
-		var pgErr *txn.ErrQueryExecution
-		if errors.As(err, &pgErr) {
-			err := fmt.Sprintf("db query execution failed (code: %s, msg: %s)", pgErr.Code, pgErr.Msg)
+		var dbErr *txn.ErrQueryExecution
+		if errors.As(err, &dbErr) {
+			err := fmt.Sprintf("db query execution failed (code: %s, msg: %s)", dbErr.Code, dbErr.Msg)
 			receipt.Error = &err
 			return receipt, nil
 		}
@@ -454,9 +454,9 @@ func (ep *EventProcessor) executeSetControllerEvent(
 	tableID := tableland.TableID(*e.TableId)
 
 	if err := b.SetController(ctx, tableID, e.Controller); err != nil {
-		var pgErr *txn.ErrQueryExecution
-		if errors.As(err, &pgErr) {
-			err := fmt.Sprintf("set controller execution failed (code: %s, msg: %s)", pgErr.Code, pgErr.Msg)
+		var dbErr *txn.ErrQueryExecution
+		if errors.As(err, &dbErr) {
+			err := fmt.Sprintf("set controller execution failed (code: %s, msg: %s)", dbErr.Code, dbErr.Msg)
 			receipt.Error = &err
 			return receipt, nil
 		}
@@ -487,22 +487,32 @@ func (ep *EventProcessor) executeTransferEvent(
 		receipt.Error = &tableIDIsEmpty
 		return receipt, nil
 	}
+
 	tableID := tableland.TableID(*e.TableId)
+	if err := b.ChangeTableOwner(ctx, tableID, e.To); err != nil {
+		var dbErr *txn.ErrQueryExecution
+		if errors.As(err, &dbErr) {
+			err := fmt.Sprintf("change table owner execution failed (code: %s, msg: %s)", dbErr.Code, dbErr.Msg)
+			receipt.Error = &err
+			return receipt, nil
+		}
+		return eventprocessor.Receipt{}, fmt.Errorf("executing change table owner: %s", err)
+	}
 
 	privileges := tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate, tableland.PrivDelete}
 	if err := b.RevokePrivileges(ctx, tableID, e.From, privileges); err != nil {
-		var pgErr *txn.ErrQueryExecution
-		if errors.As(err, &pgErr) {
-			err := fmt.Sprintf("revoke privileges execution failed (code: %s, msg: %s)", pgErr.Code, pgErr.Msg)
+		var dbErr *txn.ErrQueryExecution
+		if errors.As(err, &dbErr) {
+			err := fmt.Sprintf("revoke privileges execution failed (code: %s, msg: %s)", dbErr.Code, dbErr.Msg)
 			receipt.Error = &err
 			return receipt, nil
 		}
 		return eventprocessor.Receipt{}, fmt.Errorf("executing revoke privileges: %s", err)
 	}
 	if err := b.GrantPrivileges(ctx, tableID, e.To, privileges); err != nil {
-		var pgErr *txn.ErrQueryExecution
-		if errors.As(err, &pgErr) {
-			err := fmt.Sprintf("grant privileges execution failed (code: %s, msg: %s)", pgErr.Code, pgErr.Msg)
+		var dbErr *txn.ErrQueryExecution
+		if errors.As(err, &dbErr) {
+			err := fmt.Sprintf("grant privileges execution failed (code: %s, msg: %s)", dbErr.Code, dbErr.Msg)
 			receipt.Error = &err
 			return receipt, nil
 		}
