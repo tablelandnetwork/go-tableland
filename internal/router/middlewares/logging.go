@@ -20,7 +20,8 @@ func WithLogging(h http.Handler) http.Handler {
 				log.Warn().Err(err).Msg("can't extract client ip")
 				clientIP = "none"
 			}
-			log.Warn().
+			log.Ctx(r.Context()).
+				Warn().
 				Int("statusCode", loggedRW.statusCode).
 				Str("clientIP", clientIP).
 				Msg("non-200 status code response")
