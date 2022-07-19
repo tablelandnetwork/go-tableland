@@ -78,14 +78,14 @@ func ConfiguredRouter(
 
 	router.Post("/rpc", func(rw http.ResponseWriter, r *http.Request) {
 		server.ServeHTTP(rw, r)
-	}, middlewares.Authentication, rateLim, middlewares.OtelHTTP("rpc"))
+	}, middlewares.WithLogging, middlewares.Authentication, rateLim, middlewares.OtelHTTP("rpc"))
 
 	// Gateway configuration.
-	router.Get("/chain/{chainID}/tables/{id}", systemController.GetTable, middlewares.RESTChainID, rateLim, middlewares.OtelHTTP("GetTable"))                                           // nolint
-	router.Get("/chain/{chainID}/tables/{id}/{key}/{value}", userController.GetTableRow, middlewares.RESTChainID, rateLim, middlewares.OtelHTTP("GetTableRow"))                         // nolint
-	router.Get("/chain/{chainID}/tables/controller/{address}", systemController.GetTablesByController, middlewares.RESTChainID, rateLim, middlewares.OtelHTTP("GetTablesByController")) // nolint
-	router.Get("/query", userController.GetTableQuery, rateLim, middlewares.OtelHTTP("GetTableQuery"))                                                                                  // nolint
-	router.Get("/version", infraController.Version, rateLim, middlewares.OtelHTTP("Version"))                                                                                           // nolint
+	router.Get("/chain/{chainID}/tables/{id}", systemController.GetTable, middlewares.WithLogging, middlewares.RESTChainID, rateLim, middlewares.OtelHTTP("GetTable"))                                           // nolint
+	router.Get("/chain/{chainID}/tables/{id}/{key}/{value}", userController.GetTableRow, middlewares.WithLogging, middlewares.RESTChainID, rateLim, middlewares.OtelHTTP("GetTableRow"))                         // nolint
+	router.Get("/chain/{chainID}/tables/controller/{address}", systemController.GetTablesByController, middlewares.WithLogging, middlewares.RESTChainID, rateLim, middlewares.OtelHTTP("GetTablesByController")) // nolint
+	router.Get("/query", userController.GetTableQuery, middlewares.WithLogging, rateLim, middlewares.OtelHTTP("GetTableQuery"))                                                                                  // nolint
+	router.Get("/version", infraController.Version, middlewares.WithLogging, rateLim, middlewares.OtelHTTP("Version"))                                                                                           // nolint
 
 	// Health endpoint configuration.
 	router.Get("/healthz", healthHandler)
