@@ -329,7 +329,8 @@ func (c *UserController) runReadRequest(
 		log.Ctx(ctx).
 			Error().
 			Str("sqlRequest", req.Statement).
-			Err(err)
+			Err(err).
+			Msg("executing read query")
 
 		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: err.Error()})
 		return nil, false
