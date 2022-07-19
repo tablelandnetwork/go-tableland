@@ -453,6 +453,19 @@ func TestTransferTable(t *testing.T) {
 		100*time.Millisecond,
 	)
 	requireReceipts(ctx, t, tbldOwner2, []string{r2.Transaction.Hash}, true)
+
+	// check registry table new ownership
+	require.Eventually(t,
+		runSQLCountEq(ctx,
+			t,
+			tbldOwner2,
+			fmt.Sprintf("SELECT * FROM registry WHERE controller = '%s' AND id = 1 AND chain_id = 1337", txOptsOwner2.From.Hex()), // nolint
+			txOptsOwner2.From.Hex(),
+			1,
+		),
+		5*time.Second,
+		100*time.Millisecond,
+	)
 }
 
 func TestQueryConstraints(t *testing.T) {
