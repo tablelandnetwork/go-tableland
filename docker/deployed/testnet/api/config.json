@@ -2,7 +2,7 @@
     "Impl": "mesa",
     "HTTP": {
         "Port": "8080",
-        "RateLimInterval": "4s",
+        "RateLimInterval": "2s",
         "MaxRequestPerInterval": 10,
         "TLSCert": "${VALIDATOR_TLS_CERT}",
         "TLSKey": "${VALIDATOR_TLS_KEY}"
