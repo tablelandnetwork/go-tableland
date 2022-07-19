@@ -47,17 +47,9 @@ func RateLimitController(cfg RateLimiterConfig) (mux.MiddlewareFunc, error) {
 			return ctrlAddress, nil
 		}
 
-		// Use X-Forwarded-For IP if present.
-		// i.g: https://cloud.google.com/load-balancing/docs/https#x-forwarded-for_header
-		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-			ip := strings.Split(xff, ",")[0]
-			return ip, nil
-		}
-
-		// Use the request remote address.
-		ip, _, err := net.SplitHostPort(r.RemoteAddr)
+		ip, err := extractClientIP(r)
 		if err != nil {
-			return "", fmt.Errorf("getting ip from remote addr: %s", err)
+			return "", fmt.Errorf("extract client ip: %s", err)
 		}
 		return ip, nil
 	}
@@ -125,4 +117,20 @@ func createRateLimiter(cfg RateLimiterRouteConfig, kf httplimit.KeyFunc) (*httpl
 		return nil, fmt.Errorf("creating default httplimiter: %s", err)
 	}
 	return m, nil
+}
+
+func extractClientIP(r *http.Request) (string, error) {
+	// Use X-Forwarded-For IP if present.
+	// i.g: https://cloud.google.com/load-balancing/docs/https#x-forwarded-for_header
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		ip := strings.Split(xff, ",")[0]
+		return ip, nil
+	}
+
+	// Use the request remote address.
+	ip, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return "", fmt.Errorf("getting ip from remote addr: %s", err)
+	}
+	return ip, nil
 }
