@@ -14,7 +14,7 @@
         "Port": "5432"
     },
     "TableConstraints": {
-        "MaxRowCount": 100000
+        "MaxRowCount": 500000
     },
     "QueryConstraints": {
         "MaxWriteQuerySize": 35000,
