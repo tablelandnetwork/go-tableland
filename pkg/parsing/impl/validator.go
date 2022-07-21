@@ -75,7 +75,7 @@ func (pp *QueryValidator) ValidateCreateTable(query string, chainID tableland.Ch
 
 	prefix := strings.Join(parts[:len(parts)-1], "_")
 	if hasPrefix(prefix, pp.systemTablePrefixes) {
-		return nil, &parsing.ErrInvalidTableName{}
+		return nil, &parsing.ErrPrefixTableName{Prefix: prefix}
 	}
 
 	strChainID := parts[len(parts)-1]

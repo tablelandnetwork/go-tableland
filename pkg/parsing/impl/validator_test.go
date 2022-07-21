@@ -472,13 +472,19 @@ func TestCreateTableChecks(t *testing.T) {
 			name:       "prefix starts with sqlite_",
 			query:      "create table sqlite_test_69 (foo int)",
 			chainID:    69,
-			expErrType: ptr2ErrInvalidTableName(),
+			expErrType: ptr2ErrPrefixTableName(),
 		},
 		{
 			name:       "prefix starts with system_",
 			query:      "create table system_test_69 (foo int)",
 			chainID:    69,
-			expErrType: ptr2ErrInvalidTableName(),
+			expErrType: ptr2ErrPrefixTableName(),
+		},
+		{
+			name:       "prefix starts with registry",
+			query:      "create table registry_69 (foo int)",
+			chainID:    69,
+			expErrType: ptr2ErrPrefixTableName(),
 		},
 
 		// Single-statement check.
@@ -919,6 +925,11 @@ func ptr2ErrMultiTableReference() **parsing.ErrMultiTableReference {
 
 func ptr2ErrInvalidTableName() **parsing.ErrInvalidTableName {
 	var e *parsing.ErrInvalidTableName
+	return &e
+}
+
+func ptr2ErrPrefixTableName() **parsing.ErrPrefixTableName {
+	var e *parsing.ErrPrefixTableName
 	return &e
 }
 

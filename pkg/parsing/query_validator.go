@@ -181,6 +181,16 @@ func (e *ErrInvalidTableName) Error() string {
 	return "the query references a table name with the wrong format"
 }
 
+// ErrPrefixTableName is an error returned when a query references a table with
+// a prefix that is not allowed.
+type ErrPrefixTableName struct {
+	Prefix string
+}
+
+func (e *ErrPrefixTableName) Error() string {
+	return fmt.Sprintf("prefix '%s' is not allowed as part of table's name", e.Prefix)
+}
+
 // ErrReadQueryTooLong is an error returned when a read query is too long.
 type ErrReadQueryTooLong struct {
 	Length     int
