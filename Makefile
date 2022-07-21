@@ -6,7 +6,6 @@ PLATFORM ?= $(shell uname -m)
 BIN_VERSION?="git"
 
 HTTP_PORT ?= 8080
-GCP_PROJECT=textile-310716
 
 GO_BINDATA=go run github.com/go-bindata/go-bindata/v3/go-bindata@v3.1.3
 GOVVV=go run github.com/ahmetb/govvv@v0.3.0 
@@ -36,7 +35,7 @@ system-sql-assets:
 .PHONY: system-sql-assets
 
 
-# Building and publishing image to GCP
+# Build 
 
 build-api:
 	go build -ldflags="${GOVVV_FLAGS}" ./cmd/api
@@ -53,11 +52,6 @@ build-api-debug:
 image:
 	docker build --platform linux/amd64 -t tableland/api:sha-$(HEAD_SHORT) -t tableland/api:latest -f ./cmd/api/Dockerfile .
 .PHONY: image
-
-publish:
-	docker tag tableland/api:sha-$(HEAD_SHORT) us-west1-docker.pkg.dev/${GCP_PROJECT}/textile/tableland/api:sha-$(HEAD_SHORT)
-	docker push us-west1-docker.pkg.dev/${GCP_PROJECT}/textile/tableland/api:sha-$(HEAD_SHORT)
-.PHONY: publish
 
 # Test
 

@@ -1,61 +1,80 @@
 ![image](https://user-images.githubusercontent.com/6136245/153219831-53b05f19-1ac2-4523-b564-0686e2078d4d.png)
-<h1 align="center">Go Tableland</h1>
+[![Go Reference](https://pkg.go.dev/badge/github.com/textileio/go-tableland.svg)](https://pkg.go.dev/github.com/textileio/go-tableland) [![Go Report Card](https://goreportcard.com/badge/github.com/textileio/go-tableland)](https://goreportcard.com/report/github.com/textileio/go-tableland)
+<h1 align="center">Tableland Validator</h1>
 
-This project is part of a POC of the Tableland project.
+This repository contains the Go implementation of a Tableland validator.
 
-![Tableland POC](https://user-images.githubusercontent.com/1233473/147493247-4710159a-86f3-4e80-8e4e-36ba7499eafc.png)
+# What is a validator?
 
-It implements the validator as a JSON-RPC server responsible for updating a Postgres database.
+Validators are the execution unit/actors of the protocol.
 
-# API Spec
+They have the following responsibilities:
 
-[Postman Collection](https://www.postman.com/aviation-participant-86342471/workspace/my-workspace/collection/18493329-068ef574-afde-4057-926c-ebee6628315c)
+- Listen to on-chain events to materialize Tableland-compliant SQL queries in a database engine (currently, SQLite by default).
+- Serve read-queries (e.g: `SELECT * FROM foo_69_1`) to the external world.
+- Relay write-queries to the `Registry` SC on behalf of users.
 
-# Current state of the project (and design decisions)
+> 💡 The responsibilities of the validator will continue to change as the Tableland protocol evolves. In the future, validators will have more responsibilities in the network.
 
-- It has a JSON-RPC server responsible for handling user calls such as `createTable` and `runSQL`
-- It has additional HTTP endpoints for getting data from the sytems
-  - `GET /tables/{id}` for table's metadata
-  - `GET /tables/controller/{address}` to get all tables a controller address owns
-- It uses JWT authentication on the JSON-RPC calls. The JWT is token is created in the client using [textileio/storage-js](https://github.com/textileio/storage-js/blob/main/packages/eth/src/index.ts#L66)
-- The JSON-RPC is implemented using Ethereum's [implementation](https://pkg.go.dev/github.com/ethereum/go-ethereum/rpc) of the [2.0 spec](https://www.jsonrpc.org/specification)
-- The JSON-RPC server is an HTTP server (Just for clarification. It could also be just a TCP server.)
-- The server is currently deployed as a `docker` container inside a [Compute Engine VM](https://console.cloud.google.com/compute/instances?project=textile-310716&authuser=1)
-- Configs can be passed with flags, config.json file or env variables (it uses the [uConfig](https://github.com/omeid/uconfig) package)
-- There is a Postgres database running inside the same [Compute Engine VM](https://console.cloud.google.com/compute/instances?project=textile-310716&authuser=1) as the container
-- For local development, there is a `docker-compose` file. Just execute `make up` to have the validator up and running.
-- For local development, you need to connect to a Ethereum node. The best approach now is to run a local `hardhat` container using [textileio/eth-tableland/pull/5](https://github.com/textileio/eth-tableland/pull/5)
+# Where does the validator fit in the network?
+
+The following is a diagram that describes at a high level the interaction between the validator, EVM-chains, and the external world:
+
+![image](https://user-images.githubusercontent.com/6136245/180085125-3093401c-5ef0-449e-93b7-c323fd0bfbce.png)
+
+To understand better the usual work mechanics of the validator, let’s go through a typical use-case where a user mints a table, adds data to the table, and reads it:
+
+1- The user will mint a table in the `Registry` smart contract.
+
+2- The `Registry` contract will emit a `CreateTable` event containing the `CREATE TABLE` statement as extra data.
+
+3- Validators will detect the new event and execute the `CREATE TABLE` statement.
+
+4- The user will call the `runSQL` method in the `Registry` smart contract, with mutating statements such as `INSERT INTO ...`.
+
+5- The `Registry` contract, as a result of that call, will emit a `RunSQL` event that contains the `INSERT TABLE` statement as extra data.
+
+6- The validators will detect the new event and execute the mutating query in the corresponding table.
+
+7- The user can query the RPC endpoint of the validator to execute read-queries (e.g: `SELECT * FROM ...`), to see the materialized result of its interaction with the SC.
+
+> 💡 The description above is optimized to understand the general mechanics of the validator. Minting tables, and executing mutating statements also imply more work both at the SC and validator levels (e.g: ACL enforcing); we’re skipping them here.
+
+The validator detects the smart contract events using an EVM node API (e.g: `geth` node), which can be self-hosted or served by providers (e.g: Alchemy, Infura, etc).
+
+# How can I run a validator?
+
+Soon we'll be creating full documentation on how to configure and run a validator, stay tuned.
+If you're interested in running a Tableland validator, please [fill this form](https://hhueol4i6vp.typeform.com/to/gkcyeA22).
+
+# Building from source
+
+You can build the validator binary from source by running: `make build-api`.
+
+# Run with docker-compose
+
+The repository contains in the `docker` folder a complete docker-compose setup to run a validator.
+
+Soon we'll publish dedicated documentation with instructions on how to run it.
+
+# Tools
+
+The `cmd/toolkit` is a CLI which contain useful commands:
+
+- `gaspricebump`: Bumps gas price for a stuck transaction
+- `sc`: Offers smart sontract calls
+- `siwe`: SIWE utilities
+- `wallet`: Offers wallet utilites
 
 # Contributing
 
-More information to come about the required development environment and workflow.
+Pull requests and bug reports are very welcome.
 
-## Updating smart contract bindings
+Feel free to get in touch by:
 
-The `go-tableland` interactions with the registry and NFT smart contracts are done using generated Golang bindings in the `pkg/tables/impl/ethereum` and `pkg/<fill me in>` packages, respectively. The bindings are generated by running `make ethereum`, but rely on the presence of some manually imported/maintained files in each package: `abi.json` and `bytecode.bin`. If anything about the smart contract APIs changes, these files need to be updated, and the Go bindings re-generated. The contents of these files are created by compiling the smart contracts in [eth-tableland](https://github.com/textileio/eth-tableland) and copying some of the resulting build output.
+- Opening an issue.
+- Joining our [Discord server](https://discord.gg/dc8EBEhGbg).
 
-### Building eth-tableland contracts
+# License
 
-Check out the latest code from [eth-tableland](https://github.com/textileio/eth-tableland) and follow the instructions in the `README.md` to [setup and compile the contracts](https://github.com/textileio/eth-tableland/blob/main/README.md#building-the-client).
-
-Then follow the instructions to [extract the contract ABI and bytecode](https://github.com/textileio/eth-tableland/blob/main/README.md#extacting-the-abi-and-bytecode).
-
-Copy the resulting `abi.json` and `bytecode.bin` files to the corresponding Go package in this repo, and then run `make ethereum`. If the contract API changed at all, you'll have to make the approprite updates to any code that consumes the generated bindings.
-
-# How to publish a new version
-
-This project uses `docker` and Google's [Artifact Registry](https://console.cloud.google.com/artifacts?authuser=1&project=textile-310716) for managing container images.
-
-```bash
-make image    # builds the image
-make publish  # publishes to Artifact Registry
-```
-
-Make sure you have `gcloud` installed and configured.
-If you get an error while trying to publish, try to run `gcloud auth configure-docker us-west1-docker.pkg.dev`
-
-# How to deploy
-
-```bash
-docker run -d --name api -p 80:8080 --add-host=database:172.17.0.1 -e DB_HOST=database -e DB_PASS=[[PASSWORD]] -e DB_USER=validator -e DB_NAME=tableland -e DB_PORT=5432 -e REGISTRY_ETHENDPOINT=http://tableland.com:8545 -e REGISTRY_CONTRACTADDRESS=0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512 [[IMAGE]]
-```
+MIT AND Apache-2.0, © 2021-2022 Tableland Network Contributors
