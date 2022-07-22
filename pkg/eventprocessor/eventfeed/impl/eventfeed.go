@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	logger "github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
@@ -153,6 +154,7 @@ func (ef *EventFeed) Start(
 					strings.Contains(err.Error(), "is greater than the limit") {
 					ef.maxBlocksFetchSize = ef.maxBlocksFetchSize * 80 / 100
 				} else {
+					log.Warn().Err(err).Msg("filter log call")
 					time.Sleep(ef.config.ChainAPIBackoff)
 				}
 				continue
