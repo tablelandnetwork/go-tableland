@@ -299,7 +299,11 @@ func (ef *EventFeed) notifyNewBlocks(ctx context.Context, clientCh chan *types.H
 				ef.log.Info().Msg("gracefully closing new blocks subscription")
 				return
 			case h := <-ch:
-				clientCh <- h
+				select {
+				case clientCh <- h:
+				default:
+					ef.log.Warn().Int("height", int(h.Number.Int64())).Msg("dropping new height")
+				}
 			case <-time.After(ef.config.NewBlockTimeout):
 				ef.log.Warn().Dur("timeout", ef.config.NewBlockTimeout).Msgf("new blocks subscription is quiet, rebuilding")
 				notifierSignaler <- struct{}{}
