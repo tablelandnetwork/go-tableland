@@ -3,6 +3,9 @@
     "Human": true,
     "Debug": true
   },
+  "Gateway": {
+    "ExternalURIPrefix": "http://localhost:8080"
+  },
   "Chains": [
     {
       "Name": "Local Hardhat",

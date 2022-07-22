@@ -63,7 +63,7 @@ func (s *SystemSQLStoreService) GetTableMetadata(
 
 	return sqlstore.TableMetadata{
 		Name:        fmt.Sprintf("%s_%d_%s", table.Prefix, table.ChainID, table.ID),
-		ExternalURL: fmt.Sprintf("%s/%s", s.extURLPrefix, id),
+		ExternalURL: fmt.Sprintf("%s/chain/%d/tables/%s", s.extURLPrefix, table.ChainID, table.ID),
 		Image:       "https://bafkreifhuhrjhzbj4onqgbrmhpysk2mop2jimvdvfut6taiyzt2yqzt43a.ipfs.dweb.link", //nolint
 		Attributes: []sqlstore.TableMetadataAttribute{
 			{
