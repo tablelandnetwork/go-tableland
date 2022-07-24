@@ -535,6 +535,14 @@ func TestCreateTableChecks(t *testing.T) {
 			query:      "delete from foo",
 			expErrType: ptr2ErrNoTopLevelCreate(),
 		},
+
+		// reserved keywords
+		{
+			name:       "keyword references",
+			query:      "create table any_1337 (references text);",
+			chainID:    1337,
+			expErrType: ptr2ErrKeywordIsNotAllowed(),
+		},
 	}
 
 	for _, it := range tests {
@@ -904,6 +912,11 @@ func ptr2ErrSystemTableReferencing() **parsing.ErrSystemTableReferencing {
 }
 
 func ptr2ErrNonDeterministicFunction() **sqlparser.ErrKeywordIsNotAllowed {
+	var e *sqlparser.ErrKeywordIsNotAllowed
+	return &e
+}
+
+func ptr2ErrKeywordIsNotAllowed() **sqlparser.ErrKeywordIsNotAllowed {
 	var e *sqlparser.ErrKeywordIsNotAllowed
 	return &e
 }
