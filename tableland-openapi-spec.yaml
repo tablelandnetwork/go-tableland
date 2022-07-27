@@ -16,7 +16,7 @@ paths:
         * The `validateCreateTable` method allows you validate a CREATE TABLE query as a pre-mint check, and also calculate its corresponding structure hash.
 
         * The `runReadQuery` method allows you execute a read-query in the validator and get the result.
-        
+
         * The `relayWriteQuery` method allows you to rely on the validator to send a runSQL SC call on your behalf for write-queries.
 
         * The `getReceipt` method allows you to get the receipt of a chain transaction to know if it was executed, and the execution details.
@@ -151,14 +151,14 @@ paths:
                         chain_id: 5
                         txn_hash: "0xc3e7d1e81b59556f414a5f5c23760eb61b4bfaa18150d924d7d3b334941dbecd"
                         block_number: 1000
-                        table_id: '2'
+                        table_id: "2"
                 setController:
                   value:
                     jsonrpc: "2.0"
                     id: 1
                     result:
                       tx:
-                        hash: '0xa69590589a9ae04bfde4ca07351c611f9ddb2ddc3bab6cd0165684dc959be5c7'
+                        hash: "0xa69590589a9ae04bfde4ca07351c611f9ddb2ddc3bab6cd0165684dc959be5c7"
   /chain/{chainID}/tables/controller/{address}:
     get:
       summary: Get all tables controlled by an ETH address
@@ -512,12 +512,9 @@ components:
           items:
             type: "object"
             required:
-              - "caller"
               - "controller"
               - "token_id"
             properties:
-              txn_hash:
-                type: "string"
               controller:
                 type: "string"
               token_id:
