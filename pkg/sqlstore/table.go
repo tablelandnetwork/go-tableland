@@ -16,6 +16,19 @@ type Table struct {
 	CreatedAt  time.Time         `json:"created_at"`
 }
 
+// TableSchema represents the schema of a table.
+type TableSchema struct {
+	Columns          []ColumnSchema
+	TableConstraints []string
+}
+
+// ColumnSchema represents the schema of a column.
+type ColumnSchema struct {
+	Name        string
+	Type        string
+	Constraints []string
+}
+
 // TableMetadata represents table metadata (OpenSea standard).
 type TableMetadata struct {
 	Name        string                   `json:"name"`

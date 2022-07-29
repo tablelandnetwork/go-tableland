@@ -11,4 +11,6 @@ import (
 type SystemService interface {
 	GetTableMetadata(context.Context, tableland.TableID) (sqlstore.TableMetadata, error)
 	GetTablesByController(context.Context, string) ([]sqlstore.Table, error)
+	GetTablesByStructure(context.Context, string) ([]sqlstore.Table, error)
+	GetSchemaByTableName(context.Context, string) (sqlstore.TableSchema, error)
 }

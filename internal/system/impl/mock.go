@@ -39,6 +39,16 @@ func (s *SystemMockService) GetTablesByController(ctx context.Context, controlle
 	return []sqlstore.Table{}, nil
 }
 
+// GetTablesByStructure returns all tables that share the same structure.
+func (s *SystemMockService) GetTablesByStructure(ctx context.Context, structure string) ([]sqlstore.Table, error) {
+	return []sqlstore.Table{}, nil
+}
+
+// GetSchemaByTableName returns the schema of a table by its name.
+func (s *SystemMockService) GetSchemaByTableName(ctx context.Context, name string) (sqlstore.TableSchema, error) {
+	return sqlstore.TableSchema{}, errors.New("no table found")
+}
+
 // SystemMockErrService is a dummy implementation that returns a fixed value.
 type SystemMockErrService struct{}
 
@@ -58,4 +68,14 @@ func (*SystemMockErrService) GetTableMetadata(
 // GetTablesByController returns table's fetched from SQLStore by controller address.
 func (s *SystemMockErrService) GetTablesByController(ctx context.Context, controller string) ([]sqlstore.Table, error) {
 	return []sqlstore.Table{}, errors.New("no table found")
+}
+
+// GetTablesByStructure returns all tables that share the same structure.
+func (s *SystemMockErrService) GetTablesByStructure(ctx context.Context, structure string) ([]sqlstore.Table, error) {
+	return []sqlstore.Table{}, errors.New("no table found")
+}
+
+// GetSchemaByTableName returns the schema of a table by its name.
+func (s *SystemMockErrService) GetSchemaByTableName(ctx context.Context, name string) (sqlstore.TableSchema, error) {
+	return sqlstore.TableSchema{}, errors.New("no table found")
 }
