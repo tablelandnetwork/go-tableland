@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -90,7 +89,7 @@ func (c *SystemController) GetTablesByController(rw http.ResponseWriter, r *http
 	for i, t := range tables {
 		retTables[i] = tableNameIDUnified{
 			Controller: t.Controller,
-			Name:       fmt.Sprintf("%s_%d_%s", t.Prefix, t.ChainID, t.ID),
+			Name:       t.Name(),
 			Structure:  t.Structure,
 		}
 	}
@@ -129,7 +128,7 @@ func (c *SystemController) GetTablesByStructureHash(rw http.ResponseWriter, r *h
 	for i, t := range tables {
 		retTables[i] = tableNameIDUnified{
 			Controller: t.Controller,
-			Name:       fmt.Sprintf("%s_%d_%s", t.Prefix, t.ChainID, t.ID),
+			Name:       t.Name(),
 			Structure:  t.Structure,
 		}
 	}

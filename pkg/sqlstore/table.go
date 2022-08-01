@@ -1,6 +1,7 @@
 package sqlstore
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/textileio/go-tableland/internal/tableland"
@@ -14,6 +15,11 @@ type Table struct {
 	Prefix     string            `json:"prefix"`
 	Structure  string            `json:"structure"`
 	CreatedAt  time.Time         `json:"created_at"`
+}
+
+// Name returns table's full name.
+func (t Table) Name() string {
+	return fmt.Sprintf("%s_%d_%s", t.Prefix, t.ChainID, t.ID)
 }
 
 // TableSchema represents the schema of a table.

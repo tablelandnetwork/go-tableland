@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 
 	"github.com/textileio/go-tableland/internal/system"
 	"github.com/textileio/go-tableland/internal/tableland"
@@ -36,17 +37,67 @@ func (*SystemMockService) GetTableMetadata(ctx context.Context, id tableland.Tab
 
 // GetTablesByController returns table's fetched from SQLStore by controller address.
 func (s *SystemMockService) GetTablesByController(ctx context.Context, controller string) ([]sqlstore.Table, error) {
-	return []sqlstore.Table{}, nil
+	return []sqlstore.Table{
+		{
+			ID:         tableland.TableID(*big.NewInt(0)),
+			ChainID:    tableland.ChainID(1337),
+			Controller: "0x2a891118Cf3a8FdeBb00109ea3ed4E33B82D960f",
+			Prefix:     "test",
+			// echo -n a:INT| shasum -a 256
+			Structure: "0605f6c6705c7c1257edb2d61d94a03ad15f1d253a5a75525c6da8cda34a99ee",
+		},
+		{
+			ID:         tableland.TableID(*big.NewInt(1)),
+			ChainID:    tableland.ChainID(1337),
+			Controller: "0x2a891118Cf3a8FdeBb00109ea3ed4E33B82D960f",
+			Prefix:     "test2",
+			// echo -n a:INT| shasum -a 256
+			Structure: "0605f6c6705c7c1257edb2d61d94a03ad15f1d253a5a75525c6da8cda34a99ee",
+		},
+	}, nil
 }
 
 // GetTablesByStructure returns all tables that share the same structure.
 func (s *SystemMockService) GetTablesByStructure(ctx context.Context, structure string) ([]sqlstore.Table, error) {
-	return []sqlstore.Table{}, nil
+	return []sqlstore.Table{
+		{
+			ID:         tableland.TableID(*big.NewInt(0)),
+			ChainID:    tableland.ChainID(1337),
+			Controller: "0x2a891118Cf3a8FdeBb00109ea3ed4E33B82D960f",
+			Prefix:     "test",
+			// echo -n a:INT| shasum -a 256
+			Structure: "0605f6c6705c7c1257edb2d61d94a03ad15f1d253a5a75525c6da8cda34a99ee",
+		},
+		{
+			ID:         tableland.TableID(*big.NewInt(1)),
+			ChainID:    tableland.ChainID(1337),
+			Controller: "0x2a891118Cf3a8FdeBb00109ea3ed4E33B82D960f",
+			Prefix:     "test2",
+			// echo -n a:INT| shasum -a 256
+			Structure: "0605f6c6705c7c1257edb2d61d94a03ad15f1d253a5a75525c6da8cda34a99ee",
+		},
+	}, nil
 }
 
 // GetSchemaByTableName returns the schema of a table by its name.
 func (s *SystemMockService) GetSchemaByTableName(ctx context.Context, name string) (sqlstore.TableSchema, error) {
-	return sqlstore.TableSchema{}, errors.New("no table found")
+	return sqlstore.TableSchema{
+		Columns: []sqlstore.ColumnSchema{
+			{
+				Name:        "a",
+				Type:        "int",
+				Constraints: []string{"PRIMARY KEY"},
+			},
+			{
+				Name:        "b",
+				Type:        "text",
+				Constraints: []string{"DEFAULT ''"},
+			},
+		},
+		TableConstraints: []string{
+			"CHECK check (a > 0)",
+		},
+	}, nil
 }
 
 // SystemMockErrService is a dummy implementation that returns a fixed value.
