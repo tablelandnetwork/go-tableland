@@ -166,7 +166,7 @@ paths:
         - in: path
           name: chainID
           schema:
-            type: int
+            type: integer
           required: true
           description: The ChainID of the targeted chain.
         - in: path
@@ -185,26 +185,60 @@ paths:
                 items:
                   type: "object"
                   required:
-                    - "uuid"
+                    - "name"
                     - "controller"
-                    - "type"
-                    - "created_at"
+                    - "structure"
                   properties:
                     name:
                       type: "string"
                     controller:
                       type: "string"
-                    description:
+                    structure:
                       type: "string"
-                    created_at:
+                example:
+                  - controller: "0xbAb12215Ed94713A290e0c618fa8177fAb5eFd2D"
+                    name: "healthbot_31337_1"
+                    structure: "be1eb905f03347a439ecf9b612632fd53839b7f082dc2f9be6ef7da5dfddd660"
+  /chain/{chainID}/tables/structure/{hash}:
+    get:
+      summary: Get all tables that has the structure defined by the given hash
+      parameters:
+        - in: path
+          name: chainID
+          schema:
+            type: integer
+          required: true
+          description: The ChainID of the targeted chain.
+        - in: path
+          name: hash
+          schema:
+            type: string
+          required: true
+          description: hash of the schema of the table
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: "object"
+                  required:
+                    - "name"
+                    - "controller"
+                    - "structure"
+                  properties:
+                    name:
+                      type: "string"
+                    controller:
                       type: "string"
                     structure:
                       type: "string"
-                  example:
-                    - controller: "0xbAb12215Ed94713A290e0c618fa8177fAb5eFd2D"
-                      name: "healthbot_31337_1"
-                      structure: "be1eb905f03347a439ecf9b612632fd53839b7f082dc2f9be6ef7da5dfddd660"
-                      created_at: "2022-02-07T22:57:41.606803Z"
+                example:
+                  - controller: "0xbAb12215Ed94713A290e0c618fa8177fAb5eFd2D"
+                    name: "healthbot_31337_1"
+                    structure: "be1eb905f03347a439ecf9b612632fd53839b7f082dc2f9be6ef7da5dfddd660"
   /chain/{chainID}/tables/{id}:
     get:
       summary: Get the metadata associated with a table
@@ -212,7 +246,7 @@ paths:
         - in: path
           name: chainID
           schema:
-            type: int
+            type: integer
           required: true
           description: The ChainID of the targeted chain.
         - in: path
@@ -286,6 +320,57 @@ paths:
                   - message
                 example:
                   message: "Invalid id format"
+  /schema/{tableName}:
+    get:
+      summary: Get the schema of a table by its full name
+      parameters:
+        - in: path
+          name: tableName
+          schema:
+            type: string
+          required: true
+          description: The full table of the name
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                items:
+                  type: "object"
+                  required:
+                    - "columns"
+                    - "table_constraints"
+                  properties:
+                    columns:
+                      type: "array"
+                      items:
+                        type: "object"
+                        required:
+                          - "name"
+                          - "type"
+                          - "constraints"
+                        properties:
+                          name: 
+                            type: "string"
+                          type: 
+                            type: "string"
+                          constraints:
+                            type: "array"
+                            items:
+                              type: "string"
+                    table_constraints:
+                      type: "array"
+                      items:
+                        type: "string"
+                example:
+                  - columns: 
+                    - name: "a"
+                    - type: "int"
+                    - constraints: "PRIMARY KEY"
+                    table_constraints:
+                     - "CHECK (a > 0)"
   /query?s={readStatement}:
     get:
       summary: Get a read query with the statement in the `s` querystring parameter
