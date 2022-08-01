@@ -151,7 +151,7 @@ func (c *SystemController) GetSchemaByTableName(rw http.ResponseWriter, r *http.
 		log.Ctx(ctx).
 			Error().
 			Err(err).
-			Str("name", name).
+			Str("table_name", name).
 			Msg("failed to fetch tables")
 
 		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Failed to get schema from table"})

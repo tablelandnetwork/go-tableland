@@ -155,7 +155,7 @@ func NewTableFromName(name string) (Table, error) {
 	parts := strings.Split(name, "_")
 
 	if len(parts) < 2 {
-		return Table{}, errors.New("part is missing")
+		return Table{}, errors.New("table name has invalid format")
 	}
 
 	tableID, err := NewTableID(parts[len(parts)-1])
@@ -165,7 +165,7 @@ func NewTableFromName(name string) (Table, error) {
 
 	i, err := strconv.ParseInt(parts[len(parts)-2], 10, 64)
 	if err != nil {
-		return Table{}, fmt.Errorf("parse int: %s", err)
+		return Table{}, fmt.Errorf("parse chain id: %s", err)
 	}
 
 	return Table{

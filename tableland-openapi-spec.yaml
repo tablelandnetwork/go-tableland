@@ -329,7 +329,7 @@ paths:
           schema:
             type: string
           required: true
-          description: The full table of the name
+          description: The full name of the table
       responses:
         "200":
           description: Successful response
