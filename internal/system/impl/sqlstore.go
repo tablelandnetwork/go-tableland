@@ -95,3 +95,43 @@ func (s *SystemSQLStoreService) GetTablesByController(
 	}
 	return tables, nil
 }
+
+// GetTablesByStructure returns all tables that share the same structure.
+func (s *SystemSQLStoreService) GetTablesByStructure(ctx context.Context, structure string) ([]sqlstore.Table, error) {
+	ctxChainID := ctx.Value(middlewares.ContextKeyChainID)
+	chainID, ok := ctxChainID.(tableland.ChainID)
+	if !ok {
+		return nil, errors.New("no chain id found in context")
+	}
+	store, ok := s.stores[chainID]
+	if !ok {
+		return nil, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
+	}
+	tables, err := store.GetTablesByStructure(ctx, structure)
+	if err != nil {
+		return nil, fmt.Errorf("get tables by structure: %s", err)
+	}
+	return tables, nil
+}
+
+// GetSchemaByTableName returns the schema of a table by its name.
+func (s *SystemSQLStoreService) GetSchemaByTableName(
+	ctx context.Context,
+	tableName string,
+) (sqlstore.TableSchema, error) {
+	table, err := tableland.NewTableFromName(tableName)
+	if err != nil {
+		return sqlstore.TableSchema{}, fmt.Errorf("new table from name: %s", err)
+	}
+
+	store, ok := s.stores[table.ChainID()]
+	if !ok {
+		return sqlstore.TableSchema{}, fmt.Errorf("chain id %d isn't supported in the validator", table.ChainID())
+	}
+
+	schema, err := store.GetSchemaByTableName(ctx, tableName)
+	if err != nil {
+		return sqlstore.TableSchema{}, fmt.Errorf("get schema by table name: %s", err)
+	}
+	return schema, nil
+}

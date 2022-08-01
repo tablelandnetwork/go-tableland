@@ -67,5 +67,66 @@ func TestSystemSQLStoreService(t *testing.T) {
 	require.Equal(t, "foo", tables[0].Prefix)
 	// echo -n bar:INT| shasum -a 256
 	require.Equal(t, "5d70b398f938650871dd0d6d421e8d1d0c89fe9ed6c8a817c97e951186da7172", tables[0].Structure)
-	require.Equal(t, metadata.Attributes[0].Value, tables[0].CreatedAt.Unix())
+
+	tables, err = svc.GetTablesByStructure(ctx, "5d70b398f938650871dd0d6d421e8d1d0c89fe9ed6c8a817c97e951186da7172")
+	require.NoError(t, err)
+	require.Equal(t, 1, len(tables))
+	require.Equal(t, id, tables[0].ID)
+	require.Equal(t, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", tables[0].Controller)
+	require.Equal(t, "foo", tables[0].Prefix)
+	// echo -n bar:INT| shasum -a 256
+	require.Equal(t, "5d70b398f938650871dd0d6d421e8d1d0c89fe9ed6c8a817c97e951186da7172", tables[0].Structure)
+}
+
+func TestGetSchemaByTableName(t *testing.T) {
+	t.Parallel()
+
+	url := tests.Sqlite3URI()
+
+	ctx := context.WithValue(context.Background(), middlewares.ContextKeyChainID, tableland.ChainID(1337))
+	store, err := system.New(url, chainID)
+	require.NoError(t, err)
+
+	// populate the registry with a table
+	txnp, err := txnimpl.NewTxnProcessor(1337, url, 0, nil)
+	require.NoError(t, err)
+	b, err := txnp.OpenBatch(ctx)
+	require.NoError(t, err)
+
+	parser, err := parserimpl.New([]string{"system_", "registry"})
+	require.NoError(t, err)
+	id, _ := tableland.NewTableID("42")
+	createStmt, err := parser.ValidateCreateTable(
+		"create table foo_1337 (a int primary key, b text not null default 'foo' unique, check (a > 0))",
+		1337,
+	)
+	require.NoError(t, err)
+
+	err = b.InsertTable(ctx, id, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", createStmt)
+	require.NoError(t, err)
+	require.NoError(t, b.Commit())
+	require.NoError(t, b.Close())
+
+	stack := map[tableland.ChainID]sqlstore.SystemStore{1337: store}
+	svc, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables")
+	require.NoError(t, err)
+
+	schema, err := svc.GetSchemaByTableName(ctx, "foo_1337_42")
+	require.NoError(t, err)
+	require.Len(t, schema.Columns, 2)
+	require.Len(t, schema.TableConstraints, 1)
+
+	require.Equal(t, "a", schema.Columns[0].Name)
+	require.Equal(t, "int", schema.Columns[0].Type)
+	require.Len(t, schema.Columns[0].Constraints, 1)
+	require.Equal(t, "PRIMARY KEY", schema.Columns[0].Constraints[0])
+
+	require.Equal(t, "b", schema.Columns[1].Name)
+	require.Equal(t, "text", schema.Columns[1].Type)
+	require.Len(t, schema.Columns[1].Constraints, 3)
+	require.Equal(t, "NOT NULL", schema.Columns[1].Constraints[0])
+	require.Equal(t, "DEFAULT 'foo'", schema.Columns[1].Constraints[1])
+	require.Equal(t, "UNIQUE", schema.Columns[1].Constraints[2])
+
+	require.Equal(t, "CHECK(a > 0)", schema.TableConstraints[0])
 }

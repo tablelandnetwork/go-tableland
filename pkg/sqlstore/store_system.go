@@ -22,5 +22,7 @@ type SystemStore interface {
 	WithTx(tx *sql.Tx) SystemStore
 	Begin(context.Context) (*sql.Tx, error)
 	GetReceipt(context.Context, string) (eventprocessor.Receipt, bool, error)
+	GetTablesByStructure(context.Context, string) ([]Table, error)
+	GetSchemaByTableName(context.Context, string) (TableSchema, error)
 	Close() error
 }

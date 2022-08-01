@@ -10,6 +10,7 @@ import (
 	"github.com/XSAM/otelsql"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog/log"
+	"github.com/tablelandnetwork/sqlparser"
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -199,6 +200,72 @@ func (s *SystemStore) ReplacePendingTxByHash(ctx context.Context, oldHash common
 		return fmt.Errorf("replace pending tx: %s", err)
 	}
 	return nil
+}
+
+// GetTablesByStructure gets all tables with a particular structure hash.
+func (s *SystemStore) GetTablesByStructure(ctx context.Context, structure string) ([]sqlstore.Table, error) {
+	rows, err := s.db.queries().GetTablesByStructure(ctx, db.GetTablesByStructureParams{
+		ChainID:   int64(s.chainID),
+		Structure: structure,
+	})
+	if err != nil {
+		return []sqlstore.Table{}, fmt.Errorf("failed to get the table: %s", err)
+	}
+
+	tables := make([]sqlstore.Table, len(rows))
+	for i := range rows {
+		tables[i], err = tableFromSQLToDTO(rows[i])
+		if err != nil {
+			return nil, fmt.Errorf("parsing database table to dto: %s", err)
+		}
+	}
+
+	return tables, nil
+}
+
+// GetSchemaByTableName get the schema of a table by its name.
+func (s *SystemStore) GetSchemaByTableName(ctx context.Context, name string) (sqlstore.TableSchema, error) {
+	createStmt, err := s.db.queries().GetSchemaByTableName(ctx, db.GetSchemaByTableNameParams{
+		TableName: name,
+	})
+	if err != nil {
+		return sqlstore.TableSchema{}, fmt.Errorf("failed to get the table: %s", err)
+	}
+
+	index := strings.LastIndex(createStmt, "STRICT")
+	ast, err := sqlparser.Parse(createStmt[:index])
+	if err != nil {
+		return sqlstore.TableSchema{}, fmt.Errorf("failed to parse create stmt: %s", err)
+	}
+
+	if ast.Errors[0] != nil {
+		return sqlstore.TableSchema{}, fmt.Errorf("non-syntax error: %s", ast.Errors[0])
+	}
+
+	createTableNode := ast.Statements[0].(*sqlparser.CreateTable)
+	columns := make([]sqlstore.ColumnSchema, len(createTableNode.Columns))
+	for i, col := range createTableNode.Columns {
+		colConstraints := []string{}
+		for _, colConstraint := range col.Constraints {
+			colConstraints = append(colConstraints, colConstraint.String())
+		}
+
+		columns[i] = sqlstore.ColumnSchema{
+			Name:        col.Name.String(),
+			Type:        strings.ToLower(col.Type),
+			Constraints: colConstraints,
+		}
+	}
+
+	tableConstraints := make([]string, len(createTableNode.Constraints))
+	for i, tableConstraint := range createTableNode.Constraints {
+		tableConstraints[i] = tableConstraint.String()
+	}
+
+	return sqlstore.TableSchema{
+		Columns:          columns,
+		TableConstraints: tableConstraints,
+	}, nil
 }
 
 // WithTx returns a copy of the current SystemStore with a tx attached.
