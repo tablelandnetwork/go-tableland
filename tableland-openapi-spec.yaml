@@ -365,11 +365,12 @@ paths:
                       items:
                         type: "string"
                 example:
-                  - columns: 
+                  columns: 
                     - name: "a"
-                    - type: "int"
-                    - constraints: "PRIMARY KEY"
-                    table_constraints:
+                      type: "int"
+                      constraints:
+                        - "PRIMARY KEY"
+                  table_constraints:
                      - "CHECK (a > 0)"
   /query?s={readStatement}:
     get:
@@ -393,11 +394,11 @@ paths:
                   properties:
                     data:
                       type: "object"
-                  example:
-                    columns:
-                      - name: column_a
-                    rows:
-                      - [1]
+                example:
+                  columns:
+                    - name: column_a
+                  rows:
+                    - [1]
           headers:
             Access-Control-Allow-Headers:
               schema:
