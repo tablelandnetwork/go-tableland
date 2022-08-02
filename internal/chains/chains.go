@@ -9,8 +9,9 @@ import (
 
 // ChainStack contains components running for a specific ChainID.
 type ChainStack struct {
-	Store    sqlstore.SystemStore
-	Registry tables.TablelandTables
+	Store                 sqlstore.SystemStore
+	Registry              tables.TablelandTables
+	AllowTransactionRelay bool
 
 	// close gracefully closes all the chain stack components.
 	Close func(ctx context.Context) error

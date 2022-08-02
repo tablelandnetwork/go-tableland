@@ -302,10 +302,10 @@ func createChainIDStack(
 	if err := ep.Start(); err != nil {
 		return chains.ChainStack{}, fmt.Errorf("starting event processor")
 	}
-
 	return chains.ChainStack{
-		Store:    systemStore,
-		Registry: registry,
+		Store:                 systemStore,
+		Registry:              registry,
+		AllowTransactionRelay: config.AllowTransactionRelay,
 		Close: func(ctx context.Context) error {
 			log.Info().Int64("chainId", int64(config.ChainID)).Msg("closing stack...")
 			defer log.Info().Int64("chainId", int64(config.ChainID)).Msg("stack closed")

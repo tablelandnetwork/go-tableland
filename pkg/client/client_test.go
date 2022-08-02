@@ -168,7 +168,11 @@ func setup(t *testing.T) clientCalls {
 	require.NoError(t, err)
 
 	chainStack := map[tableland.ChainID]chains.ChainStack{
-		1337: {Store: store, Registry: registry},
+		1337: {
+			Store:                 store,
+			Registry:              registry,
+			AllowTransactionRelay: true,
+		},
 	}
 
 	router := router.ConfiguredRouter(

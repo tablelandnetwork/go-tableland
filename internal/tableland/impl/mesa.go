@@ -117,6 +117,11 @@ func (t *TablelandMesa) RelayWriteQuery(
 		return tableland.RelayWriteQueryResponse{}, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
 	}
 
+	if !stack.AllowTransactionRelay {
+		return tableland.RelayWriteQueryResponse{},
+			fmt.Errorf("chain id %d does not suppport relaying of transactions", chainID)
+	}
+
 	mutatingStmts, err := t.parser.ValidateMutatingQuery(req.Statement, chainID)
 	if err != nil {
 		return tableland.RelayWriteQueryResponse{}, fmt.Errorf("validating query: %s", err)
@@ -217,6 +222,11 @@ func (t *TablelandMesa) SetController(
 	stack, ok := t.chainStacks[chainID]
 	if !ok {
 		return tableland.SetControllerResponse{}, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
+	}
+
+	if !stack.AllowTransactionRelay {
+		return tableland.SetControllerResponse{},
+			fmt.Errorf("chain id %d does not suppport relaying of transactions", chainID)
 	}
 
 	tx, err := stack.Registry.SetController(
