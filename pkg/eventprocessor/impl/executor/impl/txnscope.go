@@ -45,7 +45,10 @@ type eventExecutionResult struct {
 	Error   *string
 }
 
-func (ts *txnScope) executeTxnEvents(ctx context.Context, tx *sql.Tx, evmTxn eventfeed.TxnEvents) (executor.TxnExecutionResult, error) {
+func (ts *txnScope) executeTxnEvents(
+	ctx context.Context,
+	evmTxn eventfeed.TxnEvents,
+) (executor.TxnExecutionResult, error) {
 	var res eventExecutionResult
 	var err error
 

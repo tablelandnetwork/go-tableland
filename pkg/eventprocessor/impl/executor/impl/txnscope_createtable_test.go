@@ -27,7 +27,7 @@ func TestCreateTable(t *testing.T) {
 		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
 
-		assertExecTxnWithCreateTable(t, bs, 100, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", "create table bar_1337 (zar text)")
+		assertExecTxnWithCreateTable(t, bs, 100, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", "create table bar_1337 (zar text)") //nolint
 
 		require.NoError(t, bs.Commit())
 		require.NoError(t, bs.Close())

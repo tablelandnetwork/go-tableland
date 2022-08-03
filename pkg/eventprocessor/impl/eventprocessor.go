@@ -134,9 +134,9 @@ func (ep *EventProcessor) startDaemon() error {
 	// new events from that point forward.
 	ctx, cls := context.WithTimeout(ep.daemonCtx, time.Second*10)
 	defer cls()
-	fromHeight, err := ep.executor.GetLastProcessedHeight(ctx)
+	fromHeight, err := ep.executor.GetLastExecutedBlockNumber(ctx)
 	if err != nil {
-		ep.log.Err(err).Msg("getting last processed height")
+		return fmt.Errorf("get last executed block number: %s", err)
 	}
 	ep.mLastProcessedHeight.Store(fromHeight)
 

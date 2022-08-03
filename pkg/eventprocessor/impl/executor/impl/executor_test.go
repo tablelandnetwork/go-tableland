@@ -138,7 +138,7 @@ func TestMultiEventTxnBlock(t *testing.T) {
 	// Txn 3
 	{
 		// We can leverage helper for single event txn.
-		assertExecTxnWithRunSQLEvents(t, bs, 100, []string{"insert into bar_1337_100 values ('txn 3')"})
+		assertExecTxnWithRunSQLEvents(t, bs, []string{"insert into bar_1337_100 values ('txn 3')"})
 	}
 	require.NoError(t, bs.Commit())
 	require.NoError(t, bs.Close())

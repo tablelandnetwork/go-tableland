@@ -65,7 +65,10 @@ func newBlockScope(
 //    res contains the error message.
 // 2) If caused by uncontrolled error (e.g: can't access the DB), it returns ({}, err). The caller should retry
 //    executing this transaction events when the underlying infrastructure problem is solved.
-func (bs *blockScope) ExecuteTxnEvents(ctx context.Context, evmTxn eventfeed.TxnEvents) (executor.TxnExecutionResult, error) {
+func (bs *blockScope) ExecuteTxnEvents(
+	ctx context.Context,
+	evmTxn eventfeed.TxnEvents,
+) (executor.TxnExecutionResult, error) {
 	// Create nested transaction from the blockScope. All the events for this trasaction will be executed here.
 	if _, err := bs.txn.ExecContext(ctx, "SAVEPOINT txnscope"); err != nil {
 		return executor.TxnExecutionResult{}, fmt.Errorf("creating savepoint: %s", err)
@@ -83,7 +86,7 @@ func (bs *blockScope) ExecuteTxnEvents(ctx context.Context, evmTxn eventfeed.Txn
 
 		txn: bs.txn,
 	}
-	res, err := ts.executeTxnEvents(ctx, bs.txn, evmTxn)
+	res, err := ts.executeTxnEvents(ctx, evmTxn)
 	if err != nil || res.Error != nil {
 		if _, err := bs.txn.ExecContext(ctx, "ROLLBACK TO txnscope"); err != nil {
 			return executor.TxnExecutionResult{}, fmt.Errorf("rollbacking savepoint: %s", err)
@@ -176,9 +179,10 @@ func (bs *blockScope) Close() error {
 	return nil
 }
 
-func (b *blockScope) Commit() error {
-	if err := b.txn.Commit(); err != nil {
-		return fmt.Errorf("commit txn: %s", err)
+// Commit confirms all successful transaction processing executed in the block scope.
+func (bs *blockScope) Commit() error {
+	if err := bs.txn.Commit(); err != nil {
+		return fmt.Errorf("commit db txn: %s", err)
 	}
 	return nil
 }

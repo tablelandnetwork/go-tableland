@@ -30,7 +30,7 @@ type Executor struct {
 
 var _ executor.Executor = (*Executor)(nil)
 
-// NewTxnProcessor returns a new Tableland transaction processor.
+// NewExecutor returns a new Executor.
 func NewExecutor(
 	chainID tableland.ChainID,
 	dbURI string,
@@ -76,8 +76,8 @@ func NewExecutor(
 	return tblp, nil
 }
 
-// OpenBatch starts a new batch of mutating actions to be executed.
-func (ex *Executor) NewBlockScope(ctx context.Context, blockNumber int64) (executor.BlockScope, error) {
+// NewBlockScope starts a block scope to execute EVM transactions with events.
+func (ex *Executor) NewBlockScope(ctx context.Context, newBlockNum int64) (executor.BlockScope, error) {
 	select {
 	case <-ex.chBlockScope:
 	default:
@@ -90,21 +90,22 @@ func (ex *Executor) NewBlockScope(ctx context.Context, blockNumber int64) (execu
 	}
 
 	// Check that the last processed height is strictly lower.
-	lastProcessedBlockNumber, err := ex.getLastProcessedBlockNumber(ctx, txn)
+	lastBlockNum, err := ex.getLastExecutedBlockNumber(ctx, txn)
 	if err != nil {
 		return nil, fmt.Errorf("get last processed height: %s", err)
 	}
-	if lastProcessedBlockNumber >= blockNumber {
-		return nil, fmt.Errorf("last processed height %d isn't smaller than new height %d", lastProcessedBlockNumber, blockNumber)
+	if lastBlockNum >= newBlockNum {
+		return nil, fmt.Errorf("latest executed block %d isn't smaller than new block %d", lastBlockNum, newBlockNum)
 	}
 
 	scopeVars := scopeVars{ChainID: ex.chainID, MaxTableRowCount: ex.maxTableRowCount}
-	bs := newBlockScope(txn, scopeVars, ex.parser, ex.acl, blockNumber, func() { ex.chBlockScope <- struct{}{} })
+	bs := newBlockScope(txn, scopeVars, ex.parser, ex.acl, newBlockNum, func() { ex.chBlockScope <- struct{}{} })
 
 	return bs, nil
 }
 
-func (ex *Executor) GetLastProcessedHeight(ctx context.Context) (int64, error) {
+// GetLastExecutedBlockNumber returns the last block number that was successfully executed.
+func (ex *Executor) GetLastExecutedBlockNumber(ctx context.Context) (int64, error) {
 	txn, err := ex.db.Begin()
 	if err != nil {
 		return 0, fmt.Errorf("opening txn: %s", err)
@@ -112,14 +113,14 @@ func (ex *Executor) GetLastProcessedHeight(ctx context.Context) (int64, error) {
 	defer func() {
 		_ = txn.Rollback()
 	}()
-	blockNumber, err := ex.getLastProcessedBlockNumber(ctx, txn)
+	blockNumber, err := ex.getLastExecutedBlockNumber(ctx, txn)
 	if err != nil {
 		return 0, fmt.Errorf("get last processed block number: %s", err)
 	}
 	return blockNumber, nil
 }
 
-func (ex *Executor) getLastProcessedBlockNumber(ctx context.Context, txn *sql.Tx) (int64, error) {
+func (ex *Executor) getLastExecutedBlockNumber(ctx context.Context, txn *sql.Tx) (int64, error) {
 	r := txn.QueryRowContext(
 		ctx,
 		"SELECT block_number FROM system_txn_processor WHERE chain_id=?1 LIMIT 1",

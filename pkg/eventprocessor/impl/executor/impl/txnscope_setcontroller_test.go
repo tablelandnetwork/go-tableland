@@ -25,7 +25,7 @@ func TestSetController(t *testing.T) {
 		// Let's test first that the controller is not set (it's the default behavior)
 		db, err := sql.Open("sqlite3", dbURI)
 		require.NoError(t, err)
-		controller := getController(t, db, 100)
+		controller := getControllerForTableID100(t, db)
 		require.Equal(t, "", controller)
 	})
 
@@ -53,23 +53,23 @@ func TestSetController(t *testing.T) {
 		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
 
-		assertExecTxnWithSetController(t, bs, 100, "0x01")
+		assertExecTxnWithSetController(t, bs, "0x01")
 		require.NoError(t, bs.Commit())
 		require.NoError(t, bs.Close())
 
 		db, err := sql.Open("sqlite3", dbURI)
 		require.NoError(t, err)
-		controller := getController(t, db, 100)
+		controller := getControllerForTableID100(t, db)
 		require.Equal(t, "0x0000000000000000000000000000000000000001", controller)
 
 		// unsets
 		bs, err = ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
-		assertExecTxnWithSetController(t, bs, 100, "0x0")
+		assertExecTxnWithSetController(t, bs, "0x0")
 		require.NoError(t, bs.Commit())
 		require.NoError(t, bs.Close())
 
-		controller = getController(t, db, 100)
+		controller = getControllerForTableID100(t, db)
 		require.Equal(t, "", controller)
 
 		require.NoError(t, ex.Close(ctx))
@@ -82,7 +82,7 @@ func TestSetController(t *testing.T) {
 		{
 			bs, err := ex.NewBlockScope(ctx, 0)
 			require.NoError(t, err)
-			assertExecTxnWithSetController(t, bs, 100, "0x01")
+			assertExecTxnWithSetController(t, bs, "0x01")
 			require.NoError(t, bs.Commit())
 			require.NoError(t, bs.Close())
 		}
@@ -90,23 +90,23 @@ func TestSetController(t *testing.T) {
 		{
 			bs, err := ex.NewBlockScope(ctx, 0)
 			require.NoError(t, err)
-			assertExecTxnWithSetController(t, bs, 100, "0x02")
+			assertExecTxnWithSetController(t, bs, "0x02")
 			require.NoError(t, bs.Commit())
 			require.NoError(t, bs.Close())
 		}
 
 		db, err := sql.Open("sqlite3", dbURI)
 		require.NoError(t, err)
-		controller := getController(t, db, 100)
+		controller := getControllerForTableID100(t, db)
 		require.Equal(t, "0x0000000000000000000000000000000000000002", controller)
 
 		require.NoError(t, ex.Close(ctx))
 	})
 }
 
-func getController(t *testing.T, db *sql.DB, tableID int64) string {
-	q := "SELECT controller FROM system_controller where chain_id=1337 AND table_id=?1"
-	r := db.QueryRowContext(context.Background(), q, tableID)
+func getControllerForTableID100(t *testing.T, db *sql.DB) string {
+	q := "SELECT controller FROM system_controller where chain_id=1337 AND table_id=100"
+	r := db.QueryRowContext(context.Background(), q)
 	var controller string
 	err := r.Scan(&controller)
 	if err == sql.ErrNoRows {
@@ -116,16 +116,21 @@ func getController(t *testing.T, db *sql.DB, tableID int64) string {
 	return controller
 }
 
-func assertExecTxnWithSetController(t *testing.T, bs executor.BlockScope, tableID int, controller string) {
+func assertExecTxnWithSetController(t *testing.T, bs executor.BlockScope, controller string) {
 	t.Helper()
 
-	res, err := execTxnWithSetController(t, bs, tableID, controller)
+	res, err := execTxnWithSetController(t, bs, 100, controller)
 	require.NoError(t, err)
 	require.NotNil(t, res.TableID)
-	require.Equal(t, res.TableID.ToBigInt().Int64(), int64(tableID))
+	require.Equal(t, int64(100), res.TableID.ToBigInt().Int64())
 }
 
-func execTxnWithSetController(t *testing.T, bs executor.BlockScope, tableID int, controller string) (executor.TxnExecutionResult, error) {
+func execTxnWithSetController(
+	t *testing.T,
+	bs executor.BlockScope,
+	tableID int,
+	controller string,
+) (executor.TxnExecutionResult, error) {
 	t.Helper()
 
 	e := &ethereum.ContractSetController{
