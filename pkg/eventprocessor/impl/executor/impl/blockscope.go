@@ -79,7 +79,7 @@ func (bs *blockScope) ExecuteTxnEvents(
 		scopeVars: bs.scopeVars,
 		log: logger.With().
 			Str("component", "txnscope").
-			Int64("chain_iD", int64(bs.scopeVars.ChainID)).
+			Int64("chain_id", int64(bs.scopeVars.ChainID)).
 			Str("txn_hash", evmTxn.TxnHash.String()).
 			Logger(),
 
