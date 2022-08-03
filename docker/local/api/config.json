@@ -10,6 +10,7 @@
     {
       "Name": "Local Hardhat",
       "ChainID": 31337,
+      "AllowTransactionRelay": true,
       "Registry": {
         "EthEndpoint": "ws://host.docker.internal:8545",
         "ContractAddress": "[FILL ME]"

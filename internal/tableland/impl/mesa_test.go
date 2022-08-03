@@ -43,7 +43,13 @@ import (
 func TestTodoAppWorkflow(t *testing.T) {
 	t.Parallel()
 
-	ctx, tbld, backend, sc, txOpts := setup(t)
+	setup := newTablelandSetupBuilder().
+		withAllowTransactionRelay(true).
+		build(t)
+	tablelandClient := setup.newTablelandClient(t)
+
+	ctx, backend, sc := setup.ctx, setup.ethClient, setup.contract
+	tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
 
 	caller := txOpts.From
 	_, err := sc.CreateTable(txOpts, caller,
@@ -61,7 +67,13 @@ func TestTodoAppWorkflow(t *testing.T) {
 func TestAny(t *testing.T) {
 	t.Parallel()
 
-	ctx, tbld, backend, sc, txOpts := setup(t)
+	setup := newTablelandSetupBuilder().
+		withAllowTransactionRelay(true).
+		build(t)
+	tablelandClient := setup.newTablelandClient(t)
+
+	ctx, backend, sc := setup.ctx, setup.ethClient, setup.contract
+	tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
 
 	caller := txOpts.From
 	_, err := sc.CreateTable(txOpts, caller,
@@ -79,7 +91,14 @@ func TestInsertOnConflict(t *testing.T) {
 	//       It's disabled temporarily until some soon related work in the validator will fix this.
 	t.SkipNow()
 
-	ctx, tbld, backend, sc, txOpts := setup(t)
+	setup := newTablelandSetupBuilder().
+		withAllowTransactionRelay(true).
+		build(t)
+	tablelandClient := setup.newTablelandClient(t)
+
+	ctx, backend, sc := setup.ctx, setup.ethClient, setup.contract
+	tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
+
 	caller := txOpts.From
 
 	_, err := sc.CreateTable(txOpts, caller,
@@ -114,7 +133,13 @@ func TestInsertOnConflict(t *testing.T) {
 func TestMultiStatement(t *testing.T) {
 	t.Parallel()
 
-	ctx, tbld, backend, sc, txOpts := setup(t)
+	setup := newTablelandSetupBuilder().
+		withAllowTransactionRelay(true).
+		build(t)
+	tablelandClient := setup.newTablelandClient(t)
+
+	ctx, backend, sc := setup.ctx, setup.ethClient, setup.contract
+	tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
 	caller := txOpts.From
 
 	_, err := sc.CreateTable(txOpts, caller,
@@ -144,7 +169,13 @@ func TestMultiStatement(t *testing.T) {
 func TestReadSystemTable(t *testing.T) {
 	t.Parallel()
 
-	ctx, tbld, _, sc, txOpts := setup(t)
+	setup := newTablelandSetupBuilder().
+		withAllowTransactionRelay(true).
+		build(t)
+	tablelandClient := setup.newTablelandClient(t)
+
+	ctx, sc := setup.ctx, setup.contract
+	tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
 	caller := txOpts.From
 
 	_, err := sc.CreateTable(txOpts, caller, `CREATE TABLE foo_1337 (myjson TEXT);`)
@@ -159,7 +190,13 @@ func TestReadSystemTable(t *testing.T) {
 func TestJSON(t *testing.T) {
 	t.Parallel()
 
-	ctx, tbld, backend, sc, txOpts := setup(t)
+	setup := newTablelandSetupBuilder().
+		withAllowTransactionRelay(true).
+		build(t)
+	tablelandClient := setup.newTablelandClient(t)
+
+	ctx, backend, sc := setup.ctx, setup.ethClient, setup.contract
+	tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
 	caller := txOpts.From
 
 	_, err := sc.CreateTable(txOpts, caller, `CREATE TABLE foo_1337 (myjson TEXT);`)
@@ -193,7 +230,17 @@ func TestCheckInsertPrivileges(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
 
-				ctx, tbldGranter, tbldGrantee, backend, sc, txOptsGranter, txOptsGrantee := setupTablelandForTwoAddresses(t)
+				setup := newTablelandSetupBuilder().
+					withAllowTransactionRelay(true).
+					build(t)
+
+				granterSetup := setup.newTablelandClient(t)
+				granteeSetup := setup.newTablelandClient(t)
+
+				ctx, backend, sc := setup.ctx, setup.ethClient, setup.contract
+				tbldGranter, txOptsGranter := granterSetup.tableland, granterSetup.txOpts
+				tbldGrantee, txOptsGrantee := granteeSetup.tableland, granteeSetup.txOpts
+
 				granter := txOptsGranter.From.Hex()
 				grantee := txOptsGrantee.From.Hex()
 
@@ -264,7 +311,17 @@ func TestCheckUpdatePrivileges(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
 
-				ctx, tbldGranter, tbldGrantee, backend, sc, txOptsGranter, txOptsGrantee := setupTablelandForTwoAddresses(t)
+				setup := newTablelandSetupBuilder().
+					withAllowTransactionRelay(true).
+					build(t)
+
+				granterSetup := setup.newTablelandClient(t)
+				granteeSetup := setup.newTablelandClient(t)
+
+				ctx, backend, sc := setup.ctx, setup.ethClient, setup.contract
+				tbldGranter, txOptsGranter := granterSetup.tableland, granterSetup.txOpts
+				tbldGrantee, txOptsGrantee := granteeSetup.tableland, granteeSetup.txOpts
+
 				granter := txOptsGranter.From.Hex()
 				grantee := txOptsGrantee.From.Hex()
 
@@ -341,7 +398,17 @@ func TestCheckDeletePrivileges(t *testing.T) {
 			return func(t *testing.T) {
 				t.Parallel()
 
-				ctx, tbldGranter, tbldGrantee, backend, sc, txOptsGranter, txOptsGrantee := setupTablelandForTwoAddresses(t)
+				setup := newTablelandSetupBuilder().
+					withAllowTransactionRelay(true).
+					build(t)
+
+				granterSetup := setup.newTablelandClient(t)
+				granteeSetup := setup.newTablelandClient(t)
+
+				ctx, backend, sc := setup.ctx, setup.ethClient, setup.contract
+				tbldGranter, txOptsGranter := granterSetup.tableland, granterSetup.txOpts
+				tbldGrantee, txOptsGrantee := granteeSetup.tableland, granteeSetup.txOpts
+
 				granter := txOptsGranter.From.Hex()
 				grantee := txOptsGrantee.From.Hex()
 
@@ -393,7 +460,13 @@ func TestCheckDeletePrivileges(t *testing.T) {
 func TestOwnerRevokesItsPrivilegeInsideMultipleStatements(t *testing.T) {
 	t.Parallel()
 
-	ctx, tbld, backend, sc, txOpts := setup(t)
+	setup := newTablelandSetupBuilder().
+		withAllowTransactionRelay(true).
+		build(t)
+	tablelandClient := setup.newTablelandClient(t)
+
+	ctx, backend, sc := setup.ctx, setup.ethClient, setup.contract
+	tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
 	caller := txOpts.From.Hex()
 
 	_, err := sc.CreateTable(txOpts, common.HexToAddress(caller), `CREATE TABLE foo_1337 (bar text);`)
@@ -418,7 +491,16 @@ func TestOwnerRevokesItsPrivilegeInsideMultipleStatements(t *testing.T) {
 func TestTransferTable(t *testing.T) {
 	t.Parallel()
 
-	ctx, tbldOwner1, tbldOwner2, backend, sc, txOptsOwner1, txOptsOwner2 := setupTablelandForTwoAddresses(t)
+	setup := newTablelandSetupBuilder().
+		withAllowTransactionRelay(true).
+		build(t)
+
+	owner1Setup := setup.newTablelandClient(t)
+	owner2Setup := setup.newTablelandClient(t)
+
+	ctx, backend, sc := setup.ctx, setup.ethClient, setup.contract
+	tbldOwner1, txOptsOwner1 := owner1Setup.tableland, owner1Setup.txOpts
+	tbldOwner2, txOptsOwner2 := owner2Setup.tableland, owner2Setup.txOpts
 
 	_, err := sc.CreateTable(txOptsOwner1, txOptsOwner1.From, `CREATE TABLE foo_1337 (bar text);`)
 	require.NoError(t, err)
@@ -477,7 +559,15 @@ func TestQueryConstraints(t *testing.T) {
 		parsingOpts := []parsing.Option{
 			parsing.WithMaxWriteQuerySize(45),
 		}
-		ctx, tbld, backend, sc, txOpts := setup(t, parsingOpts...)
+
+		setup := newTablelandSetupBuilder().
+			withAllowTransactionRelay(true).
+			withParsingOpts(parsingOpts...).
+			build(t)
+		tablelandClient := setup.newTablelandClient(t)
+
+		ctx, backend, sc := setup.ctx, setup.ethClient, setup.contract
+		tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
 		caller := txOpts.From
 
 		_, err := sc.CreateTable(txOpts, caller, `CREATE TABLE foo_1337 (bar text);`)
@@ -497,7 +587,14 @@ func TestQueryConstraints(t *testing.T) {
 		parsingOpts := []parsing.Option{
 			parsing.WithMaxWriteQuerySize(45),
 		}
-		ctx, tbld, _, _, txOpts := setup(t, parsingOpts...)
+		setup := newTablelandSetupBuilder().
+			withAllowTransactionRelay(true).
+			withParsingOpts(parsingOpts...).
+			build(t)
+		tablelandClient := setup.newTablelandClient(t)
+
+		ctx := setup.ctx
+		tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
 		caller := txOpts.From
 
 		ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller.Hex())
@@ -514,7 +611,15 @@ func TestQueryConstraints(t *testing.T) {
 		parsingOpts := []parsing.Option{
 			parsing.WithMaxReadQuerySize(44),
 		}
-		ctx, tbld, backend, sc, txOpts := setup(t, parsingOpts...)
+
+		setup := newTablelandSetupBuilder().
+			withAllowTransactionRelay(true).
+			withParsingOpts(parsingOpts...).
+			build(t)
+		tablelandClient := setup.newTablelandClient(t)
+
+		ctx, backend, sc := setup.ctx, setup.ethClient, setup.contract
+		tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
 		caller := txOpts.From
 
 		_, err := sc.CreateTable(txOpts, caller, `CREATE TABLE foo_1337 (bar text);`)
@@ -540,7 +645,15 @@ func TestQueryConstraints(t *testing.T) {
 		parsingOpts := []parsing.Option{
 			parsing.WithMaxReadQuerySize(44),
 		}
-		ctx, tbld, _, _, txOpts := setup(t, parsingOpts...)
+
+		setup := newTablelandSetupBuilder().
+			withAllowTransactionRelay(true).
+			withParsingOpts(parsingOpts...).
+			build(t)
+		tablelandClient := setup.newTablelandClient(t)
+
+		ctx := setup.ctx
+		tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
 		caller := txOpts.From
 
 		ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller.Hex())
@@ -549,6 +662,30 @@ func TestQueryConstraints(t *testing.T) {
 		})
 		require.Error(t, err)
 		require.ErrorContains(t, err, "read query size is too long")
+	})
+}
+
+func TestAllowTransactionRelayConfig(t *testing.T) {
+	t.Parallel()
+
+	setup := newTablelandSetupBuilder().
+		withAllowTransactionRelay(false).
+		build(t)
+
+	tablelandClient := setup.newTablelandClient(t)
+
+	ctx, tbld, txOpts := setup.ctx, tablelandClient.tableland, tablelandClient.txOpts
+
+	t.Run("relay write query", func(t *testing.T) {
+		_, err := relayWriteQuery(ctx, t, tbld, "INSERT INTO foo_1337_1 VALUES ('bar', 0)", txOpts.From.Hex())
+		require.Error(t, err)
+		require.ErrorContains(t, err, "chain id 1337 does not suppport relaying of transactions")
+	})
+
+	t.Run("set controller", func(t *testing.T) {
+		_, err := setController(ctx, t, tbld, txOpts.From.Hex(), "", "1") // values don't matter
+		require.Error(t, err)
+		require.ErrorContains(t, err, "chain id 1337 does not suppport relaying of transactions")
 	})
 }
 
@@ -667,16 +804,35 @@ func relayWriteQuery(
 	t *testing.T,
 	tbld tableland.Tableland,
 	sql string,
-	controller string,
+	caller string,
 ) (tableland.RelayWriteQueryResponse, error) {
 	t.Helper()
 
-	ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, controller)
+	ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller)
 	req := tableland.RelayWriteQueryRequest{
 		Statement: sql,
 	}
 
 	return tbld.RelayWriteQuery(ctx, req)
+}
+
+func setController(
+	ctx context.Context,
+	t *testing.T,
+	tbld tableland.Tableland,
+	caller string,
+	controller string,
+	tokenID string,
+) (tableland.SetControllerResponse, error) {
+	t.Helper()
+
+	ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller)
+	req := tableland.SetControllerRequest{
+		Controller: controller,
+		TokenID:    tokenID,
+	}
+
+	return tbld.SetController(ctx, req)
 }
 
 func readCsvFile(t *testing.T, filePath string) [][]string {
@@ -695,154 +851,6 @@ func readCsvFile(t *testing.T, filePath string) [][]string {
 	}
 
 	return records
-}
-
-func setup(
-	t *testing.T,
-	opts ...parsing.Option) (context.Context,
-	tableland.Tableland,
-	*backends.SimulatedBackend,
-	*ethereum.Contract,
-	*bind.TransactOpts,
-) {
-	t.Helper()
-
-	url := tests.Sqlite3URI()
-
-	ctx := context.WithValue(context.Background(), middlewares.ContextKeyChainID, tableland.ChainID(1337))
-	store, err := system.New(url, tableland.ChainID(1337))
-	require.NoError(t, err)
-
-	parser, err := parserimpl.New([]string{"system_", "registry", "sqlite_"}, opts...)
-	require.NoError(t, err)
-
-	txnp, err := txnpimpl.NewTxnProcessor(1337, url, 0, &aclHalfMock{store})
-	require.NoError(t, err)
-
-	backend, addr, sc, auth, sk := testutil.Setup(t)
-
-	wallet, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(sk)))
-	require.NoError(t, err)
-
-	registry, err := ethereum.NewClient(
-		backend,
-		1337,
-		addr,
-		wallet,
-		impl.NewSimpleTracker(wallet, backend),
-	)
-	require.NoError(t, err)
-
-	userStore, err := user.New(url)
-	require.NoError(t, err)
-
-	tbld := NewTablelandMesa(
-		parser,
-		userStore,
-		map[tableland.ChainID]chains.ChainStack{
-			1337: {Store: store, Registry: registry},
-		})
-
-	// Spin up dependencies needed for the EventProcessor.
-	// i.e: TxnProcessor, Parser, and EventFeed (connected to the EVM chain)
-	ef, err := efimpl.New(1337, backend, addr, eventfeed.WithMinBlockDepth(0))
-	require.NoError(t, err)
-
-	// Create EventProcessor for our test.
-	ep, err := epimpl.New(parser, txnp, ef, 1337)
-	require.NoError(t, err)
-
-	err = ep.Start()
-	require.NoError(t, err)
-	t.Cleanup(func() { ep.Stop() })
-
-	return ctx, tbld, backend, sc, auth
-}
-
-func setupTablelandForTwoAddresses(t *testing.T) (context.Context,
-	tableland.Tableland,
-	tableland.Tableland,
-	*backends.SimulatedBackend,
-	*ethereum.Contract,
-	*bind.TransactOpts,
-	*bind.TransactOpts,
-) {
-	t.Helper()
-
-	url := tests.Sqlite3URI()
-
-	ctx := context.WithValue(context.Background(), middlewares.ContextKeyChainID, tableland.ChainID(1337))
-	store, err := system.New(url, tableland.ChainID(1337))
-	require.NoError(t, err)
-
-	parser, err := parserimpl.New([]string{"system_", "registry"})
-	require.NoError(t, err)
-
-	txnp, err := txnpimpl.NewTxnProcessor(1337, url, 0, &aclHalfMock{store})
-	require.NoError(t, err)
-
-	backend, addr, sc, txOpts1, key1 := testutil.Setup(t)
-
-	wallet1, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(key1)))
-	require.NoError(t, err)
-
-	registry, err := ethereum.NewClient(
-		backend,
-		1337,
-		addr,
-		wallet1,
-		impl.NewSimpleTracker(wallet1, backend),
-	)
-	require.NoError(t, err)
-	userStore, err := user.New(url)
-	require.NoError(t, err)
-	tbld1 := NewTablelandMesa(
-		parser,
-		userStore,
-		map[tableland.ChainID]chains.ChainStack{
-			1337: {Store: store, Registry: registry},
-		})
-
-	key2, err := crypto.GenerateKey()
-	require.NoError(t, err)
-
-	wallet2, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(key2)))
-	require.NoError(t, err)
-
-	txOpts2, err := bind.NewKeyedTransactorWithChainID(key2, big.NewInt(1337)) // nolint
-	require.NoError(t, err)
-
-	requireTxn(t, backend, key1, wallet1.Address(), wallet2.Address(), big.NewInt(1000000000000000000))
-
-	registry2, err := ethereum.NewClient(
-		backend,
-		1337,
-		addr,
-		wallet2,
-		impl.NewSimpleTracker(wallet2, backend),
-	)
-	require.NoError(t, err)
-	tbld2 := NewTablelandMesa(
-		parser,
-		userStore,
-		map[tableland.ChainID]chains.ChainStack{
-			1337: {Store: store, Registry: registry2},
-		})
-
-	// Spin up dependencies needed for the EventProcessor.
-	// i.e: TxnProcessor, Parser, and EventFeed (connected to the EVM chain)
-	ef, err := efimpl.New(1337, backend, addr, eventfeed.WithMinBlockDepth(0))
-	require.NoError(t, err)
-
-	// Create EventProcessor for our test.
-	ep, err := epimpl.New(parser, txnp, ef, 1337)
-	require.NoError(t, err)
-
-	err = ep.Start()
-	require.NoError(t, err)
-	t.Cleanup(func() { ep.Stop() })
-
-	return ctx, tbld1, tbld2, backend, sc, txOpts1, txOpts2
 }
 
 type aclHalfMock struct {
@@ -929,4 +937,150 @@ func requireTxn(
 	receipt, err := backend.TransactionReceipt(context.Background(), signedTx.Hash())
 	require.NoError(t, err)
 	require.NotNil(t, receipt)
+}
+
+type tablelandSetupBuilder struct {
+	allowTransactionRelay bool
+	parsingOpts           []parsing.Option
+}
+
+func newTablelandSetupBuilder() *tablelandSetupBuilder {
+	return &tablelandSetupBuilder{}
+}
+
+func (b *tablelandSetupBuilder) withAllowTransactionRelay(v bool) *tablelandSetupBuilder {
+	b.allowTransactionRelay = v
+	return b
+}
+
+func (b *tablelandSetupBuilder) withParsingOpts(opts ...parsing.Option) *tablelandSetupBuilder {
+	b.parsingOpts = opts
+	return b
+}
+
+func (b *tablelandSetupBuilder) build(t *testing.T) *tablelandSetup {
+	t.Helper()
+	url := tests.Sqlite3URI()
+
+	ctx := context.WithValue(context.Background(), middlewares.ContextKeyChainID, tableland.ChainID(1337))
+	store, err := system.New(url, tableland.ChainID(1337))
+	require.NoError(t, err)
+
+	parser, err := parserimpl.New([]string{"system_", "registry", "sqlite_"}, b.parsingOpts...)
+	require.NoError(t, err)
+
+	txnp, err := txnpimpl.NewTxnProcessor(1337, url, 0, &aclHalfMock{store})
+	require.NoError(t, err)
+
+	backend, addr, sc, auth, sk := testutil.Setup(t)
+
+	// Spin up dependencies needed for the EventProcessor.
+	// i.e: TxnProcessor, Parser, and EventFeed (connected to the EVM chain)
+	ef, err := efimpl.New(1337, backend, addr, eventfeed.WithMinBlockDepth(0))
+	require.NoError(t, err)
+
+	// Create EventProcessor for our test.
+	ep, err := epimpl.New(parser, txnp, ef, 1337)
+	require.NoError(t, err)
+
+	err = ep.Start()
+	require.NoError(t, err)
+	t.Cleanup(func() { ep.Stop() })
+
+	userStore, err := user.New(url)
+	require.NoError(t, err)
+
+	return &tablelandSetup{
+		ctx: ctx,
+
+		// ethereum client
+		ethClient: backend,
+
+		// contract bindings
+		contract:     sc,
+		contractAddr: addr,
+
+		// contract deployer
+		deployerPrivateKey: sk,
+		deployerTxOpts:     auth,
+
+		// common dependencies among mesa clients
+		parser:      parser,
+		userStore:   userStore,
+		systemStore: store,
+
+		// configs
+		allowTransactionRelay: b.allowTransactionRelay,
+	}
+}
+
+type tablelandSetup struct {
+	ctx context.Context
+
+	// ethereum client
+	ethClient *backends.SimulatedBackend
+
+	// contract bindings
+	contract     *ethereum.Contract
+	contractAddr common.Address
+
+	// contract deployer
+	deployerPrivateKey *ecdsa.PrivateKey
+	deployerTxOpts     *bind.TransactOpts
+
+	// common dependencies among tableland clients
+	parser      parsing.SQLValidator
+	userStore   *user.UserStore
+	systemStore *system.SystemStore
+
+	// configs
+	allowTransactionRelay bool
+}
+
+func (s *tablelandSetup) newTablelandClient(t *testing.T) *tablelandClient {
+	key, err := crypto.GenerateKey()
+	require.NoError(t, err)
+
+	wallet, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(key)))
+	require.NoError(t, err)
+
+	txOpts, err := bind.NewKeyedTransactorWithChainID(key, big.NewInt(1337)) // nolint
+	require.NoError(t, err)
+
+	requireTxn(t,
+		s.ethClient,
+		s.deployerPrivateKey,
+		s.deployerTxOpts.From,
+		wallet.Address(),
+		big.NewInt(1000000000000000000),
+	)
+
+	registry, err := ethereum.NewClient(
+		s.ethClient,
+		1337,
+		s.contractAddr,
+		wallet,
+		impl.NewSimpleTracker(wallet, s.ethClient),
+	)
+	require.NoError(t, err)
+	tbld := NewTablelandMesa(
+		s.parser,
+		s.userStore,
+		map[tableland.ChainID]chains.ChainStack{
+			1337: {
+				Store:                 s.systemStore,
+				Registry:              registry,
+				AllowTransactionRelay: s.allowTransactionRelay,
+			},
+		})
+
+	return &tablelandClient{
+		tableland: tbld,
+		txOpts:    txOpts,
+	}
+}
+
+type tablelandClient struct {
+	tableland tableland.Tableland
+	txOpts    *bind.TransactOpts
 }
