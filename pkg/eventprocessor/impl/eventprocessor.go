@@ -42,7 +42,7 @@ type EventProcessor struct {
 	daemonCancel   context.CancelFunc
 	daemonCanceled chan struct{}
 
-	// TODO(jsign): improve this.
+	// TODO(jsign) LOW: improve this.
 	// Metrics
 	mBaseLabels            []attribute.KeyValue
 	mExecutionRound        atomic.Int64
@@ -135,17 +135,9 @@ func (ep *EventProcessor) startDaemon() error {
 	// new events from that point forward.
 	ctx, cls := context.WithTimeout(ep.daemonCtx, time.Second*10)
 	defer cls()
-	// TODO(jsign): fix this
-	bs, err := ep.executor.NewBlockScope(ctx, 0)
-	if err != nil {
-		return fmt.Errorf("opening batch in daemon: %s", err)
-	}
-	fromHeight, err := bs.GetLastProcessedHeight(ctx)
+	fromHeight, err := ep.executor.GetLastProcessedHeight(ctx)
 	if err != nil {
 		ep.log.Err(err).Msg("getting last processed height")
-	}
-	if err := bs.Close(); err != nil {
-		return fmt.Errorf("closing batch: %s", err)
 	}
 	ep.mLastProcessedHeight.Store(fromHeight)
 
@@ -214,18 +206,6 @@ func (ep *EventProcessor) executeBlock(ctx context.Context, block eventfeed.Bloc
 			ep.log.Error().Err(err).Msg("closing block scope")
 		}
 	}()
-
-	// TODO(jsign): move this to block scope
-	// Get last processed height.
-	lastHeight, err := bs.GetLastProcessedHeight(ctx)
-	if err != nil {
-		return fmt.Errorf("get last processed height: %s", err)
-	}
-
-	// The new height to process must be strictly greater than the last processed height.
-	if lastHeight >= block.BlockNumber {
-		return fmt.Errorf("last processed height %d isn't smaller than new height %d", lastHeight, block.BlockNumber)
-	}
 
 	receipts := make([]eventprocessor.Receipt, 0, len(block.Txns))
 	for idxInBlock, txnEvents := range block.Txns {

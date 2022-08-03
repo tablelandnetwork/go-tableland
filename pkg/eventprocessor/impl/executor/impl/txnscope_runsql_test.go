@@ -123,16 +123,15 @@ func TestRunSQL_OneEventPerTxn(t *testing.T) {
 		require.NoError(t, bs.Close())
 		require.NoError(t, ex.Close(ctx))
 
-		wq1 := mustGrantStmt(t, q) // nolint
 		require.NoError(t, err)
-		ss := wq1.(parsing.GrantStmt)
+		ss := mustGrantStmt(t, q).(parsing.GrantStmt)
 		for _, role := range ss.GetRoles() {
 			// Check that an entry was inserted in the system_acl table for each row.
 			systemStore, err := system.New(dbURL, tableland.ChainID(chainID))
 			require.NoError(t, err)
 			aclRow, err := systemStore.GetACLOnTableByController(ctx, ss.GetTableID(), role.String())
 			require.NoError(t, err)
-			require.Equal(t, wq1.GetTableID(), aclRow.TableID)
+			require.Equal(t, ss.GetTableID(), aclRow.TableID)
 			require.Equal(t, role.String(), aclRow.Controller)
 			require.ElementsMatch(t, ss.GetPrivileges(), aclRow.Privileges)
 		}

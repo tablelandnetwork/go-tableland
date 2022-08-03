@@ -42,7 +42,7 @@ func newBlockScope(
 ) *blockScope {
 	log := logger.With().
 		Str("component", "blockscope").
-		// TODO(jsign): fix all with chain_id
+		// TODO(jsign) LOW: fix all with chain_id
 		Int64("chainID", int64(scopeVars.ChainID)).
 		Int64("block_number", blockNum).
 		Logger()
@@ -99,22 +99,7 @@ func (bs *blockScope) ExecuteTxnEvents(ctx context.Context, evmTxn eventfeed.Txn
 	return res, nil
 }
 
-func (bs *blockScope) GetLastProcessedHeight(ctx context.Context) (int64, error) {
-	r := bs.txn.QueryRowContext(
-		ctx,
-		"SELECT block_number FROM system_txn_processor WHERE chain_id=?1 LIMIT 1",
-		bs.scopeVars.ChainID)
-	var blockNumber int64
-	if err := r.Scan(&blockNumber); err != nil {
-		if err == sql.ErrNoRows {
-			return 0, nil
-		}
-		return 0, fmt.Errorf("get last block number query: %s", err)
-	}
-	return blockNumber, nil
-}
-
-// TODO(jsign): move to Commit?
+// TODO(jsign) MEDIUM: move to Commit?
 func (bs *blockScope) SetLastProcessedHeight(ctx context.Context, height int64) error {
 	tag, err := bs.txn.ExecContext(
 		ctx,

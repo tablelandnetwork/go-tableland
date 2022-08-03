@@ -18,12 +18,7 @@ import (
 	"github.com/textileio/go-tableland/tests"
 )
 
-// Random address for testing. The value isn't important
-// because the ACL is mocked.
-var (
-	table100OwnerAddress = common.HexToAddress("0x07dfFc57AA386D2b239CaBE8993358DF20BAFBE2")
-	chainID              = 1337
-)
+var chainID = 1337
 
 func TestReceiptExists(t *testing.T) {
 	t.Parallel()
@@ -147,16 +142,6 @@ func newExecutorWithTable(t *testing.T, rowsLimit int) (*Executor, string, *sql.
 	return ex, dbURL, pool
 }
 
-// TODO(jsign): evaluate later if these methods "must*" can be deleted.
-func mustWriteStmt(t *testing.T, q string) parsing.MutatingStmt {
-	t.Helper()
-	p := newParser(t, []string{"system_", "registry"})
-	wss, err := p.ValidateMutatingQuery(q, 1337)
-	require.NoError(t, err)
-	require.Len(t, wss, 1)
-	return wss[0]
-}
-
 func mustGrantStmt(t *testing.T, q string) parsing.MutatingStmt {
 	t.Helper()
 	p := newParser(t, []string{"system_", "registry"})
@@ -185,27 +170,4 @@ func (acl *aclMock) CheckPrivileges(
 	return true, nil
 }
 
-type policyData struct {
-	isInsertAllowed  bool
-	isUpdateAllowed  bool
-	isDeleteAllowed  bool
-	whereClause      string
-	updatableColumns []string
-	withCheck        string
-}
-
-// TODO(jsign): needed?
-func policyFactory(data policyData) tableland.Policy {
-	return mockPolicy{data}
-}
-
-type mockPolicy struct {
-	policyData
-}
-
-func (p mockPolicy) IsInsertAllowed() bool      { return p.policyData.isInsertAllowed }
-func (p mockPolicy) IsUpdateAllowed() bool      { return p.policyData.isUpdateAllowed }
-func (p mockPolicy) IsDeleteAllowed() bool      { return p.policyData.isDeleteAllowed }
-func (p mockPolicy) WhereClause() string        { return p.policyData.whereClause }
-func (p mockPolicy) UpdatableColumns() []string { return p.policyData.updatableColumns }
-func (p mockPolicy) WithCheck() string          { return p.policyData.withCheck }
+// TODO(jsign) HIGH: Simulate block with txn with multiple events.
