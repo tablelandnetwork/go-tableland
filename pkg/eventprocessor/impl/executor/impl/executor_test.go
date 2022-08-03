@@ -33,21 +33,21 @@ func TestReceiptExists(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
-	txnp, _, _ := newExecutorWithTable(t, 0)
+	ex, _, _ := newExecutorWithTable(t, 0)
 
 	txnHash := "0x0000000000000000000000000000000000000000000000000000000000001234"
 
-	b, err := txnp.OpenBatch(ctx)
+	bs, err := ex.NewBlockScope(ctx, 0, "")
 	require.NoError(t, err)
-	ok, err := b.TxnReceiptExists(ctx, common.HexToHash(txnHash))
+	ok, err := bs.TxnReceiptExists(ctx, common.HexToHash(txnHash))
 	require.NoError(t, err)
 	require.False(t, ok)
-	require.NoError(t, b.Commit())
-	require.NoError(t, b.Close())
+	require.NoError(t, bs.Commit())
+	require.NoError(t, bs.Close())
 
-	b, err = txnp.OpenBatch(ctx)
+	bs, err = ex.NewBlockScope(ctx, 0, "")
 	require.NoError(t, err)
-	err = b.SaveTxnReceipts(ctx, []eventprocessor.Receipt{
+	err = bs.SaveTxnReceipts(ctx, []eventprocessor.Receipt{
 		{
 			ChainID:     tableland.ChainID(chainID),
 			BlockNumber: 100,
@@ -55,163 +55,18 @@ func TestReceiptExists(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	require.NoError(t, b.Commit())
-	require.NoError(t, b.Close())
+	require.NoError(t, bs.Commit())
+	require.NoError(t, bs.Close())
 
-	b, err = txnp.OpenBatch(ctx)
+	bs, err = ex.NewBlockScope(ctx, 0, "")
 	require.NoError(t, err)
-	ok, err = b.TxnReceiptExists(ctx, common.HexToHash(txnHash))
+	ok, err = bs.TxnReceiptExists(ctx, common.HexToHash(txnHash))
 	require.NoError(t, err)
 	require.True(t, ok)
-	require.NoError(t, b.Commit())
-	require.NoError(t, b.Close())
+	require.NoError(t, bs.Commit())
+	require.NoError(t, bs.Close())
 
-	require.NoError(t, txnp.Close(ctx))
-}
-
-func TestExecWriteQueriesWithPolicies(t *testing.T) {
-	t.Parallel()
-
-	t.Run("insert-not-allowed", func(t *testing.T) {
-		t.Parallel()
-		ctx := context.Background()
-
-		txnp, _, _ := newExecutorWithTable(t, 0)
-
-		b, err := txnp.OpenBatch(ctx)
-		require.NoError(t, err)
-
-		policy := policyFactory(policyData{
-			isInsertAllowed: false,
-		})
-
-		wq := mustWriteStmt(t, `insert into foo_1337_100 values ('one');`)
-
-		// set the controller to anything other than zero
-		err = b.SetController(ctx, wq.GetTableID(), common.HexToAddress("0x1"))
-		require.NoError(t, err)
-
-		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq}, true, policy)
-		var errQueryExecution *executor.ErrQueryExecution
-		require.ErrorAs(t, err, &errQueryExecution)
-		require.ErrorContains(t, err, "insert is not allowed by policy")
-	})
-
-	t.Run("update-not-allowed", func(t *testing.T) {
-		t.Parallel()
-		ctx := context.Background()
-
-		txnp, _, _ := newExecutorWithTable(t, 0)
-
-		b, err := txnp.OpenBatch(ctx)
-		require.NoError(t, err)
-
-		policy := policyFactory(policyData{
-			isUpdateAllowed: false,
-		})
-
-		wq := mustWriteStmt(t, `update foo_1337_100 set zar = 'three';`)
-
-		// set the controller to anything other than zero
-		err = b.SetController(ctx, wq.GetTableID(), common.HexToAddress("0x1"))
-		require.NoError(t, err)
-
-		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq}, true, policy)
-		var errQueryExecution *executor.ErrQueryExecution
-		require.ErrorAs(t, err, &errQueryExecution)
-		require.ErrorContains(t, err, "update is not allowed by policy")
-	})
-
-	t.Run("delete-not-allowed", func(t *testing.T) {
-		t.Parallel()
-		ctx := context.Background()
-
-		txnp, _, _ := newExecutorWithTable(t, 0)
-
-		b, err := txnp.OpenBatch(ctx)
-		require.NoError(t, err)
-
-		policy := policyFactory(policyData{
-			isDeleteAllowed: false,
-		})
-
-		wq := mustWriteStmt(t, `DELETE FROM foo_1337_100`)
-
-		// set the controller to anything other than zero
-		err = b.SetController(ctx, wq.GetTableID(), common.HexToAddress("0x1"))
-		require.NoError(t, err)
-
-		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq}, true, policy)
-		var errQueryExecution *executor.ErrQueryExecution
-		require.ErrorAs(t, err, &errQueryExecution)
-		require.ErrorContains(t, err, "delete is not allowed by policy")
-	})
-
-	t.Run("update-column-not-allowed", func(t *testing.T) {
-		t.Parallel()
-		ctx := context.Background()
-
-		txnp, _, _ := newExecutorWithTable(t, 0)
-
-		b, err := txnp.OpenBatch(ctx)
-		require.NoError(t, err)
-
-		policy := policyFactory(policyData{
-			isUpdateAllowed:  true,
-			updatableColumns: []string{"zaz"}, // zaz instead of zar
-		})
-
-		// tries to update zar and not zaz
-		wq := mustWriteStmt(t, `update foo_1337_100 set zar = 'three';`)
-
-		// set the controller to anything other than zero
-		err = b.SetController(ctx, wq.GetTableID(), common.HexToAddress("0x1"))
-		require.NoError(t, err)
-
-		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq}, true, policy)
-		var errQueryExecution *executor.ErrQueryExecution
-		require.ErrorAs(t, err, &errQueryExecution)
-		require.ErrorContains(t, err, "column zar is not allowed")
-	})
-
-	t.Run("update-where-policy", func(t *testing.T) {
-		t.Parallel()
-		ctx := context.Background()
-
-		txnp, _, pool := newExecutorWithTable(t, 0)
-
-		b, err := txnp.OpenBatch(ctx)
-		require.NoError(t, err)
-
-		// start with two rows
-		wq1 := mustWriteStmt(t, `insert into foo_1337_100 values ('one');`)
-		wq2 := mustWriteStmt(t, `insert into foo_1337_100 values ('two');`)
-
-		// set the controller to anything other than zero
-		err = b.SetController(ctx, wq2.GetTableID(), common.HexToAddress("0x1"))
-		require.NoError(t, err)
-
-		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq1, wq2}, true, tableland.AllowAllPolicy{})
-		require.NoError(t, err)
-
-		policy := policyFactory(policyData{
-			isUpdateAllowed:  true,
-			whereClause:      "zar = 'two'",
-			updatableColumns: []string{"zar"},
-		})
-
-		// send an update that updates all rows with a policy to restricts the update
-		wq3 := mustWriteStmt(t, `update foo_1337_100 set zar = 'three'`)
-		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq3}, true, policy)
-		require.NoError(t, err)
-
-		require.NoError(t, b.Commit())
-		require.NoError(t, b.Close())
-		require.NoError(t, txnp.Close(ctx))
-
-		// there should be only one row updated
-		require.Equal(t, 1, tableRowCountT100(t, pool, "select count(*) from foo_1337_100 WHERE zar = 'three'"))
-	})
+	require.NoError(t, ex.Close(ctx))
 }
 
 func TestRegisterTable(t *testing.T) {
@@ -740,6 +595,7 @@ type policyData struct {
 	withCheck        string
 }
 
+// TODO(jsign): needed?
 func policyFactory(data policyData) tableland.Policy {
 	return mockPolicy{data}
 }

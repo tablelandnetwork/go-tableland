@@ -2,15 +2,20 @@ package impl
 
 import (
 	"context"
+	"math/big"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
+	"github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
+	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 )
 
-func TestRunSQL_OneEvent(t *testing.T) {
+func TestRunSQL_OneEventPerTxn(t *testing.T) {
 	t.Parallel()
 	t.Run("one insert", func(t *testing.T) {
 		t.Parallel()
@@ -18,15 +23,13 @@ func TestRunSQL_OneEvent(t *testing.T) {
 		ctx := context.Background()
 		ex, _, pool := newExecutorWithTable(t, 0)
 
-		b, err := ex.NewBlockScope(ctx, 0, "")
+		bs, err := ex.NewBlockScope(ctx, 0, "")
 		require.NoError(t, err)
 
-		wq1 := mustWriteStmt(t, `insert into foo_1337_100 values ('one')`)
-		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq1}, true, tableland.AllowAllPolicy{})
-		require.NoError(t, err)
+		assertExecTxnWithRunSQLEvents(t, bs, 100, []string{`insert into foo_1337_100 values ('one')`})
 
-		require.NoError(t, b.Commit())
-		require.NoError(t, b.Close())
+		require.NoError(t, bs.Commit())
+		require.NoError(t, bs.Close())
 		require.NoError(t, ex.Close(ctx))
 
 		require.Equal(t, 1, tableRowCountT100(t, pool, "select count(*) from foo_1337_100"))
@@ -36,32 +39,20 @@ func TestRunSQL_OneEvent(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, _, pool := newExecutorWithTable(t, 0)
+		ex, _, pool := newExecutorWithTable(t, 0)
 
-		b, err := txnp.OpenBatch(ctx)
+		bs, err := ex.NewBlockScope(ctx, 0, "")
 		require.NoError(t, err)
 
-		{
-			wq1 := mustWriteStmt(t, `insert into foo_1337_100 values ('wq1one')`)
-			err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq1}, true, tableland.AllowAllPolicy{})
-			require.NoError(t, err)
-		}
-		{
-			wq1 := mustWriteStmt(t, `insert into foo_1337_100 values ('wq1two')`)
-			wq2 := mustWriteStmt(t, `insert into foo_1337_100 values ('wq2three')`)
-			err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq1, wq2}, true, tableland.AllowAllPolicy{})
-			require.NoError(t, err)
-		}
-		{
-			wq1 := mustWriteStmt(t, `insert into foo_1337_100 values ('wq1four')`)
-			err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq1}, true, tableland.AllowAllPolicy{})
-			require.NoError(t, err)
-		}
+		assertExecTxnWithRunSQLEvents(t, bs, 100, []string{`insert into foo_1337_100 values ('wq1one')`})
+		assertExecTxnWithRunSQLEvents(t, bs, 100, []string{`insert into foo_1337_100 values ('wq2one');insert into foo_1337_100 values ('wq2two')`}) //nolint
+		assertExecTxnWithRunSQLEvents(t, bs, 100, []string{`insert into foo_1337_100 values ('wq3one')`})
 
-		require.NoError(t, b.Commit())
-		require.NoError(t, b.Close())
-		require.NoError(t, txnp.Close(ctx))
+		require.NoError(t, bs.Commit())
+		require.NoError(t, bs.Close())
+		require.NoError(t, ex.Close(ctx))
 
+		// 3 txns each with one event with a total of 4 inserts.
 		require.Equal(t, 4, tableRowCountT100(t, pool, "select count(*) from foo_1337_100"))
 	})
 
@@ -69,39 +60,26 @@ func TestRunSQL_OneEvent(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, _, pool := newExecutorWithTable(t, 0)
+		ex, _, pool := newExecutorWithTable(t, 0)
 
-		b, err := txnp.OpenBatch(ctx)
+		bs, err := ex.NewBlockScope(ctx, 0, "")
 		require.NoError(t, err)
 
-		{
-			wq1_1 := mustWriteStmt(t, `insert into foo_1337_100 values ('onez')`)
-			err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq1_1}, true, tableland.AllowAllPolicy{})
-			require.NoError(t, err)
-		}
-		{
-			wq2_1 := mustWriteStmt(t, `insert into foo_1337_100 values ('twoz')`)
-			wq2_2 := mustWriteStmt(t, `insert into foo_1337_101 values ('threez')`)
-			err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq2_1, wq2_2}, true, tableland.AllowAllPolicy{}) // nolint
-			require.Error(t, err)
-		}
-		{
-			wq3_1 := mustWriteStmt(t, `insert into foo_1337_100 values ('fourz')`)
-			err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq3_1}, true, tableland.AllowAllPolicy{})
-			require.NoError(t, err)
-		}
+		assertExecTxnWithRunSQLEvents(t, bs, 100, []string{`insert into foo_1337_100 values ('onez')`})
+		assertExecTxnWithRunSQLEvents(t, bs, 100, []string{`insert into foo_1337_100 values ('twoz');insert into foo_1337_101 values ('threez')`})
+		assertExecTxnWithRunSQLEvents(t, bs, 100, []string{`insert into foo_1337_100 values ('fourz')`})
 
-		require.NoError(t, b.Commit())
-		require.NoError(t, b.Close())
-		require.NoError(t, txnp.Close(ctx))
+		require.NoError(t, bs.Commit())
+		require.NoError(t, bs.Close())
+		require.NoError(t, ex.Close(ctx))
 
-		// We executed a single batch, with 3 Exec calls.
-		// The second Exec should have failed as a whole.
+		// We executed 3 transactions each with one RunSQL event.
+		// The first and third transaction succeeded. The second failed since one of its queries reference a
+		// wrong table.
 		//
-		// Note that its wq2_1 succeeded, but wq2_2 failed, this means:
-		// 1. wq1_1 and wq3_1 should survive the whole batch commit.
-		// 2. despite wq2_1 apparently should succeed, wq2_2 failure should rollback
-		//    both wq2_* statements.
+		// We check that we see 2 inserted rows, from the first and third transaction.
+		// Despite the first query of the second transaction was correct, it must be rollbacked since the second
+		// query wasn't.
 		require.Equal(t, 2, tableRowCountT100(t, pool, "select count(*) from foo_1337_100"))
 	})
 
@@ -109,26 +87,17 @@ func TestRunSQL_OneEvent(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, _, pool := newExecutorWithTable(t, 0)
+		ex, _, pool := newExecutorWithTable(t, 0)
 
-		b, err := txnp.OpenBatch(ctx)
+		bs, err := ex.NewBlockScope(ctx, 0, "")
 		require.NoError(t, err)
 
-		{
-			wq1_1 := mustWriteStmt(t, `insert into foo_1337_100 values ('one')`)
-			err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq1_1}, true, tableland.AllowAllPolicy{})
-			require.NoError(t, err)
-		}
-		{
-			wq2_1 := mustWriteStmt(t, `insert into foo_1337_100 values ('two')`)
-			wq2_2 := mustWriteStmt(t, `insert into foo_1337_100 values ('three')`)
-			err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq2_1, wq2_2}, true, tableland.AllowAllPolicy{}) // nolint
-			require.NoError(t, err)
-		}
+		assertExecTxnWithRunSQLEvents(t, bs, 100, []string{`insert into foo_1337_100 values ('one')`})
+		assertExecTxnWithRunSQLEvents(t, bs, 100, []string{`insert into foo_1337_100 values ('two');insert into foo_1337_100 values ('three')`})
 
-		// Note: we don't do a Commit() call, thus all should be rollbacked.
-		require.NoError(t, b.Close())
-		require.NoError(t, txnp.Close(ctx))
+		// We **don't** Commit(), thus all should be rollbacked.
+		require.NoError(t, bs.Close())
+		require.NoError(t, ex.Close(ctx))
 
 		// The opened batch wasn't txnp.CloseBatch(), but we simply
 		// closed the whole store. This should rollback any ongoing
@@ -136,23 +105,24 @@ func TestRunSQL_OneEvent(t *testing.T) {
 		require.Equal(t, 0, tableRowCountT100(t, pool, "select count(*) from foo_1337_100"))
 	})
 
-	t.Run("single-query grant", func(t *testing.T) {
+	t.Run("one grant", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, dbURL, _ := newExecutorWithTable(t, 0)
+		ex, dbURL, _ := newExecutorWithTable(t, 0)
 
-		b, err := txnp.OpenBatch(ctx)
+		bs, err := ex.NewBlockScope(ctx, 0, "")
 		require.NoError(t, err)
 
-		wq1 := mustGrantStmt(t, "grant insert, update, delete on foo_1337_100 to '0xd43c59d5694ec111eb9e986c233200b14249558d', '0x4afe8e30db4549384b0a05bb796468b130c7d6e0'") // nolint
-		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq1}, true, tableland.AllowAllPolicy{})
+		q := "grant insert, update, delete on foo_1337_100 to '0xd43c59d5694ec111eb9e986c233200b14249558d', '0x4afe8e30db4549384b0a05bb796468b130c7d6e0'" //nolint
+		assertExecTxnWithRunSQLEvents(t, bs, 100, []string{q})
+
+		require.NoError(t, bs.Commit())
+		require.NoError(t, bs.Close())
+		require.NoError(t, ex.Close(ctx))
+
+		wq1 := mustGrantStmt(t, q) // nolint
 		require.NoError(t, err)
-
-		require.NoError(t, b.Commit())
-		require.NoError(t, b.Close())
-		require.NoError(t, txnp.Close(ctx))
-
 		ss := wq1.(parsing.GrantStmt)
 		for _, role := range ss.GetRoles() {
 			// Check that an entry was inserted in the system_acl table for each row.
@@ -170,34 +140,33 @@ func TestRunSQL_OneEvent(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, dbURL, _ := newExecutorWithTable(t, 0)
+		ex, dbURL, _ := newExecutorWithTable(t, 0)
 
-		b, err := txnp.OpenBatch(ctx)
+		bs, err := ex.NewBlockScope(ctx, 0, "")
 		require.NoError(t, err)
 
-		wq1 := mustGrantStmt(t, "grant insert on foo_1337_100 to '0xd43c59d5694ec111eb9e986c233200b14249558d', '0x4afe8e30db4549384b0a05bb796468b130c7d6e0'") // nolint
+		q := "grant insert on foo_1337_100 to '0xd43c59d5694ec111eb9e986c233200b14249558d', '0x4afe8e30db4549384b0a05bb796468b130c7d6e0';" //nolint
 		// add the update privilege for role 0xd43c59d5694ec111eb9e986c233200b14249558d
-		wq2 := mustGrantStmt(t, "grant update on foo_1337_100 to '0xd43c59d5694ec111eb9e986c233200b14249558d'")
+		q += "grant update on foo_1337_100 to '0xd43c59d5694ec111eb9e986c233200b14249558d';"
 		// add the delete privilege (and mistakenly the insert) grant for role 0x4afe8e30db4549384b0a05bb796468b130c7d6e0
-		wq3 := mustGrantStmt(t, "grant insert, delete on foo_1337_100 to '0x4afe8e30db4549384b0a05bb796468b130c7d6e0'")
-		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq1, wq2, wq3}, true, tableland.AllowAllPolicy{}) // nolint
-		require.NoError(t, err)
+		q += "grant insert, delete on foo_1337_100 to '0x4afe8e30db4549384b0a05bb796468b130c7d6e0'"
+		assertExecTxnWithRunSQLEvents(t, bs, 100, []string{q})
 
-		require.NoError(t, b.Commit())
-		require.NoError(t, b.Close())
-		require.NoError(t, txnp.Close(ctx))
+		require.NoError(t, bs.Commit())
+		require.NoError(t, bs.Close())
+		require.NoError(t, ex.Close(ctx))
 
 		systemStore, err := system.New(dbURL, tableland.ChainID(chainID))
 		require.NoError(t, err)
 
-		ss := wq1.(parsing.GrantStmt)
+		tableID, _ := tableland.NewTableID("100")
 		{
 			aclRow, err := systemStore.GetACLOnTableByController(
 				ctx,
-				ss.GetTableID(),
+				tableID,
 				"0xD43C59d5694eC111Eb9e986C233200b14249558D")
 			require.NoError(t, err)
-			require.Equal(t, wq2.GetTableID(), aclRow.TableID)
+			require.Equal(t, tableID, aclRow.TableID)
 			require.Equal(t, "0xD43C59d5694eC111Eb9e986C233200b14249558D", aclRow.Controller)
 			require.ElementsMatch(t, tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate}, aclRow.Privileges)
 		}
@@ -205,10 +174,10 @@ func TestRunSQL_OneEvent(t *testing.T) {
 		{
 			aclRow, err := systemStore.GetACLOnTableByController(
 				ctx,
-				ss.GetTableID(),
+				tableID,
 				"0x4afE8e30DB4549384b0a05bb796468B130c7D6E0")
 			require.NoError(t, err)
-			require.Equal(t, wq3.GetTableID(), aclRow.TableID)
+			require.Equal(t, tableID, aclRow.TableID)
 			require.Equal(t, "0x4afE8e30DB4549384b0a05bb796468B130c7D6E0", aclRow.Controller)
 			require.ElementsMatch(t, tableland.Privileges{tableland.PrivInsert, tableland.PrivDelete}, aclRow.Privileges)
 		}
@@ -218,33 +187,214 @@ func TestRunSQL_OneEvent(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, dbURL, _ := newExecutorWithTable(t, 0)
+		ex, dbURL, _ := newExecutorWithTable(t, 0)
 
-		b, err := txnp.OpenBatch(ctx)
+		bs, err := ex.NewBlockScope(ctx, 0, "")
 		require.NoError(t, err)
 
-		wq1 := mustGrantStmt(t, "grant insert, update, delete on foo_1337_100 to '0xd43c59d5694ec111eb9e986c233200b14249558d'") // nolint
-		wq2 := mustGrantStmt(t, "revoke insert, delete on foo_1337_100 from '0xd43c59d5694ec111eb9e986c233200b14249558d'")
-		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq1, wq2}, true, tableland.AllowAllPolicy{})
-		require.NoError(t, err)
+		q := "grant insert, update, delete on foo_1337_100 to '0xd43c59d5694ec111eb9e986c233200b14249558d';"
+		q += "revoke insert, delete on foo_1337_100 from '0xd43c59d5694ec111eb9e986c233200b14249558d';"
+		assertExecTxnWithRunSQLEvents(t, bs, 100, []string{q})
 
-		require.NoError(t, b.Commit())
-		require.NoError(t, b.Close())
-		require.NoError(t, txnp.Close(ctx))
+		require.NoError(t, bs.Commit())
+		require.NoError(t, bs.Close())
+		require.NoError(t, ex.Close(ctx))
 
 		systemStore, err := system.New(dbURL, tableland.ChainID(chainID))
 		require.NoError(t, err)
 
-		ss := wq1.(parsing.GrantStmt)
+		tableID, _ := tableland.NewTableID("100")
 		{
 			aclRow, err := systemStore.GetACLOnTableByController(
 				ctx,
-				ss.GetTableID(),
+				tableID,
 				"0xD43C59d5694eC111Eb9e986C233200b14249558D")
 			require.NoError(t, err)
-			require.Equal(t, wq2.GetTableID(), aclRow.TableID)
+			require.Equal(t, tableID, aclRow.TableID)
 			require.Equal(t, "0xD43C59d5694eC111Eb9e986C233200b14249558D", aclRow.Controller)
 			require.ElementsMatch(t, tableland.Privileges{tableland.PrivUpdate}, aclRow.Privileges)
 		}
 	})
+}
+
+func TestRunSQL_WriteQueriesWithPolicies(t *testing.T) {
+	t.Parallel()
+
+	t.Run("insert not allowed", func(t *testing.T) {
+		t.Parallel()
+		ctx := context.Background()
+
+		ex, _, _ := newExecutorWithTable(t, 0)
+
+		bs, err := ex.NewBlockScope(ctx, 0, "")
+		require.NoError(t, err)
+
+		// set the controller to anything other than zero
+		assertExecTxnWithSetController(t, bs, 100, "0x1")
+
+		policy := ethereum.ITablelandControllerPolicy{AllowInsert: false}
+		res, err := execTxnWithRunSQLEventsAndPolicy(
+			t, bs, 100, []string{`insert into foo_1337_100 values ('one');`}, policy)
+		require.NoError(t, err)
+		require.Contains(t, res.Error, "insert is not allowed by policy")
+	})
+
+	t.Run("update not allowed", func(t *testing.T) {
+		t.Parallel()
+		ctx := context.Background()
+
+		ex, _, _ := newExecutorWithTable(t, 0)
+
+		bs, err := ex.NewBlockScope(ctx, 0, "")
+		require.NoError(t, err)
+
+		// set the controller to anything other than zero
+		assertExecTxnWithSetController(t, bs, 100, "0x1")
+		require.NoError(t, err)
+
+		policy := ethereum.ITablelandControllerPolicy{AllowUpdate: false}
+		res, err := execTxnWithRunSQLEventsAndPolicy(
+			t, bs, 100, []string{`update foo_1337_100 set zar = 'three';`}, policy)
+		require.NoError(t, err)
+		require.Contains(t, res.Error, "update is not allowed by policy")
+	})
+
+	t.Run("delete not allowed", func(t *testing.T) {
+		t.Parallel()
+		ctx := context.Background()
+
+		ex, _, _ := newExecutorWithTable(t, 0)
+
+		bs, err := ex.NewBlockScope(ctx, 0, "")
+		require.NoError(t, err)
+
+		// set the controller to anything other than zero
+		assertExecTxnWithSetController(t, bs, 100, "0x1")
+		require.NoError(t, err)
+
+		policy := ethereum.ITablelandControllerPolicy{AllowDelete: false}
+		res, err := execTxnWithRunSQLEventsAndPolicy(
+			t, bs, 100, []string{`DELETE FROM foo_1337_100`}, policy)
+		require.NoError(t, err)
+		require.Contains(t, res.Error, "delete is not allowed by policy")
+	})
+
+	t.Run("update column not-allowed", func(t *testing.T) {
+		t.Parallel()
+		ctx := context.Background()
+
+		ex, _, _ := newExecutorWithTable(t, 0)
+
+		bs, err := ex.NewBlockScope(ctx, 0, "")
+		require.NoError(t, err)
+
+		// set the controller to anything other than zero
+		assertExecTxnWithSetController(t, bs, 100, "0x1")
+		require.NoError(t, err)
+
+		policy := ethereum.ITablelandControllerPolicy{AllowUpdate: true, UpdatableColumns: []string{"zaz"}}
+		// tries to update zar and not zaz
+		res, err := execTxnWithRunSQLEventsAndPolicy(
+			t, bs, 100, []string{`update foo_1337_100 set zar = 'three';`}, policy)
+		require.NoError(t, err)
+		require.Contains(t, res.Error, "column zar is not allowed")
+	})
+
+	t.Run("update-where-policy", func(t *testing.T) {
+		t.Parallel()
+		ctx := context.Background()
+
+		ex, _, pool := newExecutorWithTable(t, 0)
+
+		bs, err := ex.NewBlockScope(ctx, 0, "")
+		require.NoError(t, err)
+
+		// set the controller to anything other than zero
+		assertExecTxnWithSetController(t, bs, 100, "0x1")
+		require.NoError(t, err)
+
+		// start with two rows
+		q := `insert into foo_1337_100 values ('one');`
+		q += `insert into foo_1337_100 values ('two');`
+		assertExecTxnWithRunSQLEvents(t, bs, 100, []string{q})
+
+		policy := ethereum.ITablelandControllerPolicy{
+			AllowUpdate:      true,
+			WhereClause:      "zar = 'two'",
+			UpdatableColumns: []string{"zar"},
+		}
+		// send an update that updates all rows with a policy to restricts the update
+		res, err := execTxnWithRunSQLEventsAndPolicy(t, bs, 100, []string{`update foo_1337_100 set zar = 'three'`}, policy)
+		require.NoError(t, err)
+		require.Nil(t, res.Error)
+
+		require.NoError(t, bs.Commit())
+		require.NoError(t, bs.Close())
+		require.NoError(t, ex.Close(ctx))
+
+		// there should be only one row updated
+		require.Equal(t, 1, tableRowCountT100(t, pool, "select count(*) from foo_1337_100 WHERE zar = 'three'"))
+	})
+}
+
+func assertExecTxnWithSetController(t *testing.T, bs executor.BlockScope, tableID int, controller string) {
+	t.Helper()
+
+	e := ethereum.ContractSetController{
+		TableId:    big.NewInt(int64(tableID)),
+		Controller: common.HexToAddress(controller),
+	}
+	res, err := bs.ExecuteTxnEvents(context.Background(), eventfeed.TxnEvents{Events: []interface{}{e}})
+	require.NoError(t, err)
+	require.NotNil(t, res.TableID)
+	require.Equal(t, res.TableID.ToBigInt().Int64(), int64(tableID))
+}
+
+func assertExecTxnWithRunSQLEvents(t *testing.T, bs executor.BlockScope, tableID int, stmts []string) {
+	t.Helper()
+
+	res, err := execTxnWithRunSQLEvents(t, bs, tableID, stmts)
+	require.NoError(t, err)
+	require.NotNil(t, res.TableID)
+	require.Equal(t, res.TableID.ToBigInt().Int64(), int64(tableID))
+}
+
+func execTxnWithRunSQLEvents(
+	t *testing.T,
+	bs executor.BlockScope,
+	tableID int,
+	stmts []string,
+) (executor.TxnExecutionResult, error) {
+	t.Helper()
+
+	policy := ethereum.ITablelandControllerPolicy{
+		AllowInsert:      true,
+		AllowUpdate:      true,
+		AllowDelete:      true,
+		WhereClause:      "",
+		WithCheck:        "",
+		UpdatableColumns: nil,
+	}
+	return execTxnWithRunSQLEventsAndPolicy(t, bs, tableID, stmts, policy)
+}
+
+func execTxnWithRunSQLEventsAndPolicy(
+	t *testing.T,
+	bs executor.BlockScope,
+	tableID int,
+	stmts []string,
+	policy ethereum.ITablelandControllerPolicy,
+) (executor.TxnExecutionResult, error) {
+	t.Helper()
+
+	events := make([]interface{}, len(stmts))
+	for _, stmt := range stmts {
+		events = append(events, &ethereum.ContractRunSQL{
+			IsOwner:   true,
+			TableId:   big.NewInt(int64(tableID)),
+			Statement: stmt,
+			Policy:    policy,
+		})
+	}
+	return bs.ExecuteTxnEvents(context.Background(), eventfeed.TxnEvents{Events: events})
 }

@@ -55,7 +55,7 @@ func (ts *txnScope) execWriteQueries(
 	}
 
 	dbTableName := mqueries[0].GetDBTableName()
-	tablePrefix, beforeRowCount, err := GetTablePrefixAndRowCountByTableID(
+	tablePrefix, beforeRowCount, err := getTablePrefixAndRowCountByTableID(
 		ctx, ts.txn, ts.scopeVars.ChainID, mqueries[0].GetTableID(), dbTableName)
 	if err != nil {
 		return &executor.ErrQueryExecution{
@@ -469,6 +469,31 @@ func buildAuditingQueryFromPolicy(dbTableName string, rowIDs []int64, policy tab
 		policy.WithCheck(),
 		strings.Join(ids, ","),
 	)
+}
+
+// getTablePrefixAndRowCountByTableID returns the table prefix and current row count for a TableID
+// within the provided transaction.
+func getTablePrefixAndRowCountByTableID(
+	ctx context.Context,
+	tx *sql.Tx,
+	chainID tableland.ChainID,
+	tableID tableland.TableID,
+	dbTableName string,
+) (string, int, error) {
+	q := fmt.Sprintf(
+		"SELECT (SELECT prefix FROM registry where chain_id=?1 AND id=?2), (SELECT count(*) FROM %s)", dbTableName)
+	r := tx.QueryRowContext(ctx, q, chainID, tableID.String())
+
+	var tablePrefix string
+	var rowCount int
+	err := r.Scan(&tablePrefix, &rowCount)
+	if err == sql.ErrNoRows {
+		return "", 0, fmt.Errorf("the table id doesn't exist")
+	}
+	if err != nil {
+		return "", 0, fmt.Errorf("table prefix lookup: %s", err)
+	}
+	return tablePrefix, rowCount, nil
 }
 
 type policy struct {
