@@ -19,7 +19,7 @@ import (
 // Executor executes chain events.
 type Executor struct {
 	log          zerolog.Logger
-	pool         *sql.DB
+	db           *sql.DB
 	parser       parsing.SQLValidator
 	acl          tableland.ACL
 	chBlockScope chan struct{}
@@ -38,21 +38,21 @@ func NewExecutor(
 	maxTableRowCount int,
 	acl tableland.ACL,
 ) (*Executor, error) {
-	pool, err := otelsql.Open("sqlite3", dbURI, otelsql.WithAttributes(
+	db, err := otelsql.Open("sqlite3", dbURI, otelsql.WithAttributes(
 		attribute.String("name", "processor"),
 		attribute.Int64("chain_id", int64(chainID)),
 	))
 	if err != nil {
 		return nil, fmt.Errorf("connecting to db: %s", err)
 	}
-	if err := otelsql.RegisterDBStatsMetrics(pool, otelsql.WithAttributes(
+	db.SetMaxIdleConns(0)
+	db.SetMaxOpenConns(1)
+	if err := otelsql.RegisterDBStatsMetrics(db, otelsql.WithAttributes(
 		attribute.String("name", "processor"),
 		attribute.Int64("chain_id", int64(chainID)),
 	)); err != nil {
 		return nil, fmt.Errorf("registering dbstats: %s", err)
 	}
-	// TODO(jsign) LOW: MaxIdleConnections(0) and other places
-	pool.SetMaxOpenConns(1)
 	if maxTableRowCount < 0 {
 		return nil, fmt.Errorf("maximum table row count is negative")
 	}
@@ -63,7 +63,7 @@ func NewExecutor(
 		Logger()
 	tblp := &Executor{
 		log:          log,
-		pool:         pool,
+		db:           db,
 		parser:       parser,
 		acl:          acl,
 		chBlockScope: make(chan struct{}, 1),
@@ -84,7 +84,7 @@ func (ex *Executor) NewBlockScope(ctx context.Context, blockNumber int64) (execu
 		panic("parallel block scope detected, this must never happen")
 	}
 
-	txn, err := ex.pool.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable, ReadOnly: false})
+	txn, err := ex.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable, ReadOnly: false})
 	if err != nil {
 		return nil, fmt.Errorf("opening db transaction: %s", err)
 	}
@@ -105,7 +105,7 @@ func (ex *Executor) NewBlockScope(ctx context.Context, blockNumber int64) (execu
 }
 
 func (ex *Executor) GetLastProcessedHeight(ctx context.Context) (int64, error) {
-	txn, err := ex.pool.Begin()
+	txn, err := ex.db.Begin()
 	if err != nil {
 		return 0, fmt.Errorf("opening txn: %s", err)
 	}

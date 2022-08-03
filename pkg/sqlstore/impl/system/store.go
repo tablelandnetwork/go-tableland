@@ -30,9 +30,9 @@ import (
 // For safety reasons, this layer has no access to the database object or the transaction object.
 // The access is made through the dbWithTx interface.
 type SystemStore struct {
-	chainID tableland.ChainID
-	db      dbWithTx
-	pool    *sql.DB
+	chainID  tableland.ChainID
+	dbWithTx dbWithTx
+	db       *sql.DB
 }
 
 // New returns a new SystemStore backed by database/sql.
@@ -44,6 +44,7 @@ func New(dbURI string, chainID tableland.ChainID) (*SystemStore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("connecting to db: %s", err)
 	}
+	dbc.SetMaxIdleConns(0)
 	if err := otelsql.RegisterDBStatsMetrics(dbc, otelsql.WithAttributes(
 		attribute.String("name", "systemstore"),
 		attribute.Int64("chain_id", int64(chainID)),
@@ -57,15 +58,15 @@ func New(dbURI string, chainID tableland.ChainID) (*SystemStore, error) {
 	}
 
 	return &SystemStore{
-		db:      &dbWithTxImpl{db: db.New(dbc)},
-		pool:    dbc,
-		chainID: chainID,
+		dbWithTx: &dbWithTxImpl{db: db.New(dbc)},
+		db:       dbc,
+		chainID:  chainID,
 	}, nil
 }
 
 // GetTable fetchs a table from its UUID.
 func (s *SystemStore) GetTable(ctx context.Context, id tableland.TableID) (sqlstore.Table, error) {
-	table, err := s.db.queries().GetTable(ctx, db.GetTableParams{
+	table, err := s.dbWithTx.queries().GetTable(ctx, db.GetTableParams{
 		ChainID: int64(s.chainID),
 		ID:      id.ToBigInt().Int64(),
 	})
@@ -80,7 +81,7 @@ func (s *SystemStore) GetTablesByController(ctx context.Context, controller stri
 	if err := sanitizeAddress(controller); err != nil {
 		return []sqlstore.Table{}, fmt.Errorf("sanitizing address: %s", err)
 	}
-	sqlcTables, err := s.db.queries().GetTablesByController(ctx, db.GetTablesByControllerParams{
+	sqlcTables, err := s.dbWithTx.queries().GetTablesByController(ctx, db.GetTablesByControllerParams{
 		ChainID:    int64(s.chainID),
 		Controller: controller,
 	})
@@ -111,7 +112,7 @@ func (s *SystemStore) GetACLOnTableByController(
 		TableID:    id.ToBigInt().Int64(),
 	}
 
-	systemACL, err := s.db.queries().GetAclByTableAndController(ctx, params)
+	systemACL, err := s.dbWithTx.queries().GetAclByTableAndController(ctx, params)
 	if err == sql.ErrNoRows {
 		return sqlstore.SystemACL{
 			Controller: controller,
@@ -133,7 +134,7 @@ func (s *SystemStore) ListPendingTx(ctx context.Context, addr common.Address) ([
 		ChainID: int64(s.chainID),
 	}
 
-	res, err := s.db.queries().ListPendingTx(ctx, params)
+	res, err := s.dbWithTx.queries().ListPendingTx(ctx, params)
 	if err != nil {
 		return nil, fmt.Errorf("list pending tx: %s", err)
 	}
@@ -168,7 +169,7 @@ func (s *SystemStore) InsertPendingTx(
 		Hash:    hash.Hex(),
 	}
 
-	err := s.db.queries().InsertPendingTx(ctx, params)
+	err := s.dbWithTx.queries().InsertPendingTx(ctx, params)
 	if err != nil {
 		return fmt.Errorf("insert pending tx: %s", err)
 	}
@@ -178,7 +179,7 @@ func (s *SystemStore) InsertPendingTx(
 
 // DeletePendingTxByHash deletes a pending tx.
 func (s *SystemStore) DeletePendingTxByHash(ctx context.Context, hash common.Hash) error {
-	err := s.db.queries().DeletePendingTxByHash(ctx, db.DeletePendingTxByHashParams{
+	err := s.dbWithTx.queries().DeletePendingTxByHash(ctx, db.DeletePendingTxByHashParams{
 		ChainID: int64(s.chainID),
 		Hash:    hash.Hex(),
 	})
@@ -191,7 +192,7 @@ func (s *SystemStore) DeletePendingTxByHash(ctx context.Context, hash common.Has
 
 // ReplacePendingTxByHash replaces the txn hash of a pending txn and bumps the counter of how many times this happened.
 func (s *SystemStore) ReplacePendingTxByHash(ctx context.Context, oldHash common.Hash, newHash common.Hash) error {
-	err := s.db.queries().ReplacePendingTxByHash(ctx, db.ReplacePendingTxByHashParams{
+	err := s.dbWithTx.queries().ReplacePendingTxByHash(ctx, db.ReplacePendingTxByHashParams{
 		ChainID:      int64(s.chainID),
 		PreviousHash: oldHash.Hex(),
 		NewHash:      newHash.Hex(),
@@ -272,17 +273,17 @@ func (s *SystemStore) GetSchemaByTableName(ctx context.Context, name string) (sq
 func (s *SystemStore) WithTx(tx *sql.Tx) sqlstore.SystemStore {
 	return &SystemStore{
 		chainID: s.chainID,
-		db: &dbWithTxImpl{
-			db: s.db.queries(),
+		dbWithTx: &dbWithTxImpl{
+			db: s.dbWithTx.queries(),
 			tx: tx,
 		},
-		pool: s.pool,
+		db: s.db,
 	}
 }
 
 // Begin returns a new tx.
 func (s *SystemStore) Begin(ctx context.Context) (*sql.Tx, error) {
-	return s.pool.Begin()
+	return s.db.Begin()
 }
 
 // GetReceipt returns a event receipt by transaction hash.
@@ -295,7 +296,7 @@ func (s *SystemStore) GetReceipt(
 		TxnHash: txnHash,
 	}
 
-	res, err := s.db.queries().GetReceipt(ctx, params)
+	res, err := s.dbWithTx.queries().GetReceipt(ctx, params)
 	if err == sql.ErrNoRows {
 		return eventprocessor.Receipt{}, false, nil
 	}
@@ -325,7 +326,7 @@ func (s *SystemStore) GetReceipt(
 
 // Close closes the store.
 func (s *SystemStore) Close() error {
-	if err := s.pool.Close(); err != nil {
+	if err := s.db.Close(); err != nil {
 		return fmt.Errorf("closing db: %s", err)
 	}
 	return nil

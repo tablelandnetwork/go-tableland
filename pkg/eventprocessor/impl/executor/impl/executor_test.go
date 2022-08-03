@@ -173,10 +173,10 @@ func tableRowCountT100(t *testing.T, dbURI string, query string) int {
 func existsTableWithName(t *testing.T, dbURI string, tableName string) bool {
 	t.Helper()
 
-	pool, err := sql.Open("sqlite3", dbURI)
+	db, err := sql.Open("sqlite3", dbURI)
 	require.NoError(t, err)
 	q := `SELECT 1 FROM sqlite_master  WHERE type='table' AND name = ?1`
-	row := pool.QueryRow(q, tableName)
+	row := db.QueryRow(q, tableName)
 	var dummy int
 	err = row.Scan(&dummy)
 	if err == sql.ErrNoRows {

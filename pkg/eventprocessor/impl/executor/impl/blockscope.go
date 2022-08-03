@@ -99,7 +99,6 @@ func (bs *blockScope) ExecuteTxnEvents(ctx context.Context, evmTxn eventfeed.Txn
 	return res, nil
 }
 
-// TODO(jsign) MEDIUM: move to Commit?
 func (bs *blockScope) SetLastProcessedHeight(ctx context.Context, height int64) error {
 	tag, err := bs.txn.ExecContext(
 		ctx,
