@@ -144,7 +144,7 @@ func (ep *EventProcessor) startDaemon() error {
 	// Notice that if the client calls StopSync(...) it will cancel fp.daemonCtx
 	// which will cleanly close the EventFeed, and `defer close(ch)` making the processor
 	// finish gracefully too.
-	ch := make(chan eventfeed.BlockEvents)
+	ch := make(chan eventfeed.BlockEvents, 500)
 	go func() {
 		defer close(ch)
 		if err := ep.ef.Start(ep.daemonCtx, fromHeight+1, ch, eventTypes); err != nil {
