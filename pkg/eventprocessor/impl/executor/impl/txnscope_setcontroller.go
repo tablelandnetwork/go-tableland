@@ -7,14 +7,12 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/textileio/go-tableland/internal/tableland"
-	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 )
 
 func (ts *txnScope) executeSetControllerEvent(
 	ctx context.Context,
-	be eventfeed.TxnEvents,
 	e *ethereum.ContractSetController,
 ) (executor.TxnExecutionResult, error) {
 	if e.TableId == nil {
@@ -43,7 +41,7 @@ func (ts *txnScope) setController(
 	if controller == common.HexToAddress("0x0") {
 		if _, err := ts.txn.ExecContext(ctx,
 			`DELETE FROM system_controller WHERE chain_id = ?1 AND table_id = ?2;`,
-			ts.chainID,
+			ts.scopeVars.ChainID,
 			id.String(),
 		); err != nil {
 			if code, ok := isErrCausedByQuery(err); ok {
@@ -60,7 +58,7 @@ func (ts *txnScope) setController(
 				VALUES (?1, ?2, ?3)
 				ON CONFLICT ("chain_id", "table_id")
 				DO UPDATE set controller = ?3;`,
-			ts.chainID,
+			ts.scopeVars.ChainID,
 			id.String(),
 			controller.Hex(),
 		); err != nil {

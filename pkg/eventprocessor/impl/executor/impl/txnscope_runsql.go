@@ -11,7 +11,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/textileio/go-tableland/internal/tableland"
-	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
@@ -19,10 +18,9 @@ import (
 
 func (ts *txnScope) executeRunSQLEvent(
 	ctx context.Context,
-	be eventfeed.TxnEvents,
 	e *ethereum.ContractRunSQL,
 ) (executor.TxnExecutionResult, error) {
-	mutatingStmts, err := ts.parser.ValidateMutatingQuery(e.Statement, ts.chainID)
+	mutatingStmts, err := ts.parser.ValidateMutatingQuery(e.Statement, ts.scopeVars.ChainID)
 	if err != nil {
 		err := fmt.Sprintf("parsing query: %s", err)
 		return executor.TxnExecutionResult{Error: &err}, nil
@@ -58,7 +56,7 @@ func (ts *txnScope) execWriteQueries(
 
 	dbTableName := mqueries[0].GetDBTableName()
 	tablePrefix, beforeRowCount, err := GetTablePrefixAndRowCountByTableID(
-		ctx, ts.txn, ts.chainID, mqueries[0].GetTableID(), dbTableName)
+		ctx, ts.txn, ts.scopeVars.ChainID, mqueries[0].GetTableID(), dbTableName)
 	if err != nil {
 		return &executor.ErrQueryExecution{
 			Code: "TABLE_LOOKUP",
@@ -152,7 +150,7 @@ func (ts *txnScope) executeGrantPrivilegesTx(
 		 VALUES (?1, ?2, ?3, ?4, ?5)
 		 ON CONFLICT (chain_id,table_id,controller)
 		 DO UPDATE SET privileges = privileges | ?4, updated_at = ?5`,
-		ts.chainID,
+		ts.scopeVars.ChainID,
 		id.ToBigInt().Int64(),
 		addr.Hex(),
 		privilegesMask,
@@ -197,7 +195,7 @@ func (ts *txnScope) executeRevokePrivilegesTx(
 		`UPDATE system_acl 
 	     SET privileges = privileges & ?4, updated_at = ?5
 		 WHERE chain_id=?1 AND table_id = ?2 AND controller = ?3`,
-		ts.chainID,
+		ts.scopeVars.ChainID,
 		id.String(),
 		addr.Hex(),
 		privilegesMask,
@@ -371,10 +369,10 @@ func (ts *txnScope) executeQueryAndGetAffectedRows(
 }
 
 func (ts *txnScope) checkRowCountLimit(rowsAffected int64, isInsert bool, beforeRowCount int) error {
-	if ts.maxTableRowCount > 0 && isInsert {
+	if ts.scopeVars.MaxTableRowCount > 0 && isInsert {
 		afterRowCount := beforeRowCount + int(rowsAffected)
 
-		if afterRowCount > ts.maxTableRowCount {
+		if afterRowCount > ts.scopeVars.MaxTableRowCount {
 			return &executor.ErrQueryExecution{
 				Code: "ROW_COUNT_LIMIT",
 				Msg:  fmt.Sprintf("table maximum row count exceeded (before %d, after %d)", beforeRowCount, afterRowCount),
@@ -447,7 +445,7 @@ func (ts *txnScope) getController(
 	tableID tableland.TableID,
 ) (string, error) {
 	q := "SELECT controller FROM system_controller where chain_id=?1 AND table_id=?2"
-	r := ts.txn.QueryRowContext(ctx, q, ts.chainID, tableID.ToBigInt().Uint64())
+	r := ts.txn.QueryRowContext(ctx, q, ts.scopeVars.ChainID, tableID.ToBigInt().Uint64())
 	var controller string
 	err := r.Scan(&controller)
 	if err == sql.ErrNoRows {

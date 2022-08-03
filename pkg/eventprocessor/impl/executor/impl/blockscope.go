@@ -22,58 +22,62 @@ type blockScope struct {
 	parser parsing.SQLValidator
 	acl    tableland.ACL
 
-	chainID     tableland.ChainID
-	blockNumber int64
+	scopeVars scopeVars
+}
+
+type scopeVars struct {
+	ChainID          tableland.ChainID
+	MaxTableRowCount int
 }
 
 func newBlockScope(
 	txn *sql.Tx,
-	chainID tableland.ChainID,
-	blockNum int64,
-	blockHash string,
+	scopeVars scopeVars,
 	parser parsing.SQLValidator,
 	acl tableland.ACL,
+	blockNum int64,
+	blockHash string,
 ) *blockScope {
 	log := logger.With().
 		Str("component", "blockscope").
 		// TODO(jsign): fix all with chain_id
-		Int64("chainID", int64(chainID)).
+		Int64("chainID", int64(scopeVars.ChainID)).
 		Int64("block_number", blockNum).
 		Str("blockHash", blockHash).
 		Logger()
 
 	return &blockScope{
-		txn:    txn,
-		log:    log,
-		parser: parser,
-		acl:    acl,
-
-		chainID: chainID,
+		txn:       txn,
+		log:       log,
+		parser:    parser,
+		acl:       acl,
+		scopeVars: scopeVars,
 	}
 }
 
-// executeEvents executes all the events in a txn atomically.
-// If the events execution is successful, it returns "", nil.
-// If the events execution isn't successful:
-// 1) If it has an acceptable execution failure, it returns the failure cause in the first return parameter,
-//    and nil in the second one.
-// 2) If it has an unknown infrastructure error, then it returns ("", err) where err is the underlying error.
-// The caller will want to retry executing this event later when this problem is solved and retry the event.
+// ExecuteEvents executes all the events in a txn atomically.
+//
+// If the events execution is successful, it returns the result.
+// If the events execution isn't successful, we have two cases:
+// 1) If caused by controlled error (e.g: invalid SQL), it will return a (res, nil) where
+//    res contains the error message.
+// 2) If caused by uncontrolled error (e.g: can't access the DB), it returns ({}, err). The caller should retry
+//    executing this transaction events when the underlying infrastructure problem is solved.
 func (bs *blockScope) ExecuteTxnEvents(ctx context.Context, evmTxn eventfeed.TxnEvents) (executor.TxnExecutionResult, error) {
+	// Create nested transaction from the blockScope. All the events for this trasaction will be executed here.
 	if _, err := bs.txn.ExecContext(ctx, "SAVEPOINT txnscope"); err != nil {
 		return executor.TxnExecutionResult{}, fmt.Errorf("creating savepoint: %s", err)
 	}
 
-	log := logger.With().
-		Str("component", "txnscope").
-		Int64("chainID", int64(bs.chainID)).
-		Str("txnHash", evmTxn.TxnHash.String()).
-		Logger()
 	ts := &txnScope{
-		log: log,
-
-		chainID: bs.chainID,
-		acl:     bs.acl,
+		parser:    bs.parser,
+		acl:       bs.acl,
+		scopeVars: bs.scopeVars,
+		log: logger.With().
+			Str("component", "txnscope").
+			Int64("chainID", int64(bs.scopeVars.ChainID)).
+			Str("txnHash", evmTxn.TxnHash.String()).
+			Logger(),
 
 		txn: bs.txn,
 	}
@@ -92,7 +96,10 @@ func (bs *blockScope) ExecuteTxnEvents(ctx context.Context, evmTxn eventfeed.Txn
 }
 
 func (bs *blockScope) GetLastProcessedHeight(ctx context.Context) (int64, error) {
-	r := bs.txn.QueryRowContext(ctx, "SELECT block_number FROM system_txn_processor WHERE chain_id=?1 LIMIT 1", bs.chainID)
+	r := bs.txn.QueryRowContext(
+		ctx,
+		"SELECT block_number FROM system_txn_processor WHERE chain_id=?1 LIMIT 1",
+		bs.scopeVars.ChainID)
 	var blockNumber int64
 	if err := r.Scan(&blockNumber); err != nil {
 		if err == sql.ErrNoRows {
@@ -108,7 +115,7 @@ func (bs *blockScope) SetLastProcessedHeight(ctx context.Context, height int64) 
 	tag, err := bs.txn.ExecContext(
 		ctx,
 		"UPDATE system_txn_processor SET block_number=?1 WHERE chain_id=?2",
-		height, bs.chainID)
+		height, bs.scopeVars.ChainID)
 	if err != nil {
 		return fmt.Errorf("update last processed block number: %s", err)
 	}
@@ -120,7 +127,7 @@ func (bs *blockScope) SetLastProcessedHeight(ctx context.Context, height int64) 
 		if _, err := bs.txn.ExecContext(ctx,
 			"INSERT INTO system_txn_processor (block_number, chain_id) VALUES (?1, ?2)",
 			height,
-			bs.chainID,
+			bs.scopeVars.ChainID,
 		); err != nil {
 			return fmt.Errorf("inserting first processed height: %s", err)
 		}
@@ -153,7 +160,7 @@ func (bs *blockScope) TxnReceiptExists(ctx context.Context, txnHash common.Hash)
 	r := bs.txn.QueryRowContext(
 		ctx,
 		`SELECT 1 from system_txn_receipts WHERE chain_id=?1 and txn_hash=?2`,
-		bs.chainID, txnHash.Hex())
+		bs.scopeVars.ChainID, txnHash.Hex())
 	var dummy int
 	err := r.Scan(&dummy)
 	if err == sql.ErrNoRows {

@@ -85,7 +85,8 @@ func (ex *Executor) NewBlockScope(ctx context.Context, blockNum int64, blockHash
 		return nil, fmt.Errorf("opening db transaction: %s", err)
 	}
 
-	bs := newBlockScope(txn, ex.chainID, blockNum, blockHash, ex.parser, ex.acl)
+	scopeVars := scopeVars{ChainID: ex.chainID, MaxTableRowCount: ex.maxTableRowCount}
+	bs := newBlockScope(txn, scopeVars, ex.parser, ex.acl, blockNum, blockHash)
 
 	return bs, nil
 }

@@ -7,14 +7,12 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/textileio/go-tableland/internal/tableland"
-	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 )
 
 func (ts *txnScope) executeTransferEvent(
 	ctx context.Context,
-	be eventfeed.TxnEvents,
 	e *ethereum.ContractTransferTable,
 ) (executor.TxnExecutionResult, error) {
 	if e.TableId == nil {
@@ -62,7 +60,7 @@ func (ts *txnScope) changeTableOwner(
 		`UPDATE registry SET controller = ?1 WHERE id = ?2 AND chain_id = ?3;`,
 		newOwner.Hex(),
 		id.String(),
-		ts.chainID,
+		ts.scopeVars.ChainID,
 	); err != nil {
 		if code, ok := isErrCausedByQuery(err); ok {
 			return &executor.ErrQueryExecution{

@@ -18,9 +18,9 @@ var tableIDIsEmpty = "table id is empty"
 type txnScope struct {
 	log zerolog.Logger
 
-	parser  parsing.SQLValidator
-	acl     tableland.ACL
-	chainID tableland.ChainID
+	parser    parsing.SQLValidator
+	acl       tableland.ACL
+	scopeVars scopeVars
 
 	txn *sql.Tx
 }
@@ -29,46 +29,46 @@ func (ts *txnScope) executeTxnEvents(ctx context.Context, tx *sql.Tx, evmTxn eve
 	var res executor.TxnExecutionResult
 	var err error
 
-	for _, e := range evmTxn.Events {
-		switch e := e.(type) {
+	for _, event := range evmTxn.Events {
+		switch event := event.(type) {
 		case *ethereum.ContractRunSQL:
-			ts.log.Debug().Str("statement", e.Statement).Msgf("executing run-sql event")
-			res, err = ts.executeRunSQLEvent(ctx, evmTxn, e)
+			ts.log.Debug().Str("statement", event.Statement).Msgf("executing run-sql event")
+			res, err = ts.executeRunSQLEvent(ctx, event)
 			if err != nil {
 				return executor.TxnExecutionResult{}, fmt.Errorf("executing runsql event: %s", err)
 			}
 		case *ethereum.ContractCreateTable:
 			ts.log.Debug().
-				Str("owner", e.Owner.Hex()).
-				Str("tokenId", e.TableId.String()).
-				Str("statement", e.Statement).
+				Str("owner", event.Owner.Hex()).
+				Str("tokenId", event.TableId.String()).
+				Str("statement", event.Statement).
 				Msgf("executing create-table event")
-			res, err = ts.executeCreateTableEvent(ctx, evmTxn, e)
+			res, err = ts.executeCreateTableEvent(ctx, event)
 			if err != nil {
 				return executor.TxnExecutionResult{}, fmt.Errorf("executing create-table event: %s", err)
 			}
 		case *ethereum.ContractSetController:
 			ts.log.Debug().
-				Str("controller", e.Controller.Hex()).
-				Str("tokenId", e.TableId.String()).
+				Str("controller", event.Controller.Hex()).
+				Str("tokenId", event.TableId.String()).
 				Msgf("executing set-controller event")
-			res, err = ts.executeSetControllerEvent(ctx, evmTxn, e)
+			res, err = ts.executeSetControllerEvent(ctx, event)
 			if err != nil {
 				return executor.TxnExecutionResult{}, fmt.Errorf("executing set-controller event: %s", err)
 			}
 		case *ethereum.ContractTransferTable:
 			ts.log.Debug().
-				Str("from", e.From.Hex()).
-				Str("to", e.To.Hex()).
-				Str("tableId", e.TableId.String()).
+				Str("from", event.From.Hex()).
+				Str("to", event.To.Hex()).
+				Str("tableId", event.TableId.String()).
 				Msgf("executing table transfer event")
 
-			res, err = ts.executeTransferEvent(ctx, evmTxn, e)
+			res, err = ts.executeTransferEvent(ctx, event)
 			if err != nil {
 				return executor.TxnExecutionResult{}, fmt.Errorf("executing transfer event: %s", err)
 			}
 		default:
-			return executor.TxnExecutionResult{}, fmt.Errorf("unknown event type %t", e)
+			return executor.TxnExecutionResult{}, fmt.Errorf("unknown event type %t", event)
 		}
 
 		// If the current event fail, we stop processing further events in this transaction and already

@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/textileio/go-tableland/internal/tableland"
-	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
@@ -14,10 +13,9 @@ import (
 
 func (ts *txnScope) executeCreateTableEvent(
 	ctx context.Context,
-	be eventfeed.TxnEvents,
 	e *ethereum.ContractCreateTable,
 ) (executor.TxnExecutionResult, error) {
-	createStmt, err := ts.parser.ValidateCreateTable(e.Statement, ts.chainID)
+	createStmt, err := ts.parser.ValidateCreateTable(e.Statement, ts.scopeVars.ChainID)
 	if err != nil {
 		err := fmt.Sprintf("query validation: %s", err)
 		return executor.TxnExecutionResult{Error: &err}, nil
@@ -53,7 +51,7 @@ func (ts *txnScope) insertTable(
 	if _, err := ts.txn.ExecContext(ctx,
 		`INSERT INTO registry ("chain_id", "id","controller","prefix","structure") 
 		  	 VALUES (?1,?2,?3,?4,?5);`,
-		ts.chainID,
+		ts.scopeVars.ChainID,
 		id.String(),
 		controller,
 		createStmt.GetPrefix(),
@@ -64,7 +62,7 @@ func (ts *txnScope) insertTable(
 	if _, err := ts.txn.ExecContext(ctx,
 		`INSERT INTO system_acl ("chain_id","table_id","controller","privileges") 
 			 VALUES (?1,?2,?3,?4);`,
-		ts.chainID,
+		ts.scopeVars.ChainID,
 		id.String(),
 		controller,
 		tableland.PrivInsert.Bitfield|tableland.PrivUpdate.Bitfield|tableland.PrivDelete.Bitfield,
