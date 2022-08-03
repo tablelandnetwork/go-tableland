@@ -266,7 +266,7 @@ func createChainIDStack(
 	acl := impl.NewACL(systemStore, registry)
 
 	var txnp txn.TxnProcessor
-	txnp, err = txnimpl.NewTxnProcessor(config.ChainID, databaseURL, tableConstraints.MaxRowCount, acl)
+	ex, err = txnimpl.NewTxnProcessor(config.ChainID, databaseURL, tableConstraints.MaxRowCount, acl)
 	if err != nil {
 		return chains.ChainStack{}, fmt.Errorf("creating txn processor: %s", err)
 	}
@@ -295,7 +295,7 @@ func createChainIDStack(
 		eventprocessor.WithBlockFailedExecutionBackoff(blockFailedExecutionBackoff),
 		eventprocessor.WithDedupExecutedTxns(config.EventProcessor.DedupExecutedTxns),
 	}
-	ep, err := epimpl.New(parser, txnp, ef, config.ChainID, epOpts...)
+	ep, err := epimpl.New(parser, ex, ef, config.ChainID, epOpts...)
 	if err != nil {
 		return chains.ChainStack{}, fmt.Errorf("creating event processor")
 	}

@@ -318,13 +318,13 @@ func setup(t *testing.T) (
 	require.NoError(t, err)
 
 	dbURI := tests.Sqlite3URI()
-	txnp, err := txnpimpl.NewTxnProcessor(chainID, dbURI, 0, &aclMock{})
+	ex, err := txnpimpl.NewTxnProcessor(chainID, dbURI, 0, &aclMock{})
 	require.NoError(t, err)
 	parser, err := parserimpl.New([]string{"system_", "registry"})
 	require.NoError(t, err)
 
 	// Create EventProcessor for our test.
-	ep, err := New(parser, txnp, ef, chainID)
+	ep, err := New(parser, ex, ef, chainID)
 	require.NoError(t, err)
 
 	ctx := context.Background()

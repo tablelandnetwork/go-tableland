@@ -6,48 +6,65 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
+	"github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor"
+	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 )
 
 func TestChangeTableOwner(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
-	tableID := tableland.TableID(*big.NewInt(100))
-	txnp, _, db := newExecutorWithTable(t, 0)
+	ex, _, db := newExecutorWithTable(t, 0)
 
 	require.Equal(t, 1,
 		tableRowCountT100(
 			t,
 			db,
 			fmt.Sprintf(
-				"select count(1) from registry WHERE controller = '%s' and id = %s and chain_id = %d",
+				"select count(1) from registry WHERE controller = '%s' and id = %d and chain_id = %d",
 				"0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF",
-				tableID.String(),
+				100,
 				chainID,
 			),
 		))
 
-	b, err := txnp.OpenBatch(ctx)
+	bs, err := ex.NewBlockScope(ctx, 0, "")
 	require.NoError(t, err)
 
 	// change table's owner
-	err = b.ChangeTableOwner(ctx, tableID, controller)
+	newOwner := "0x07dfFc57AA386D2b239CaBE8993358DF20BAFBE2"
+	assertExecTxnWithTransfer(t, bs, 100, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", newOwner)
 	require.NoError(t, err)
-	require.NoError(t, b.Commit())
-	require.NoError(t, b.Close())
-	require.NoError(t, txnp.Close(ctx))
+	require.NoError(t, bs.Commit())
+	require.NoError(t, bs.Close())
+	require.NoError(t, ex.Close(ctx))
 
 	require.Equal(t, 1,
 		tableRowCountT100(
 			t,
 			db,
 			fmt.Sprintf(
-				"select count(1) from registry WHERE controller = '%s' and id = %s and chain_id = %d",
-				controller.Hex(),
-				tableID.String(),
+				"select count(1) from registry WHERE controller = '%s' and id = %d and chain_id = %d",
+				newOwner,
+				100,
 				chainID,
 			),
 		))
+}
+
+func assertExecTxnWithTransfer(t *testing.T, bs executor.BlockScope, tableID int, from string, to string) {
+	t.Helper()
+
+	e := ethereum.ContractTransferTable{
+		TableId: big.NewInt(int64(tableID)),
+		From:    common.HexToAddress(from),
+		To:      common.HexToAddress(to),
+	}
+	res, err := bs.ExecuteTxnEvents(context.Background(), eventfeed.TxnEvents{Events: []interface{}{e}})
+	require.NoError(t, err)
+	require.NotNil(t, res.TableID)
+	require.Equal(t, res.TableID.ToBigInt().Int64(), int64(tableID))
 }

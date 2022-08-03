@@ -147,7 +147,7 @@ func setup(t *testing.T) clientCalls {
 	parser, err := parserimpl.New([]string{"system_", "registry", "sqlite_"})
 	require.NoError(t, err)
 
-	txnp, err := txnpimpl.NewTxnProcessor(1337, url, 0, &aclHalfMock{store})
+	ex, err := txnpimpl.NewTxnProcessor(1337, url, 0, &aclHalfMock{store})
 	require.NoError(t, err)
 
 	backend, addr, _, _, sk := testutil.Setup(t)
@@ -201,7 +201,7 @@ func setup(t *testing.T) clientCalls {
 	require.NoError(t, err)
 
 	// Create EventProcessor for our test.
-	ep, err := epimpl.New(parser, txnp, ef, 1337)
+	ep, err := epimpl.New(parser, ex, ef, 1337)
 	require.NoError(t, err)
 
 	err = ep.Start()

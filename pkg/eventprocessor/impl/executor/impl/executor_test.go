@@ -21,8 +21,8 @@ import (
 // Random address for testing. The value isn't important
 // because the ACL is mocked.
 var (
-	controller = common.HexToAddress("0x07dfFc57AA386D2b239CaBE8993358DF20BAFBE2")
-	chainID    = 1337
+	table100OwnerAddress = common.HexToAddress("0x07dfFc57AA386D2b239CaBE8993358DF20BAFBE2")
+	chainID              = 1337
 )
 
 func TestReceiptExists(t *testing.T) {
@@ -128,7 +128,7 @@ func newExecutorWithTable(t *testing.T, rowsLimit int) (*Executor, string, *sql.
 		TxnHash: common.HexToHash("0xF1"),
 		Events: []interface{}{
 			&ethereum.ContractCreateTable{
-				Owner:     controller,
+				Owner:     common.HexToAddress("0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF"),
 				TableId:   id.ToBigInt(),
 				Statement: "create table foo_1337 (zar text)",
 			},
