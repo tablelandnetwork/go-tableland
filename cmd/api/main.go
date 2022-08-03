@@ -24,6 +24,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
 	epimpl "github.com/textileio/go-tableland/pkg/eventprocessor/impl"
+	executor "github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor/impl"
 	"github.com/textileio/go-tableland/pkg/logging"
 	"github.com/textileio/go-tableland/pkg/metrics"
 	nonceimpl "github.com/textileio/go-tableland/pkg/nonce/impl"
@@ -33,8 +34,6 @@ import (
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
-	"github.com/textileio/go-tableland/pkg/txn"
-	txnimpl "github.com/textileio/go-tableland/pkg/txn/impl"
 	"github.com/textileio/go-tableland/pkg/wallet"
 )
 
@@ -199,11 +198,11 @@ func main() {
 
 func createChainIDStack(
 	config ChainConfig,
-	databaseURL string,
+	dbURI string,
 	parser parsing.SQLValidator,
 	tableConstraints TableConstraints,
 ) (chains.ChainStack, error) {
-	store, err := system.New(databaseURL, config.ChainID)
+	store, err := system.New(dbURI, config.ChainID)
 	if err != nil {
 		return chains.ChainStack{}, fmt.Errorf("failed initialize sqlstore: %s", err)
 	}
@@ -265,8 +264,7 @@ func createChainIDStack(
 
 	acl := impl.NewACL(systemStore, registry)
 
-	var txnp txn.TxnProcessor
-	ex, err = txnimpl.NewTxnProcessor(config.ChainID, databaseURL, tableConstraints.MaxRowCount, acl)
+	ex, err := executor.NewExecutor(config.ChainID, dbURI, parser, tableConstraints.MaxRowCount, acl)
 	if err != nil {
 		return chains.ChainStack{}, fmt.Errorf("creating txn processor: %s", err)
 	}

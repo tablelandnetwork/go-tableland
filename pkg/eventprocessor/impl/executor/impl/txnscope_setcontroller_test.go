@@ -3,9 +3,14 @@ package impl
 import (
 	"context"
 	"database/sql"
+	"math/big"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
+	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
+	"github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor"
+	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 )
 
 func TestSetController(t *testing.T) {
@@ -26,12 +31,12 @@ func TestSetController(t *testing.T) {
 		t.Parallel()
 		ex, _, _ := newExecutorWithTable(t, 0)
 
-		bs, err := ex.NewBlockScope(ctx, 0, "")
+		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
 		// table id different than 100 violates foreign key
 		res, err := execTxnWithSetController(t, bs, 1, "0x1")
 		require.NoError(t, err)
-		require.Contains(t, res.Error, "FOREIGN KEY constraint failed")
+		require.Contains(t, *res.Error, "FOREIGN KEY constraint failed")
 
 		require.NoError(t, bs.Commit())
 		require.NoError(t, bs.Close())
@@ -43,7 +48,7 @@ func TestSetController(t *testing.T) {
 		ex, _, db := newExecutorWithTable(t, 0)
 
 		// sets
-		bs, err := ex.NewBlockScope(ctx, 0, "")
+		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
 
 		assertExecTxnWithSetController(t, bs, 100, "0x01")
@@ -54,7 +59,7 @@ func TestSetController(t *testing.T) {
 		require.Equal(t, "0x0000000000000000000000000000000000000001", controller)
 
 		// unsets
-		bs, err = ex.NewBlockScope(ctx, 0, "")
+		bs, err = ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
 		assertExecTxnWithSetController(t, bs, 100, "0x0")
 		require.NoError(t, bs.Commit())
@@ -71,7 +76,7 @@ func TestSetController(t *testing.T) {
 		ex, _, db := newExecutorWithTable(t, 0)
 
 		{
-			bs, err := ex.NewBlockScope(ctx, 0, "")
+			bs, err := ex.NewBlockScope(ctx, 0)
 			require.NoError(t, err)
 			assertExecTxnWithSetController(t, bs, 100, "0x01")
 			require.NoError(t, bs.Commit())
@@ -79,7 +84,7 @@ func TestSetController(t *testing.T) {
 		}
 
 		{
-			bs, err := ex.NewBlockScope(ctx, 0, "")
+			bs, err := ex.NewBlockScope(ctx, 0)
 			require.NoError(t, err)
 			assertExecTxnWithSetController(t, bs, 100, "0x02")
 			require.NoError(t, bs.Commit())
@@ -103,4 +108,23 @@ func getController(t *testing.T, db *sql.DB, tableID int64) string {
 	}
 	require.NoError(t, err)
 	return controller
+}
+
+func assertExecTxnWithSetController(t *testing.T, bs executor.BlockScope, tableID int, controller string) {
+	t.Helper()
+
+	res, err := execTxnWithSetController(t, bs, tableID, controller)
+	require.NoError(t, err)
+	require.NotNil(t, res.TableID)
+	require.Equal(t, res.TableID.ToBigInt().Int64(), int64(tableID))
+}
+
+func execTxnWithSetController(t *testing.T, bs executor.BlockScope, tableID int, controller string) (executor.TxnExecutionResult, error) {
+	t.Helper()
+
+	e := &ethereum.ContractSetController{
+		TableId:    big.NewInt(int64(tableID)),
+		Controller: common.HexToAddress(controller),
+	}
+	return bs.ExecuteTxnEvents(context.Background(), eventfeed.TxnEvents{Events: []interface{}{e}})
 }

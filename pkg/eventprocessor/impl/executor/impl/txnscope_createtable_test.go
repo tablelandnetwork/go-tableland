@@ -15,7 +15,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 )
 
-func TestRegisterTable(t *testing.T) {
+func TestCreateTable(t *testing.T) {
 	t.Parallel()
 
 	t.Run("success", func(t *testing.T) {
@@ -24,7 +24,7 @@ func TestRegisterTable(t *testing.T) {
 
 		ex, dbURL := newExecutor(t, 0)
 
-		bs, err := ex.NewBlockScope(ctx, 0, "")
+		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
 
 		assertExecTxnWithCreateTable(t, bs, 100, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", "create table bar_1337 (zar text)")
@@ -55,7 +55,7 @@ func TestRegisterTable(t *testing.T) {
 func assertExecTxnWithCreateTable(t *testing.T, bs executor.BlockScope, tableID int, owner string, stmt string) {
 	t.Helper()
 
-	e := ethereum.ContractCreateTable{
+	e := &ethereum.ContractCreateTable{
 		TableId:   big.NewInt(int64(tableID)),
 		Owner:     common.HexToAddress(owner),
 		Statement: stmt,

@@ -15,12 +15,12 @@ import (
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
+	executor "github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor/impl"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
 	"github.com/textileio/go-tableland/pkg/tables/impl/testutil"
-	txnpimpl "github.com/textileio/go-tableland/pkg/txn/impl"
 	"github.com/textileio/go-tableland/tests"
 )
 
@@ -318,9 +318,9 @@ func setup(t *testing.T) (
 	require.NoError(t, err)
 
 	dbURI := tests.Sqlite3URI()
-	ex, err := txnpimpl.NewTxnProcessor(chainID, dbURI, 0, &aclMock{})
+	parser, err := parserimpl.New([]string{"system_", "registry", "sqlite_"})
 	require.NoError(t, err)
-	parser, err := parserimpl.New([]string{"system_", "registry"})
+	ex, err := executor.NewExecutor(chainID, dbURI, parser, 0, &aclMock{})
 	require.NoError(t, err)
 
 	// Create EventProcessor for our test.

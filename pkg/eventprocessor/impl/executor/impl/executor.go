@@ -18,11 +18,11 @@ import (
 
 // Executor executes chain events.
 type Executor struct {
-	log     zerolog.Logger
-	pool    *sql.DB
-	parser  parsing.SQLValidator
-	acl     tableland.ACL
-	chBatch chan struct{}
+	log          zerolog.Logger
+	pool         *sql.DB
+	parser       parsing.SQLValidator
+	acl          tableland.ACL
+	chBlockScope chan struct{}
 
 	chainID          tableland.ChainID
 	maxTableRowCount int
@@ -61,24 +61,24 @@ func NewExecutor(
 		Int64("chainID", int64(chainID)).
 		Logger()
 	tblp := &Executor{
-		log:     log,
-		pool:    pool,
-		parser:  parser,
-		acl:     acl,
-		chBatch: make(chan struct{}, 1),
+		log:          log,
+		pool:         pool,
+		parser:       parser,
+		acl:          acl,
+		chBlockScope: make(chan struct{}, 1),
 
 		chainID:          chainID,
 		maxTableRowCount: maxTableRowCount,
 	}
-	tblp.chBatch <- struct{}{}
+	tblp.chBlockScope <- struct{}{}
 
 	return tblp, nil
 }
 
 // OpenBatch starts a new batch of mutating actions to be executed.
-func (ex *Executor) NewBlockScope(ctx context.Context, blockNum int64, blockHash string) (executor.BlockScope, error) {
+func (ex *Executor) NewBlockScope(ctx context.Context, blockNum int64) (executor.BlockScope, error) {
 	// TODO(jsign): panic
-	<-ex.chBatch
+	<-ex.chBlockScope
 
 	txn, err := ex.pool.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable, ReadOnly: false})
 	if err != nil {
@@ -86,7 +86,7 @@ func (ex *Executor) NewBlockScope(ctx context.Context, blockNum int64, blockHash
 	}
 
 	scopeVars := scopeVars{ChainID: ex.chainID, MaxTableRowCount: ex.maxTableRowCount}
-	bs := newBlockScope(txn, scopeVars, ex.parser, ex.acl, blockNum, blockHash)
+	bs := newBlockScope(txn, scopeVars, ex.parser, ex.acl, blockNum, func() { ex.chBlockScope <- struct{}{} })
 
 	return bs, nil
 }
@@ -97,7 +97,7 @@ func (ex *Executor) Close(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		return errors.New("closing ctx done")
-	case <-ex.chBatch:
+	case <-ex.chBlockScope:
 		ex.log.Info().Msg("executor closed gracefully")
 		return nil
 	}

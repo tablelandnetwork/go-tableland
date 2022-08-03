@@ -33,7 +33,7 @@ func TestReceiptExists(t *testing.T) {
 
 	txnHash := "0x0000000000000000000000000000000000000000000000000000000000001234"
 
-	bs, err := ex.NewBlockScope(ctx, 0, "")
+	bs, err := ex.NewBlockScope(ctx, 0)
 	require.NoError(t, err)
 	ok, err := bs.TxnReceiptExists(ctx, common.HexToHash(txnHash))
 	require.NoError(t, err)
@@ -41,7 +41,7 @@ func TestReceiptExists(t *testing.T) {
 	require.NoError(t, bs.Commit())
 	require.NoError(t, bs.Close())
 
-	bs, err = ex.NewBlockScope(ctx, 0, "")
+	bs, err = ex.NewBlockScope(ctx, 0)
 	require.NoError(t, err)
 	err = bs.SaveTxnReceipts(ctx, []eventprocessor.Receipt{
 		{
@@ -54,7 +54,7 @@ func TestReceiptExists(t *testing.T) {
 	require.NoError(t, bs.Commit())
 	require.NoError(t, bs.Close())
 
-	bs, err = ex.NewBlockScope(ctx, 0, "")
+	bs, err = ex.NewBlockScope(ctx, 0)
 	require.NoError(t, err)
 	ok, err = bs.TxnReceiptExists(ctx, common.HexToHash(txnHash))
 	require.NoError(t, err)
@@ -116,7 +116,7 @@ func newExecutorWithTable(t *testing.T, rowsLimit int) (*Executor, string, *sql.
 	ex, dbURL := newExecutor(t, rowsLimit)
 	ctx := context.Background()
 
-	ibs, err := ex.NewBlockScope(ctx, 0, "0xFAKETXNHASH")
+	ibs, err := ex.NewBlockScope(ctx, 0)
 	require.NoError(t, err)
 	bs := ibs.(*blockScope)
 

@@ -55,6 +55,7 @@ type EventProcessor struct {
 // New returns a new EventProcessor.
 func New(
 	parser parsing.SQLValidator,
+	executor executor.Executor,
 	ef eventfeed.EventFeed,
 	chainID tableland.ChainID,
 	opts ...eventprocessor.Option,
@@ -134,7 +135,8 @@ func (ep *EventProcessor) startDaemon() error {
 	// new events from that point forward.
 	ctx, cls := context.WithTimeout(ep.daemonCtx, time.Second*10)
 	defer cls()
-	bs, err := ep.executor.NewBlockScope(ctx)
+	// TODO(jsign): fix this
+	bs, err := ep.executor.NewBlockScope(ctx, 0)
 	if err != nil {
 		return fmt.Errorf("opening batch in daemon: %s", err)
 	}
@@ -203,7 +205,7 @@ func (ep *EventProcessor) startDaemon() error {
 
 func (ep *EventProcessor) executeBlock(ctx context.Context, block eventfeed.BlockEvents) error {
 	start := time.Now()
-	bs, err := ep.executor.OpenBlockScope(ctx)
+	bs, err := ep.executor.NewBlockScope(ctx, block.BlockNumber)
 	if err != nil {
 		return fmt.Errorf("opening block scope: %s", err)
 	}
@@ -226,24 +228,34 @@ func (ep *EventProcessor) executeBlock(ctx context.Context, block eventfeed.Bloc
 	}
 
 	receipts := make([]eventprocessor.Receipt, 0, len(block.Txns))
-	for idxInBlock, txn := range block.Txns {
+	for idxInBlock, txnEvents := range block.Txns {
 		if ep.config.DedupExecutedTxns {
-			ok, err := bs.TxnReceiptExists(ctx, txn.TxnHash)
+			ok, err := bs.TxnReceiptExists(ctx, txnEvents.TxnHash)
 			if err != nil {
 				return fmt.Errorf("checking if receipt already exist: %s", err)
 			}
 			if ok {
 				ep.log.Info().
-					Str("txnHash", txn.TxnHash.Hex()).
+					Str("txnHash", txnEvents.TxnHash.Hex()).
 					Msg("skipping execution since was already processed due to a reorg")
 				continue
 			}
 		}
 
 		start := time.Now()
-		receipt, err := bs.ExecuteTxnEvents(ctx, block.BlockNumber, int64(idxInBlock), txn.Events)
+		// block.BlockNumber, int64(idxInBlock),
+		txnExecResult, err := bs.ExecuteTxnEvents(ctx, txnEvents)
 		if err != nil {
 			return fmt.Errorf("executing txn events: %s", err)
+		}
+		receipt := eventprocessor.Receipt{
+			ChainID:      ep.chainID,
+			BlockNumber:  block.BlockNumber,
+			IndexInBlock: int64(idxInBlock),
+			TxnHash:      txnEvents.TxnHash.Hex(),
+
+			Error:   txnExecResult.Error,
+			TableID: txnExecResult.TableID,
 		}
 		receipts = append(receipts, receipt)
 
@@ -253,7 +265,7 @@ func (ep *EventProcessor) executeBlock(ctx context.Context, block eventfeed.Bloc
 			ep.log.Info().Str("failCause", *receipt.Error).Msg("event execution failed")
 		}
 		attrs := append([]attribute.KeyValue{
-			attribute.String("eventtype", reflect.TypeOf(txn.Events).String()),
+			attribute.String("eventtype", reflect.TypeOf(txnEvents.Events).String()),
 		}, ep.mBaseLabels...)
 		ep.mEventExecutionCounter.Add(ctx, 1, attrs...)
 		ep.mEventExecutionLatency.Record(ctx, time.Since(start).Milliseconds(), attrs...)

@@ -23,6 +23,8 @@ type blockScope struct {
 	acl    tableland.ACL
 
 	scopeVars scopeVars
+
+	closed func()
 }
 
 type scopeVars struct {
@@ -36,14 +38,13 @@ func newBlockScope(
 	parser parsing.SQLValidator,
 	acl tableland.ACL,
 	blockNum int64,
-	blockHash string,
+	closed func(),
 ) *blockScope {
 	log := logger.With().
 		Str("component", "blockscope").
 		// TODO(jsign): fix all with chain_id
 		Int64("chainID", int64(scopeVars.ChainID)).
 		Int64("block_number", blockNum).
-		Str("blockHash", blockHash).
 		Logger()
 
 	return &blockScope{
@@ -52,6 +53,7 @@ func newBlockScope(
 		parser:    parser,
 		acl:       acl,
 		scopeVars: scopeVars,
+		closed:    closed,
 	}
 }
 
@@ -81,18 +83,20 @@ func (bs *blockScope) ExecuteTxnEvents(ctx context.Context, evmTxn eventfeed.Txn
 
 		txn: bs.txn,
 	}
-	tableID, err := ts.executeTxnEvents(ctx, bs.txn, evmTxn)
-	if err != nil {
+	res, err := ts.executeTxnEvents(ctx, bs.txn, evmTxn)
+	if err != nil || res.Error != nil {
 		if _, err := bs.txn.ExecContext(ctx, "ROLLBACK TO txnscope"); err != nil {
 			return executor.TxnExecutionResult{}, fmt.Errorf("rollbacking savepoint: %s", err)
 		}
+	}
+	if err != nil {
 		return executor.TxnExecutionResult{}, fmt.Errorf("executing query: %w", err)
 	}
 	if _, err := bs.txn.ExecContext(ctx, "RELEASE SAVEPOINT txnscope"); err != nil {
 		return executor.TxnExecutionResult{}, fmt.Errorf("releasing savepoint: %s", err)
 	}
 
-	return tableID, nil
+	return res, nil
 }
 
 func (bs *blockScope) GetLastProcessedHeight(ctx context.Context) (int64, error) {
@@ -175,6 +179,8 @@ func (bs *blockScope) TxnReceiptExists(ctx context.Context, txnHash common.Hash)
 // Close closes gracefully the block scope.
 // Clients should *always* `defer Close()` when opening batches.
 func (bs *blockScope) Close() error {
+	defer bs.closed()
+
 	// Calling rollback is always safe:
 	// - If Commit() wasn't called, the result is a rollback.
 	// - If Commit() was called, *sql.Txn guarantees is a noop.

@@ -13,7 +13,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 )
 
-func TestChangeTableOwner(t *testing.T) {
+func TestTransfer(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
@@ -31,7 +31,7 @@ func TestChangeTableOwner(t *testing.T) {
 			),
 		))
 
-	bs, err := ex.NewBlockScope(ctx, 0, "")
+	bs, err := ex.NewBlockScope(ctx, 0)
 	require.NoError(t, err)
 
 	// change table's owner
@@ -58,7 +58,7 @@ func TestChangeTableOwner(t *testing.T) {
 func assertExecTxnWithTransfer(t *testing.T, bs executor.BlockScope, tableID int, from string, to string) {
 	t.Helper()
 
-	e := ethereum.ContractTransferTable{
+	e := &ethereum.ContractTransferTable{
 		TableId: big.NewInt(int64(tableID)),
 		From:    common.HexToAddress(from),
 		To:      common.HexToAddress(to),

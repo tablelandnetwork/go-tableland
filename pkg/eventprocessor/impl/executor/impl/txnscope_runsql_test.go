@@ -6,7 +6,6 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
@@ -24,7 +23,7 @@ func TestRunSQL_OneEventPerTxn(t *testing.T) {
 		ctx := context.Background()
 		ex, _, pool := newExecutorWithTable(t, 0)
 
-		bs, err := ex.NewBlockScope(ctx, 0, "")
+		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
 
 		assertExecTxnWithRunSQLEvents(t, bs, 100, []string{`insert into foo_1337_100 values ('one')`})
@@ -42,7 +41,7 @@ func TestRunSQL_OneEventPerTxn(t *testing.T) {
 
 		ex, _, pool := newExecutorWithTable(t, 0)
 
-		bs, err := ex.NewBlockScope(ctx, 0, "")
+		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
 
 		assertExecTxnWithRunSQLEvents(t, bs, 100, []string{`insert into foo_1337_100 values ('wq1one')`})
@@ -63,11 +62,13 @@ func TestRunSQL_OneEventPerTxn(t *testing.T) {
 
 		ex, _, pool := newExecutorWithTable(t, 0)
 
-		bs, err := ex.NewBlockScope(ctx, 0, "")
+		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
 
 		assertExecTxnWithRunSQLEvents(t, bs, 100, []string{`insert into foo_1337_100 values ('onez')`})
-		assertExecTxnWithRunSQLEvents(t, bs, 100, []string{`insert into foo_1337_100 values ('twoz');insert into foo_1337_101 values ('threez')`})
+		res, err := execTxnWithRunSQLEvents(t, bs, 100, []string{`insert into foo_1337_100 values ('twoz');insert into foo_1337_101 values ('threez')`})
+		require.NoError(t, err)
+		require.NotNil(t, res.Error)
 		assertExecTxnWithRunSQLEvents(t, bs, 100, []string{`insert into foo_1337_100 values ('fourz')`})
 
 		require.NoError(t, bs.Commit())
@@ -90,7 +91,7 @@ func TestRunSQL_OneEventPerTxn(t *testing.T) {
 
 		ex, _, pool := newExecutorWithTable(t, 0)
 
-		bs, err := ex.NewBlockScope(ctx, 0, "")
+		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
 
 		assertExecTxnWithRunSQLEvents(t, bs, 100, []string{`insert into foo_1337_100 values ('one')`})
@@ -112,7 +113,7 @@ func TestRunSQL_OneEventPerTxn(t *testing.T) {
 
 		ex, dbURL, _ := newExecutorWithTable(t, 0)
 
-		bs, err := ex.NewBlockScope(ctx, 0, "")
+		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
 
 		q := "grant insert, update, delete on foo_1337_100 to '0xd43c59d5694ec111eb9e986c233200b14249558d', '0x4afe8e30db4549384b0a05bb796468b130c7d6e0'" //nolint
@@ -143,7 +144,7 @@ func TestRunSQL_OneEventPerTxn(t *testing.T) {
 
 		ex, dbURL, _ := newExecutorWithTable(t, 0)
 
-		bs, err := ex.NewBlockScope(ctx, 0, "")
+		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
 
 		q := "grant insert on foo_1337_100 to '0xd43c59d5694ec111eb9e986c233200b14249558d', '0x4afe8e30db4549384b0a05bb796468b130c7d6e0';" //nolint
@@ -190,7 +191,7 @@ func TestRunSQL_OneEventPerTxn(t *testing.T) {
 
 		ex, dbURL, _ := newExecutorWithTable(t, 0)
 
-		bs, err := ex.NewBlockScope(ctx, 0, "")
+		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
 
 		q := "grant insert, update, delete on foo_1337_100 to '0xd43c59d5694ec111eb9e986c233200b14249558d';"
@@ -227,7 +228,7 @@ func TestRunSQL_WriteQueriesWithPolicies(t *testing.T) {
 
 		ex, _, _ := newExecutorWithTable(t, 0)
 
-		bs, err := ex.NewBlockScope(ctx, 0, "")
+		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
 
 		// set the controller to anything other than zero
@@ -237,7 +238,7 @@ func TestRunSQL_WriteQueriesWithPolicies(t *testing.T) {
 		res, err := execTxnWithRunSQLEventsAndPolicy(
 			t, bs, 100, []string{`insert into foo_1337_100 values ('one');`}, policy)
 		require.NoError(t, err)
-		require.Contains(t, res.Error, "insert is not allowed by policy")
+		require.Contains(t, *res.Error, "insert is not allowed by policy")
 	})
 
 	t.Run("update not allowed", func(t *testing.T) {
@@ -246,7 +247,7 @@ func TestRunSQL_WriteQueriesWithPolicies(t *testing.T) {
 
 		ex, _, _ := newExecutorWithTable(t, 0)
 
-		bs, err := ex.NewBlockScope(ctx, 0, "")
+		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
 
 		// set the controller to anything other than zero
@@ -257,7 +258,7 @@ func TestRunSQL_WriteQueriesWithPolicies(t *testing.T) {
 		res, err := execTxnWithRunSQLEventsAndPolicy(
 			t, bs, 100, []string{`update foo_1337_100 set zar = 'three';`}, policy)
 		require.NoError(t, err)
-		require.Contains(t, res.Error, "update is not allowed by policy")
+		require.Contains(t, *res.Error, "update is not allowed by policy")
 	})
 
 	t.Run("delete not allowed", func(t *testing.T) {
@@ -266,7 +267,7 @@ func TestRunSQL_WriteQueriesWithPolicies(t *testing.T) {
 
 		ex, _, _ := newExecutorWithTable(t, 0)
 
-		bs, err := ex.NewBlockScope(ctx, 0, "")
+		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
 
 		// set the controller to anything other than zero
@@ -277,7 +278,7 @@ func TestRunSQL_WriteQueriesWithPolicies(t *testing.T) {
 		res, err := execTxnWithRunSQLEventsAndPolicy(
 			t, bs, 100, []string{`DELETE FROM foo_1337_100`}, policy)
 		require.NoError(t, err)
-		require.Contains(t, res.Error, "delete is not allowed by policy")
+		require.Contains(t, *res.Error, "delete is not allowed by policy")
 	})
 
 	t.Run("update column not-allowed", func(t *testing.T) {
@@ -286,7 +287,7 @@ func TestRunSQL_WriteQueriesWithPolicies(t *testing.T) {
 
 		ex, _, _ := newExecutorWithTable(t, 0)
 
-		bs, err := ex.NewBlockScope(ctx, 0, "")
+		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
 
 		// set the controller to anything other than zero
@@ -298,7 +299,7 @@ func TestRunSQL_WriteQueriesWithPolicies(t *testing.T) {
 		res, err := execTxnWithRunSQLEventsAndPolicy(
 			t, bs, 100, []string{`update foo_1337_100 set zar = 'three';`}, policy)
 		require.NoError(t, err)
-		require.Contains(t, res.Error, "column zar is not allowed")
+		require.Contains(t, *res.Error, "column zar is not allowed")
 	})
 
 	t.Run("update where policy", func(t *testing.T) {
@@ -307,7 +308,7 @@ func TestRunSQL_WriteQueriesWithPolicies(t *testing.T) {
 
 		ex, _, pool := newExecutorWithTable(t, 0)
 
-		bs, err := ex.NewBlockScope(ctx, 0, "")
+		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
 
 		// set the controller to anything other than zero
@@ -347,7 +348,7 @@ func TestRunSQL_RowCountLimit(t *testing.T) {
 
 	// Helper func to insert a row and return the result.
 	insertRow := func(t *testing.T) *string {
-		bs, err := ex.NewBlockScope(ctx, 0, "")
+		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
 
 		res, err := execTxnWithRunSQLEvents(t, bs, 100, []string{`insert into foo_1337_100 values ('one')`})
@@ -376,13 +377,13 @@ func TestRunSQL_RowCountLimit(t *testing.T) {
 
 func TestWithCheck(t *testing.T) {
 	t.Parallel()
-	t.Run("insert-with-check-not-satistifed", func(t *testing.T) {
+	t.Run("insert with check not satistifed", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
 		ex, _, pool := newExecutorWithTable(t, 0)
 
-		bs, err := ex.NewBlockScope(ctx, 0, "")
+		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
 
 		// set the controller to anything other than zero
@@ -391,7 +392,7 @@ func TestWithCheck(t *testing.T) {
 		policy := ethereum.ITablelandControllerPolicy{AllowInsert: true, WithCheck: "zar = 'two'"}
 		res, err := execTxnWithRunSQLEventsAndPolicy(t, bs, 100, []string{`insert into foo_1337_100 values ('one')`}, policy)
 		require.NoError(t, err)
-		require.Contains(t, res.Error, "number of affected rows 1 does not match auditing count 0")
+		require.Contains(t, *res.Error, "number of affected rows 1 does not match auditing count 0")
 
 		require.NoError(t, bs.Commit())
 		require.NoError(t, bs.Close())
@@ -406,21 +407,28 @@ func TestWithCheck(t *testing.T) {
 
 		ex, _, pool := newExecutorWithTable(t, 0)
 
-		bs, err := ex.NewBlockScope(ctx, 0, "")
-		require.NoError(t, err)
+		{
+			bs, err := ex.NewBlockScope(ctx, 0)
+			require.NoError(t, err)
 
-		// set the controller to anything other than zero
-		assertExecTxnWithSetController(t, bs, 100, "0x1")
+			// set the controller to anything other than zero
+			assertExecTxnWithSetController(t, bs, 100, "0x1")
+			assertExecTxnWithRunSQLEvents(t, bs, 100, []string{`insert into foo_1337_100 values ('one')`})
+			require.NoError(t, bs.Commit())
+			require.NoError(t, bs.Close())
+		}
+		{
+			bs, err := ex.NewBlockScope(ctx, 0)
+			require.NoError(t, err)
 
-		assertExecTxnWithRunSQLEvents(t, bs, 100, []string{`insert into foo_1337_100 values ('one')`})
+			policy := ethereum.ITablelandControllerPolicy{AllowUpdate: true, WithCheck: "zar = 'two'"}
+			res, err := execTxnWithRunSQLEventsAndPolicy(t, bs, 100, []string{`update foo_1337_100 SET zar = 'three'`}, policy)
+			require.NoError(t, err)
+			require.Contains(t, *res.Error, "number of affected rows 1 does not match auditing count 0")
 
-		policy := ethereum.ITablelandControllerPolicy{AllowUpdate: true, WithCheck: "zar = 'two'"}
-		res, err := execTxnWithRunSQLEventsAndPolicy(t, bs, 100, []string{`update foo_1337_100 SET zar = 'three'`}, policy)
-		require.NoError(t, err)
-		require.Contains(t, res.Error, "number of affected rows 1 does not match auditing count 0")
-
-		require.NoError(t, bs.Commit())
-		require.NoError(t, bs.Close())
+			require.NoError(t, bs.Commit())
+			require.NoError(t, bs.Close())
+		}
 		require.NoError(t, ex.Close(ctx))
 
 		require.Equal(t, 1, tableRowCountT100(t, pool, "select count(*) from foo_1337_100 WHERE zar = 'one'"))
@@ -433,14 +441,14 @@ func TestWithCheck(t *testing.T) {
 
 		ex, _, pool := newExecutorWithTable(t, 0)
 
-		bs, err := ex.NewBlockScope(ctx, 0, "")
+		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
 
 		// set the controller to anything other than zero
 		assertExecTxnWithSetController(t, bs, 100, "0x1")
 
 		policy := ethereum.ITablelandControllerPolicy{AllowInsert: true, WithCheck: "zar in ('one', 'two')"}
-		q := `insert into foo_1337_100 values ('one')`
+		q := `insert into foo_1337_100 values ('one');`
 		q += `insert into foo_1337_100 values ('two')`
 		res, err := execTxnWithRunSQLEventsAndPolicy(t, bs, 100, []string{q}, policy)
 		require.NoError(t, err)
@@ -461,7 +469,7 @@ func TestWithCheck(t *testing.T) {
 		ex, _, pool := newExecutorWithTable(t, rowLimit)
 
 		{
-			bs, err := ex.NewBlockScope(ctx, 0, "")
+			bs, err := ex.NewBlockScope(ctx, 0)
 			require.NoError(t, err)
 			// set the controller to anything other than zero
 			assertExecTxnWithSetController(t, bs, 100, "0x1")
@@ -470,7 +478,7 @@ func TestWithCheck(t *testing.T) {
 
 		// Helper func to insert a row and return an error if happened.
 		insertRow := func(t *testing.T) *string {
-			bs, err := ex.NewBlockScope(ctx, 0, "")
+			bs, err := ex.NewBlockScope(ctx, 0)
 			require.NoError(t, err)
 
 			policy := ethereum.ITablelandControllerPolicy{AllowInsert: true, WithCheck: "zar in ('one')"}
@@ -495,25 +503,6 @@ func TestWithCheck(t *testing.T) {
 			fmt.Sprintf("table maximum row count exceeded (before %d, after %d)", rowLimit, rowLimit+1))
 		require.NoError(t, ex.Close(ctx))
 	})
-}
-
-func assertExecTxnWithSetController(t *testing.T, bs executor.BlockScope, tableID int, controller string) {
-	t.Helper()
-
-	res, err := execTxnWithSetController(t, bs, tableID, controller)
-	require.NoError(t, err)
-	require.NotNil(t, res.TableID)
-	require.Equal(t, res.TableID.ToBigInt().Int64(), int64(tableID))
-}
-
-func execTxnWithSetController(t *testing.T, bs executor.BlockScope, tableID int, controller string) (executor.TxnExecutionResult, error) {
-	t.Helper()
-
-	e := ethereum.ContractSetController{
-		TableId:    big.NewInt(int64(tableID)),
-		Controller: common.HexToAddress(controller),
-	}
-	return bs.ExecuteTxnEvents(context.Background(), eventfeed.TxnEvents{Events: []interface{}{e}})
 }
 
 func assertExecTxnWithRunSQLEvents(t *testing.T, bs executor.BlockScope, tableID int, stmts []string) {
@@ -554,13 +543,13 @@ func execTxnWithRunSQLEventsAndPolicy(
 	t.Helper()
 
 	events := make([]interface{}, len(stmts))
-	for _, stmt := range stmts {
-		events = append(events, &ethereum.ContractRunSQL{
+	for i, stmt := range stmts {
+		events[i] = &ethereum.ContractRunSQL{
 			IsOwner:   true,
 			TableId:   big.NewInt(int64(tableID)),
 			Statement: stmt,
 			Policy:    policy,
-		})
+		}
 	}
 	return bs.ExecuteTxnEvents(context.Background(), eventfeed.TxnEvents{Events: events})
 }
