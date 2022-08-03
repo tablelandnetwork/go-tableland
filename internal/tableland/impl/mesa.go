@@ -181,9 +181,9 @@ func (t *TablelandMesa) GetReceipt(
 		return tableland.GetReceiptResponse{Ok: false}, nil
 	}
 
-	if receipt.ErrorEventIdx == nil {
-		negOne := -1
-		receipt.ErrorEventIdx = &negOne
+	errorEventIdx := -1
+	if receipt.ErrorEventIdx != nil {
+		errorEventIdx = *receipt.ErrorEventIdx
 	}
 	ret := tableland.GetReceiptResponse{
 		Ok: ok,
@@ -192,7 +192,7 @@ func (t *TablelandMesa) GetReceipt(
 			TxnHash:       receipt.TxnHash,
 			BlockNumber:   receipt.BlockNumber,
 			Error:         receipt.Error,
-			ErrorEventIdx: receipt.ErrorEventIdx,
+			ErrorEventIdx: errorEventIdx,
 		},
 	}
 

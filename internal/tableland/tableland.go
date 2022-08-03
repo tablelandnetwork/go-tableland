@@ -44,7 +44,7 @@ type TxnReceipt struct {
 
 	TableID       *string `json:"table_id,omitempty"`
 	Error         *string `json:"error,omitempty"`
-	ErrorEventIdx *int    `json:"error_event_idx,omitempty"`
+	ErrorEventIdx int     `json:"error_event_idx,omitempty"`
 }
 
 // GetReceiptResponse is a GetTxnReceipt response.
