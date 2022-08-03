@@ -2,6 +2,7 @@ package impl
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -334,6 +335,198 @@ func TestRunSQL_WriteQueriesWithPolicies(t *testing.T) {
 
 		// there should be only one row updated
 		require.Equal(t, 1, tableRowCountT100(t, pool, "select count(*) from foo_1337_100 WHERE zar = 'three'"))
+	})
+}
+
+func TestRunSQL_RowCountLimit(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	rowLimit := 10
+	ex, _, pool := newExecutorWithTable(t, rowLimit)
+
+	// Helper func to insert a row and return the result.
+	insertRow := func(t *testing.T) *string {
+		bs, err := ex.NewBlockScope(ctx, 0, "")
+		require.NoError(t, err)
+
+		res, err := execTxnWithRunSQLEvents(t, bs, 100, []string{`insert into foo_1337_100 values ('one')`})
+		require.NoError(t, err)
+		if res.Error == nil {
+			require.NoError(t, bs.Commit())
+		}
+		require.NoError(t, bs.Close())
+		return res.Error
+	}
+
+	// Insert up to 10 rows should succeed.
+	for i := 0; i < rowLimit; i++ {
+		require.Nil(t, insertRow(t))
+	}
+	require.Equal(t, rowLimit, tableRowCountT100(t, pool, "select count(*) from foo_1337_100"))
+
+	// The next insert should fail.
+	error := insertRow(t)
+	require.Contains(t, *error,
+		fmt.Sprintf("table maximum row count exceeded (before %d, after %d)", rowLimit, rowLimit+1),
+	)
+
+	require.NoError(t, ex.Close(ctx))
+}
+
+func TestWithCheck(t *testing.T) {
+	t.Parallel()
+	t.Run("insert-with-check-not-satistifed", func(t *testing.T) {
+		t.Parallel()
+		ctx := context.Background()
+
+		txnp, _, pool := newExecutorWithTable(t, 0)
+
+		b, err := txnp.OpenBatch(ctx)
+		require.NoError(t, err)
+
+		policy := policyFactory(policyData{
+			isInsertAllowed: true,
+			withCheck:       "zar = 'two'",
+		})
+
+		wq := mustWriteStmt(t, `insert into foo_1337_100 values ('one')`)
+
+		// set the controller to anything other than zero
+		err = b.SetController(ctx, wq.GetTableID(), common.HexToAddress("0x1"))
+		require.NoError(t, err)
+
+		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq}, true, policy)
+		var errQueryExecution *executor.ErrQueryExecution
+		require.ErrorAs(t, err, &errQueryExecution)
+		require.ErrorContains(t, err, "number of affected rows 1 does not match auditing count 0")
+
+		require.NoError(t, b.Commit())
+		require.NoError(t, b.Close())
+		require.NoError(t, txnp.Close(ctx))
+
+		require.Equal(t, 0, tableRowCountT100(t, pool, "select count(*) from foo_1337_100"))
+	})
+
+	t.Run("update-with-check-not-satistifed", func(t *testing.T) {
+		t.Parallel()
+		ctx := context.Background()
+
+		txnp, _, pool := newExecutorWithTable(t, 0)
+
+		b, err := txnp.OpenBatch(ctx)
+		require.NoError(t, err)
+
+		wq1 := mustWriteStmt(t, `insert into foo_1337_100 values ('one')`)
+
+		// set the controller to anything other than zero
+		err = b.SetController(ctx, wq1.GetTableID(), common.HexToAddress("0x1"))
+		require.NoError(t, err)
+
+		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq1}, true, &tableland.AllowAllPolicy{})
+		require.Nil(t, err)
+
+		wq2 := mustWriteStmt(t, `update foo_1337_100 SET zar = 'three'`)
+		policy := policyFactory(policyData{
+			isUpdateAllowed: true,
+			withCheck:       "zar = 'two'",
+		})
+
+		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq2}, true, policy)
+		var errQueryExecution *executor.ErrQueryExecution
+		require.ErrorAs(t, err, &errQueryExecution)
+		require.ErrorContains(t, err, "number of affected rows 1 does not match auditing count 0")
+
+		require.NoError(t, b.Commit())
+		require.NoError(t, b.Close())
+		require.NoError(t, txnp.Close(ctx))
+
+		require.Equal(t, 1, tableRowCountT100(t, pool, "select count(*) from foo_1337_100 WHERE zar = 'one'"))
+		require.Equal(t, 0, tableRowCountT100(t, pool, "select count(*) from foo_1337_100 WHERE zar = 'three'"))
+	})
+
+	t.Run("insert-with-check-satistifed", func(t *testing.T) {
+		t.Parallel()
+		ctx := context.Background()
+
+		txnp, _, pool := newExecutorWithTable(t, 0)
+
+		b, err := txnp.OpenBatch(ctx)
+		require.NoError(t, err)
+
+		policy := policyFactory(policyData{
+			isInsertAllowed: true,
+			withCheck:       "zar in ('one', 'two')",
+		})
+
+		wq1 := mustWriteStmt(t, `insert into foo_1337_100 values ('one')`)
+		wq2 := mustWriteStmt(t, `insert into foo_1337_100 values ('two')`)
+
+		// set the controller to anything other than zero
+		err = b.SetController(ctx, wq1.GetTableID(), common.HexToAddress("0x1"))
+		require.NoError(t, err)
+
+		_ = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq1, wq2}, true, policy)
+		require.Nil(t, err)
+
+		require.NoError(t, b.Commit())
+		require.NoError(t, b.Close())
+		require.NoError(t, txnp.Close(ctx))
+
+		require.Equal(t, 2, tableRowCountT100(t, pool, "select count(*) from foo_1337_100"))
+	})
+
+	t.Run("row-count-limit-withcheck", func(t *testing.T) {
+		t.Parallel()
+		ctx := context.Background()
+
+		rowLimit := 10
+		txnp, _, pool := newExecutorWithTable(t, rowLimit)
+
+		b, err := txnp.OpenBatch(ctx)
+		require.NoError(t, err)
+
+		// set the controller to anything other than zero
+		err = b.SetController(ctx, tableland.TableID(*big.NewInt(100)), common.HexToAddress("0x1"))
+		require.NoError(t, err)
+
+		require.NoError(t, b.Close())
+
+		// Helper func to insert a row and return an error if happened.
+		insertRow := func(t *testing.T) error {
+			b, err := txnp.OpenBatch(ctx)
+			require.NoError(t, err)
+
+			policy := policyFactory(policyData{
+				isInsertAllowed: true,
+				withCheck:       "zar in ('one')",
+			})
+
+			q := mustWriteStmt(t, `insert into foo_1337_100 values ('one')`)
+
+			err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{q}, true, policy)
+			if err == nil {
+				require.NoError(t, b.Commit())
+			}
+			require.NoError(t, b.Close())
+			return err
+		}
+
+		// Insert up to 10 rows should succeed.
+		for i := 0; i < rowLimit; i++ {
+			require.NoError(t, insertRow(t))
+		}
+		require.Equal(t, rowLimit, tableRowCountT100(t, pool, "select count(*) from foo_1337_100"))
+
+		// The next insert should fail.
+		var errQueryExecution *executor.ErrQueryExecution
+		err = insertRow(t)
+		require.ErrorAs(t, err, &errQueryExecution)
+		require.ErrorContains(t, err,
+			fmt.Sprintf("table maximum row count exceeded (before %d, after %d)", rowLimit, rowLimit+1),
+		)
+
+		require.NoError(t, txnp.Close(ctx))
 	})
 }
 
