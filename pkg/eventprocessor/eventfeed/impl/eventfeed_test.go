@@ -62,9 +62,9 @@ func TestRunSQLEvents(t *testing.T) {
 	backend.Commit()
 	select {
 	case bes := <-ch:
-		require.Len(t, bes.Events, 1)
-		require.NotEqual(t, emptyHash, bes.Events[0].TxnHash)
-		require.IsType(t, &ethereum.ContractRunSQL{}, bes.Events[0].Event)
+		require.Len(t, bes.TxnEvents, 1)
+		require.NotEqual(t, emptyHash, bes.TxnEvents[0].TxnHash)
+		require.IsType(t, &ethereum.ContractRunSQL{}, bes.TxnEvents[0].Events)
 	case <-time.After(time.Second):
 		t.Fatalf("didn't receive expected log")
 	}
@@ -78,11 +78,11 @@ func TestRunSQLEvents(t *testing.T) {
 	backend.Commit()
 	select {
 	case bes := <-ch:
-		require.Len(t, bes.Events, 2)
-		require.NotEqual(t, emptyHash, bes.Events[0].TxnHash)
-		require.NotEqual(t, emptyHash, bes.Events[1].TxnHash)
-		require.IsType(t, &ethereum.ContractRunSQL{}, bes.Events[0].Event)
-		require.IsType(t, &ethereum.ContractRunSQL{}, bes.Events[1].Event)
+		require.Len(t, bes.TxnEvents, 2)
+		require.NotEqual(t, emptyHash, bes.TxnEvents[0].TxnHash)
+		require.NotEqual(t, emptyHash, bes.TxnEvents[1].TxnHash)
+		require.IsType(t, &ethereum.ContractRunSQL{}, bes.TxnEvents[0].Events)
+		require.IsType(t, &ethereum.ContractRunSQL{}, bes.TxnEvents[1].Events)
 	case <-time.After(time.Second):
 		t.Fatalf("didn't receive expected log")
 	}
@@ -140,13 +140,13 @@ func TestAllEvents(t *testing.T) {
 
 	select {
 	case bes := <-ch:
-		require.Len(t, bes.Events, 4)
-		require.NotEqual(t, emptyHash, bes.Events[0].TxnHash)
-		require.NotEqual(t, emptyHash, bes.Events[1].TxnHash)
-		require.IsType(t, &ethereum.ContractCreateTable{}, bes.Events[0].Event)
-		require.IsType(t, &ethereum.ContractRunSQL{}, bes.Events[1].Event)
-		require.IsType(t, &ethereum.ContractSetController{}, bes.Events[2].Event)
-		require.IsType(t, &ethereum.ContractTransferTable{}, bes.Events[3].Event)
+		require.Len(t, bes.TxnEvents, 4)
+		require.NotEqual(t, emptyHash, bes.TxnEvents[0].TxnHash)
+		require.NotEqual(t, emptyHash, bes.TxnEvents[1].TxnHash)
+		require.IsType(t, &ethereum.ContractCreateTable{}, bes.TxnEvents[0].Events)
+		require.IsType(t, &ethereum.ContractRunSQL{}, bes.TxnEvents[1].Events)
+		require.IsType(t, &ethereum.ContractSetController{}, bes.TxnEvents[2].Events)
+		require.IsType(t, &ethereum.ContractTransferTable{}, bes.TxnEvents[3].Events)
 	case <-time.After(time.Second):
 		t.Fatalf("didn't receive expected log")
 	}
@@ -192,8 +192,8 @@ func TestInfura(t *testing.T) {
 	for {
 		select {
 		case e := <-ch:
-			ct := e.Events[0].Event.(*ethereum.ContractTransfer)
-			fmt.Printf("blocknumber %d, %d events. (tokenId %d -> %s)\n", e.BlockNumber, len(e.Events), ct.TokenId, ct.To)
+			ct := e.TxnEvents[0].Events.(*ethereum.ContractTransfer)
+			fmt.Printf("blocknumber %d, %d events. (tokenId %d -> %s)\n", e.BlockNumber, len(e.TxnEvents), ct.TokenId, ct.To)
 			num++
 			if num > 40 {
 				cls()

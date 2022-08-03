@@ -28,13 +28,13 @@ type EventFeed interface {
 // BlockEvents contains a set of events for a particular block height.
 type BlockEvents struct {
 	BlockNumber int64
-	Events      []BlockEvent
+	TxnEvents   []TxnEvents
 }
 
-// BlockEvent is an event in a block.
-type BlockEvent struct {
+// TxnEvents contains all events in a transaction.
+type TxnEvents struct {
 	TxnHash common.Hash
-	Event   interface{}
+	Events  []interface{}
 }
 
 // EventType is an event type.
