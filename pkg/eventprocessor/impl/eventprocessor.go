@@ -42,7 +42,6 @@ type EventProcessor struct {
 	daemonCancel   context.CancelFunc
 	daemonCanceled chan struct{}
 
-	// TODO(jsign) LOW: improve this.
 	// Metrics
 	mBaseLabels            []attribute.KeyValue
 	mExecutionRound        atomic.Int64

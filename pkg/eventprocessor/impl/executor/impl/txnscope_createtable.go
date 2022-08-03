@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/textileio/go-tableland/internal/tableland"
-	"github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 )
@@ -27,7 +26,7 @@ func (ts *txnScope) executeCreateTableEvent(
 	tableID := tableland.TableID(*e.TableId)
 
 	if err := ts.insertTable(ctx, tableID, e.Owner.Hex(), createStmt); err != nil {
-		var dbErr *executor.ErrQueryExecution
+		var dbErr *errQueryExecution
 		if errors.As(err, &dbErr) {
 			err := fmt.Sprintf("table creation execution failed (code: %s, msg: %s)", dbErr.Code, dbErr.Msg)
 			return eventExecutionResult{Error: &err}, nil

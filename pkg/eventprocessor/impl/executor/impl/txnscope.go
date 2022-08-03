@@ -15,6 +15,21 @@ import (
 
 var tableIDIsEmpty = "table id is empty"
 
+// errQueryExecution is an error returned when the query execution failed
+// with a cause related to th query itself. Retrying the execution of this query
+// will always return an error (e.g: inserting a string in an integer column).
+// A query execution failure due to the database being down or any other infrastructure
+// problem isn't an ErrQueryExecution error.
+type errQueryExecution struct {
+	Code string
+	Msg  string
+}
+
+// Error returns a string representation of the query execution error.
+func (e *errQueryExecution) Error() string {
+	return fmt.Sprintf("query execution failed with code %s: %s", e.Code, e.Msg)
+}
+
 type txnScope struct {
 	log zerolog.Logger
 

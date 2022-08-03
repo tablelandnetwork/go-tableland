@@ -11,7 +11,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/textileio/go-tableland/internal/tableland"
-	"github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 )
@@ -32,7 +31,7 @@ func (ts *txnScope) executeRunSQLEvent(
 		return eventExecutionResult{Error: &err}, nil
 	}
 	if err := ts.execWriteQueries(ctx, e.Caller, mutatingStmts, e.IsOwner, &policy{e.Policy}); err != nil {
-		var dbErr *executor.ErrQueryExecution
+		var dbErr *errQueryExecution
 		if errors.As(err, &dbErr) {
 			err := fmt.Sprintf("db query execution failed (code: %s, msg: %s)", dbErr.Code, dbErr.Msg)
 			return eventExecutionResult{Error: &err}, nil
@@ -58,7 +57,7 @@ func (ts *txnScope) execWriteQueries(
 	tablePrefix, beforeRowCount, err := getTablePrefixAndRowCountByTableID(
 		ctx, ts.txn, ts.scopeVars.ChainID, mqueries[0].GetTableID(), dbTableName)
 	if err != nil {
-		return &executor.ErrQueryExecution{
+		return &errQueryExecution{
 			Code: "TABLE_LOOKUP",
 			Msg:  fmt.Sprintf("table prefix lookup for table id: %s", err),
 		}
@@ -67,7 +66,7 @@ func (ts *txnScope) execWriteQueries(
 	for _, mq := range mqueries {
 		mqPrefix := mq.GetPrefix()
 		if mqPrefix != "" && !strings.EqualFold(tablePrefix, mqPrefix) {
-			return &executor.ErrQueryExecution{
+			return &errQueryExecution{
 				Code: "TABLE_PREFIX",
 				Msg:  fmt.Sprintf("table prefix doesn't match (exp %s, got %s)", tablePrefix, mqPrefix),
 			}
@@ -96,7 +95,7 @@ func (ts *txnScope) executeGrantStmt(
 	isOwner bool,
 ) error {
 	if !isOwner {
-		return &executor.ErrQueryExecution{
+		return &errQueryExecution{
 			Code: "ACL_NOT_OWNER",
 			Msg:  "non owner cannot execute grant stmt",
 		}
@@ -113,7 +112,7 @@ func (ts *txnScope) executeGrantStmt(
 				return fmt.Errorf("executing revoke privileges tx: %w", err)
 			}
 		default:
-			return &executor.ErrQueryExecution{
+			return &errQueryExecution{
 				Code: "ACL_UNKNOWN_OPERATION",
 				Msg:  fmt.Sprintf("unknown grant stmt operation=%s", gs.Operation().String()),
 			}
@@ -156,7 +155,7 @@ func (ts *txnScope) executeGrantPrivilegesTx(
 		privilegesMask,
 		time.Now().Unix()); err != nil {
 		if code, ok := isErrCausedByQuery(err); ok {
-			return &executor.ErrQueryExecution{
+			return &errQueryExecution{
 				Code: "SQLITE_" + code,
 				Msg:  err.Error(),
 			}
@@ -202,7 +201,7 @@ func (ts *txnScope) executeRevokePrivilegesTx(
 		time.Now().Unix(),
 	); err != nil {
 		if code, ok := isErrCausedByQuery(err); ok {
-			return &executor.ErrQueryExecution{
+			return &errQueryExecution{
 				Code: "SQLITE_" + code,
 				Msg:  err.Error(),
 			}
@@ -235,7 +234,7 @@ func (ts *txnScope) executeWriteStmt(
 			return fmt.Errorf("error checking acl: %s", err)
 		}
 		if !ok {
-			return &executor.ErrQueryExecution{
+			return &errQueryExecution{
 				Code: "ACL",
 				Msg:  "not enough privileges",
 			}
@@ -250,7 +249,7 @@ func (ts *txnScope) executeWriteStmt(
 		cmdTag, err := ts.txn.ExecContext(ctx, query)
 		if err != nil {
 			if code, ok := isErrCausedByQuery(err); ok {
-				return &executor.ErrQueryExecution{
+				return &errQueryExecution{
 					Code: "SQLITE_" + code,
 					Msg:  err.Error(),
 				}
@@ -273,7 +272,7 @@ func (ts *txnScope) executeWriteStmt(
 
 	if err := ws.AddReturningClause(); err != nil {
 		if err != parsing.ErrCantAddReturningOnDELETE {
-			return &executor.ErrQueryExecution{
+			return &errQueryExecution{
 				Code: "POLICY_APPLY_RETURNING_CLAUSE",
 				Msg:  err.Error(),
 			}
@@ -315,7 +314,7 @@ func (ts *txnScope) checkAffectedRowsAgainstAuditingQuery(
 	var count int
 	if err := ts.txn.QueryRowContext(ctx, sql).Scan(&count); err != nil {
 		if code, ok := isErrCausedByQuery(err); ok {
-			return &executor.ErrQueryExecution{
+			return &errQueryExecution{
 				Code: "SQLITE_" + code,
 				Msg:  err.Error(),
 			}
@@ -324,7 +323,7 @@ func (ts *txnScope) checkAffectedRowsAgainstAuditingQuery(
 	}
 
 	if count != affectedRowsCount {
-		return &executor.ErrQueryExecution{
+		return &errQueryExecution{
 			Code: "POLICY_WITH_CHECK",
 			Msg:  fmt.Sprintf("number of affected rows %d does not match auditing count %d", affectedRowsCount, count),
 		}
@@ -349,7 +348,7 @@ func (ts *txnScope) executeQueryAndGetAffectedRows(
 
 	if err != nil {
 		if code, ok := isErrCausedByQuery(err); ok {
-			return nil, &executor.ErrQueryExecution{
+			return nil, &errQueryExecution{
 				Code: "SQLITE_" + code,
 				Msg:  err.Error(),
 			}
@@ -373,7 +372,7 @@ func (ts *txnScope) checkRowCountLimit(rowsAffected int64, isInsert bool, before
 		afterRowCount := beforeRowCount + int(rowsAffected)
 
 		if afterRowCount > ts.scopeVars.MaxTableRowCount {
-			return &executor.ErrQueryExecution{
+			return &errQueryExecution{
 				Code: "ROW_COUNT_LIMIT",
 				Msg:  fmt.Sprintf("table maximum row count exceeded (before %d, after %d)", beforeRowCount, afterRowCount),
 			}
@@ -385,21 +384,21 @@ func (ts *txnScope) checkRowCountLimit(rowsAffected int64, isInsert bool, before
 
 func (ts *txnScope) applyPolicy(ws parsing.WriteStmt, policy tableland.Policy) error {
 	if ws.Operation() == tableland.OpInsert && !policy.IsInsertAllowed() {
-		return &executor.ErrQueryExecution{
+		return &errQueryExecution{
 			Code: "POLICY",
 			Msg:  "insert is not allowed by policy",
 		}
 	}
 
 	if ws.Operation() == tableland.OpUpdate && !policy.IsUpdateAllowed() {
-		return &executor.ErrQueryExecution{
+		return &errQueryExecution{
 			Code: "POLICY",
 			Msg:  "update is not allowed by policy",
 		}
 	}
 
 	if ws.Operation() == tableland.OpDelete && !policy.IsDeleteAllowed() {
-		return &executor.ErrQueryExecution{
+		return &errQueryExecution{
 			Code: "POLICY",
 			Msg:  "delete is not allowed by policy",
 		}
@@ -411,7 +410,7 @@ func (ts *txnScope) applyPolicy(ws parsing.WriteStmt, policy tableland.Policy) e
 		if len(columnsAllowed) > 0 {
 			if err := ws.CheckColumns(columnsAllowed); err != nil {
 				if err != parsing.ErrCanOnlyCheckColumnsOnUPDATE {
-					return &executor.ErrQueryExecution{
+					return &errQueryExecution{
 						Code: "POLICY_CHECK_COLUMNS",
 						Msg:  err.Error(),
 					}
@@ -426,7 +425,7 @@ func (ts *txnScope) applyPolicy(ws parsing.WriteStmt, policy tableland.Policy) e
 		if policy.WhereClause() != "" {
 			if err := ws.AddWhereClause(policy.WhereClause()); err != nil {
 				if err != parsing.ErrCantAddWhereOnINSERT {
-					return &executor.ErrQueryExecution{
+					return &errQueryExecution{
 						Code: "POLICY_APPLY_WHERE_CLAUSE",
 						Msg:  err.Error(),
 					}

@@ -7,7 +7,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/textileio/go-tableland/internal/tableland"
-	"github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 )
 
@@ -21,7 +20,7 @@ func (ts *txnScope) executeSetControllerEvent(
 	tableID := tableland.TableID(*e.TableId)
 
 	if err := ts.setController(ctx, tableID, e.Controller); err != nil {
-		var dbErr *executor.ErrQueryExecution
+		var dbErr *errQueryExecution
 		if errors.As(err, &dbErr) {
 			err := fmt.Sprintf("set controller execution failed (code: %s, msg: %s)", dbErr.Code, dbErr.Msg)
 			return eventExecutionResult{Error: &err}, nil
@@ -45,7 +44,7 @@ func (ts *txnScope) setController(
 			id.String(),
 		); err != nil {
 			if code, ok := isErrCausedByQuery(err); ok {
-				return &executor.ErrQueryExecution{
+				return &errQueryExecution{
 					Code: "SQLITE_" + code,
 					Msg:  err.Error(),
 				}
@@ -63,7 +62,7 @@ func (ts *txnScope) setController(
 			controller.Hex(),
 		); err != nil {
 			if code, ok := isErrCausedByQuery(err); ok {
-				return &executor.ErrQueryExecution{
+				return &errQueryExecution{
 					Code: "SQLITE_" + code,
 					Msg:  err.Error(),
 				}

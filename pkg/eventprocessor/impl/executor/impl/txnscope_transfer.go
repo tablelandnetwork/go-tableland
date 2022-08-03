@@ -7,7 +7,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/textileio/go-tableland/internal/tableland"
-	"github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 )
 
@@ -21,7 +20,7 @@ func (ts *txnScope) executeTransferEvent(
 
 	tableID := tableland.TableID(*e.TableId)
 	if err := ts.changeTableOwner(ctx, tableID, e.To); err != nil {
-		var dbErr *executor.ErrQueryExecution
+		var dbErr *errQueryExecution
 		if errors.As(err, &dbErr) {
 			err := fmt.Sprintf("change table owner execution failed (code: %s, msg: %s)", dbErr.Code, dbErr.Msg)
 			return eventExecutionResult{Error: &err}, nil
@@ -31,7 +30,7 @@ func (ts *txnScope) executeTransferEvent(
 
 	privileges := tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate, tableland.PrivDelete}
 	if err := ts.executeRevokePrivilegesTx(ctx, tableID, e.From, privileges); err != nil {
-		var dbErr *executor.ErrQueryExecution
+		var dbErr *errQueryExecution
 		if errors.As(err, &dbErr) {
 			err := fmt.Sprintf("revoke privileges execution failed (code: %s, msg: %s)", dbErr.Code, dbErr.Msg)
 			return eventExecutionResult{Error: &err}, nil
@@ -39,7 +38,7 @@ func (ts *txnScope) executeTransferEvent(
 		return eventExecutionResult{}, fmt.Errorf("executing revoke privileges: %s", err)
 	}
 	if err := ts.executeGrantPrivilegesTx(ctx, tableID, e.To, privileges); err != nil {
-		var dbErr *executor.ErrQueryExecution
+		var dbErr *errQueryExecution
 		if errors.As(err, &dbErr) {
 			err := fmt.Sprintf("grant privileges execution failed (code: %s, msg: %s)", dbErr.Code, dbErr.Msg)
 			return eventExecutionResult{Error: &err}, nil
@@ -63,7 +62,7 @@ func (ts *txnScope) changeTableOwner(
 		ts.scopeVars.ChainID,
 	); err != nil {
 		if code, ok := isErrCausedByQuery(err); ok {
-			return &executor.ErrQueryExecution{
+			return &errQueryExecution{
 				Code: "SQLITE_" + code,
 				Msg:  err.Error(),
 			}
