@@ -22,7 +22,7 @@ func TestCreateTable(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		ex, dbURL := newExecutor(t, 0)
+		ex, dbURI := newExecutor(t, 0)
 
 		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
@@ -34,7 +34,7 @@ func TestCreateTable(t *testing.T) {
 		require.NoError(t, ex.Close(ctx))
 
 		// Check that the table was registered in the system-table.
-		systemStore, err := system.New(dbURL, tableland.ChainID(chainID))
+		systemStore, err := system.New(dbURI, tableland.ChainID(chainID))
 		require.NoError(t, err)
 		tableID, _ := tableland.NewTableID("100")
 		table, err := systemStore.GetTable(ctx, tableID)
@@ -47,7 +47,7 @@ func TestCreateTable(t *testing.T) {
 		require.NotEqual(t, new(time.Time), table.CreatedAt) // CreatedAt is not the zero value
 
 		// Check that the user table was created.
-		ok := existsTableWithName(t, dbURL, "bar_1337_100")
+		ok := existsTableWithName(t, dbURI, "bar_1337_100")
 		require.True(t, ok)
 	})
 }

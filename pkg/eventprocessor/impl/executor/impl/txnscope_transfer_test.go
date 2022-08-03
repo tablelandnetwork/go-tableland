@@ -17,12 +17,12 @@ func TestTransfer(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
-	ex, _, db := newExecutorWithTable(t, 0)
+	ex, dbURI := newExecutorWithTable(t, 0)
 
 	require.Equal(t, 1,
 		tableRowCountT100(
 			t,
-			db,
+			dbURI,
 			fmt.Sprintf(
 				"select count(1) from registry WHERE controller = '%s' and id = %d and chain_id = %d",
 				"0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF",
@@ -45,7 +45,7 @@ func TestTransfer(t *testing.T) {
 	require.Equal(t, 1,
 		tableRowCountT100(
 			t,
-			db,
+			dbURI,
 			fmt.Sprintf(
 				"select count(1) from registry WHERE controller = '%s' and id = %d and chain_id = %d",
 				newOwner,

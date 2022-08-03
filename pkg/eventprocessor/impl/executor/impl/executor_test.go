@@ -3,6 +3,7 @@ package impl
 import (
 	"context"
 	"database/sql"
+	"math/big"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -24,7 +25,7 @@ func TestReceiptExists(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
-	ex, _, _ := newExecutorWithTable(t, 0)
+	ex, _ := newExecutorWithTable(t, 0)
 
 	txnHash := "0x0000000000000000000000000000000000000000000000000000000000001234"
 
@@ -60,13 +61,105 @@ func TestReceiptExists(t *testing.T) {
 	require.NoError(t, ex.Close(ctx))
 }
 
-func tableRowCountT100(t *testing.T, pool *sql.DB, query string) int {
+func TestMultiEventTxnBlock(t *testing.T) {
+	t.Parallel()
+
+	// The test setup is executing a block that has the following transactions:
+	// - Txn 1, successful with two events: CREATE a table and INSERT a row.
+	// - Txn 2, failed with two events: CREATE a table and INSERT a row. INSERT has invalid SQL.
+	// - Txn 3, successful with one event: INSERT a row in the table created in Txn 1.
+	//
+	// Checks after block execution:
+	// 1) Txn 1 side-effects are seen in the db.
+	// 2) Txn 2 side-effects aren't seen in the db. In particular, the table created should have been rollbacked.
+	// 3) Txn 3 side-effects are seen in the db. Txn 2 failing should be isolated and have no effect in Txn 3 execution.
+	ctx := context.Background()
+	ex, dbURI := newExecutor(t, 0)
+
+	bs, err := ex.NewBlockScope(ctx, 0)
+	require.NoError(t, err)
+
+	// Txn 1
+	{
+		eventCreateTable := &ethereum.ContractCreateTable{
+			TableId:   big.NewInt(100),
+			Owner:     common.HexToAddress("0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF"),
+			Statement: "create table bar_1337 (zar text)",
+		}
+		eventInsertRow := &ethereum.ContractRunSQL{
+			IsOwner:   true,
+			TableId:   eventCreateTable.TableId,
+			Statement: "insert into bar_1337_100 values ('txn 1')",
+			Policy: ethereum.ITablelandControllerPolicy{
+				AllowInsert:      true,
+				AllowUpdate:      true,
+				AllowDelete:      true,
+				WhereClause:      "",
+				WithCheck:        "",
+				UpdatableColumns: nil,
+			},
+		}
+		res, err := bs.ExecuteTxnEvents(ctx, eventfeed.TxnEvents{
+			Events: []interface{}{eventCreateTable, eventInsertRow},
+		})
+		require.NoError(t, err)
+		require.Nil(t, res.Error)
+		require.Equal(t, eventCreateTable.TableId.Int64(), res.TableID.ToBigInt().Int64())
+	}
+	// Txn 2
+	{
+		eventCreateTable := &ethereum.ContractCreateTable{
+			TableId:   big.NewInt(101),
+			Owner:     common.HexToAddress("0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF"),
+			Statement: "create table foo_1337 (fooz text)",
+		}
+		eventInsertRow := &ethereum.ContractRunSQL{
+			IsOwner:   true,
+			TableId:   eventCreateTable.TableId,
+			Statement: "insert into foo_1337 values ('txn 1', 'wrong # of columns')",
+			Policy: ethereum.ITablelandControllerPolicy{
+				AllowInsert:      true,
+				AllowUpdate:      true,
+				AllowDelete:      true,
+				WhereClause:      "",
+				WithCheck:        "",
+				UpdatableColumns: nil,
+			},
+		}
+		res, err := bs.ExecuteTxnEvents(ctx, eventfeed.TxnEvents{
+			Events: []interface{}{eventCreateTable, eventInsertRow},
+		})
+		require.NoError(t, err)
+		require.NotNil(t, res.Error) // This Txn should fail.
+	}
+	// Txn 3
+	{
+		// We can leverage helper for single event txn.
+		assertExecTxnWithRunSQLEvents(t, bs, 100, []string{"insert into bar_1337_100 values ('txn 3')"})
+	}
+	require.NoError(t, bs.Commit())
+	require.NoError(t, bs.Close())
+
+	// Post block-execution checks
+	{
+		// Check 1) and 3).
+		require.True(t, existsTableWithName(t, dbURI, "bar_1337_100"))
+		require.Equal(t, 2, tableRowCountT100(t, dbURI, "select count(*) from bar_1337_100"))
+
+		// Check 2).
+		require.False(t, existsTableWithName(t, dbURI, "foo_1337_101"))
+	}
+}
+
+func tableRowCountT100(t *testing.T, dbURI string, query string) int {
 	t.Helper()
 
-	row := pool.QueryRowContext(context.Background(), query)
+	db, err := sql.Open("sqlite3", dbURI)
+	require.NoError(t, err)
+
+	row := db.QueryRowContext(context.Background(), query)
 	var rowCount int
-	err := row.Scan(&rowCount)
-	if err == sql.ErrNoRows {
+	if err = row.Scan(&rowCount); err == sql.ErrNoRows {
 		return 0
 	}
 	require.NoError(t, err)
@@ -74,10 +167,10 @@ func tableRowCountT100(t *testing.T, pool *sql.DB, query string) int {
 	return rowCount
 }
 
-func existsTableWithName(t *testing.T, dbURL string, tableName string) bool {
+func existsTableWithName(t *testing.T, dbURI string, tableName string) bool {
 	t.Helper()
 
-	pool, err := sql.Open("sqlite3", dbURL)
+	pool, err := sql.Open("sqlite3", dbURI)
 	require.NoError(t, err)
 	q := `SELECT 1 FROM sqlite_master  WHERE type='table' AND name = ?1`
 	row := pool.QueryRow(q, tableName)
@@ -105,10 +198,10 @@ func newExecutor(t *testing.T, rowsLimit int) (*Executor, string) {
 	return exec, dbURI
 }
 
-func newExecutorWithTable(t *testing.T, rowsLimit int) (*Executor, string, *sql.DB) {
+func newExecutorWithTable(t *testing.T, rowsLimit int) (*Executor, string) {
 	t.Helper()
 
-	ex, dbURL := newExecutor(t, rowsLimit)
+	ex, dbURI := newExecutor(t, rowsLimit)
 	ctx := context.Background()
 
 	ibs, err := ex.NewBlockScope(ctx, 0)
@@ -136,10 +229,7 @@ func newExecutorWithTable(t *testing.T, rowsLimit int) (*Executor, string, *sql.
 	require.NoError(t, bs.Commit())
 	require.NoError(t, bs.Close())
 
-	pool, err := sql.Open("sqlite3", dbURL)
-	require.NoError(t, err)
-
-	return ex, dbURL, pool
+	return ex, dbURI
 }
 
 func mustGrantStmt(t *testing.T, q string) parsing.MutatingStmt {
@@ -169,5 +259,3 @@ func (acl *aclMock) CheckPrivileges(
 ) (bool, error) {
 	return true, nil
 }
-
-// TODO(jsign) HIGH: Simulate block with txn with multiple events.

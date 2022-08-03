@@ -21,7 +21,7 @@ func TestRunSQL_OneEventPerTxn(t *testing.T) {
 		t.Parallel()
 
 		ctx := context.Background()
-		ex, _, pool := newExecutorWithTable(t, 0)
+		ex, dbURI := newExecutorWithTable(t, 0)
 
 		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
@@ -32,14 +32,14 @@ func TestRunSQL_OneEventPerTxn(t *testing.T) {
 		require.NoError(t, bs.Close())
 		require.NoError(t, ex.Close(ctx))
 
-		require.Equal(t, 1, tableRowCountT100(t, pool, "select count(*) from foo_1337_100"))
+		require.Equal(t, 1, tableRowCountT100(t, dbURI, "select count(*) from foo_1337_100"))
 	})
 
 	t.Run("multiple inserts", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		ex, _, pool := newExecutorWithTable(t, 0)
+		ex, dbURI := newExecutorWithTable(t, 0)
 
 		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
@@ -53,14 +53,14 @@ func TestRunSQL_OneEventPerTxn(t *testing.T) {
 		require.NoError(t, ex.Close(ctx))
 
 		// 3 txns each with one event with a total of 4 inserts.
-		require.Equal(t, 4, tableRowCountT100(t, pool, "select count(*) from foo_1337_100"))
+		require.Equal(t, 4, tableRowCountT100(t, dbURI, "select count(*) from foo_1337_100"))
 	})
 
 	t.Run("multiple with single failure", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		ex, _, pool := newExecutorWithTable(t, 0)
+		ex, dbURI := newExecutorWithTable(t, 0)
 
 		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
@@ -82,14 +82,14 @@ func TestRunSQL_OneEventPerTxn(t *testing.T) {
 		// We check that we see 2 inserted rows, from the first and third transaction.
 		// Despite the first query of the second transaction was correct, it must be rollbacked since the second
 		// query wasn't.
-		require.Equal(t, 2, tableRowCountT100(t, pool, "select count(*) from foo_1337_100"))
+		require.Equal(t, 2, tableRowCountT100(t, dbURI, "select count(*) from foo_1337_100"))
 	})
 
 	t.Run("with abrupt close", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		ex, _, pool := newExecutorWithTable(t, 0)
+		ex, dbURI := newExecutorWithTable(t, 0)
 
 		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
@@ -104,14 +104,14 @@ func TestRunSQL_OneEventPerTxn(t *testing.T) {
 		// The opened batch wasn't txnp.CloseBatch(), but we simply
 		// closed the whole store. This should rollback any ongoing
 		// opened batch and leave db state correctly.
-		require.Equal(t, 0, tableRowCountT100(t, pool, "select count(*) from foo_1337_100"))
+		require.Equal(t, 0, tableRowCountT100(t, dbURI, "select count(*) from foo_1337_100"))
 	})
 
 	t.Run("one grant", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		ex, dbURL, _ := newExecutorWithTable(t, 0)
+		ex, dbURI := newExecutorWithTable(t, 0)
 
 		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
@@ -127,7 +127,7 @@ func TestRunSQL_OneEventPerTxn(t *testing.T) {
 		ss := mustGrantStmt(t, q).(parsing.GrantStmt)
 		for _, role := range ss.GetRoles() {
 			// Check that an entry was inserted in the system_acl table for each row.
-			systemStore, err := system.New(dbURL, tableland.ChainID(chainID))
+			systemStore, err := system.New(dbURI, tableland.ChainID(chainID))
 			require.NoError(t, err)
 			aclRow, err := systemStore.GetACLOnTableByController(ctx, ss.GetTableID(), role.String())
 			require.NoError(t, err)
@@ -141,7 +141,7 @@ func TestRunSQL_OneEventPerTxn(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		ex, dbURL, _ := newExecutorWithTable(t, 0)
+		ex, dbURI := newExecutorWithTable(t, 0)
 
 		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
@@ -157,7 +157,7 @@ func TestRunSQL_OneEventPerTxn(t *testing.T) {
 		require.NoError(t, bs.Close())
 		require.NoError(t, ex.Close(ctx))
 
-		systemStore, err := system.New(dbURL, tableland.ChainID(chainID))
+		systemStore, err := system.New(dbURI, tableland.ChainID(chainID))
 		require.NoError(t, err)
 
 		tableID, _ := tableland.NewTableID("100")
@@ -188,7 +188,7 @@ func TestRunSQL_OneEventPerTxn(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		ex, dbURL, _ := newExecutorWithTable(t, 0)
+		ex, dbURI := newExecutorWithTable(t, 0)
 
 		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
@@ -201,7 +201,7 @@ func TestRunSQL_OneEventPerTxn(t *testing.T) {
 		require.NoError(t, bs.Close())
 		require.NoError(t, ex.Close(ctx))
 
-		systemStore, err := system.New(dbURL, tableland.ChainID(chainID))
+		systemStore, err := system.New(dbURI, tableland.ChainID(chainID))
 		require.NoError(t, err)
 
 		tableID, _ := tableland.NewTableID("100")
@@ -225,7 +225,7 @@ func TestRunSQL_WriteQueriesWithPolicies(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		ex, _, _ := newExecutorWithTable(t, 0)
+		ex, _ := newExecutorWithTable(t, 0)
 
 		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
@@ -244,7 +244,7 @@ func TestRunSQL_WriteQueriesWithPolicies(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		ex, _, _ := newExecutorWithTable(t, 0)
+		ex, _ := newExecutorWithTable(t, 0)
 
 		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
@@ -264,7 +264,7 @@ func TestRunSQL_WriteQueriesWithPolicies(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		ex, _, _ := newExecutorWithTable(t, 0)
+		ex, _ := newExecutorWithTable(t, 0)
 
 		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
@@ -284,7 +284,7 @@ func TestRunSQL_WriteQueriesWithPolicies(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		ex, _, _ := newExecutorWithTable(t, 0)
+		ex, _ := newExecutorWithTable(t, 0)
 
 		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
@@ -305,7 +305,7 @@ func TestRunSQL_WriteQueriesWithPolicies(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		ex, _, pool := newExecutorWithTable(t, 0)
+		ex, dbURI := newExecutorWithTable(t, 0)
 
 		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
@@ -334,7 +334,7 @@ func TestRunSQL_WriteQueriesWithPolicies(t *testing.T) {
 		require.NoError(t, ex.Close(ctx))
 
 		// there should be only one row updated
-		require.Equal(t, 1, tableRowCountT100(t, pool, "select count(*) from foo_1337_100 WHERE zar = 'three'"))
+		require.Equal(t, 1, tableRowCountT100(t, dbURI, "select count(*) from foo_1337_100 WHERE zar = 'three'"))
 	})
 }
 
@@ -343,7 +343,7 @@ func TestRunSQL_RowCountLimit(t *testing.T) {
 	ctx := context.Background()
 
 	rowLimit := 10
-	ex, _, pool := newExecutorWithTable(t, rowLimit)
+	ex, dbURI := newExecutorWithTable(t, rowLimit)
 
 	// Helper func to insert a row and return the result.
 	insertRow := func(t *testing.T) *string {
@@ -363,7 +363,7 @@ func TestRunSQL_RowCountLimit(t *testing.T) {
 	for i := 0; i < rowLimit; i++ {
 		require.Nil(t, insertRow(t))
 	}
-	require.Equal(t, rowLimit, tableRowCountT100(t, pool, "select count(*) from foo_1337_100"))
+	require.Equal(t, rowLimit, tableRowCountT100(t, dbURI, "select count(*) from foo_1337_100"))
 
 	// The next insert should fail.
 	error := insertRow(t)
@@ -380,7 +380,7 @@ func TestWithCheck(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		ex, _, pool := newExecutorWithTable(t, 0)
+		ex, dbURI := newExecutorWithTable(t, 0)
 
 		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
@@ -397,14 +397,14 @@ func TestWithCheck(t *testing.T) {
 		require.NoError(t, bs.Close())
 		require.NoError(t, ex.Close(ctx))
 
-		require.Equal(t, 0, tableRowCountT100(t, pool, "select count(*) from foo_1337_100"))
+		require.Equal(t, 0, tableRowCountT100(t, dbURI, "select count(*) from foo_1337_100"))
 	})
 
 	t.Run("update with check not satistifed", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		ex, _, pool := newExecutorWithTable(t, 0)
+		ex, dbURI := newExecutorWithTable(t, 0)
 
 		{
 			bs, err := ex.NewBlockScope(ctx, 0)
@@ -430,15 +430,15 @@ func TestWithCheck(t *testing.T) {
 		}
 		require.NoError(t, ex.Close(ctx))
 
-		require.Equal(t, 1, tableRowCountT100(t, pool, "select count(*) from foo_1337_100 WHERE zar = 'one'"))
-		require.Equal(t, 0, tableRowCountT100(t, pool, "select count(*) from foo_1337_100 WHERE zar = 'three'"))
+		require.Equal(t, 1, tableRowCountT100(t, dbURI, "select count(*) from foo_1337_100 WHERE zar = 'one'"))
+		require.Equal(t, 0, tableRowCountT100(t, dbURI, "select count(*) from foo_1337_100 WHERE zar = 'three'"))
 	})
 
 	t.Run("insert with check satistifed", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		ex, _, pool := newExecutorWithTable(t, 0)
+		ex, dbURI := newExecutorWithTable(t, 0)
 
 		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
@@ -457,7 +457,7 @@ func TestWithCheck(t *testing.T) {
 		require.NoError(t, bs.Close())
 		require.NoError(t, ex.Close(ctx))
 
-		require.Equal(t, 2, tableRowCountT100(t, pool, "select count(*) from foo_1337_100"))
+		require.Equal(t, 2, tableRowCountT100(t, dbURI, "select count(*) from foo_1337_100"))
 	})
 
 	t.Run("row count limit-withcheck", func(t *testing.T) {
@@ -465,7 +465,7 @@ func TestWithCheck(t *testing.T) {
 		ctx := context.Background()
 
 		rowLimit := 10
-		ex, _, pool := newExecutorWithTable(t, rowLimit)
+		ex, dbURI := newExecutorWithTable(t, rowLimit)
 
 		{
 			bs, err := ex.NewBlockScope(ctx, 0)
@@ -494,7 +494,7 @@ func TestWithCheck(t *testing.T) {
 		for i := 0; i < rowLimit; i++ {
 			require.Nil(t, insertRow(t))
 		}
-		require.Equal(t, rowLimit, tableRowCountT100(t, pool, "select count(*) from foo_1337_100"))
+		require.Equal(t, rowLimit, tableRowCountT100(t, dbURI, "select count(*) from foo_1337_100"))
 
 		// The next insert should fail.
 		error := insertRow(t)
