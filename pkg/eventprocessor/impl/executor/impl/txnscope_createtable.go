@@ -14,15 +14,15 @@ import (
 func (ts *txnScope) executeCreateTableEvent(
 	ctx context.Context,
 	e *ethereum.ContractCreateTable,
-) (executor.TxnExecutionResult, error) {
+) (eventExecutionResult, error) {
 	createStmt, err := ts.parser.ValidateCreateTable(e.Statement, ts.scopeVars.ChainID)
 	if err != nil {
 		err := fmt.Sprintf("query validation: %s", err)
-		return executor.TxnExecutionResult{Error: &err}, nil
+		return eventExecutionResult{Error: &err}, nil
 	}
 
 	if e.TableId == nil {
-		return executor.TxnExecutionResult{Error: &tableIDIsEmpty}, nil
+		return eventExecutionResult{Error: &tableIDIsEmpty}, nil
 	}
 	tableID := tableland.TableID(*e.TableId)
 
@@ -30,12 +30,12 @@ func (ts *txnScope) executeCreateTableEvent(
 		var dbErr *executor.ErrQueryExecution
 		if errors.As(err, &dbErr) {
 			err := fmt.Sprintf("table creation execution failed (code: %s, msg: %s)", dbErr.Code, dbErr.Msg)
-			return executor.TxnExecutionResult{Error: &err}, nil
+			return eventExecutionResult{Error: &err}, nil
 		}
-		return executor.TxnExecutionResult{}, fmt.Errorf("executing table creation: %s", err)
+		return eventExecutionResult{}, fmt.Errorf("executing table creation: %s", err)
 	}
 
-	return executor.TxnExecutionResult{TableID: &tableID}, nil
+	return eventExecutionResult{TableID: &tableID}, nil
 }
 
 // insertTable creates a new table in Tableland:

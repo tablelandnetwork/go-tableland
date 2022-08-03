@@ -54,6 +54,7 @@ func TestSystemSQLStoreService(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Nil(t, res.Error)
+	require.Nil(t, res.ErrorEventIdx)
 	require.NoError(t, bs.Commit())
 	require.NoError(t, bs.Close())
 

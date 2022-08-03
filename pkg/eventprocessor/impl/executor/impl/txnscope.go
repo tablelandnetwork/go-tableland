@@ -25,11 +25,16 @@ type txnScope struct {
 	txn *sql.Tx
 }
 
+type eventExecutionResult struct {
+	TableID *tableland.TableID
+	Error   *string
+}
+
 func (ts *txnScope) executeTxnEvents(ctx context.Context, tx *sql.Tx, evmTxn eventfeed.TxnEvents) (executor.TxnExecutionResult, error) {
-	var res executor.TxnExecutionResult
+	var res eventExecutionResult
 	var err error
 
-	for _, event := range evmTxn.Events {
+	for idx, event := range evmTxn.Events {
 		switch event := event.(type) {
 		case *ethereum.ContractRunSQL:
 			ts.log.Debug().Str("statement", event.Statement).Msgf("executing run-sql event")
@@ -74,9 +79,13 @@ func (ts *txnScope) executeTxnEvents(ctx context.Context, tx *sql.Tx, evmTxn eve
 		// If the current event fail, we stop processing further events in this transaction and already
 		// return the failed receipt. This receipt contains the index of this failed event.
 		if res.Error != nil {
-			return res, nil
+			return executor.TxnExecutionResult{
+				TableID:       res.TableID,
+				Error:         res.Error,
+				ErrorEventIdx: &idx,
+			}, nil
 		}
 	}
 
-	return res, nil
+	return executor.TxnExecutionResult{TableID: res.TableID}, nil
 }

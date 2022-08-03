@@ -52,7 +52,9 @@ type BlockScope interface {
 
 type TxnExecutionResult struct {
 	TableID *tableland.TableID
-	Error   *string
+
+	Error         *string
+	ErrorEventIdx *int
 }
 
 // TODO(jsign) LOW: remove from here.

@@ -88,8 +88,6 @@ func TestRunSQLEvents(t *testing.T) {
 	}
 }
 
-// TODO(jsign) HOLD: add tests to check things like bes.Txns[0].Events[0 and 1] since is a new case.
-
 func TestAllEvents(t *testing.T) {
 	t.Parallel()
 

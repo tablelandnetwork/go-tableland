@@ -136,9 +136,9 @@ func (bs *blockScope) SaveTxnReceipts(ctx context.Context, rs []eventprocessor.R
 		}
 		if _, err := bs.txn.ExecContext(
 			ctx,
-			`INSERT INTO system_txn_receipts (chain_id,txn_hash,error,table_id,block_number,index_in_block) 
-				 VALUES (?1,?2,?3,?4,?5,?6)`,
-			r.ChainID, r.TxnHash, r.Error, tableID, r.BlockNumber, r.IndexInBlock); err != nil {
+			`INSERT INTO system_txn_receipts (chain_id,txn_hash,error,error_event_idx,table_id,block_number,index_in_block) 
+				 VALUES (?1,?2,?3,?4,?5,?6,?7)`,
+			r.ChainID, r.TxnHash, r.Error, r.ErrorEventIdx, tableID, r.BlockNumber, r.IndexInBlock); err != nil {
 			return fmt.Errorf("insert txn receipt: %s", err)
 		}
 	}

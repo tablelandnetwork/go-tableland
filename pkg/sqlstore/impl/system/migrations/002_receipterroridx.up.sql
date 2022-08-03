@@ -1,0 +1,1 @@
+ALTER TABLE system_txn_receipts ADD error_event_idx INTEGER DEFAULT 0;

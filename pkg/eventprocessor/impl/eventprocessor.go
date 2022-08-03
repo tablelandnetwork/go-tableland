@@ -234,8 +234,9 @@ func (ep *EventProcessor) executeBlock(ctx context.Context, block eventfeed.Bloc
 			IndexInBlock: int64(idxInBlock),
 			TxnHash:      txnEvents.TxnHash.Hex(),
 
-			Error:   txnExecResult.Error,
-			TableID: txnExecResult.TableID,
+			TableID:       txnExecResult.TableID,
+			Error:         txnExecResult.Error,
+			ErrorEventIdx: txnExecResult.ErrorEventIdx,
 		}
 		receipts = append(receipts, receipt)
 

@@ -19,27 +19,27 @@ import (
 func (ts *txnScope) executeRunSQLEvent(
 	ctx context.Context,
 	e *ethereum.ContractRunSQL,
-) (executor.TxnExecutionResult, error) {
+) (eventExecutionResult, error) {
 	mutatingStmts, err := ts.parser.ValidateMutatingQuery(e.Statement, ts.scopeVars.ChainID)
 	if err != nil {
 		err := fmt.Sprintf("parsing query: %s", err)
-		return executor.TxnExecutionResult{Error: &err}, nil
+		return eventExecutionResult{Error: &err}, nil
 	}
 	tableID := tableland.TableID(*e.TableId)
 	targetedTableID := mutatingStmts[0].GetTableID()
 	if targetedTableID.ToBigInt().Cmp(tableID.ToBigInt()) != 0 {
 		err := fmt.Sprintf("query targets table id %s and not %s", targetedTableID, tableID)
-		return executor.TxnExecutionResult{Error: &err}, nil
+		return eventExecutionResult{Error: &err}, nil
 	}
 	if err := ts.execWriteQueries(ctx, e.Caller, mutatingStmts, e.IsOwner, &policy{e.Policy}); err != nil {
 		var dbErr *executor.ErrQueryExecution
 		if errors.As(err, &dbErr) {
 			err := fmt.Sprintf("db query execution failed (code: %s, msg: %s)", dbErr.Code, dbErr.Msg)
-			return executor.TxnExecutionResult{Error: &err}, nil
+			return eventExecutionResult{Error: &err}, nil
 		}
-		return executor.TxnExecutionResult{}, fmt.Errorf("executing mutating-query: %s", err)
+		return eventExecutionResult{}, fmt.Errorf("executing mutating-query: %s", err)
 	}
-	return executor.TxnExecutionResult{TableID: &tableID}, nil
+	return eventExecutionResult{TableID: &tableID}, nil
 }
 
 func (ts *txnScope) execWriteQueries(

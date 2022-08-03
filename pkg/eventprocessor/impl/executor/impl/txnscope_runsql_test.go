@@ -69,6 +69,7 @@ func TestRunSQL_OneEventPerTxn(t *testing.T) {
 		res, err := execTxnWithRunSQLEvents(t, bs, 100, []string{`insert into foo_1337_100 values ('twoz');insert into foo_1337_101 values ('threez')`})
 		require.NoError(t, err)
 		require.NotNil(t, res.Error)
+		require.Equal(t, 0, *res.ErrorEventIdx)
 		assertExecTxnWithRunSQLEvents(t, bs, 100, []string{`insert into foo_1337_100 values ('fourz')`})
 
 		require.NoError(t, bs.Commit())
@@ -328,6 +329,7 @@ func TestRunSQL_WriteQueriesWithPolicies(t *testing.T) {
 		res, err := execTxnWithRunSQLEventsAndPolicy(t, bs, 100, []string{`update foo_1337_100 set zar = 'three'`}, policy)
 		require.NoError(t, err)
 		require.Nil(t, res.Error)
+		require.Nil(t, res.ErrorEventIdx)
 
 		require.NoError(t, bs.Commit())
 		require.NoError(t, bs.Close())
@@ -452,6 +454,7 @@ func TestWithCheck(t *testing.T) {
 		res, err := execTxnWithRunSQLEventsAndPolicy(t, bs, 100, []string{q}, policy)
 		require.NoError(t, err)
 		require.Nil(t, res.Error)
+		require.Nil(t, res.ErrorEventIdx)
 
 		require.NoError(t, bs.Commit())
 		require.NoError(t, bs.Close())

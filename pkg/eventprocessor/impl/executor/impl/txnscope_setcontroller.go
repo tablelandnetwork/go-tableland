@@ -14,9 +14,9 @@ import (
 func (ts *txnScope) executeSetControllerEvent(
 	ctx context.Context,
 	e *ethereum.ContractSetController,
-) (executor.TxnExecutionResult, error) {
+) (eventExecutionResult, error) {
 	if e.TableId == nil {
-		return executor.TxnExecutionResult{Error: &tableIDIsEmpty}, nil
+		return eventExecutionResult{Error: &tableIDIsEmpty}, nil
 	}
 	tableID := tableland.TableID(*e.TableId)
 
@@ -24,12 +24,12 @@ func (ts *txnScope) executeSetControllerEvent(
 		var dbErr *executor.ErrQueryExecution
 		if errors.As(err, &dbErr) {
 			err := fmt.Sprintf("set controller execution failed (code: %s, msg: %s)", dbErr.Code, dbErr.Msg)
-			return executor.TxnExecutionResult{Error: &err}, nil
+			return eventExecutionResult{Error: &err}, nil
 		}
-		return executor.TxnExecutionResult{}, fmt.Errorf("executing set controller: %s", err)
+		return eventExecutionResult{}, fmt.Errorf("executing set controller: %s", err)
 	}
 
-	return executor.TxnExecutionResult{TableID: &tableID}, nil
+	return eventExecutionResult{TableID: &tableID}, nil
 }
 
 // SetController sets and unsets the controller of a table.

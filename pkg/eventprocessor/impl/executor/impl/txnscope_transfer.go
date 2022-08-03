@@ -14,9 +14,9 @@ import (
 func (ts *txnScope) executeTransferEvent(
 	ctx context.Context,
 	e *ethereum.ContractTransferTable,
-) (executor.TxnExecutionResult, error) {
+) (eventExecutionResult, error) {
 	if e.TableId == nil {
-		return executor.TxnExecutionResult{Error: &tableIDIsEmpty}, nil
+		return eventExecutionResult{Error: &tableIDIsEmpty}, nil
 	}
 
 	tableID := tableland.TableID(*e.TableId)
@@ -24,9 +24,9 @@ func (ts *txnScope) executeTransferEvent(
 		var dbErr *executor.ErrQueryExecution
 		if errors.As(err, &dbErr) {
 			err := fmt.Sprintf("change table owner execution failed (code: %s, msg: %s)", dbErr.Code, dbErr.Msg)
-			return executor.TxnExecutionResult{Error: &err}, nil
+			return eventExecutionResult{Error: &err}, nil
 		}
-		return executor.TxnExecutionResult{}, fmt.Errorf("executing change table owner: %s", err)
+		return eventExecutionResult{}, fmt.Errorf("executing change table owner: %s", err)
 	}
 
 	privileges := tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate, tableland.PrivDelete}
@@ -34,20 +34,20 @@ func (ts *txnScope) executeTransferEvent(
 		var dbErr *executor.ErrQueryExecution
 		if errors.As(err, &dbErr) {
 			err := fmt.Sprintf("revoke privileges execution failed (code: %s, msg: %s)", dbErr.Code, dbErr.Msg)
-			return executor.TxnExecutionResult{Error: &err}, nil
+			return eventExecutionResult{Error: &err}, nil
 		}
-		return executor.TxnExecutionResult{}, fmt.Errorf("executing revoke privileges: %s", err)
+		return eventExecutionResult{}, fmt.Errorf("executing revoke privileges: %s", err)
 	}
 	if err := ts.executeGrantPrivilegesTx(ctx, tableID, e.To, privileges); err != nil {
 		var dbErr *executor.ErrQueryExecution
 		if errors.As(err, &dbErr) {
 			err := fmt.Sprintf("grant privileges execution failed (code: %s, msg: %s)", dbErr.Code, dbErr.Msg)
-			return executor.TxnExecutionResult{Error: &err}, nil
+			return eventExecutionResult{Error: &err}, nil
 		}
-		return executor.TxnExecutionResult{}, fmt.Errorf("executing grant privileges: %s", err)
+		return eventExecutionResult{}, fmt.Errorf("executing grant privileges: %s", err)
 	}
 
-	return executor.TxnExecutionResult{TableID: &tableID}, nil
+	return eventExecutionResult{TableID: &tableID}, nil
 }
 
 // changeTableOwner changes the owner of the table in the registry table.

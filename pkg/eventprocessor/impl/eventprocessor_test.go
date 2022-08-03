@@ -428,6 +428,3 @@ func (acl *aclMock) CheckPrivileges(
 ) (bool, error) {
 	return true, nil
 }
-
-// TODO(jsign) HOLD: add tests to see if half-executed **transaction** works correctly
-// since is a new case.

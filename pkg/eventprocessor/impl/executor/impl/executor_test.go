@@ -104,6 +104,7 @@ func TestMultiEventTxnBlock(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.Nil(t, res.Error)
+		require.Nil(t, res.ErrorEventIdx)
 		require.Equal(t, eventCreateTable.TableId.Int64(), res.TableID.ToBigInt().Int64())
 	}
 	// Txn 2
@@ -130,7 +131,9 @@ func TestMultiEventTxnBlock(t *testing.T) {
 			Events: []interface{}{eventCreateTable, eventInsertRow},
 		})
 		require.NoError(t, err)
-		require.NotNil(t, res.Error) // This Txn should fail.
+		// This Txn should fail.
+		require.NotNil(t, res.Error)
+		require.Equal(t, 1, *res.ErrorEventIdx)
 	}
 	// Txn 3
 	{
@@ -224,6 +227,7 @@ func newExecutorWithTable(t *testing.T, rowsLimit int) (*Executor, string) {
 	})
 	require.NoError(t, err)
 	require.Nil(t, res.Error)
+	require.Nil(t, res.ErrorEventIdx)
 	require.NotNil(t, res.TableID)
 
 	require.NoError(t, bs.Commit())
