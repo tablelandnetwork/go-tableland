@@ -42,7 +42,6 @@ func newBlockScope(
 ) *blockScope {
 	log := logger.With().
 		Str("component", "blockscope").
-		// TODO(jsign) LOW: fix all with chain_id
 		Int64("chain_id", int64(scopeVars.ChainID)).
 		Int64("block_number", blockNum).
 		Logger()
