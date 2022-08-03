@@ -199,8 +199,8 @@ func (ef *EventFeed) packEvents(logs []types.Log) ([]eventfeed.BlockEvents, erro
 			}
 		}
 		// New txn hash detected? -> Close the txn hash event grouping, and continue with the next.
-		if len(new.TxnEvents) == 0 || new.TxnEvents[len(new.TxnEvents)-1].TxnHash.String() != l.TxHash.String() {
-			new.TxnEvents = append(new.TxnEvents, eventfeed.TxnEvents{
+		if len(new.Txns) == 0 || new.Txns[len(new.Txns)-1].TxnHash.String() != l.TxHash.String() {
+			new.Txns = append(new.Txns, eventfeed.TxnEvents{
 				TxnHash: l.TxHash,
 			})
 		}
@@ -208,7 +208,7 @@ func (ef *EventFeed) packEvents(logs []types.Log) ([]eventfeed.BlockEvents, erro
 		if err != nil {
 			return nil, fmt.Errorf("couldn't parse event: %s", err)
 		}
-		new.TxnEvents[len(new.TxnEvents)-1].Events = append(new.TxnEvents[len(new.TxnEvents)-1].Events, event)
+		new.Txns[len(new.Txns)-1].Events = append(new.Txns[len(new.Txns)-1].Events, event)
 	}
 
 	return ret, nil

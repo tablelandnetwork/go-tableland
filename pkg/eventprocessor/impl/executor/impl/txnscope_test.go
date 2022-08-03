@@ -13,10 +13,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
+	"github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
-	"github.com/textileio/go-tableland/pkg/txn"
 	"github.com/textileio/go-tableland/tests"
 )
 
@@ -33,9 +33,9 @@ func TestExecWriteQueries(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, _, pool := newTxnProcessorWithTable(t, 0)
+		ex, _, pool := newExecutorWithTable(t, 0)
 
-		b, err := txnp.OpenBatch(ctx)
+		b, err := ex.NewBlockScope(ctx)
 		require.NoError(t, err)
 
 		wq1 := mustWriteStmt(t, `insert into foo_1337_100 values ('one')`)
@@ -44,7 +44,7 @@ func TestExecWriteQueries(t *testing.T) {
 
 		require.NoError(t, b.Commit())
 		require.NoError(t, b.Close())
-		require.NoError(t, txnp.Close(ctx))
+		require.NoError(t, ex.Close(ctx))
 
 		require.Equal(t, 1, tableRowCountT100(t, pool, "select count(*) from foo_1337_100"))
 	})
@@ -53,7 +53,7 @@ func TestExecWriteQueries(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, _, pool := newTxnProcessorWithTable(t, 0)
+		txnp, _, pool := newExecutorWithTable(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -86,7 +86,7 @@ func TestExecWriteQueries(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, _, pool := newTxnProcessorWithTable(t, 0)
+		txnp, _, pool := newExecutorWithTable(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -126,7 +126,7 @@ func TestExecWriteQueries(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, _, pool := newTxnProcessorWithTable(t, 0)
+		txnp, _, pool := newExecutorWithTable(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -157,7 +157,7 @@ func TestExecWriteQueries(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, dbURL, _ := newTxnProcessorWithTable(t, 0)
+		txnp, dbURL, _ := newExecutorWithTable(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -187,7 +187,7 @@ func TestExecWriteQueries(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, dbURL, _ := newTxnProcessorWithTable(t, 0)
+		txnp, dbURL, _ := newExecutorWithTable(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -235,7 +235,7 @@ func TestExecWriteQueries(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, dbURL, _ := newTxnProcessorWithTable(t, 0)
+		txnp, dbURL, _ := newExecutorWithTable(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -270,7 +270,7 @@ func TestReceiptExists(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
-	txnp, _, _ := newTxnProcessorWithTable(t, 0)
+	txnp, _, _ := newExecutorWithTable(t, 0)
 
 	txnHash := "0x0000000000000000000000000000000000000000000000000000000000001234"
 
@@ -313,7 +313,7 @@ func TestExecWriteQueriesWithPolicies(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, _, _ := newTxnProcessorWithTable(t, 0)
+		txnp, _, _ := newExecutorWithTable(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -329,7 +329,7 @@ func TestExecWriteQueriesWithPolicies(t *testing.T) {
 		require.NoError(t, err)
 
 		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq}, true, policy)
-		var errQueryExecution *txn.ErrQueryExecution
+		var errQueryExecution *executor.ErrQueryExecution
 		require.ErrorAs(t, err, &errQueryExecution)
 		require.ErrorContains(t, err, "insert is not allowed by policy")
 	})
@@ -338,7 +338,7 @@ func TestExecWriteQueriesWithPolicies(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, _, _ := newTxnProcessorWithTable(t, 0)
+		txnp, _, _ := newExecutorWithTable(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -354,7 +354,7 @@ func TestExecWriteQueriesWithPolicies(t *testing.T) {
 		require.NoError(t, err)
 
 		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq}, true, policy)
-		var errQueryExecution *txn.ErrQueryExecution
+		var errQueryExecution *executor.ErrQueryExecution
 		require.ErrorAs(t, err, &errQueryExecution)
 		require.ErrorContains(t, err, "update is not allowed by policy")
 	})
@@ -363,7 +363,7 @@ func TestExecWriteQueriesWithPolicies(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, _, _ := newTxnProcessorWithTable(t, 0)
+		txnp, _, _ := newExecutorWithTable(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -379,7 +379,7 @@ func TestExecWriteQueriesWithPolicies(t *testing.T) {
 		require.NoError(t, err)
 
 		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq}, true, policy)
-		var errQueryExecution *txn.ErrQueryExecution
+		var errQueryExecution *executor.ErrQueryExecution
 		require.ErrorAs(t, err, &errQueryExecution)
 		require.ErrorContains(t, err, "delete is not allowed by policy")
 	})
@@ -388,7 +388,7 @@ func TestExecWriteQueriesWithPolicies(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, _, _ := newTxnProcessorWithTable(t, 0)
+		txnp, _, _ := newExecutorWithTable(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -406,7 +406,7 @@ func TestExecWriteQueriesWithPolicies(t *testing.T) {
 		require.NoError(t, err)
 
 		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq}, true, policy)
-		var errQueryExecution *txn.ErrQueryExecution
+		var errQueryExecution *executor.ErrQueryExecution
 		require.ErrorAs(t, err, &errQueryExecution)
 		require.ErrorContains(t, err, "column zar is not allowed")
 	})
@@ -415,7 +415,7 @@ func TestExecWriteQueriesWithPolicies(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, _, pool := newTxnProcessorWithTable(t, 0)
+		txnp, _, pool := newExecutorWithTable(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -459,7 +459,7 @@ func TestRegisterTable(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, dbURL := newTxnProcessor(t, 0)
+		txnp, dbURL := newExecutor(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -498,7 +498,7 @@ func TestTableRowCountLimit(t *testing.T) {
 	ctx := context.Background()
 
 	rowLimit := 10
-	txnp, _, pool := newTxnProcessorWithTable(t, rowLimit)
+	txnp, _, pool := newExecutorWithTable(t, rowLimit)
 
 	// Helper func to insert a row and return an error if happened.
 	insertRow := func(t *testing.T) error {
@@ -521,7 +521,7 @@ func TestTableRowCountLimit(t *testing.T) {
 	require.Equal(t, rowLimit, tableRowCountT100(t, pool, "select count(*) from foo_1337_100"))
 
 	// The next insert should fail.
-	var errQueryExecution *txn.ErrQueryExecution
+	var errQueryExecution *executor.ErrQueryExecution
 	err := insertRow(t)
 	require.ErrorAs(t, err, &errQueryExecution)
 	require.ErrorContains(t, err,
@@ -539,7 +539,7 @@ func TestSetController(t *testing.T) {
 
 	t.Run("controller-is-not-set-default", func(t *testing.T) {
 		t.Parallel()
-		_, _, db := newTxnProcessorWithTable(t, 0)
+		_, _, db := newExecutorWithTable(t, 0)
 
 		// Let's test first that the controller is not set (it's the default behavior)
 		tx, err := db.BeginTx(ctx, &sql.TxOptions{
@@ -555,7 +555,7 @@ func TestSetController(t *testing.T) {
 
 	t.Run("foreign-key-constraint", func(t *testing.T) {
 		t.Parallel()
-		txnp, _, _ := newTxnProcessorWithTable(t, 0)
+		txnp, _, _ := newExecutorWithTable(t, 0)
 
 		// table id different than 100 violates foreign key
 		b, err := txnp.OpenBatch(ctx)
@@ -563,7 +563,7 @@ func TestSetController(t *testing.T) {
 		err = b.SetController(ctx, tableland.TableID(*big.NewInt(1)), common.HexToAddress("0x01"))
 		require.NoError(t, b.Commit())
 		require.Error(t, err)
-		var errQueryExecution *txn.ErrQueryExecution
+		var errQueryExecution *executor.ErrQueryExecution
 		require.NotErrorIs(t, err, errQueryExecution)
 		require.Contains(t, err.Error(), "FOREIGN KEY constraint failed")
 
@@ -573,7 +573,7 @@ func TestSetController(t *testing.T) {
 
 	t.Run("set-unset-controller", func(t *testing.T) {
 		t.Parallel()
-		txnp, _, db := newTxnProcessorWithTable(t, 0)
+		txnp, _, db := newExecutorWithTable(t, 0)
 
 		// sets
 		b, err := txnp.OpenBatch(ctx)
@@ -616,7 +616,7 @@ func TestSetController(t *testing.T) {
 
 	t.Run("upsert", func(t *testing.T) {
 		t.Parallel()
-		txnp, _, db := newTxnProcessorWithTable(t, 0)
+		txnp, _, db := newExecutorWithTable(t, 0)
 
 		{
 			b, err := txnp.OpenBatch(ctx)
@@ -656,7 +656,7 @@ func TestWithCheck(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, _, pool := newTxnProcessorWithTable(t, 0)
+		txnp, _, pool := newExecutorWithTable(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -673,7 +673,7 @@ func TestWithCheck(t *testing.T) {
 		require.NoError(t, err)
 
 		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq}, true, policy)
-		var errQueryExecution *txn.ErrQueryExecution
+		var errQueryExecution *executor.ErrQueryExecution
 		require.ErrorAs(t, err, &errQueryExecution)
 		require.ErrorContains(t, err, "number of affected rows 1 does not match auditing count 0")
 
@@ -688,7 +688,7 @@ func TestWithCheck(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, _, pool := newTxnProcessorWithTable(t, 0)
+		txnp, _, pool := newExecutorWithTable(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -709,7 +709,7 @@ func TestWithCheck(t *testing.T) {
 		})
 
 		err = b.ExecWriteQueries(ctx, controller, []parsing.MutatingStmt{wq2}, true, policy)
-		var errQueryExecution *txn.ErrQueryExecution
+		var errQueryExecution *executor.ErrQueryExecution
 		require.ErrorAs(t, err, &errQueryExecution)
 		require.ErrorContains(t, err, "number of affected rows 1 does not match auditing count 0")
 
@@ -725,7 +725,7 @@ func TestWithCheck(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		txnp, _, pool := newTxnProcessorWithTable(t, 0)
+		txnp, _, pool := newExecutorWithTable(t, 0)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -757,7 +757,7 @@ func TestWithCheck(t *testing.T) {
 		ctx := context.Background()
 
 		rowLimit := 10
-		txnp, _, pool := newTxnProcessorWithTable(t, rowLimit)
+		txnp, _, pool := newExecutorWithTable(t, rowLimit)
 
 		b, err := txnp.OpenBatch(ctx)
 		require.NoError(t, err)
@@ -795,7 +795,7 @@ func TestWithCheck(t *testing.T) {
 		require.Equal(t, rowLimit, tableRowCountT100(t, pool, "select count(*) from foo_1337_100"))
 
 		// The next insert should fail.
-		var errQueryExecution *txn.ErrQueryExecution
+		var errQueryExecution *executor.ErrQueryExecution
 		err = insertRow(t)
 		require.ErrorAs(t, err, &errQueryExecution)
 		require.ErrorContains(t, err,
@@ -811,7 +811,7 @@ func TestChangeTableOwner(t *testing.T) {
 	ctx := context.Background()
 
 	tableID := tableland.TableID(*big.NewInt(100))
-	txnp, _, db := newTxnProcessorWithTable(t, 0)
+	txnp, _, db := newExecutorWithTable(t, 0)
 
 	require.Equal(t, 1,
 		tableRowCountT100(
@@ -878,42 +878,43 @@ func existsTableWithName(t *testing.T, dbURL string, tableName string) bool {
 	return true
 }
 
-func newTxnProcessor(t *testing.T, rowsLimit int) (*TblTxnProcessor, string) {
+func newExecutor(t *testing.T, rowsLimit int) (*Executor, string) {
 	t.Helper()
 
-	url := tests.Sqlite3URI()
-	txnp, err := NewTxnProcessor(1337, url, rowsLimit, &aclMock{})
+	dbURI := tests.Sqlite3URI()
+
+	parser := newParser(t, []string{})
+	txnp, err := NewExecutor(1337, dbURI, parser, rowsLimit, &aclMock{})
 	require.NoError(t, err)
 
 	// Boostrap system store to run the db migrations.
-	_, err = system.New(url, tableland.ChainID(chainID))
+	_, err = system.New(dbURI, tableland.ChainID(chainID))
 	require.NoError(t, err)
-	return txnp, url
+	return txnp, dbURI
 }
 
-func newTxnProcessorWithTable(t *testing.T, rowsLimit int) (*TblTxnProcessor, string, *sql.DB) {
+func newExecutorWithTable(t *testing.T, rowsLimit int) (*Executor, string, *sql.DB) {
 	t.Helper()
 
-	txnp, dbURL := newTxnProcessor(t, rowsLimit)
+	ex, dbURL := newExecutor(t, rowsLimit)
 	ctx := context.Background()
 
-	b, err := txnp.OpenBatch(ctx)
+	bs, err := ex.NewBlockScope(ctx, 0, "0xFAKETXNHASH")
 	require.NoError(t, err)
 	id, err := tableland.NewTableID("100")
 	require.NoError(t, err)
-	parser := newParser(t, []string{})
-	createStmt, err := parser.ValidateCreateTable("create table foo_1337 (zar text)", 1337)
+	createStmt, err := bs.parser.ValidateCreateTable("create table foo_1337 (zar text)", 1337)
 	require.NoError(t, err)
-	err = b.InsertTable(ctx, id, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", createStmt)
+	err = bs.InsertTable(ctx, id, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", createStmt)
 	require.NoError(t, err)
 
-	require.NoError(t, b.Commit())
-	require.NoError(t, b.Close())
+	require.NoError(t, bs.Commit())
+	require.NoError(t, bs.Close())
 
 	pool, err := sql.Open("sqlite3", dbURL)
 	require.NoError(t, err)
 
-	return txnp, dbURL, pool
+	return ex, dbURL, pool
 }
 
 func mustWriteStmt(t *testing.T, q string) parsing.MutatingStmt {
@@ -963,16 +964,16 @@ type policyData struct {
 }
 
 func policyFactory(data policyData) tableland.Policy {
-	return policy{data}
+	return mockPolicy{data}
 }
 
-type policy struct {
+type mockPolicy struct {
 	policyData
 }
 
-func (p policy) IsInsertAllowed() bool      { return p.policyData.isInsertAllowed }
-func (p policy) IsUpdateAllowed() bool      { return p.policyData.isUpdateAllowed }
-func (p policy) IsDeleteAllowed() bool      { return p.policyData.isDeleteAllowed }
-func (p policy) WhereClause() string        { return p.policyData.whereClause }
-func (p policy) UpdatableColumns() []string { return p.policyData.updatableColumns }
-func (p policy) WithCheck() string          { return p.policyData.withCheck }
+func (p mockPolicy) IsInsertAllowed() bool      { return p.policyData.isInsertAllowed }
+func (p mockPolicy) IsUpdateAllowed() bool      { return p.policyData.isUpdateAllowed }
+func (p mockPolicy) IsDeleteAllowed() bool      { return p.policyData.isDeleteAllowed }
+func (p mockPolicy) WhereClause() string        { return p.policyData.whereClause }
+func (p mockPolicy) UpdatableColumns() []string { return p.policyData.updatableColumns }
+func (p mockPolicy) WithCheck() string          { return p.policyData.withCheck }

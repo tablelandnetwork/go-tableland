@@ -2,7 +2,6 @@ package impl
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"reflect"
 	"sync"
@@ -13,41 +12,37 @@ import (
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
+	"github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor"
 	"github.com/textileio/go-tableland/pkg/parsing"
-	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
-	"github.com/textileio/go-tableland/pkg/txn"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
 	"go.uber.org/atomic"
 )
 
-var (
-	// eventTypes are the event types that the event processor is interested to process
-	// and thus have execution logic for them.
-	eventTypes = []eventfeed.EventType{
-		eventfeed.RunSQL,
-		eventfeed.CreateTable,
-		eventfeed.SetController,
-		eventfeed.TransferTable,
-	}
-
-	tableIDIsEmpty = "table id is empty"
-)
+// eventTypes are the event types that the event processor is interested to process
+// and thus have execution logic for them.
+var eventTypes = []eventfeed.EventType{
+	eventfeed.RunSQL,
+	eventfeed.CreateTable,
+	eventfeed.SetController,
+	eventfeed.TransferTable,
+}
 
 // EventProcessor processes new events detected by an event feed.
 type EventProcessor struct {
-	log     zerolog.Logger
-	parser  parsing.SQLValidator
-	txnp    txn.TxnProcessor
-	ef      eventfeed.EventFeed
-	config  *eventprocessor.Config
-	chainID tableland.ChainID
+	log      zerolog.Logger
+	parser   parsing.SQLValidator
+	executor executor.Executor
+	ef       eventfeed.EventFeed
+	config   *eventprocessor.Config
+	chainID  tableland.ChainID
 
 	lock           sync.Mutex
 	daemonCtx      context.Context
 	daemonCancel   context.CancelFunc
 	daemonCanceled chan struct{}
 
+	// TODO(jsign): improve this.
 	// Metrics
 	mBaseLabels            []attribute.KeyValue
 	mExecutionRound        atomic.Int64
@@ -60,11 +55,15 @@ type EventProcessor struct {
 // New returns a new EventProcessor.
 func New(
 	parser parsing.SQLValidator,
-	txnp txn.TxnProcessor,
 	ef eventfeed.EventFeed,
 	chainID tableland.ChainID,
 	opts ...eventprocessor.Option,
 ) (*EventProcessor, error) {
+	log := logger.With().
+		Str("component", "eventprocessor").
+		Int64("chainID", int64(chainID)).
+		Logger()
+
 	config := eventprocessor.DefaultConfig()
 	for _, op := range opts {
 		if err := op(config); err != nil {
@@ -72,17 +71,13 @@ func New(
 		}
 	}
 
-	log := logger.With().
-		Str("component", "eventprocessor").
-		Int64("chainID", int64(chainID)).
-		Logger()
 	ep := &EventProcessor{
-		log:     log,
-		parser:  parser,
-		txnp:    txnp,
-		ef:      ef,
-		chainID: chainID,
-		config:  config,
+		log:      log,
+		parser:   parser,
+		executor: executor,
+		ef:       ef,
+		chainID:  chainID,
+		config:   config,
 	}
 	if err := ep.initMetrics(chainID); err != nil {
 		return nil, fmt.Errorf("initializing metric instruments: %s", err)
@@ -139,15 +134,15 @@ func (ep *EventProcessor) startDaemon() error {
 	// new events from that point forward.
 	ctx, cls := context.WithTimeout(ep.daemonCtx, time.Second*10)
 	defer cls()
-	b, err := ep.txnp.OpenBatch(ctx)
+	bs, err := ep.executor.NewBlockScope(ctx)
 	if err != nil {
 		return fmt.Errorf("opening batch in daemon: %s", err)
 	}
-	fromHeight, err := b.GetLastProcessedHeight(ctx)
+	fromHeight, err := bs.GetLastProcessedHeight(ctx)
 	if err != nil {
 		ep.log.Err(err).Msg("getting last processed height")
 	}
-	if err := b.Close(); err != nil {
+	if err := bs.Close(); err != nil {
 		return fmt.Errorf("closing batch: %s", err)
 	}
 	ep.mLastProcessedHeight.Store(fromHeight)
@@ -172,10 +167,10 @@ func (ep *EventProcessor) startDaemon() error {
 		defer close(ep.daemonCanceled)
 		defer ep.log.Info().Msg("processor gracefully closed")
 
-		for bqs := range ch {
-			// If a runBlockQueries execution fails, we keep retrying since it *must* be
+		for bes := range ch {
+			// If a runBlockEvents execution fails, we keep retrying since it *must* be
 			// a transient error (e.g: the database is down, disk is corrupted, etc).
-			// If the block has queries that failed execution but are part of the protocol,
+			// If the block has events that failed execution but are part of the protocol,
 			// those won't make the block execution fail but only that query.
 			// We should keep retrying because we *must* always be able to make progress.
 			//
@@ -191,8 +186,8 @@ func (ep *EventProcessor) startDaemon() error {
 				// Usually this value must be zero. Maybe 1 or 2 if
 				// the database is temporarily down. Higher values indicate that we're
 				// definitely stuck processing a block and definitely needs close attention.
-				if err := ep.runBlockQueries(ep.daemonCtx, bqs); err != nil {
-					ep.log.Error().Int("attempt", int(ep.mExecutionRound.Load())).Err(err).Msg("executing block queries")
+				if err := ep.executeBlock(ep.daemonCtx, bes); err != nil {
+					ep.log.Error().Int("attempt", int(ep.mExecutionRound.Load())).Err(err).Msg("executing block events")
 					ep.mExecutionRound.Inc()
 					time.Sleep(ep.config.BlockFailedExecutionBackoff)
 					continue
@@ -206,347 +201,81 @@ func (ep *EventProcessor) startDaemon() error {
 	return nil
 }
 
-func (ep *EventProcessor) runBlockQueries(ctx context.Context, bqs eventfeed.BlockEvents) error {
+func (ep *EventProcessor) executeBlock(ctx context.Context, block eventfeed.BlockEvents) error {
 	start := time.Now()
-	b, err := ep.txnp.OpenBatch(ctx)
+	bs, err := ep.executor.OpenBlockScope(ctx)
 	if err != nil {
-		return fmt.Errorf("opening batch: %s", err)
+		return fmt.Errorf("opening block scope: %s", err)
 	}
 	defer func() {
-		if err := b.Close(); err != nil {
-			ep.log.Error().Err(err).Msg("closing batch")
+		if err := bs.Close(); err != nil {
+			ep.log.Error().Err(err).Msg("closing block scope")
 		}
 	}()
 
+	// TODO(jsign): move this to block scope
 	// Get last processed height.
-	lastHeight, err := b.GetLastProcessedHeight(ctx)
+	lastHeight, err := bs.GetLastProcessedHeight(ctx)
 	if err != nil {
 		return fmt.Errorf("get last processed height: %s", err)
 	}
 
 	// The new height to process must be strictly greater than the last processed height.
-	if lastHeight >= bqs.BlockNumber {
-		return fmt.Errorf("last processed height %d isn't smaller than new height %d", lastHeight, bqs.BlockNumber)
+	if lastHeight >= block.BlockNumber {
+		return fmt.Errorf("last processed height %d isn't smaller than new height %d", lastHeight, block.BlockNumber)
 	}
 
-	receipts := make([]eventprocessor.Receipt, 0, len(bqs.TxnEvents))
-	for i, e := range bqs.TxnEvents {
+	receipts := make([]eventprocessor.Receipt, 0, len(block.Txns))
+	for idxInBlock, txn := range block.Txns {
 		if ep.config.DedupExecutedTxns {
-			ok, err := b.TxnReceiptExists(ctx, e.TxnHash)
+			ok, err := bs.TxnReceiptExists(ctx, txn.TxnHash)
 			if err != nil {
 				return fmt.Errorf("checking if receipt already exist: %s", err)
 			}
 			if ok {
 				ep.log.Info().
-					Str("txnHash", e.TxnHash.Hex()).
+					Str("txnHash", txn.TxnHash.Hex()).
 					Msg("skipping execution since was already processed due to a reorg")
 				continue
 			}
 		}
 
 		start := time.Now()
-		receipt, err := ep.executeEvent(ctx, b, bqs.BlockNumber, int64(i), e)
+		receipt, err := bs.ExecuteTxnEvents(ctx, block.BlockNumber, int64(idxInBlock), txn.Events)
 		if err != nil {
-			// Some retriable error happened, abort the block execution
-			// and retry later.
-			return fmt.Errorf("executing query: %s", err)
+			return fmt.Errorf("executing txn events: %s", err)
 		}
-
 		receipts = append(receipts, receipt)
 
-		attrs := append([]attribute.KeyValue{
-			attribute.String("eventtype", reflect.TypeOf(e.Events).String()),
-		}, ep.mBaseLabels...)
 		if receipt.Error != nil {
 			// Some acceptable failure happened (e.g: invalid syntax, inserting
 			// a string in an integer column, etc). Just log it, and move on.
 			ep.log.Info().Str("failCause", *receipt.Error).Msg("event execution failed")
 		}
-
+		attrs := append([]attribute.KeyValue{
+			attribute.String("eventtype", reflect.TypeOf(txn.Events).String()),
+		}, ep.mBaseLabels...)
 		ep.mEventExecutionCounter.Add(ctx, 1, attrs...)
 		ep.mEventExecutionLatency.Record(ctx, time.Since(start).Milliseconds(), attrs...)
 	}
 	// Save receipts.
-	if err := b.SaveTxnReceipts(ctx, receipts); err != nil {
+	if err := bs.SaveTxnReceipts(ctx, receipts); err != nil {
 		return fmt.Errorf("saving txn receipts: %s", err)
 	}
-	ep.log.Debug().Int64("height", bqs.BlockNumber).Int("receipts", len(receipts)).Msg("saved receipts")
+	ep.log.Debug().Int64("height", block.BlockNumber).Int("receipts", len(receipts)).Msg("saved receipts")
 
 	// Update the last processed height.
-	if err := b.SetLastProcessedHeight(ctx, bqs.BlockNumber); err != nil {
-		return fmt.Errorf("set new processed height %d: %s", bqs.BlockNumber, err)
+	if err := bs.SetLastProcessedHeight(ctx, block.BlockNumber); err != nil {
+		return fmt.Errorf("set new processed height %d: %s", block.BlockNumber, err)
 	}
 
-	if err := b.Commit(); err != nil {
+	if err := bs.Commit(); err != nil {
 		return fmt.Errorf("committing changes: %s", err)
 	}
-	ep.log.Debug().Int64("height", bqs.BlockNumber).Msg("new last processed height")
+	ep.log.Debug().Int64("height", block.BlockNumber).Msg("new last processed height")
 
-	ep.mLastProcessedHeight.Store(bqs.BlockNumber)
+	ep.mLastProcessedHeight.Store(block.BlockNumber)
 	ep.mBlockExecutionLatency.Record(ctx, time.Since(start).Milliseconds(), ep.mBaseLabels...)
 
 	return nil
-}
-
-// executeEvent executes an event. If the event execution was successful, it returns "", nil.
-// If the event execution:
-// 1) Has an acceptable execution failure, it returns the failure cause in the first return parameter,
-//    and nil in the second one.
-// 2) Has an unknown infrastructure error, then it returns ("", err) where err is the underlying error.
-//    Probably the caller will want to retry executing this event later when this problem is solved and
-//    retry the event.
-func (ep *EventProcessor) executeEvent(
-	ctx context.Context,
-	b txn.Batch,
-	blockNumber int64,
-	idxInBlock int64,
-	be eventfeed.TxnEvents,
-) (eventprocessor.Receipt, error) {
-	switch e := be.Events.(type) {
-	case *ethereum.ContractRunSQL:
-		ep.log.Debug().Str("statement", e.Statement).Msgf("executing run-sql event")
-		receipt, err := ep.executeRunSQLEvent(ctx, b, blockNumber, idxInBlock, be, e)
-		if err != nil {
-			return eventprocessor.Receipt{}, fmt.Errorf("executing runsql event: %s", err)
-		}
-		return receipt, nil
-	case *ethereum.ContractCreateTable:
-		ep.log.Debug().
-			Str("owner", e.Owner.Hex()).
-			Str("tokenId", e.TableId.String()).
-			Str("statement", e.Statement).
-			Msgf("executing create-table event")
-		receipt, err := ep.executeCreateTableEvent(ctx, b, blockNumber, idxInBlock, be, e)
-		if err != nil {
-			return eventprocessor.Receipt{}, fmt.Errorf("executing create-table event: %s", err)
-		}
-		return receipt, nil
-	case *ethereum.ContractSetController:
-		ep.log.Debug().
-			Str("controller", e.Controller.Hex()).
-			Str("tokenId", e.TableId.String()).
-			Msgf("executing set-controller event")
-		receipt, err := ep.executeSetControllerEvent(ctx, b, blockNumber, idxInBlock, be, e)
-		if err != nil {
-			return eventprocessor.Receipt{}, fmt.Errorf("executing set-controller event: %s", err)
-		}
-		return receipt, nil
-	case *ethereum.ContractTransferTable:
-		ep.log.Debug().
-			Str("from", e.From.Hex()).
-			Str("to", e.To.Hex()).
-			Str("tableId", e.TableId.String()).
-			Msgf("executing table transfer event")
-
-		receipt, err := ep.executeTransferEvent(ctx, b, blockNumber, idxInBlock, be, e)
-		if err != nil {
-			return eventprocessor.Receipt{}, fmt.Errorf("executing transfer event: %s", err)
-		}
-		return receipt, nil
-	default:
-		return eventprocessor.Receipt{}, fmt.Errorf("unknown event type %t", e)
-	}
-}
-
-func (ep *EventProcessor) executeCreateTableEvent(
-	ctx context.Context,
-	b txn.Batch,
-	blockNumber int64,
-	idxInBlock int64,
-	be eventfeed.TxnEvents,
-	e *ethereum.ContractCreateTable,
-) (eventprocessor.Receipt, error) {
-	receipt := eventprocessor.Receipt{
-		ChainID:      ep.chainID,
-		BlockNumber:  blockNumber,
-		IndexInBlock: idxInBlock,
-		TxnHash:      be.TxnHash.String(),
-	}
-	createStmt, err := ep.parser.ValidateCreateTable(e.Statement, ep.chainID)
-	if err != nil {
-		err := fmt.Sprintf("query validation: %s", err)
-		receipt.Error = &err
-		return receipt, nil
-	}
-
-	if e.TableId == nil {
-		receipt.Error = &tableIDIsEmpty
-		return receipt, nil
-	}
-	tableID := tableland.TableID(*e.TableId)
-
-	if err := b.InsertTable(ctx, tableID, e.Owner.Hex(), createStmt); err != nil {
-		var dbErr *txn.ErrQueryExecution
-		if errors.As(err, &dbErr) {
-			err := fmt.Sprintf("table creation execution failed (code: %s, msg: %s)", dbErr.Code, dbErr.Msg)
-			receipt.Error = &err
-			return receipt, nil
-		}
-		return eventprocessor.Receipt{}, fmt.Errorf("executing table creation: %s", err)
-	}
-	receipt.TableID = &tableID
-
-	return receipt, nil
-}
-
-func (ep *EventProcessor) executeRunSQLEvent(
-	ctx context.Context,
-	b txn.Batch,
-	blockNumber int64,
-	idxInBlock int64,
-	be eventfeed.TxnEvents,
-	e *ethereum.ContractRunSQL,
-) (eventprocessor.Receipt, error) {
-	receipt := eventprocessor.Receipt{
-		ChainID:      ep.chainID,
-		BlockNumber:  blockNumber,
-		IndexInBlock: idxInBlock,
-		TxnHash:      be.TxnHash.String(),
-	}
-
-	mutatingStmts, err := ep.parser.ValidateMutatingQuery(e.Statement, ep.chainID)
-	if err != nil {
-		err := fmt.Sprintf("parsing query: %s", err)
-		receipt.Error = &err
-		return receipt, nil
-	}
-	tableID := tableland.TableID(*e.TableId)
-	targetedTableID := mutatingStmts[0].GetTableID()
-	if targetedTableID.ToBigInt().Cmp(tableID.ToBigInt()) != 0 {
-		err := fmt.Sprintf("query targets table id %s and not %s", targetedTableID, tableID)
-		receipt.Error = &err
-		return receipt, nil
-	}
-	if err := b.ExecWriteQueries(ctx, e.Caller, mutatingStmts, e.IsOwner, &policy{e.Policy}); err != nil {
-		var dbErr *txn.ErrQueryExecution
-		if errors.As(err, &dbErr) {
-			err := fmt.Sprintf("db query execution failed (code: %s, msg: %s)", dbErr.Code, dbErr.Msg)
-			receipt.Error = &err
-			return receipt, nil
-		}
-		return eventprocessor.Receipt{}, fmt.Errorf("executing mutating-query: %s", err)
-	}
-	tblID := mutatingStmts[0].GetTableID()
-	receipt.TableID = &tblID
-
-	return receipt, nil
-}
-
-func (ep *EventProcessor) executeSetControllerEvent(
-	ctx context.Context,
-	b txn.Batch,
-	blockNumber int64,
-	idxInBlock int64,
-	be eventfeed.TxnEvents,
-	e *ethereum.ContractSetController,
-) (eventprocessor.Receipt, error) {
-	receipt := eventprocessor.Receipt{
-		ChainID:      ep.chainID,
-		BlockNumber:  blockNumber,
-		IndexInBlock: idxInBlock,
-		TxnHash:      be.TxnHash.String(),
-	}
-
-	if e.TableId == nil {
-		receipt.Error = &tableIDIsEmpty
-		return receipt, nil
-	}
-	tableID := tableland.TableID(*e.TableId)
-
-	if err := b.SetController(ctx, tableID, e.Controller); err != nil {
-		var dbErr *txn.ErrQueryExecution
-		if errors.As(err, &dbErr) {
-			err := fmt.Sprintf("set controller execution failed (code: %s, msg: %s)", dbErr.Code, dbErr.Msg)
-			receipt.Error = &err
-			return receipt, nil
-		}
-		return eventprocessor.Receipt{}, fmt.Errorf("executing set controller: %s", err)
-	}
-
-	receipt.TableID = &tableID
-
-	return receipt, nil
-}
-
-func (ep *EventProcessor) executeTransferEvent(
-	ctx context.Context,
-	b txn.Batch,
-	blockNumber int64,
-	idxInBlock int64,
-	be eventfeed.TxnEvents,
-	e *ethereum.ContractTransferTable,
-) (eventprocessor.Receipt, error) {
-	receipt := eventprocessor.Receipt{
-		ChainID:      ep.chainID,
-		BlockNumber:  blockNumber,
-		IndexInBlock: idxInBlock,
-		TxnHash:      be.TxnHash.String(),
-	}
-
-	if e.TableId == nil {
-		receipt.Error = &tableIDIsEmpty
-		return receipt, nil
-	}
-
-	tableID := tableland.TableID(*e.TableId)
-	if err := b.ChangeTableOwner(ctx, tableID, e.To); err != nil {
-		var dbErr *txn.ErrQueryExecution
-		if errors.As(err, &dbErr) {
-			err := fmt.Sprintf("change table owner execution failed (code: %s, msg: %s)", dbErr.Code, dbErr.Msg)
-			receipt.Error = &err
-			return receipt, nil
-		}
-		return eventprocessor.Receipt{}, fmt.Errorf("executing change table owner: %s", err)
-	}
-
-	privileges := tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate, tableland.PrivDelete}
-	if err := b.RevokePrivileges(ctx, tableID, e.From, privileges); err != nil {
-		var dbErr *txn.ErrQueryExecution
-		if errors.As(err, &dbErr) {
-			err := fmt.Sprintf("revoke privileges execution failed (code: %s, msg: %s)", dbErr.Code, dbErr.Msg)
-			receipt.Error = &err
-			return receipt, nil
-		}
-		return eventprocessor.Receipt{}, fmt.Errorf("executing revoke privileges: %s", err)
-	}
-	if err := b.GrantPrivileges(ctx, tableID, e.To, privileges); err != nil {
-		var dbErr *txn.ErrQueryExecution
-		if errors.As(err, &dbErr) {
-			err := fmt.Sprintf("grant privileges execution failed (code: %s, msg: %s)", dbErr.Code, dbErr.Msg)
-			receipt.Error = &err
-			return receipt, nil
-		}
-		return eventprocessor.Receipt{}, fmt.Errorf("executing grant privileges: %s", err)
-	}
-
-	receipt.TableID = &tableID
-	return receipt, nil
-}
-
-type policy struct {
-	ethereum.ITablelandControllerPolicy
-}
-
-func (p *policy) IsInsertAllowed() bool {
-	return p.ITablelandControllerPolicy.AllowInsert
-}
-
-func (p *policy) IsUpdateAllowed() bool {
-	return p.ITablelandControllerPolicy.AllowUpdate
-}
-
-func (p *policy) IsDeleteAllowed() bool {
-	return p.ITablelandControllerPolicy.AllowDelete
-}
-
-func (p *policy) WhereClause() string {
-	return p.ITablelandControllerPolicy.WhereClause
-}
-
-func (p *policy) UpdatableColumns() []string {
-	return p.ITablelandControllerPolicy.UpdatableColumns
-}
-
-func (p *policy) WithCheck() string {
-	return p.ITablelandControllerPolicy.WithCheck
 }

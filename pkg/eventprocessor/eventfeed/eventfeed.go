@@ -28,7 +28,7 @@ type EventFeed interface {
 // BlockEvents contains a set of events for a particular block height.
 type BlockEvents struct {
 	BlockNumber int64
-	TxnEvents   []TxnEvents
+	Txns        []TxnEvents
 }
 
 // TxnEvents contains all events in a transaction.
