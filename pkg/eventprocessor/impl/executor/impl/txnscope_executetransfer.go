@@ -7,7 +7,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/textileio/go-tableland/internal/tableland"
-	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
@@ -17,17 +16,9 @@ func (ts *txnScope) executeTransferEvent(
 	ctx context.Context,
 	be eventfeed.TxnEvents,
 	e *ethereum.ContractTransferTable,
-) (eventprocessor.Receipt, error) {
-	receipt := eventprocessor.Receipt{
-		ChainID:      ts.chainID,
-		BlockNumber:  ts.blockNumber,
-		IndexInBlock: ts.idxInBlock,
-		TxnHash:      be.TxnHash.String(),
-	}
-
+) (executor.TxnExecutionResult, error) {
 	if e.TableId == nil {
-		receipt.Error = &tableIDIsEmpty
-		return receipt, nil
+		return executor.TxnExecutionResult{Error: &tableIDIsEmpty}, nil
 	}
 
 	tableID := tableland.TableID(*e.TableId)
@@ -35,10 +26,9 @@ func (ts *txnScope) executeTransferEvent(
 		var dbErr *executor.ErrQueryExecution
 		if errors.As(err, &dbErr) {
 			err := fmt.Sprintf("change table owner execution failed (code: %s, msg: %s)", dbErr.Code, dbErr.Msg)
-			receipt.Error = &err
-			return receipt, nil
+			return executor.TxnExecutionResult{Error: &err}, nil
 		}
-		return tableland.TableID{}, fmt.Errorf("executing change table owner: %s", err)
+		return executor.TxnExecutionResult{}, fmt.Errorf("executing change table owner: %s", err)
 	}
 
 	privileges := tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate, tableland.PrivDelete}
@@ -46,23 +36,20 @@ func (ts *txnScope) executeTransferEvent(
 		var dbErr *executor.ErrQueryExecution
 		if errors.As(err, &dbErr) {
 			err := fmt.Sprintf("revoke privileges execution failed (code: %s, msg: %s)", dbErr.Code, dbErr.Msg)
-			receipt.Error = &err
-			return receipt, nil
+			return executor.TxnExecutionResult{Error: &err}, nil
 		}
-		return tableland.TableID{}, fmt.Errorf("executing revoke privileges: %s", err)
+		return executor.TxnExecutionResult{}, fmt.Errorf("executing revoke privileges: %s", err)
 	}
 	if err := ts.executeGrantPrivilegesTx(ctx, tableID, e.To, privileges); err != nil {
 		var dbErr *executor.ErrQueryExecution
 		if errors.As(err, &dbErr) {
 			err := fmt.Sprintf("grant privileges execution failed (code: %s, msg: %s)", dbErr.Code, dbErr.Msg)
-			receipt.Error = &err
-			return receipt, nil
+			return executor.TxnExecutionResult{Error: &err}, nil
 		}
-		return tableland.TableID{}, fmt.Errorf("executing grant privileges: %s", err)
+		return executor.TxnExecutionResult{}, fmt.Errorf("executing grant privileges: %s", err)
 	}
 
-	receipt.TableID = &tableID
-	return receipt, nil
+	return executor.TxnExecutionResult{TableID: &tableID}, nil
 }
 
 // changeTableOwner changes the owner of the table in the registry table.

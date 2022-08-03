@@ -28,7 +28,7 @@ type BlockScope interface {
 	// changes were applied. Changes aren't fully commited to the database until Commit(...) is called.
 	// If the execution of events in the transaction fails, the client should distinguish between errors of type
 	// ErrQueryExecution which aren't recoverable, and infrastructure errors which are recoverable.
-	ExecuteTxnEvents(context.Context, int64, eventfeed.TxnEvents) (TxnExecutionResult, error)
+	ExecuteTxnEvents(context.Context, eventfeed.TxnEvents) (TxnExecutionResult, error)
 
 	// GetLastProcessedHeight returns the last processed height.
 	GetLastProcessedHeight(ctx context.Context) (int64, error)

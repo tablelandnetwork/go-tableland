@@ -12,6 +12,7 @@ import (
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
+	"github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor"
 	"github.com/textileio/go-tableland/pkg/parsing"
 )
 
@@ -58,9 +59,9 @@ func newBlockScope(
 //    and nil in the second one.
 // 2) If it has an unknown infrastructure error, then it returns ("", err) where err is the underlying error.
 // The caller will want to retry executing this event later when this problem is solved and retry the event.
-func (bs *blockScope) ExecuteTxnEvents(ctx context.Context, evmTxn eventfeed.TxnEvents) (tableland.TableID, error) {
+func (bs *blockScope) ExecuteTxnEvents(ctx context.Context, evmTxn eventfeed.TxnEvents) (executor.TxnExecutionResult, error) {
 	if _, err := bs.txn.ExecContext(ctx, "SAVEPOINT txnscope"); err != nil {
-		return tableland.TableID{}, fmt.Errorf("creating savepoint: %s", err)
+		return executor.TxnExecutionResult{}, fmt.Errorf("creating savepoint: %s", err)
 	}
 
 	log := logger.With().
@@ -79,12 +80,12 @@ func (bs *blockScope) ExecuteTxnEvents(ctx context.Context, evmTxn eventfeed.Txn
 	tableID, err := ts.executeTxnEvents(ctx, bs.txn, evmTxn)
 	if err != nil {
 		if _, err := bs.txn.ExecContext(ctx, "ROLLBACK TO txnscope"); err != nil {
-			return tableland.TableID{}, fmt.Errorf("rollbacking savepoint: %s", err)
+			return executor.TxnExecutionResult{}, fmt.Errorf("rollbacking savepoint: %s", err)
 		}
-		return tableland.TableID{}, fmt.Errorf("executing query: %w", err)
+		return executor.TxnExecutionResult{}, fmt.Errorf("executing query: %w", err)
 	}
 	if _, err := bs.txn.ExecContext(ctx, "RELEASE SAVEPOINT txnscope"); err != nil {
-		return tableland.TableID{}, fmt.Errorf("releasing savepoint: %s", err)
+		return executor.TxnExecutionResult{}, fmt.Errorf("releasing savepoint: %s", err)
 	}
 
 	return tableID, nil

@@ -7,7 +7,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/textileio/go-tableland/internal/tableland"
-	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
@@ -17,17 +16,9 @@ func (ts *txnScope) executeSetControllerEvent(
 	ctx context.Context,
 	be eventfeed.TxnEvents,
 	e *ethereum.ContractSetController,
-) (eventprocessor.Receipt, error) {
-	receipt := eventprocessor.Receipt{
-		ChainID:      ts.chainID,
-		BlockNumber:  ts.blockNumber,
-		IndexInBlock: ts.idxInBlock,
-		TxnHash:      be.TxnHash.String(),
-	}
-
+) (executor.TxnExecutionResult, error) {
 	if e.TableId == nil {
-		receipt.Error = &tableIDIsEmpty
-		return receipt, nil
+		return executor.TxnExecutionResult{Error: &tableIDIsEmpty}, nil
 	}
 	tableID := tableland.TableID(*e.TableId)
 
@@ -35,15 +26,12 @@ func (ts *txnScope) executeSetControllerEvent(
 		var dbErr *executor.ErrQueryExecution
 		if errors.As(err, &dbErr) {
 			err := fmt.Sprintf("set controller execution failed (code: %s, msg: %s)", dbErr.Code, dbErr.Msg)
-			receipt.Error = &err
-			return receipt, nil
+			return executor.TxnExecutionResult{Error: &err}, nil
 		}
-		return tableland.TableID{}, fmt.Errorf("executing set controller: %s", err)
+		return executor.TxnExecutionResult{}, fmt.Errorf("executing set controller: %s", err)
 	}
 
-	receipt.TableID = &tableID
-
-	return receipt, nil
+	return executor.TxnExecutionResult{TableID: &tableID}, nil
 }
 
 // SetController sets and unsets the controller of a table.

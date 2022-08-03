@@ -11,7 +11,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/textileio/go-tableland/internal/tableland"
-	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor"
 	"github.com/textileio/go-tableland/pkg/parsing"
@@ -22,40 +21,27 @@ func (ts *txnScope) executeRunSQLEvent(
 	ctx context.Context,
 	be eventfeed.TxnEvents,
 	e *ethereum.ContractRunSQL,
-) (eventprocessor.Receipt, error) {
-	receipt := eventprocessor.Receipt{
-		ChainID:      ts.chainID,
-		BlockNumber:  ts.blockNumber,
-		IndexInBlock: ts.idxInBlock,
-		TxnHash:      be.TxnHash.String(),
-	}
-
+) (executor.TxnExecutionResult, error) {
 	mutatingStmts, err := ts.parser.ValidateMutatingQuery(e.Statement, ts.chainID)
 	if err != nil {
 		err := fmt.Sprintf("parsing query: %s", err)
-		receipt.Error = &err
-		return receipt, nil
+		return executor.TxnExecutionResult{Error: &err}, nil
 	}
 	tableID := tableland.TableID(*e.TableId)
 	targetedTableID := mutatingStmts[0].GetTableID()
 	if targetedTableID.ToBigInt().Cmp(tableID.ToBigInt()) != 0 {
 		err := fmt.Sprintf("query targets table id %s and not %s", targetedTableID, tableID)
-		receipt.Error = &err
-		return receipt, nil
+		return executor.TxnExecutionResult{Error: &err}, nil
 	}
 	if err := ts.execWriteQueries(ctx, e.Caller, mutatingStmts, e.IsOwner, &policy{e.Policy}); err != nil {
 		var dbErr *executor.ErrQueryExecution
 		if errors.As(err, &dbErr) {
 			err := fmt.Sprintf("db query execution failed (code: %s, msg: %s)", dbErr.Code, dbErr.Msg)
-			receipt.Error = &err
-			return receipt, nil
+			return executor.TxnExecutionResult{Error: &err}, nil
 		}
-		return tableland.TableID{}, fmt.Errorf("executing mutating-query: %s", err)
+		return executor.TxnExecutionResult{}, fmt.Errorf("executing mutating-query: %s", err)
 	}
-	tblID := mutatingStmts[0].GetTableID()
-	receipt.TableID = &tblID
-
-	return receipt, nil
+	return executor.TxnExecutionResult{TableID: &tableID}, nil
 }
 
 func (ts *txnScope) execWriteQueries(
