@@ -59,7 +59,7 @@ func NewExecutor(
 
 	log := logger.With().
 		Str("component", "txnprocessor").
-		Int64("chainID", int64(chainID)).
+		Int64("chain_id", int64(chainID)).
 		Logger()
 	tblp := &Executor{
 		log:          log,

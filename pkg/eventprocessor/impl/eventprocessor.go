@@ -61,7 +61,7 @@ func New(
 ) (*EventProcessor, error) {
 	log := logger.With().
 		Str("component", "eventprocessor").
-		Int64("chainID", int64(chainID)).
+		Int64("chain_id", int64(chainID)).
 		Logger()
 
 	config := eventprocessor.DefaultConfig()
@@ -215,7 +215,7 @@ func (ep *EventProcessor) executeBlock(ctx context.Context, block eventfeed.Bloc
 			}
 			if ok {
 				ep.log.Info().
-					Str("txnHash", txnEvents.TxnHash.Hex()).
+					Str("txn_hash", txnEvents.TxnHash.Hex()).
 					Msg("skipping execution since was already processed due to a reorg")
 				continue
 			}
@@ -242,7 +242,7 @@ func (ep *EventProcessor) executeBlock(ctx context.Context, block eventfeed.Bloc
 		if receipt.Error != nil {
 			// Some acceptable failure happened (e.g: invalid syntax, inserting
 			// a string in an integer column, etc). Just log it, and move on.
-			ep.log.Info().Str("failCause", *receipt.Error).Msg("event execution failed")
+			ep.log.Info().Str("fail_cause", *receipt.Error).Msg("event execution failed")
 		}
 		attrs := append([]attribute.KeyValue{
 			attribute.String("eventtype", reflect.TypeOf(txnEvents.Events).String()),

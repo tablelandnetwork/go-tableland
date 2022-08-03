@@ -61,7 +61,7 @@ func New(
 	}
 	log := logger.With().
 		Str("component", "eventfeed").
-		Int64("chainID", int64(chainID)).
+		Int64("chain_id", int64(chainID)).
 		Logger()
 	ef := &EventFeed{
 		log:                log,
@@ -113,7 +113,7 @@ func (ef *EventFeed) Start(
 		if h.Number.Int64()%100 == 0 {
 			ef.log.Debug().
 				Int64("height", h.Number.Int64()).
-				Int64("maxBlocksFetchSize", int64(ef.maxBlocksFetchSize)).
+				Int64("max_blocks_fetch_size", int64(ef.maxBlocksFetchSize)).
 				Msg("received new chain header")
 		}
 		// We do a for loop since we'll try to catch from fromHeight to the new reported

@@ -76,11 +76,11 @@ func main() {
 	chainStacks := map[tableland.ChainID]chains.ChainStack{}
 	for _, chainCfg := range config.Chains {
 		if _, ok := chainStacks[chainCfg.ChainID]; ok {
-			log.Fatal().Int64("chainId", int64(chainCfg.ChainID)).Msg("chain id configuration is duplicated")
+			log.Fatal().Int64("chain_id", int64(chainCfg.ChainID)).Msg("chain id configuration is duplicated")
 		}
 		chainStack, err := createChainIDStack(chainCfg, databaseURL, parser, config.TableConstraints)
 		if err != nil {
-			log.Fatal().Int64("chainId", int64(chainCfg.ChainID)).Err(err).Msg("spinning up chain stack")
+			log.Fatal().Int64("chain_id", int64(chainCfg.ChainID)).Err(err).Msg("spinning up chain stack")
 		}
 		chainStacks[chainCfg.ChainID] = chainStack
 	}
@@ -178,7 +178,7 @@ func main() {
 				ctx, cls := context.WithTimeout(context.Background(), time.Second*15)
 				defer cls()
 				if err := stack.Close(ctx); err != nil {
-					log.Error().Err(err).Int64("chainID", int64(chainID)).Msg("finalizing chain stack")
+					log.Error().Err(err).Int64("chain_id", int64(chainID)).Msg("finalizing chain stack")
 				}
 			}(chainID, stack)
 		}
@@ -222,7 +222,7 @@ func createChainIDStack(
 		return chains.ChainStack{}, fmt.Errorf("failed to create wallet: %s", err)
 	}
 	log.Info().
-		Int64("chainID", int64(config.ChainID)).
+		Int64("chain_id", int64(config.ChainID)).
 		Str("wallet", wallet.Address().String()).
 		Msg("wallet public address")
 
@@ -305,13 +305,13 @@ func createChainIDStack(
 		Registry:              registry,
 		AllowTransactionRelay: config.AllowTransactionRelay,
 		Close: func(ctx context.Context) error {
-			log.Info().Int64("chainId", int64(config.ChainID)).Msg("closing stack...")
-			defer log.Info().Int64("chainId", int64(config.ChainID)).Msg("stack closed")
+			log.Info().Int64("chain_id", int64(config.ChainID)).Msg("closing stack...")
+			defer log.Info().Int64("chain_id", int64(config.ChainID)).Msg("stack closed")
 
 			ep.Stop()
 			conn.Close()
 			if err := systemStore.Close(); err != nil {
-				log.Error().Int64("chainId", int64(config.ChainID)).Err(err).Msg("closing system store")
+				log.Error().Int64("chain_id", int64(config.ChainID)).Err(err).Msg("closing system store")
 			}
 			return nil
 		},

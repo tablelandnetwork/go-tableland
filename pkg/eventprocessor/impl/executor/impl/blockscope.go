@@ -43,7 +43,7 @@ func newBlockScope(
 	log := logger.With().
 		Str("component", "blockscope").
 		// TODO(jsign) LOW: fix all with chain_id
-		Int64("chainID", int64(scopeVars.ChainID)).
+		Int64("chain_id", int64(scopeVars.ChainID)).
 		Int64("block_number", blockNum).
 		Logger()
 
@@ -77,8 +77,8 @@ func (bs *blockScope) ExecuteTxnEvents(ctx context.Context, evmTxn eventfeed.Txn
 		scopeVars: bs.scopeVars,
 		log: logger.With().
 			Str("component", "txnscope").
-			Int64("chainID", int64(bs.scopeVars.ChainID)).
-			Str("txnHash", evmTxn.TxnHash.String()).
+			Int64("chain_iD", int64(bs.scopeVars.ChainID)).
+			Str("txn_hash", evmTxn.TxnHash.String()).
 			Logger(),
 
 		txn: bs.txn,

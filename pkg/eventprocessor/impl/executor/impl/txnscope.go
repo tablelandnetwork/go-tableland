@@ -60,7 +60,7 @@ func (ts *txnScope) executeTxnEvents(ctx context.Context, tx *sql.Tx, evmTxn eve
 		case *ethereum.ContractCreateTable:
 			ts.log.Debug().
 				Str("owner", event.Owner.Hex()).
-				Str("tokenId", event.TableId.String()).
+				Str("token_id", event.TableId.String()).
 				Str("statement", event.Statement).
 				Msgf("executing create-table event")
 			res, err = ts.executeCreateTableEvent(ctx, event)
@@ -70,7 +70,7 @@ func (ts *txnScope) executeTxnEvents(ctx context.Context, tx *sql.Tx, evmTxn eve
 		case *ethereum.ContractSetController:
 			ts.log.Debug().
 				Str("controller", event.Controller.Hex()).
-				Str("tokenId", event.TableId.String()).
+				Str("token_id", event.TableId.String()).
 				Msgf("executing set-controller event")
 			res, err = ts.executeSetControllerEvent(ctx, event)
 			if err != nil {

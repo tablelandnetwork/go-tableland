@@ -20,7 +20,7 @@ func TraceID(next http.Handler) http.Handler {
 		traceID := uuid.String()
 
 		ctx := r.Context()
-		logger := log.With().Str("traceId", traceID).Logger()
+		logger := log.With().Str("trace_id", traceID).Logger()
 		r = r.WithContext(logger.WithContext(ctx))
 		w.Header().Set("Trace-ID", traceID)
 

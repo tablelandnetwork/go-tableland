@@ -69,7 +69,7 @@ func (c *SystemController) GetTablesByController(rw http.ResponseWriter, r *http
 		log.Ctx(ctx).
 			Error().
 			Err(err).
-			Str("requestAddress", controller).
+			Str("request_address", controller).
 			Msg("failed to fetch tables")
 
 		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Failed to fetch tables"})

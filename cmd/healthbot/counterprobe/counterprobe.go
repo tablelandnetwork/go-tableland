@@ -51,7 +51,7 @@ func New(
 ) (*CounterProbe, error) {
 	log := logger.With().
 		Str("component", "healthbot").
-		Str("chainName", chainName).
+		Str("chain_name", chainName).
 		Logger()
 
 	if receiptTimeout == 0 {
