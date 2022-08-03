@@ -163,7 +163,7 @@ func (ef *EventFeed) Start(
 				return fmt.Errorf("packing events: %s", err)
 			}
 			for i := range blocksEvents {
-				ch <- blocksEvents[i]
+				ch <- *blocksEvents[i]
 			}
 
 			// Update our fromHeight to the latest processed height plus one.
@@ -182,21 +182,20 @@ func (ef *EventFeed) Start(
 // 1) First, by block_number.
 // 2) Within a block_number, by txn_hash.
 // Remember that one block contains multiple txns, and each txn can have more than one event.
-func (ef *EventFeed) packEvents(logs []types.Log) ([]eventfeed.BlockEvents, error) {
+func (ef *EventFeed) packEvents(logs []types.Log) ([]*eventfeed.BlockEvents, error) {
 	if len(logs) == 0 {
 		return nil, nil
 	}
 
-	var ret []eventfeed.BlockEvents
-
-	var new eventfeed.BlockEvents
+	var ret []*eventfeed.BlockEvents
+	var new *eventfeed.BlockEvents
 	for _, l := range logs {
 		// New block number detected? -> Close the block grouping.
-		if new.BlockNumber != int64(l.BlockNumber) {
-			ret = append(ret, new)
-			new = eventfeed.BlockEvents{
+		if new == nil || new.BlockNumber != int64(l.BlockNumber) {
+			new = &eventfeed.BlockEvents{
 				BlockNumber: int64(l.BlockNumber),
 			}
+			ret = append(ret, new)
 		}
 		// New txn hash detected? -> Close the txn hash event grouping, and continue with the next.
 		if len(new.Txns) == 0 || new.Txns[len(new.Txns)-1].TxnHash.String() != l.TxHash.String() {

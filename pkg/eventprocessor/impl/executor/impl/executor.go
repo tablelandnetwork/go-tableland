@@ -51,7 +51,7 @@ func NewExecutor(
 	)); err != nil {
 		return nil, fmt.Errorf("registering dbstats: %s", err)
 	}
-	// TODO(jsign): MaxIdleConnections(0)
+	// TODO(jsign): MaxIdleConnections(0) and other places
 	pool.SetMaxOpenConns(1)
 	if maxTableRowCount < 0 {
 		return nil, fmt.Errorf("maximum table row count is negative")

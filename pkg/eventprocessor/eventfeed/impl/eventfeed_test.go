@@ -64,7 +64,7 @@ func TestRunSQLEvents(t *testing.T) {
 	case bes := <-ch:
 		require.Len(t, bes.Txns, 1)
 		require.NotEqual(t, emptyHash, bes.Txns[0].TxnHash)
-		require.IsType(t, &ethereum.ContractRunSQL{}, bes.Txns[0].Events)
+		require.IsType(t, &ethereum.ContractRunSQL{}, bes.Txns[0].Events[0])
 	case <-time.After(time.Second):
 		t.Fatalf("didn't receive expected log")
 	}
@@ -81,12 +81,14 @@ func TestRunSQLEvents(t *testing.T) {
 		require.Len(t, bes.Txns, 2)
 		require.NotEqual(t, emptyHash, bes.Txns[0].TxnHash)
 		require.NotEqual(t, emptyHash, bes.Txns[1].TxnHash)
-		require.IsType(t, &ethereum.ContractRunSQL{}, bes.Txns[0].Events)
-		require.IsType(t, &ethereum.ContractRunSQL{}, bes.Txns[1].Events)
+		require.IsType(t, &ethereum.ContractRunSQL{}, bes.Txns[0].Events[0])
+		require.IsType(t, &ethereum.ContractRunSQL{}, bes.Txns[1].Events[0])
 	case <-time.After(time.Second):
 		t.Fatalf("didn't receive expected log")
 	}
 }
+
+// TODO(jsign): add tests to check things like bes.Txns[0].Events[0 and 1] since is a new case.
 
 func TestAllEvents(t *testing.T) {
 	t.Parallel()
@@ -143,10 +145,10 @@ func TestAllEvents(t *testing.T) {
 		require.Len(t, bes.Txns, 4)
 		require.NotEqual(t, emptyHash, bes.Txns[0].TxnHash)
 		require.NotEqual(t, emptyHash, bes.Txns[1].TxnHash)
-		require.IsType(t, &ethereum.ContractCreateTable{}, bes.Txns[0].Events)
-		require.IsType(t, &ethereum.ContractRunSQL{}, bes.Txns[1].Events)
-		require.IsType(t, &ethereum.ContractSetController{}, bes.Txns[2].Events)
-		require.IsType(t, &ethereum.ContractTransferTable{}, bes.Txns[3].Events)
+		require.IsType(t, &ethereum.ContractCreateTable{}, bes.Txns[0].Events[0])
+		require.IsType(t, &ethereum.ContractRunSQL{}, bes.Txns[1].Events[0])
+		require.IsType(t, &ethereum.ContractSetController{}, bes.Txns[2].Events[0])
+		require.IsType(t, &ethereum.ContractTransferTable{}, bes.Txns[3].Events[0])
 	case <-time.After(time.Second):
 		t.Fatalf("didn't receive expected log")
 	}
