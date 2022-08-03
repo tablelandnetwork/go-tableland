@@ -5,7 +5,7 @@ import (
 )
 
 const getReceipt = `
-SELECT chain_id, block_number, index_in_block, txn_hash, error, table_id from system_txn_receipts WHERE chain_id=?1 and txn_hash=?2
+SELECT chain_id, block_number, index_in_block, txn_hash, error, error_event_idx, table_id from system_txn_receipts WHERE chain_id=?1 and txn_hash=?2
 `
 
 type GetReceiptParams struct {
@@ -22,6 +22,7 @@ func (q *Queries) GetReceipt(ctx context.Context, arg GetReceiptParams) (SystemT
 		&i.IndexInBlock,
 		&i.TxnHash,
 		&i.Error,
+		&i.ErrorEventIdx,
 		&i.TableID,
 	)
 	return i, err

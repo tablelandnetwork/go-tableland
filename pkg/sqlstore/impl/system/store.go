@@ -312,6 +312,9 @@ func (s *SystemStore) GetReceipt(
 	}
 	if res.Error.Valid {
 		receipt.Error = &res.Error.String
+
+		errorEventIdx := int(res.ErrorEventIdx.Int64)
+		receipt.ErrorEventIdx = &errorEventIdx
 	}
 	if res.TableID.Valid {
 		id, err := tableland.NewTableIDFromInt64(res.TableID.Int64)
