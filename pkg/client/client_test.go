@@ -197,7 +197,7 @@ func setup(t *testing.T) clientCalls {
 	require.NoError(t, err)
 
 	// Spin up dependencies needed for the EventProcessor.
-	// i.e: TxnProcessor, Parser, and EventFeed (connected to the EVM chain)
+	// i.e: Executor, Parser, and EventFeed (connected to the EVM chain)
 	ef, err := efimpl.New(1337, backend, addr, eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
 

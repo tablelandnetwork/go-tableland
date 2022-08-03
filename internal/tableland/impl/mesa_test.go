@@ -975,7 +975,7 @@ func (b *tablelandSetupBuilder) build(t *testing.T) *tablelandSetup {
 	backend, addr, sc, auth, sk := testutil.Setup(t)
 
 	// Spin up dependencies needed for the EventProcessor.
-	// i.e: TxnProcessor, Parser, and EventFeed (connected to the EVM chain)
+	// i.e: Executor, Parser, and EventFeed (connected to the EVM chain)
 	ef, err := efimpl.New(1337, backend, addr, eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
 

@@ -58,7 +58,7 @@ func NewExecutor(
 	}
 
 	log := logger.With().
-		Str("component", "txnprocessor").
+		Str("component", "executor").
 		Int64("chain_id", int64(chainID)).
 		Logger()
 	tblp := &Executor{
