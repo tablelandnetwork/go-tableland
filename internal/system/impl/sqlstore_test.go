@@ -3,6 +3,7 @@ package impl
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"testing"
 	"time"
 
@@ -44,9 +45,9 @@ func TestSystemSQLStoreService(t *testing.T) {
 	res, err := bs.ExecuteTxnEvents(ctx, eventfeed.TxnEvents{
 		TxnHash: common.HexToHash("0x0"),
 		Events: []interface{}{
-			&ethereum.ContractRunSQL{
-				IsOwner:   true,
-				Caller:    common.HexToAddress("0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF"),
+			&ethereum.ContractCreateTable{
+				TableId:   big.NewInt(42),
+				Owner:     common.HexToAddress("0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF"),
 				Statement: "create table foo_1337 (bar int)",
 			},
 		},
