@@ -95,31 +95,36 @@ func TestSystemSQLStoreService(t *testing.T) {
 func TestGetSchemaByTableName(t *testing.T) {
 	t.Parallel()
 
-	url := tests.Sqlite3URI()
+	dbURI := tests.Sqlite3URI()
 
 	ctx := context.WithValue(context.Background(), middlewares.ContextKeyChainID, tableland.ChainID(1337))
-	store, err := system.New(url, chainID)
-	require.NoError(t, err)
-
-	// populate the registry with a table
-	txnp, err := txnimpl.NewTxnProcessor(1337, url, 0, nil)
-	require.NoError(t, err)
-	b, err := txnp.OpenBatch(ctx)
+	store, err := system.New(dbURI, chainID)
 	require.NoError(t, err)
 
 	parser, err := parserimpl.New([]string{"system_", "registry"})
 	require.NoError(t, err)
-	id, _ := tableland.NewTableID("42")
-	createStmt, err := parser.ValidateCreateTable(
-		"create table foo_1337 (a int primary key, b text not null default 'foo' unique, check (a > 0))",
-		1337,
-	)
+
+	// populate the registry with a table
+	ex, err := executor.NewExecutor(1337, dbURI, parser, 0, nil)
+	require.NoError(t, err)
+	bs, err := ex.NewBlockScope(ctx, 0)
 	require.NoError(t, err)
 
-	err = b.InsertTable(ctx, id, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", createStmt)
+	res, err := bs.ExecuteTxnEvents(ctx, eventfeed.TxnEvents{
+		TxnHash: common.HexToHash("0x0"),
+		Events: []interface{}{
+			&ethereum.ContractCreateTable{
+				TableId:   big.NewInt(42),
+				Owner:     common.HexToAddress("0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF"),
+				Statement: "create table foo_1337 (a int primary key, b text not null default 'foo' unique, check (a > 0))",
+			},
+		},
+	})
 	require.NoError(t, err)
-	require.NoError(t, b.Commit())
-	require.NoError(t, b.Close())
+	require.Nil(t, res.Error)
+	require.Nil(t, res.ErrorEventIdx)
+	require.NoError(t, bs.Commit())
+	require.NoError(t, bs.Close())
 
 	stack := map[tableland.ChainID]sqlstore.SystemStore{1337: store}
 	svc, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables")

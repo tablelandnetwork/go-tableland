@@ -205,7 +205,7 @@ func (s *SystemStore) ReplacePendingTxByHash(ctx context.Context, oldHash common
 
 // GetTablesByStructure gets all tables with a particular structure hash.
 func (s *SystemStore) GetTablesByStructure(ctx context.Context, structure string) ([]sqlstore.Table, error) {
-	rows, err := s.db.queries().GetTablesByStructure(ctx, db.GetTablesByStructureParams{
+	rows, err := s.dbWithTx.queries().GetTablesByStructure(ctx, db.GetTablesByStructureParams{
 		ChainID:   int64(s.chainID),
 		Structure: structure,
 	})
@@ -226,7 +226,7 @@ func (s *SystemStore) GetTablesByStructure(ctx context.Context, structure string
 
 // GetSchemaByTableName get the schema of a table by its name.
 func (s *SystemStore) GetSchemaByTableName(ctx context.Context, name string) (sqlstore.TableSchema, error) {
-	createStmt, err := s.db.queries().GetSchemaByTableName(ctx, db.GetSchemaByTableNameParams{
+	createStmt, err := s.dbWithTx.queries().GetSchemaByTableName(ctx, db.GetSchemaByTableNameParams{
 		TableName: name,
 	})
 	if err != nil {
