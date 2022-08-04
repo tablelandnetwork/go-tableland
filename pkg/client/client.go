@@ -38,11 +38,12 @@ type Config struct {
 
 // TxnReceipt is a Tableland event processing receipt.
 type TxnReceipt struct {
-	ChainID     ChainID `json:"chain_id"`
-	TxnHash     string  `json:"txn_hash"`
-	BlockNumber int64   `json:"block_number"`
-	Error       *string `json:"error,omitempty"`
-	TableID     *string `json:"table_id,omitempty"`
+	ChainID       ChainID `json:"chain_id"`
+	TxnHash       string  `json:"txn_hash"`
+	BlockNumber   int64   `json:"block_number"`
+	Error         string  `json:"error,omitempty"`
+	ErrorEventIdx int     `json:"error_event_idx"`
+	TableID       *string `json:"table_id,omitempty"`
 }
 
 // TableID is the ID of a Table.
@@ -300,12 +301,14 @@ func (c *Client) getReceipt(ctx context.Context, txnHash string) (*TxnReceipt, b
 	if !res.Ok {
 		return nil, res.Ok, nil
 	}
+
 	receipt := TxnReceipt{
-		ChainID:     ChainID(res.Receipt.ChainID),
-		TxnHash:     res.Receipt.TxnHash,
-		BlockNumber: res.Receipt.BlockNumber,
-		Error:       res.Receipt.Error,
-		TableID:     res.Receipt.TableID,
+		ChainID:       ChainID(res.Receipt.ChainID),
+		TxnHash:       res.Receipt.TxnHash,
+		BlockNumber:   res.Receipt.BlockNumber,
+		Error:         res.Receipt.Error,
+		ErrorEventIdx: res.Receipt.ErrorEventIdx,
+		TableID:       res.Receipt.TableID,
 	}
 	return &receipt, res.Ok, nil
 }

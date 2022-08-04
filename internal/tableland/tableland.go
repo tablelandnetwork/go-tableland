@@ -43,8 +43,8 @@ type TxnReceipt struct {
 	BlockNumber int64   `json:"block_number"`
 
 	TableID       *string `json:"table_id,omitempty"`
-	Error         *string `json:"error,omitempty"`
-	ErrorEventIdx int     `json:"error_event_idx,omitempty"`
+	Error         string  `json:"error"`
+	ErrorEventIdx int     `json:"error_event_idx"`
 }
 
 // GetReceiptResponse is a GetTxnReceipt response.

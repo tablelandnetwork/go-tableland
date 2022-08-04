@@ -164,8 +164,8 @@ func (cp *CounterProbe) increaseCounterValue(ctx context.Context) error {
 			return fmt.Errorf("calling tableland_getReceipt: %s", err)
 		}
 		if getReceiptResponse.Ok {
-			if getReceiptResponse.Receipt.Error != nil {
-				return fmt.Errorf("receipt found but has an error %s", *getReceiptResponse.Receipt.Error)
+			if getReceiptResponse.Receipt.Error != "" {
+				return fmt.Errorf("receipt found but has an error %s", getReceiptResponse.Receipt.Error)
 			}
 			cp.log.Info().Int64("duration", time.Since(start).Milliseconds()).Msg("receipt confirmed")
 			return nil

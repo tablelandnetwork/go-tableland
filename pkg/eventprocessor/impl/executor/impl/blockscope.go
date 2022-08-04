@@ -68,7 +68,7 @@ func (bs *blockScope) ExecuteTxnEvents(
 	ctx context.Context,
 	evmTxn eventfeed.TxnEvents,
 ) (executor.TxnExecutionResult, error) {
-	// Create nested transaction from the blockScope. All the events for this trasaction will be executed here.
+	// Create nested transaction from the blockScope. All the events for this transaction will be executed here.
 	if _, err := bs.txn.ExecContext(ctx, "SAVEPOINT txnscope"); err != nil {
 		return executor.TxnExecutionResult{}, fmt.Errorf("creating savepoint: %s", err)
 	}

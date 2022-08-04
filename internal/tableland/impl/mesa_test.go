@@ -886,12 +886,11 @@ func requireReceipts(ctx context.Context, t *testing.T, tbld tableland.Tableland
 		require.Equal(t, txnHash, txnHash)
 		require.NotZero(t, r.Receipt.BlockNumber)
 		if ok {
-			require.Nil(t, r.Receipt.Error)
+			require.Empty(t, r.Receipt.Error)
 			require.NotNil(t, r.Receipt.TableID)
 			require.NotZero(t, r.Receipt.TableID)
 		} else {
-			require.NotNil(t, r.Receipt.Error)
-			require.NotEmpty(t, *r.Receipt.Error)
+			require.NotEmpty(t, r.Receipt.Error)
 			require.Nil(t, r.Receipt.TableID)
 		}
 	}
