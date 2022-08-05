@@ -643,7 +643,7 @@
           "refId": "A"
         }
       ],
-      "title": "Last detected block height",
+      "title": "Last detected block number",
       "type": "timeseries"
     },
     {
@@ -731,7 +731,7 @@
           "refId": "A"
         }
       ],
-      "title": "Last processed block height",
+      "title": "Last processed block number",
       "type": "timeseries"
     },
     {
@@ -954,7 +954,7 @@
             "uid": "P1809F7CD0C75ACF3"
           },
           "exemplar": false,
-          "expr": "sum(rate(tableland_eventprocessor_event_execution_latency_bucket{service_name=\"tableland:api\"}[$__interval])) by (le)",
+          "expr": "sum(rate(tableland_eventprocessor_txn_execution_latency_bucket{service_name=\"tableland:api\"}[$__interval])) by (le)",
           "format": "heatmap",
           "instant": false,
           "interval": "",
@@ -962,7 +962,7 @@
           "refId": "A"
         }
       ],
-      "title": "Event processing latency",
+      "title": "EVM transaction processing latency",
       "tooltip": {
         "show": true,
         "showHistogram": false
@@ -2682,13 +2682,13 @@
     "list": []
   },
   "time": {
-    "from": "now-3h",
+    "from": "now-1h",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Validator",
   "uid": "2Le7qt_7z",
-  "version": 5,
+  "version": 8,
   "weekStart": ""
 }
