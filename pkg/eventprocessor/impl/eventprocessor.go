@@ -48,7 +48,7 @@ type EventProcessor struct {
 	mLastProcessedHeight   atomic.Int64
 	mBlockExecutionLatency syncint64.Histogram
 	mEventExecutionCounter syncint64.Counter
-	mEventExecutionLatency syncint64.Histogram
+	mTxnExecutionLatency   syncint64.Histogram
 }
 
 // New returns a new EventProcessor.
@@ -222,7 +222,6 @@ func (ep *EventProcessor) executeBlock(ctx context.Context, block eventfeed.Bloc
 		}
 
 		start := time.Now()
-		// block.BlockNumber, int64(idxInBlock),
 		txnExecResult, err := bs.ExecuteTxnEvents(ctx, txnEvents)
 		if err != nil {
 			return fmt.Errorf("executing txn events: %s", err)
@@ -244,11 +243,14 @@ func (ep *EventProcessor) executeBlock(ctx context.Context, block eventfeed.Bloc
 			// a string in an integer column, etc). Just log it, and move on.
 			ep.log.Info().Str("fail_cause", *receipt.Error).Msg("event execution failed")
 		}
-		attrs := append([]attribute.KeyValue{
-			attribute.String("eventtype", reflect.TypeOf(txnEvents.Events).String()),
-		}, ep.mBaseLabels...)
-		ep.mEventExecutionCounter.Add(ctx, 1, attrs...)
-		ep.mEventExecutionLatency.Record(ctx, time.Since(start).Milliseconds(), attrs...)
+
+		for _, e := range txnEvents.Events {
+			attrs := append([]attribute.KeyValue{
+				attribute.String("eventtype", reflect.TypeOf(e).String()),
+			}, ep.mBaseLabels...)
+			ep.mEventExecutionCounter.Add(ctx, 1, attrs...)
+		}
+		ep.mTxnExecutionLatency.Record(ctx, time.Since(start).Milliseconds(), ep.mBaseLabels...)
 	}
 	// Save receipts.
 	if err := bs.SaveTxnReceipts(ctx, receipts); err != nil {
