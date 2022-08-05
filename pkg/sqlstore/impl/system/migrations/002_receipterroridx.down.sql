@@ -1,0 +1,1 @@
+ALTER TABLE system_txn_receipts DROP COLUMN error_event_idx;

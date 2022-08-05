@@ -27,6 +27,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
 	epimpl "github.com/textileio/go-tableland/pkg/eventprocessor/impl"
+	executor "github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor/impl"
 	"github.com/textileio/go-tableland/pkg/nonce/impl"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
@@ -35,7 +36,6 @@ import (
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/tables/impl/testutil"
-	txnpimpl "github.com/textileio/go-tableland/pkg/txn/impl"
 	"github.com/textileio/go-tableland/pkg/wallet"
 	"github.com/textileio/go-tableland/tests"
 )
@@ -886,12 +886,11 @@ func requireReceipts(ctx context.Context, t *testing.T, tbld tableland.Tableland
 		require.Equal(t, txnHash, txnHash)
 		require.NotZero(t, r.Receipt.BlockNumber)
 		if ok {
-			require.Nil(t, r.Receipt.Error)
+			require.Empty(t, r.Receipt.Error)
 			require.NotNil(t, r.Receipt.TableID)
 			require.NotZero(t, r.Receipt.TableID)
 		} else {
-			require.NotNil(t, r.Receipt.Error)
-			require.NotEmpty(t, *r.Receipt.Error)
+			require.NotEmpty(t, r.Receipt.Error)
 			require.Nil(t, r.Receipt.TableID)
 		}
 	}
@@ -960,34 +959,34 @@ func (b *tablelandSetupBuilder) withParsingOpts(opts ...parsing.Option) *tablela
 
 func (b *tablelandSetupBuilder) build(t *testing.T) *tablelandSetup {
 	t.Helper()
-	url := tests.Sqlite3URI()
+	dbURI := tests.Sqlite3URI()
 
 	ctx := context.WithValue(context.Background(), middlewares.ContextKeyChainID, tableland.ChainID(1337))
-	store, err := system.New(url, tableland.ChainID(1337))
+	store, err := system.New(dbURI, tableland.ChainID(1337))
 	require.NoError(t, err)
 
 	parser, err := parserimpl.New([]string{"system_", "registry", "sqlite_"}, b.parsingOpts...)
 	require.NoError(t, err)
 
-	txnp, err := txnpimpl.NewTxnProcessor(1337, url, 0, &aclHalfMock{store})
+	ex, err := executor.NewExecutor(1337, dbURI, parser, 0, &aclHalfMock{store})
 	require.NoError(t, err)
 
 	backend, addr, sc, auth, sk := testutil.Setup(t)
 
 	// Spin up dependencies needed for the EventProcessor.
-	// i.e: TxnProcessor, Parser, and EventFeed (connected to the EVM chain)
+	// i.e: Executor, Parser, and EventFeed (connected to the EVM chain)
 	ef, err := efimpl.New(1337, backend, addr, eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
 
 	// Create EventProcessor for our test.
-	ep, err := epimpl.New(parser, txnp, ef, 1337)
+	ep, err := epimpl.New(parser, ex, ef, 1337)
 	require.NoError(t, err)
 
 	err = ep.Start()
 	require.NoError(t, err)
 	t.Cleanup(func() { ep.Stop() })
 
-	userStore, err := user.New(url)
+	userStore, err := user.New(dbURI)
 	require.NoError(t, err)
 
 	return &tablelandSetup{

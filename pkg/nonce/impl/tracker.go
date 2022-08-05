@@ -68,7 +68,7 @@ func NewLocalTracker(
 ) (*LocalTracker, error) {
 	log := logger.With().
 		Str("component", "nonce").
-		Int64("chainId", int64(chainID)).
+		Int64("chain_id", int64(chainID)).
 		Logger()
 	t := &LocalTracker{
 		log:         log,
@@ -250,9 +250,9 @@ func (t *LocalTracker) checkIfPendingTxWasIncluded(
 		t.log.Debug().
 			Str("hash", pendingTx.Hash.Hex()).
 			Int64("nonce", pendingTx.Nonce).
-			Int64("blockDiff", blockDiff).
-			Int64("headNumber", h.Number.Int64()).
-			Int64("blockNumber", txReceipt.BlockNumber.Int64()).
+			Int64("block_diff", blockDiff).
+			Int64("head_number", h.Number.Int64()).
+			Int64("block_number", txReceipt.BlockNumber.Int64()).
 			Msg("block difference is not enough")
 
 		return noncepkg.ErrBlockDiffNotEnough
@@ -411,10 +411,10 @@ func (t *LocalTracker) bumpTxnGas(ctx context.Context, txnHash common.Hash) (com
 		Data:     pendingTxn.Data(),
 	}
 	t.log.Info().
-		Int64("oldGasPrice", pendingTxn.GasPrice().Int64()).
-		Int64("candidateOldPrice+25", candidateOldGasPricePlus25.Int64()).
-		Int64("candidateGasPriceSuggested", candidateGasPriceSuggested.Int64()).
-		Int64("newDecidedGasPrice", newGasPrice.Int64()).
+		Int64("old_gas_price", pendingTxn.GasPrice().Int64()).
+		Int64("candidate_old_price+25", candidateOldGasPricePlus25.Int64()).
+		Int64("candidate_gas_price_suggested", candidateGasPriceSuggested.Int64()).
+		Int64("new_decided_gas_price", newGasPrice.Int64()).
 		Msg("bumped txn gas price summary")
 
 	signer := types.NewLondonSigner(big.NewInt(int64(t.chainID)))

@@ -24,6 +24,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
 	epimpl "github.com/textileio/go-tableland/pkg/eventprocessor/impl"
+	executor "github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor/impl"
 	"github.com/textileio/go-tableland/pkg/logging"
 	"github.com/textileio/go-tableland/pkg/metrics"
 	nonceimpl "github.com/textileio/go-tableland/pkg/nonce/impl"
@@ -33,8 +34,6 @@ import (
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
-	"github.com/textileio/go-tableland/pkg/txn"
-	txnimpl "github.com/textileio/go-tableland/pkg/txn/impl"
 	"github.com/textileio/go-tableland/pkg/wallet"
 )
 
@@ -77,11 +76,11 @@ func main() {
 	chainStacks := map[tableland.ChainID]chains.ChainStack{}
 	for _, chainCfg := range config.Chains {
 		if _, ok := chainStacks[chainCfg.ChainID]; ok {
-			log.Fatal().Int64("chainId", int64(chainCfg.ChainID)).Msg("chain id configuration is duplicated")
+			log.Fatal().Int64("chain_id", int64(chainCfg.ChainID)).Msg("chain id configuration is duplicated")
 		}
 		chainStack, err := createChainIDStack(chainCfg, databaseURL, parser, config.TableConstraints)
 		if err != nil {
-			log.Fatal().Int64("chainId", int64(chainCfg.ChainID)).Err(err).Msg("spinning up chain stack")
+			log.Fatal().Int64("chain_id", int64(chainCfg.ChainID)).Err(err).Msg("spinning up chain stack")
 		}
 		chainStacks[chainCfg.ChainID] = chainStack
 	}
@@ -179,7 +178,7 @@ func main() {
 				ctx, cls := context.WithTimeout(context.Background(), time.Second*15)
 				defer cls()
 				if err := stack.Close(ctx); err != nil {
-					log.Error().Err(err).Int64("chainID", int64(chainID)).Msg("finalizing chain stack")
+					log.Error().Err(err).Int64("chain_id", int64(chainID)).Msg("finalizing chain stack")
 				}
 			}(chainID, stack)
 		}
@@ -199,11 +198,11 @@ func main() {
 
 func createChainIDStack(
 	config ChainConfig,
-	databaseURL string,
+	dbURI string,
 	parser parsing.SQLValidator,
 	tableConstraints TableConstraints,
 ) (chains.ChainStack, error) {
-	store, err := system.New(databaseURL, config.ChainID)
+	store, err := system.New(dbURI, config.ChainID)
 	if err != nil {
 		return chains.ChainStack{}, fmt.Errorf("failed initialize sqlstore: %s", err)
 	}
@@ -223,7 +222,7 @@ func createChainIDStack(
 		return chains.ChainStack{}, fmt.Errorf("failed to create wallet: %s", err)
 	}
 	log.Info().
-		Int64("chainID", int64(config.ChainID)).
+		Int64("chain_id", int64(config.ChainID)).
 		Str("wallet", wallet.Address().String()).
 		Msg("wallet public address")
 
@@ -265,8 +264,7 @@ func createChainIDStack(
 
 	acl := impl.NewACL(systemStore, registry)
 
-	var txnp txn.TxnProcessor
-	txnp, err = txnimpl.NewTxnProcessor(config.ChainID, databaseURL, tableConstraints.MaxRowCount, acl)
+	ex, err := executor.NewExecutor(config.ChainID, dbURI, parser, tableConstraints.MaxRowCount, acl)
 	if err != nil {
 		return chains.ChainStack{}, fmt.Errorf("creating txn processor: %s", err)
 	}
@@ -295,7 +293,7 @@ func createChainIDStack(
 		eventprocessor.WithBlockFailedExecutionBackoff(blockFailedExecutionBackoff),
 		eventprocessor.WithDedupExecutedTxns(config.EventProcessor.DedupExecutedTxns),
 	}
-	ep, err := epimpl.New(parser, txnp, ef, config.ChainID, epOpts...)
+	ep, err := epimpl.New(parser, ex, ef, config.ChainID, epOpts...)
 	if err != nil {
 		return chains.ChainStack{}, fmt.Errorf("creating event processor")
 	}
@@ -307,13 +305,13 @@ func createChainIDStack(
 		Registry:              registry,
 		AllowTransactionRelay: config.AllowTransactionRelay,
 		Close: func(ctx context.Context) error {
-			log.Info().Int64("chainId", int64(config.ChainID)).Msg("closing stack...")
-			defer log.Info().Int64("chainId", int64(config.ChainID)).Msg("stack closed")
+			log.Info().Int64("chain_id", int64(config.ChainID)).Msg("closing stack...")
+			defer log.Info().Int64("chain_id", int64(config.ChainID)).Msg("stack closed")
 
 			ep.Stop()
 			conn.Close()
 			if err := systemStore.Close(); err != nil {
-				log.Error().Int64("chainId", int64(config.ChainID)).Err(err).Msg("closing system store")
+				log.Error().Int64("chain_id", int64(config.ChainID)).Err(err).Msg("closing system store")
 			}
 			return nil
 		},

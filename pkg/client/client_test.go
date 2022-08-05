@@ -26,9 +26,10 @@ import (
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/tables/impl/testutil"
-	txnpimpl "github.com/textileio/go-tableland/pkg/txn/impl"
 	"github.com/textileio/go-tableland/pkg/wallet"
 	"github.com/textileio/go-tableland/tests"
+
+	executor "github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor/impl"
 )
 
 func TestCreate(t *testing.T) {
@@ -139,15 +140,15 @@ func setup(t *testing.T) clientCalls {
 
 	ctx := context.Background()
 
-	url := tests.Sqlite3URI()
+	dbURI := tests.Sqlite3URI()
 
-	store, err := system.New(url, tableland.ChainID(1337))
+	store, err := system.New(dbURI, tableland.ChainID(1337))
 	require.NoError(t, err)
 
 	parser, err := parserimpl.New([]string{"system_", "registry", "sqlite_"})
 	require.NoError(t, err)
 
-	txnp, err := txnpimpl.NewTxnProcessor(1337, url, 0, &aclHalfMock{store})
+	ex, err := executor.NewExecutor(1337, dbURI, parser, 0, &aclHalfMock{store})
 	require.NoError(t, err)
 
 	backend, addr, _, _, sk := testutil.Setup(t)
@@ -164,7 +165,7 @@ func setup(t *testing.T) clientCalls {
 	)
 	require.NoError(t, err)
 
-	userStore, err := user.New(url)
+	userStore, err := user.New(dbURI)
 	require.NoError(t, err)
 
 	chainStack := map[tableland.ChainID]chains.ChainStack{
@@ -196,12 +197,12 @@ func setup(t *testing.T) clientCalls {
 	require.NoError(t, err)
 
 	// Spin up dependencies needed for the EventProcessor.
-	// i.e: TxnProcessor, Parser, and EventFeed (connected to the EVM chain)
+	// i.e: Executor, Parser, and EventFeed (connected to the EVM chain)
 	ef, err := efimpl.New(1337, backend, addr, eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
 
 	// Create EventProcessor for our test.
-	ep, err := epimpl.New(parser, txnp, ef, 1337)
+	ep, err := epimpl.New(parser, ex, ef, 1337)
 	require.NoError(t, err)
 
 	err = ep.Start()

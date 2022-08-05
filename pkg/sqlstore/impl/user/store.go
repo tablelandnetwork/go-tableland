@@ -17,24 +17,25 @@ var log = logger.With().Str("component", "userstore").Logger()
 
 // UserStore provides access to the db store.
 type UserStore struct {
-	pool *sql.DB
+	db *sql.DB
 }
 
 // New creates a new UserStore.
 func New(dbURI string) (*UserStore, error) {
-	pool, err := otelsql.Open("sqlite3", dbURI, otelsql.WithAttributes(
+	db, err := otelsql.Open("sqlite3", dbURI, otelsql.WithAttributes(
 		attribute.String("name", "userstore"),
 	))
 	if err != nil {
 		return nil, fmt.Errorf("connecting to db: %s", err)
 	}
-	if err := otelsql.RegisterDBStatsMetrics(pool, otelsql.WithAttributes(
+	db.SetMaxIdleConns(0)
+	if err := otelsql.RegisterDBStatsMetrics(db, otelsql.WithAttributes(
 		attribute.String("name", "userstore"),
 	)); err != nil {
 		return nil, fmt.Errorf("registering dbstats: %s", err)
 	}
 	return &UserStore{
-		pool: pool,
+		db: db,
 	}, nil
 }
 
@@ -44,7 +45,7 @@ func (db *UserStore) Read(ctx context.Context, rq parsing.ReadStmt) (interface{}
 	if err != nil {
 		return nil, fmt.Errorf("get query: %s", err)
 	}
-	ret, err := execReadQuery(ctx, db.pool, query)
+	ret, err := execReadQuery(ctx, db.db, query)
 	if err != nil {
 		return nil, fmt.Errorf("parsing result to json: %s", err)
 	}
@@ -53,7 +54,7 @@ func (db *UserStore) Read(ctx context.Context, rq parsing.ReadStmt) (interface{}
 
 // Close closes the store.
 func (db *UserStore) Close() error {
-	if err := db.pool.Close(); err != nil {
+	if err := db.db.Close(); err != nil {
 		return fmt.Errorf("closing db: %s", err)
 	}
 	return nil

@@ -96,9 +96,9 @@ func setupConfig() (*config, string) {
 	fullPath := path.Join(dirPath, configFilename)
 	configFileBytes, err := os.ReadFile(fullPath)
 	if os.IsNotExist(err) {
-		log.Info().Str("configFilePath", fullPath).Msg("config file not found")
+		log.Info().Str("config_file_path", fullPath).Msg("config file not found")
 	} else if err != nil {
-		log.Fatal().Str("configFilePath", fullPath).Err(err).Msg("opening config file")
+		log.Fatal().Str("config_file_path", fullPath).Err(err).Msg("opening config file")
 	} else {
 		fileStr := os.ExpandEnv(string(configFileBytes))
 		plugins = append(plugins, file.NewReader(strings.NewReader(fileStr), json.Unmarshal))

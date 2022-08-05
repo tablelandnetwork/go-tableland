@@ -780,7 +780,7 @@ func TestGetGrantStatementRolesAndPrivileges(t *testing.T) {
 					require.NoError(t, err)
 					require.Equal(t, tc.expectedStmt, q)
 					require.Equal(t, tc.roles, gs.GetRoles())
-					require.Equal(t, tc.privileges, gs.GetPrivileges())
+					require.ElementsMatch(t, tc.privileges, gs.GetPrivileges())
 				}
 			}
 		}(it))
