@@ -178,6 +178,7 @@ func setup(t *testing.T) clientCalls {
 
 	router := router.ConfiguredRouter(
 		"https://testnet.tableland.network",
+		"https://render.tableland.xyz",
 		10,
 		time.Second,
 		parser,

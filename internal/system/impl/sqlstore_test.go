@@ -59,14 +59,14 @@ func TestSystemSQLStoreService(t *testing.T) {
 	require.NoError(t, bs.Close())
 
 	stack := map[tableland.ChainID]sqlstore.SystemStore{1337: store}
-	svc, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables")
+	svc, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables", "https://render.tableland.xyz")
 	require.NoError(t, err)
 	metadata, err := svc.GetTableMetadata(ctx, id)
 	require.NoError(t, err)
 
 	require.Equal(t, "foo_1337_42", metadata.Name)
 	require.Equal(t, fmt.Sprintf("https://tableland.network/tables/chain/%d/tables/%s", 1337, id), metadata.ExternalURL)
-	require.Equal(t, "https://bafkreifhuhrjhzbj4onqgbrmhpysk2mop2jimvdvfut6taiyzt2yqzt43a.ipfs.dweb.link", metadata.Image) //nolint
+	require.Equal(t, "https://render.tableland.xyz/1337/42", metadata.Image) //nolint
 	require.Equal(t, "date", metadata.Attributes[0].DisplayType)
 	require.Equal(t, "created", metadata.Attributes[0].TraitType)
 
@@ -127,7 +127,7 @@ func TestGetSchemaByTableName(t *testing.T) {
 	require.NoError(t, bs.Close())
 
 	stack := map[tableland.ChainID]sqlstore.SystemStore{1337: store}
-	svc, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables")
+	svc, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables", "https://render.tableland.xyz")
 	require.NoError(t, err)
 
 	schema, err := svc.GetSchemaByTableName(ctx, "foo_1337_42")

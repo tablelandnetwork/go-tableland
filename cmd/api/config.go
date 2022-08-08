@@ -28,7 +28,8 @@ type config struct {
 		MaxRequestPerInterval uint64 `default:"10"`
 	}
 	Gateway struct {
-		ExternalURIPrefix string `default:"https://testnet.tableland.network"`
+		ExternalURIPrefix   string `default:"https://testnet.tableland.network"`
+		MetadataRendererURI string `default:"https://render.tableland.xyz"`
 	}
 	TableConstraints TableConstraints
 	QueryConstraints QueryConstraints

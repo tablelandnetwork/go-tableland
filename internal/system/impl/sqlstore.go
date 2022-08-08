@@ -24,21 +24,24 @@ const (
 
 // SystemSQLStoreService implements the SystemService interface using SQLStore.
 type SystemSQLStoreService struct {
-	extURLPrefix string
-	stores       map[tableland.ChainID]sqlstore.SystemStore
+	extURLPrefix        string
+	metadataRendererURI string
+	stores              map[tableland.ChainID]sqlstore.SystemStore
 }
 
 // NewSystemSQLStoreService creates a new SystemSQLStoreService.
 func NewSystemSQLStoreService(
 	stores map[tableland.ChainID]sqlstore.SystemStore,
 	extURLPrefix string,
+	metadataRendererURI string,
 ) (system.SystemService, error) {
 	if _, err := url.ParseRequestURI(extURLPrefix); err != nil {
 		return nil, fmt.Errorf("invalid external url prefix: %s", err)
 	}
 	return &SystemSQLStoreService{
-		extURLPrefix: extURLPrefix,
-		stores:       stores,
+		extURLPrefix:        extURLPrefix,
+		metadataRendererURI: metadataRendererURI,
+		stores:              stores,
 	}, nil
 }
 
@@ -64,7 +67,7 @@ func (s *SystemSQLStoreService) GetTableMetadata(
 	return sqlstore.TableMetadata{
 		Name:        fmt.Sprintf("%s_%d_%s", table.Prefix, table.ChainID, table.ID),
 		ExternalURL: fmt.Sprintf("%s/chain/%d/tables/%s", s.extURLPrefix, table.ChainID, table.ID),
-		Image:       "https://bafkreifhuhrjhzbj4onqgbrmhpysk2mop2jimvdvfut6taiyzt2yqzt43a.ipfs.dweb.link", //nolint
+		Image:       fmt.Sprintf("%s/%d/%s", s.metadataRendererURI, table.ChainID, table.ID), //nolint
 		Attributes: []sqlstore.TableMetadataAttribute{
 			{
 				DisplayType: "date",
