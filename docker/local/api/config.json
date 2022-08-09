@@ -5,7 +5,7 @@
   },
   "Gateway": {
     "ExternalURIPrefix": "http://localhost:8080",
-    "MetadataRendererURI": "https://render.tableland.xyz"
+    "MetadataRendererURI": ""
   },
   "Chains": [
     {

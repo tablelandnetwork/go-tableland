@@ -29,7 +29,7 @@ type config struct {
 	}
 	Gateway struct {
 		ExternalURIPrefix   string `default:"https://testnet.tableland.network"`
-		MetadataRendererURI string `default:"https://render.tableland.xyz"`
+		MetadataRendererURI string `default:""`
 	}
 	TableConstraints TableConstraints
 	QueryConstraints QueryConstraints

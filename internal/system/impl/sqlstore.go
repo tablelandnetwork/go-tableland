@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 
 	"github.com/textileio/go-tableland/internal/router/middlewares"
 	"github.com/textileio/go-tableland/internal/system"
@@ -20,6 +21,9 @@ const (
 	// RegistryTableName is a special system table (not owned by user)
 	// that has information about all tables owned by users.
 	RegistryTableName = "registry"
+
+	// DefaultMetadataImage is the default image for table's metadata.
+	DefaultMetadataImage = "https://bafkreifhuhrjhzbj4onqgbrmhpysk2mop2jimvdvfut6taiyzt2yqzt43a.ipfs.dweb.link"
 )
 
 // SystemSQLStoreService implements the SystemService interface using SQLStore.
@@ -67,7 +71,7 @@ func (s *SystemSQLStoreService) GetTableMetadata(
 	return sqlstore.TableMetadata{
 		Name:        fmt.Sprintf("%s_%d_%s", table.Prefix, table.ChainID, table.ID),
 		ExternalURL: fmt.Sprintf("%s/chain/%d/tables/%s", s.extURLPrefix, table.ChainID, table.ID),
-		Image:       fmt.Sprintf("%s/%d/%s", s.metadataRendererURI, table.ChainID, table.ID), //nolint
+		Image:       s.getMetadataImage(table.ChainID, table.ID),
 		Attributes: []sqlstore.TableMetadataAttribute{
 			{
 				DisplayType: "date",
@@ -137,4 +141,17 @@ func (s *SystemSQLStoreService) GetSchemaByTableName(
 		return sqlstore.TableSchema{}, fmt.Errorf("get schema by table name: %s", err)
 	}
 	return schema, nil
+}
+
+func (s *SystemSQLStoreService) getMetadataImage(chainID tableland.ChainID, tableID tableland.TableID) string {
+	if s.metadataRendererURI == "" {
+		return DefaultMetadataImage
+	}
+
+	uri := strings.TrimRight(s.metadataRendererURI, "/")
+	if _, err := url.ParseRequestURI(uri); err != nil {
+		return DefaultMetadataImage
+	}
+
+	return fmt.Sprintf("%s/%d/%s", uri, chainID, tableID)
 }
