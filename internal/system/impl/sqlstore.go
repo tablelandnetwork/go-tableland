@@ -7,11 +7,14 @@ import (
 	"net/url"
 	"strings"
 
+	logger "github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/router/middlewares"
 	"github.com/textileio/go-tableland/internal/system"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 )
+
+var log = logger.With().Str("component", "systemsqlstore").Logger()
 
 const (
 	// SystemTablesPrefix is the prefix used in table names that
@@ -150,6 +153,7 @@ func (s *SystemSQLStoreService) getMetadataImage(chainID tableland.ChainID, tabl
 
 	uri := strings.TrimRight(s.metadataRendererURI, "/")
 	if _, err := url.ParseRequestURI(uri); err != nil {
+		log.Warn().Str("uri", uri).Msg("metadata renderer uri could not be parsed")
 		return DefaultMetadataImage
 	}
 
