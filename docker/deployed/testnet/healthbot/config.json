@@ -25,7 +25,7 @@
                 "SIWE": "${HEALTHBOT_ARBITRUM_GOERLI_SIWE}",
                 "Tablename": "${HEALTHBOT_ARBITRUM_GOERLI_TABLE}"
             }
-        }
+        },
         {
             "Name": "ethereum-goerli",
             "Probe": {
