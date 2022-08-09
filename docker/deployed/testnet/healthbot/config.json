@@ -11,12 +11,21 @@
         {
             "Name": "optimism-kovan",
             "Probe": {
-                "CheckInterval": "60s",
+                "CheckInterval": "120s",
                 "ReceiptTimeout": "25s",
                 "SIWE": "${HEALTHBOT_OPTIMISM_KOVAN_SIWE}",
                 "Tablename": "${HEALTHBOT_OPTIMISM_KOVAN_TABLE}"
             }
         },
+        {
+            "Name": "arbitrum-goerli",
+            "Probe": {
+                "CheckInterval": "120s",
+                "ReceiptTimeout": "25s",
+                "SIWE": "${HEALTHBOT_ARBITRUM_GOERLI_SIWE}",
+                "Tablename": "${HEALTHBOT_ARBITRUM_GOERLI_TABLE}"
+            }
+        }
         {
             "Name": "ethereum-goerli",
             "Probe": {
