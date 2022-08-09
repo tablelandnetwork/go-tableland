@@ -97,6 +97,7 @@ func main() {
 
 	router := router.ConfiguredRouter(
 		config.Gateway.ExternalURIPrefix,
+		config.Gateway.MetadataRendererURI,
 		config.HTTP.MaxRequestPerInterval,
 		rateLimInterval,
 		parser,

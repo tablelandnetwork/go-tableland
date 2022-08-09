@@ -8,7 +8,8 @@
         "TLSKey": "${VALIDATOR_TLS_KEY}"
     },
     "Gateway": {
-        "ExternalURIPrefix": "https://testnet.tableland.network"
+        "ExternalURIPrefix": "https://testnet.tableland.network",
+        "MetadataRendererURI": "https://render.tableland.xyz"
     },
     "DB": {
         "Port": "5432"

@@ -4,7 +4,8 @@
     "Debug": true
   },
   "Gateway": {
-    "ExternalURIPrefix": "http://localhost:8080"
+    "ExternalURIPrefix": "http://localhost:8080",
+    "MetadataRendererURI": ""
   },
   "Chains": [
     {

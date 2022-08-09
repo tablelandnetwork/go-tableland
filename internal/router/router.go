@@ -22,6 +22,7 @@ import (
 // ConfiguredRouter returns a fully configured Router that can be used as an http handler.
 func ConfiguredRouter(
 	extURLPrefix string,
+	metadataRendererURI string,
 	maxRPI uint64,
 	rateLimInterval time.Duration,
 	parser parsing.SQLValidator,
@@ -49,7 +50,7 @@ func ConfiguredRouter(
 	for chainID, stack := range chainStacks {
 		stores[chainID] = stack.Store
 	}
-	sysStore, err := systemimpl.NewSystemSQLStoreService(stores, extURLPrefix)
+	sysStore, err := systemimpl.NewSystemSQLStoreService(stores, extURLPrefix, metadataRendererURI)
 	if err != nil {
 		log.Fatal().Err(err).Msg("creating system store")
 	}

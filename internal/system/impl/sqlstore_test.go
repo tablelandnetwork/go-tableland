@@ -59,14 +59,14 @@ func TestSystemSQLStoreService(t *testing.T) {
 	require.NoError(t, bs.Close())
 
 	stack := map[tableland.ChainID]sqlstore.SystemStore{1337: store}
-	svc, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables")
+	svc, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables", "https://render.tableland.xyz")
 	require.NoError(t, err)
 	metadata, err := svc.GetTableMetadata(ctx, id)
 	require.NoError(t, err)
 
 	require.Equal(t, "foo_1337_42", metadata.Name)
 	require.Equal(t, fmt.Sprintf("https://tableland.network/tables/chain/%d/tables/%s", 1337, id), metadata.ExternalURL)
-	require.Equal(t, "https://bafkreifhuhrjhzbj4onqgbrmhpysk2mop2jimvdvfut6taiyzt2yqzt43a.ipfs.dweb.link", metadata.Image) //nolint
+	require.Equal(t, "https://render.tableland.xyz/1337/42", metadata.Image) //nolint
 	require.Equal(t, "date", metadata.Attributes[0].DisplayType)
 	require.Equal(t, "created", metadata.Attributes[0].TraitType)
 
@@ -127,7 +127,7 @@ func TestGetSchemaByTableName(t *testing.T) {
 	require.NoError(t, bs.Close())
 
 	stack := map[tableland.ChainID]sqlstore.SystemStore{1337: store}
-	svc, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables")
+	svc, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables", "https://render.tableland.xyz")
 	require.NoError(t, err)
 
 	schema, err := svc.GetSchemaByTableName(ctx, "foo_1337_42")
@@ -148,4 +148,107 @@ func TestGetSchemaByTableName(t *testing.T) {
 	require.Equal(t, "UNIQUE", schema.Columns[1].Constraints[2])
 
 	require.Equal(t, "CHECK(a > 0)", schema.TableConstraints[0])
+}
+
+func TestGetMetadata(t *testing.T) {
+	t.Parallel()
+
+	dbURI := tests.Sqlite3URI()
+
+	ctx := context.WithValue(context.Background(), middlewares.ContextKeyChainID, tableland.ChainID(1337))
+	store, err := system.New(dbURI, chainID)
+	require.NoError(t, err)
+
+	parser, err := parserimpl.New([]string{"system_", "registry"})
+	require.NoError(t, err)
+	// populate the registry with a table
+	ex, err := executor.NewExecutor(1337, dbURI, parser, 0, nil)
+	require.NoError(t, err)
+	bs, err := ex.NewBlockScope(ctx, 0)
+	require.NoError(t, err)
+
+	id, _ := tableland.NewTableID("42")
+	require.NoError(t, err)
+
+	res, err := bs.ExecuteTxnEvents(ctx, eventfeed.TxnEvents{
+		TxnHash: common.HexToHash("0x0"),
+		Events: []interface{}{
+			&ethereum.ContractCreateTable{
+				TableId:   big.NewInt(42),
+				Owner:     common.HexToAddress("0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF"),
+				Statement: "create table foo_1337 (bar int)",
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.Nil(t, res.Error)
+	require.Nil(t, res.ErrorEventIdx)
+	require.NoError(t, bs.Commit())
+	require.NoError(t, bs.Close())
+
+	stack := map[tableland.ChainID]sqlstore.SystemStore{1337: store}
+
+	t.Run("empty metadata uri", func(t *testing.T) {
+		t.Parallel()
+
+		svc, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables", "")
+		require.NoError(t, err)
+
+		metadata, err := svc.GetTableMetadata(ctx, id)
+		require.NoError(t, err)
+
+		require.Equal(t, "foo_1337_42", metadata.Name)
+		require.Equal(t, fmt.Sprintf("https://tableland.network/tables/chain/%d/tables/%s", 1337, id), metadata.ExternalURL)
+		require.Equal(t, DefaultMetadataImage, metadata.Image)
+		require.Equal(t, "date", metadata.Attributes[0].DisplayType)
+		require.Equal(t, "created", metadata.Attributes[0].TraitType)
+	})
+
+	t.Run("with metadata uri", func(t *testing.T) {
+		t.Parallel()
+
+		svc, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables", "https://render.tableland.xyz")
+		require.NoError(t, err)
+
+		metadata, err := svc.GetTableMetadata(ctx, id)
+		require.NoError(t, err)
+
+		require.Equal(t, "foo_1337_42", metadata.Name)
+		require.Equal(t, fmt.Sprintf("https://tableland.network/tables/chain/%d/tables/%s", 1337, id), metadata.ExternalURL)
+		require.Equal(t, "https://render.tableland.xyz/1337/42", metadata.Image)
+		require.Equal(t, "date", metadata.Attributes[0].DisplayType)
+		require.Equal(t, "created", metadata.Attributes[0].TraitType)
+	})
+
+	t.Run("with metadata uri trailing slash", func(t *testing.T) {
+		t.Parallel()
+
+		svc, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables", "https://render.tableland.xyz/")
+		require.NoError(t, err)
+
+		metadata, err := svc.GetTableMetadata(ctx, id)
+		require.NoError(t, err)
+
+		require.Equal(t, "foo_1337_42", metadata.Name)
+		require.Equal(t, fmt.Sprintf("https://tableland.network/tables/chain/%d/tables/%s", 1337, id), metadata.ExternalURL)
+		require.Equal(t, "https://render.tableland.xyz/1337/42", metadata.Image)
+		require.Equal(t, "date", metadata.Attributes[0].DisplayType)
+		require.Equal(t, "created", metadata.Attributes[0].TraitType)
+	})
+
+	t.Run("with wrong metadata uri", func(t *testing.T) {
+		t.Parallel()
+
+		svc, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables", "foo")
+		require.NoError(t, err)
+
+		metadata, err := svc.GetTableMetadata(ctx, id)
+		require.NoError(t, err)
+
+		require.Equal(t, "foo_1337_42", metadata.Name)
+		require.Equal(t, fmt.Sprintf("https://tableland.network/tables/chain/%d/tables/%s", 1337, id), metadata.ExternalURL)
+		require.Equal(t, DefaultMetadataImage, metadata.Image)
+		require.Equal(t, "date", metadata.Attributes[0].DisplayType)
+		require.Equal(t, "created", metadata.Attributes[0].TraitType)
+	})
 }
