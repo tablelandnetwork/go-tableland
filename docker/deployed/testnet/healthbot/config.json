@@ -43,6 +43,15 @@
                 "SIWE": "${HEALTHBOT_POLYGON_MUMBAI_SIWE}",
                 "Tablename": "${HEALTHBOT_POLYGON_MUMBAI_TABLE}"
             }
+        },
+        {
+            "Name": "optimism-goerli",
+            "Probe": {
+                "CheckInterval": "120s",
+                "ReceiptTimeout": "25s",
+                "SIWE": "${HEALTHBOT_OPTIMISM_GOERLI_SIWE}",
+                "Tablename": "${HEALTHBOT_OPTIMISM_GOERLI_TABLE}"
+            }
         }
     ]
 }
