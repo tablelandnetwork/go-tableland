@@ -2,6 +2,8 @@ package impl
 
 import (
 	"context"
+	"database/sql"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/url"
@@ -68,7 +70,15 @@ func (s *SystemSQLStoreService) GetTableMetadata(
 	}
 	table, err := store.GetTable(ctx, id)
 	if err != nil {
-		return sqlstore.TableMetadata{}, fmt.Errorf("error fetching the table: %s", err)
+		if !errors.Is(err, sql.ErrNoRows) {
+			return sqlstore.TableMetadata{}, fmt.Errorf("error fetching the table: %s", err)
+		}
+
+		return sqlstore.TableMetadata{
+			ExternalURL: fmt.Sprintf("%s/chain/%d/tables/%s", s.extURLPrefix, chainID, id),
+			Image:       s.emptyMetadataImage(),
+			Message:     "Table not found",
+		}, nil
 	}
 
 	return sqlstore.TableMetadata{
@@ -158,4 +168,10 @@ func (s *SystemSQLStoreService) getMetadataImage(chainID tableland.ChainID, tabl
 	}
 
 	return fmt.Sprintf("%s/%d/%s", uri, chainID, tableID)
+}
+
+func (s *SystemSQLStoreService) emptyMetadataImage() string {
+	svg := `<svg width='512' height='512' xmlns='http://www.w3.org/2000/svg'><rect width='512' height='512' fill='#000'/></svg>` //nolint
+	svgEncoded := base64.StdEncoding.EncodeToString([]byte(svg))
+	return fmt.Sprintf("data:image/svg+xml;base64,%s", svgEncoded)
 }

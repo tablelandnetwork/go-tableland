@@ -71,7 +71,7 @@ func (s *SystemStore) GetTable(ctx context.Context, id tableland.TableID) (sqlst
 		ID:      id.ToBigInt().Int64(),
 	})
 	if err != nil {
-		return sqlstore.Table{}, fmt.Errorf("failed to get the table: %s", err)
+		return sqlstore.Table{}, fmt.Errorf("failed to get the table: %w", err)
 	}
 	return tableFromSQLToDTO(table)
 }

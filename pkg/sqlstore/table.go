@@ -37,10 +37,11 @@ type ColumnSchema struct {
 
 // TableMetadata represents table metadata (OpenSea standard).
 type TableMetadata struct {
-	Name        string                   `json:"name"`
+	Name        string                   `json:"name,omitempty"`
 	ExternalURL string                   `json:"external_url"`
 	Image       string                   `json:"image"`
-	Attributes  []TableMetadataAttribute `json:"attributes"`
+	Message     string                   `json:"message,omitempty"`
+	Attributes  []TableMetadataAttribute `json:"attributes,omitempty"`
 }
 
 // TableMetadataAttribute represents the table metadata attribute.
