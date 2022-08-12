@@ -251,4 +251,21 @@ func TestGetMetadata(t *testing.T) {
 		require.Equal(t, "date", metadata.Attributes[0].DisplayType)
 		require.Equal(t, "created", metadata.Attributes[0].TraitType)
 	})
+
+	t.Run("non existent table", func(t *testing.T) {
+		t.Parallel()
+
+		svc, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables", "foo")
+		require.NoError(t, err)
+
+		id, _ := tableland.NewTableID("43")
+		require.NoError(t, err)
+
+		metadata, err := svc.GetTableMetadata(ctx, id)
+		require.NoError(t, err)
+
+		require.Equal(t, fmt.Sprintf("https://tableland.network/tables/chain/%d/tables/%s", 1337, id), metadata.ExternalURL)
+		require.Equal(t, "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0nNTEyJyBoZWlnaHQ9JzUxMicgeG1sbnM9J2h0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnJz48cmVjdCB3aWR0aD0nNTEyJyBoZWlnaHQ9JzUxMicgZmlsbD0nIzAwMCcvPjwvc3ZnPg==", metadata.Image) // nolint
+		require.Equal(t, "Table not found", metadata.Message)
+	})
 }
