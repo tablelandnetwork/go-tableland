@@ -193,6 +193,14 @@ func TestWriteQuery(t *testing.T) {
 			expErrType: nil,
 		},
 		{
+			name:       "insert multiple values",
+			query:      "insert into duke_4_3333 values ('hello', 1, 2), ('adieu', 3, 4)",
+			tableID:    big.NewInt(3333),
+			chainID:    4,
+			namePrefix: "duke",
+			expErrType: nil,
+		},
+		{
 			name:       "valid insert without prefix",
 			query:      "insert into _4_3333 values ('hello', 1, 2)",
 			tableID:    big.NewInt(3333),
