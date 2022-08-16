@@ -10,7 +10,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/hetiansu5/urlquery v1.2.7
-	github.com/mattn/go-sqlite3 v1.14.13
+	github.com/mattn/go-sqlite3 v1.14.15
 	github.com/omeid/uconfig v1.2.0
 	github.com/rs/zerolog v1.27.0
 	github.com/sethvargo/go-limiter v0.7.2
