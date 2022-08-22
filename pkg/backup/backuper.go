@@ -16,17 +16,14 @@ import (
 // BackupFilenamePrefix is the prefix used in every backup file.
 const BackupFilenamePrefix = "tbl_backup"
 
-var (
-	open          = openDatabase
-	newBackupFile = createBackupFile
-)
-
 // Backuper is the process that executes the backup process.
 type Backuper struct {
-	dir    string
-	source DB
-	backup DB
-	config *Config
+	sourcePath, dir string
+	source          DB
+	backup          DB
+	config          *Config
+
+	fileCreator func(string, time.Time) (string, error)
 }
 
 // NewBackuper creates a new backuper responsible for making backups of a SQLite database.
@@ -39,15 +36,36 @@ func NewBackuper(sourcePath string, backupDir string, opts ...Option) (*Backuper
 	}
 
 	b := &Backuper{
-		dir:    backupDir,
-		config: config,
-	}
-
-	if err := b.init(sourcePath, backupDir); err != nil {
-		return nil, err
+		sourcePath:  sourcePath,
+		dir:         backupDir,
+		config:      config,
+		fileCreator: createBackupFile,
 	}
 
 	return b, nil
+}
+
+// Init opens databases and ping them, then initializes variables.
+func (b *Backuper) Init() error {
+	source, err := open(b.sourcePath)
+	if err != nil {
+		return errors.Errorf("opening source db: %s", err)
+	}
+
+	timestamp := time.Now().UTC()
+	filename, err := b.fileCreator(b.dir, timestamp)
+	if err != nil {
+		return errors.Errorf("creating backup file: %s", err)
+	}
+
+	backup, err := open(filename)
+	if err != nil {
+		return errors.Errorf("opening backup db: %s", err)
+	}
+
+	b.source = source
+	b.backup = backup
+	return nil
 }
 
 // Backup creates a backup to a file in disk.
@@ -99,7 +117,7 @@ func (b *Backuper) Backup(ctx context.Context) (_ BackupResult, err error) {
 	if b.config.Vacuum {
 		backupResult.SizeAfterVacuum, backupResult.VacuumElapsedTime, err = b.doVacuum(ctx, connB)
 		if err != nil {
-			return BackupResult{}, errors.Errorf("vacuum: %s", err)
+			return BackupResult{}, errors.Errorf("do vacuum: %s", err)
 		}
 	}
 
@@ -111,7 +129,7 @@ func (b *Backuper) Backup(ctx context.Context) (_ BackupResult, err error) {
 		panic("pruning not implemented")
 	}
 
-	backupResult.SizeBeforeVacuum = backupSize
+	backupResult.Size = backupSize
 	return backupResult, nil
 }
 
@@ -123,29 +141,6 @@ func (b *Backuper) Close() error {
 	if err := b.backup.Close(); err != nil {
 		return errors.Errorf("closing backup db: %s", err)
 	}
-	return nil
-}
-
-// init opens databases and ping them, then initializes variables.
-func (b *Backuper) init(sourcePath string, backupDir string) error {
-	source, err := open(sourcePath)
-	if err != nil {
-		return errors.Errorf("opening source db: %s", err)
-	}
-
-	timestamp := time.Now().UTC()
-	filename, err := newBackupFile(backupDir, timestamp)
-	if err != nil {
-		return errors.Errorf("creating backup file: %s", err)
-	}
-
-	backup, err := open(filename)
-	if err != nil {
-		return errors.Errorf("opening backup db: %s", err)
-	}
-
-	b.source = source
-	b.backup = backup
 	return nil
 }
 
@@ -193,7 +188,7 @@ func (b *Backuper) doBackupRaw(in, out *sqlite3.SQLiteConn) error {
 func (b *Backuper) doVacuum(ctx context.Context, conn *sql.Conn) (int64, time.Duration, error) {
 	startTime := time.Now()
 	if _, err := conn.ExecContext(ctx, "VACUUM"); err != nil {
-		return 0, 0, errors.Errorf("vacuum: %s", err)
+		return 0, 0, errors.Errorf("exec vacuum: %s", err)
 	}
 
 	size, err := b.getFileSize(b.backup.Path())
@@ -213,7 +208,7 @@ func (b *Backuper) getFileSize(filename string) (int64, error) {
 	return fi.Size(), nil
 }
 
-func openDatabase(uri string) (DB, error) {
+func open(uri string) (DB, error) {
 	db, err := sql.Open("sqlite3", uri)
 	if err != nil {
 		return nil, errors.Errorf("opening db: %s", err)
@@ -247,7 +242,7 @@ type BackupResult struct {
 	// Stats
 	ElapsedTime       time.Duration
 	VacuumElapsedTime time.Duration
-	SizeBeforeVacuum  int64
+	Size              int64
 	SizeAfterVacuum   int64
 }
 
