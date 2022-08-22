@@ -98,22 +98,45 @@ func TestBackuperWithCompression(t *testing.T) {
 func TestBackuperWithPruning(t *testing.T) {
 	t.Parallel()
 
-	backuper, err := NewBackuper(createControlDatabase(t).Path(), backupDir(t), []Option{
+	db, dir := createControlDatabase(t), backupDir(t)
+
+	backuper, err := NewBackuper(db.Path(), dir, []Option{
 		WithVacuum(true),
 		WithPruning(true),
+		WithKeepFiles(1),
 	}...,
 	)
 	require.NoError(t, err)
 	require.Equal(t, true, backuper.config.Vacuum)
 	require.Equal(t, true, backuper.config.Pruning)
 	require.Equal(t, false, backuper.config.Compression)
+	require.Equal(t, 1, backuper.config.KeepFiles)
 
 	err = backuper.Init()
 	require.NoError(t, err)
 
-	require.Panicsf(t, func() {
-		_, _ = backuper.Backup(context.Background())
-	}, "pruning not implemented")
+	_, err = backuper.Backup(context.Background())
+	require.NoError(t, err)
+
+	// executes second backup and check the number of files
+	backuper, err = NewBackuper(db.Path(), dir, []Option{
+		WithVacuum(true),
+		WithPruning(true),
+		WithKeepFiles(1),
+	}...,
+	)
+	require.NoError(t, err)
+	require.Equal(t, true, backuper.config.Vacuum)
+	require.Equal(t, true, backuper.config.Pruning)
+	require.Equal(t, false, backuper.config.Compression)
+	require.Equal(t, 1, backuper.config.KeepFiles)
+
+	err = backuper.Init()
+	require.NoError(t, err)
+
+	_, err = backuper.Backup(context.Background())
+	require.NoError(t, err)
+	requireFileCount(t, dir, 1)
 
 	require.NoError(t, backuper.Close())
 }

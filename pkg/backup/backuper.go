@@ -126,7 +126,9 @@ func (b *Backuper) Backup(ctx context.Context) (_ BackupResult, err error) {
 	}
 
 	if b.config.Pruning {
-		panic("pruning not implemented")
+		if err := Prune(b.dir, b.config.KeepFiles); err != nil {
+			return BackupResult{}, errors.Errorf("prune: %s", err)
+		}
 	}
 
 	backupResult.Size = backupSize
@@ -275,6 +277,7 @@ type Config struct {
 	Compression bool
 	Pruning     bool
 	Vacuum      bool
+	KeepFiles   int
 }
 
 // DefaultConfig returns the default configuration.
@@ -283,6 +286,7 @@ func DefaultConfig() *Config {
 		Compression: false,
 		Pruning:     false,
 		Vacuum:      false,
+		KeepFiles:   5,
 	}
 }
 
@@ -305,10 +309,18 @@ func WithPruning(v bool) Option {
 	}
 }
 
-// WithVacuum performs a VACUUM operation on backup file.
+// WithVacuum enables VACUUM operation.
 func WithVacuum(v bool) Option {
 	return func(c *Config) error {
 		c.Vacuum = v
+		return nil
+	}
+}
+
+// WithKeepFiles indicates to pruner how many files to keep.
+func WithKeepFiles(n int) Option {
+	return func(c *Config) error {
+		c.KeepFiles = n
 		return nil
 	}
 }
