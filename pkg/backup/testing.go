@@ -28,5 +28,13 @@ func createControlDatabase(t *testing.T) DB {
 }
 
 func backupDir(t *testing.T) string {
+	t.Helper()
 	return path.Clean(t.TempDir())
+}
+
+func requireFileCount(t *testing.T, dir string, counter int) {
+	t.Helper()
+	files, err := ioutil.ReadDir(dir)
+	require.NoError(t, err)
+	require.Len(t, files, counter)
 }

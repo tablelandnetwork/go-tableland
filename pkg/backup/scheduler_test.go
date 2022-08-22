@@ -1,7 +1,6 @@
 package backup
 
 import (
-	"io/ioutil"
 	"testing"
 	"time"
 
@@ -25,10 +24,7 @@ func TestScheduler(t *testing.T) {
 		counter++
 	}
 	scheduler.Shutdown()
-
-	files, err := ioutil.ReadDir(backupDir)
-	require.NoError(t, err)
-	require.Len(t, files, counter)
+	requireFileCount(t, backupDir, counter)
 
 	t.Cleanup(func() {
 		require.NoError(t, controlDB.Close())
