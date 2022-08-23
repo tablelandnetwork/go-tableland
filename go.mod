@@ -5,13 +5,13 @@ go 1.17
 require (
 	cloud.google.com/go/logging v1.5.0
 	github.com/XSAM/otelsql v0.15.0
-	github.com/ethereum/go-ethereum v1.10.21
+	github.com/ethereum/go-ethereum v1.10.22
 	github.com/golang-migrate/migrate/v4 v4.15.2
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/hetiansu5/urlquery v1.2.7
 	github.com/json-iterator/go v1.1.12
-	github.com/mattn/go-sqlite3 v1.14.13
+	github.com/mattn/go-sqlite3 v1.14.15
 	github.com/omeid/uconfig v1.2.0
 	github.com/rs/zerolog v1.27.0
 	github.com/sethvargo/go-limiter v0.7.2
@@ -26,7 +26,7 @@ require (
 	go.opentelemetry.io/otel/exporters/prometheus v0.31.0
 	go.opentelemetry.io/otel/metric v0.31.0
 	go.opentelemetry.io/otel/sdk/metric v0.31.0
-	go.uber.org/atomic v1.9.0
+	go.uber.org/atomic v1.10.0
 )
 
 require (
