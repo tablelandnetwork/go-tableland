@@ -12,16 +12,23 @@ func TestScheduler(t *testing.T) {
 	backupDir := backupDir(t)
 	controlDB := createControlDatabase(t)
 
-	backuper, err := NewBackuper(controlDB.Path(), backupDir, []Option{WithVacuum(true)}...)
+	interval := 2 // for test, every 2 seconds it will generate a backup file
+	scheduler, err := NewScheduler(interval, BackuperOptions{
+		SourcePath: controlDB.Path(),
+		BackupDir:  backupDir,
+		Opts:       []Option{WithVacuum(true)},
+	}, true)
 	require.NoError(t, err)
 
-	scheduler := NewScheduler(2*time.Second, backuper, true)
+	scheduler.tickerInterval = time.Second // for test, ticks every second
 	go scheduler.Run()
 
 	var counter int
-	for counter < 5 {
-		<-scheduler.NotificationCh
+	for range scheduler.NotificationCh {
 		counter++
+		if counter == 5 {
+			break
+		}
 	}
 	scheduler.Shutdown()
 	requireFileCount(t, backupDir, counter)

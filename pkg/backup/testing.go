@@ -2,6 +2,7 @@ package backup
 
 import (
 	"io/ioutil"
+	"os"
 	"path"
 	"testing"
 
@@ -18,7 +19,7 @@ func createControlDatabase(t *testing.T) DB {
 	db, err := open(f.Name())
 	require.NoError(t, err)
 
-	query, err := ioutil.ReadFile("testdata/control.sql")
+	query, err := os.ReadFile("testdata/control.sql")
 	require.NoError(t, err)
 
 	_, err = db.Exec(string(query))
