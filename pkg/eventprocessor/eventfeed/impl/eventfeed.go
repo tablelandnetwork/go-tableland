@@ -401,7 +401,6 @@ func (ef *EventFeed) persistEvents(ctx context.Context, events []types.Log, pars
 	store := ef.systemStore.WithTx(tx)
 
 	txnsEventsExistInDB := map[common.Hash]bool{}
-	blockHeaderCache := map[common.Hash]*types.Header{}
 	tblEvents := make([]tableland.EVMEvent, 0, len(events))
 	for i, e := range events {
 		// If we already have registered events for the TxHash, we skip persisting this event.
@@ -424,23 +423,10 @@ func (ef *EventFeed) persistEvents(ctx context.Context, events []types.Log, pars
 			continue
 		}
 
-		// We keep a cache of block headers for the events since many of them come from the same block.
-		// This guarantees that we do a single API HeaderByNumber() per block, instead of repeating the same call
-		// for the same block in every processed events.
-		blockHeader, ok := blockHeaderCache[e.BlockHash]
-		if !ok {
-			blockHeader, err = ef.ethClient.HeaderByNumber(ctx, big.NewInt(int64(e.BlockNumber)))
-			if err != nil {
-				return fmt.Errorf("get block header %d: %s", e.BlockNumber, err)
-			}
-			blockHeaderCache[e.BlockHash] = blockHeader
-		}
-
 		eventJSONBytes, err := cfg.Marshal(parsedEvents[i])
 		if err != nil {
 			return fmt.Errorf("marshaling event: %s", err)
 		}
-
 		topicsHex := make([]string, len(e.Topics))
 		for i, t := range e.Topics {
 			topicsHex[i] = t.Hex()
@@ -463,7 +449,6 @@ func (ef *EventFeed) persistEvents(ctx context.Context, events []types.Log, pars
 			// Enhanced fields
 			ChainID:   ef.chainID,
 			EventJSON: eventJSONBytes,
-			Timestamp: blockHeader.Time,
 		})
 	}
 

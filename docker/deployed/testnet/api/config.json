@@ -43,7 +43,8 @@
             "EventFeed": {
                 "ChainAPIBackoff": "15s",
                 "NewBlockTimeout": "30s",
-                "MinBlockDepth": 0
+                "MinBlockDepth": 0,
+                "PersistEvents": true
             },
             "EventProcessor": {
                 "BlockFailedExecutionBackoff": "10s",
@@ -69,7 +70,8 @@
             "EventFeed": {
                 "ChainAPIBackoff": "15s",
                 "NewBlockTimeout": "45s",
-                "MinBlockDepth": 1
+                "MinBlockDepth": 1,
+                "PersistEvents": true
             },
             "EventProcessor": {
                 "BlockFailedExecutionBackoff": "10s",
@@ -95,7 +97,8 @@
             "EventFeed": {
                 "ChainAPIBackoff": "15s",
                 "NewBlockTimeout": "30s",
-                "MinBlockDepth": 1
+                "MinBlockDepth": 1,
+                "PersistEvents": true
             },
             "EventProcessor": {
                 "BlockFailedExecutionBackoff": "10s",
@@ -121,7 +124,8 @@
             "EventFeed": {
                 "ChainAPIBackoff": "15s",
                 "NewBlockTimeout": "60s",
-                "MinBlockDepth": 1
+                "MinBlockDepth": 1,
+                "PersistEvents": true
             },
             "EventProcessor": {
                 "BlockFailedExecutionBackoff": "10s",
@@ -147,7 +151,8 @@
             "EventFeed": {
                 "ChainAPIBackoff": "15s",
                 "NewBlockTimeout": "60s",
-                "MinBlockDepth": 1
+                "MinBlockDepth": 1,
+                "PersistEvents": true
             },
             "EventProcessor": {
                 "BlockFailedExecutionBackoff": "10s",
@@ -173,7 +178,8 @@
             "EventFeed": {
                 "ChainAPIBackoff": "15s",
                 "NewBlockTimeout": "60s",
-                "MinBlockDepth": 0
+                "MinBlockDepth": 0,
+                "PersistEvents": true
             },
             "EventProcessor": {
                 "BlockFailedExecutionBackoff": "10s",
@@ -199,7 +205,8 @@
             "EventFeed": {
                 "ChainAPIBackoff": "15s",
                 "NewBlockTimeout": "60s",
-                "MinBlockDepth": 0
+                "MinBlockDepth": 0,
+                "PersistEvents": true
             },
             "EventProcessor": {
                 "BlockFailedExecutionBackoff": "10s",
@@ -213,19 +220,20 @@
         },
         {
             "Name": "Optimism Goerli",
-            "AllowTransactionRelay" : true,
+            "AllowTransactionRelay": true,
             "ChainID": 420,
             "Registry": {
-              "EthEndpoint": "wss://opt-goerli.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_OPTIMISM_GOERLI_API_KEY}",
-              "ContractAddress": "0xC72E8a7Be04f2469f8C2dB3F1BdF69A7D516aBbA"
+                "EthEndpoint": "wss://opt-goerli.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_OPTIMISM_GOERLI_API_KEY}",
+                "ContractAddress": "0xC72E8a7Be04f2469f8C2dB3F1BdF69A7D516aBbA"
             },
             "Signer": {
-              "PrivateKey": "${VALIDATOR_OPTIMISM_GOERLI_SIGNER_PRIVATE_KEY}"
+                "PrivateKey": "${VALIDATOR_OPTIMISM_GOERLI_SIGNER_PRIVATE_KEY}"
             },
             "EventFeed": {
                 "ChainAPIBackoff": "15s",
                 "NewBlockTimeout": "30s",
-                "MinBlockDepth": 0
+                "MinBlockDepth": 0,
+                "PersistEvents": true
             },
             "EventProcessor": {
                 "BlockFailedExecutionBackoff": "10s",

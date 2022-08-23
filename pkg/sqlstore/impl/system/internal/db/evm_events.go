@@ -7,14 +7,13 @@ import (
 )
 
 const insertEVMEvent = `
-INSERT INTO system_evm_events ("chain_id", "event_json", "timestamp", "address", "topics", "data", "block_number", "tx_hash", "tx_index", "block_hash", "event_index")
-VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+INSERT INTO system_evm_events ("chain_id", "event_json", "address", "topics", "data", "block_number", "tx_hash", "tx_index", "block_hash", "event_index")
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
 `
 
 type InsertEVMEventParams struct {
 	ChainID     int64
 	EventJSON   []byte
-	Timestamp   uint64
 	Address     string
 	Topics      []byte
 	Data        []byte
@@ -29,7 +28,6 @@ func (q *Queries) InsertEVMEvent(ctx context.Context, arg InsertEVMEventParams) 
 	_, err := q.exec(ctx, q.insertEVMEventStmt, insertEVMEvent,
 		arg.ChainID,
 		arg.EventJSON,
-		arg.Timestamp,
 		arg.Address,
 		arg.Topics,
 		arg.Data,
@@ -62,7 +60,6 @@ func (q *Queries) GetEVMEvents(ctx context.Context, arg GetEVMEventsParams) ([]E
 		if err = rows.Scan(
 			&evmEvent.ChainID,
 			&evmEvent.EventJSON,
-			&evmEvent.Timestamp,
 			&evmEvent.Address,
 			&evmEvent.Topics,
 			&evmEvent.Data,

@@ -291,7 +291,6 @@ func TestEVMEventPersitance(t *testing.T) {
 			Index:       12,
 			ChainID:     chainID,
 			EventJSON:   []byte("eventjson1"),
-			Timestamp:   13,
 		},
 		{
 			Address:     common.HexToAddress("0x20"),
@@ -304,7 +303,6 @@ func TestEVMEventPersitance(t *testing.T) {
 			Index:       12,
 			ChainID:     chainID,
 			EventJSON:   []byte("eventjson2"),
-			Timestamp:   23,
 		},
 	}
 
@@ -338,6 +336,5 @@ func TestEVMEventPersitance(t *testing.T) {
 		require.Equal(t, events[0].Index, event.Index)
 		require.Equal(t, events[0].ChainID, chainID)
 		require.Equal(t, events[0].EventJSON, event.EventJSON)
-		require.Equal(t, events[0].Timestamp, event.Timestamp)
 	}
 }

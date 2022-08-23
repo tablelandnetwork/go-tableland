@@ -192,5 +192,4 @@ type EVMEvent struct {
 	// Enhanced fields
 	ChainID   ChainID
 	EventJSON []byte
-	Timestamp uint64
 }
