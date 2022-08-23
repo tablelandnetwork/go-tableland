@@ -35,6 +35,10 @@ func NewBackuper(sourcePath string, backupDir string, opts ...Option) (*Backuper
 		}
 	}
 
+	if err := os.MkdirAll(backupDir, 0o755); err != nil {
+		return nil, errors.Errorf("os mkdir all: %s", err)
+	}
+
 	b := &Backuper{
 		sourcePath:  sourcePath,
 		dir:         backupDir,
@@ -86,17 +90,11 @@ func (b *Backuper) Backup(ctx context.Context) (_ BackupResult, err error) {
 	if err != nil {
 		return BackupResult{}, errors.Errorf("getting db conn: %s", err)
 	}
-	defer func() {
-		_ = connA.Close()
-	}()
 
 	connB, err := b.backup.Conn(ctx)
 	if err != nil {
 		return BackupResult{}, errors.Errorf("getting backup db conn: %s", err)
 	}
-	defer func() {
-		_ = connB.Close()
-	}()
 
 	if err := b.doBackup(connA, connB); err != nil {
 		return BackupResult{}, errors.Errorf("backup: %s", err)
@@ -121,13 +119,20 @@ func (b *Backuper) Backup(ctx context.Context) (_ BackupResult, err error) {
 		}
 	}
 
+	// closes connections because we don't need any more access to dbs
+	if err := connA.Close(); err != nil {
+		return BackupResult{}, errors.Errorf("closing db connection: %s", err)
+	}
+	if err := connB.Close(); err != nil {
+		return BackupResult{}, errors.Errorf("closing backup connection: %s", err)
+	}
+
 	if b.config.Compression {
 		backupResult.Path, backupResult.SizeAfterCompression, backupResult.CompressionElapsedTime, err = b.doCompress(b.backup.Path()) // nolint
 		if err != nil {
 			return BackupResult{}, errors.Errorf("do compress: %s", err)
 		}
 
-		// removes uncompressed file
 		if err := os.Remove(b.backup.Path()); err != nil {
 			return BackupResult{}, errors.Errorf("os remove: %s", err)
 		}
@@ -216,7 +221,7 @@ func (b *Backuper) doCompress(filepath string) (string, int64, time.Duration, er
 		return "", 0, 0, errors.Errorf("compress: %s", err)
 	}
 
-	size, err := b.getFileSize(b.backup.Path())
+	size, err := b.getFileSize(newFilepath)
 	if err != nil {
 		return "", 0, 0, errors.Errorf("get file size: %s", err)
 	}
@@ -252,7 +257,7 @@ func createBackupFile(dir string, timestamp time.Time) (string, error) {
 	filename := path.Join(dir, fmt.Sprintf("%s_%s.db", BackupFilenamePrefix, timestamp.Format(time.RFC3339)))
 	backupFile, err := os.Create(filename)
 	if err != nil {
-		return "", errors.Errorf("creating backup file: %s", err)
+		return "", errors.Errorf("os create: %s", err)
 	}
 	if err := backupFile.Close(); err != nil {
 		return "", errors.Errorf("closing backup file: %s", err)

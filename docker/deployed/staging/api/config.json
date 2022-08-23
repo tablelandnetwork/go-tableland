@@ -30,6 +30,15 @@
   "Analytics": {
     "FetchExtraBlockInfo": false
   },
+  "Backup" : {
+		"Enable": true,            
+		"Dir": "backups",               
+		"Frequency": 2,         
+		"EnableVacuum": true,      
+		"EnableCompression": true, 
+		"EnablePruning": true,     
+		"KeepFiles": 5        
+	},
   "Chains": [
     {
       "Name": "Optimism Kovan",

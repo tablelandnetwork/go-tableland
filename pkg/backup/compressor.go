@@ -4,17 +4,20 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
-	"io/ioutil"
+	"os"
 )
 
 // Compress compresses a file using gzip.
 func Compress(filepath string) (string, error) {
-	data, err := ioutil.ReadFile(filepath)
+	data, err := os.ReadFile(filepath)
 	if err != nil {
 		return "", fmt.Errorf("read all: %s", err)
 	}
 	var b bytes.Buffer
-	w := gzip.NewWriter(&b)
+	w, err := gzip.NewWriterLevel(&b, gzip.BestCompression)
+	if err != nil {
+		return "", fmt.Errorf("new writer level: %s", err)
+	}
 	if _, err := w.Write(data); err != nil {
 		return "", fmt.Errorf("gzip write: %s", err)
 	}
@@ -23,7 +26,7 @@ func Compress(filepath string) (string, error) {
 	}
 
 	newFilepath := fmt.Sprintf("%s.gz", filepath)
-	if err := ioutil.WriteFile(newFilepath, b.Bytes(), 0o660); err != nil {
+	if err := os.WriteFile(newFilepath, b.Bytes(), 0o755); err != nil {
 		return "", fmt.Errorf("write file: %s", err)
 	}
 
