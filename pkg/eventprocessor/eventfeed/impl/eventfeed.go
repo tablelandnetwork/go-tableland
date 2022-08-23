@@ -2,6 +2,7 @@ package impl
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"reflect"
@@ -16,6 +17,7 @@ import (
 	logger "github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
+	"github.com/textileio/go-tableland/pkg/sqlstore"
 	tbleth "github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
@@ -29,6 +31,7 @@ const (
 // EventFeed provides a stream of filtered events from a SC.
 type EventFeed struct {
 	log                zerolog.Logger
+	systemStore        sqlstore.SystemStore
 	chainID            tableland.ChainID
 	ethClient          eventfeed.ChainClient
 	scAddress          common.Address
@@ -44,6 +47,7 @@ type EventFeed struct {
 
 // New returns a new EventFeed.
 func New(
+	systemStore sqlstore.SystemStore,
 	chainID tableland.ChainID,
 	ethClient eventfeed.ChainClient,
 	scAddress common.Address,
@@ -65,6 +69,7 @@ func New(
 		Logger()
 	ef := &EventFeed{
 		log:                log,
+		systemStore:        systemStore,
 		chainID:            chainID,
 		ethClient:          ethClient,
 		scAddress:          scAddress,
@@ -158,7 +163,21 @@ func (ef *EventFeed) Start(
 				continue
 			}
 
-			blocksEvents, err := ef.packEvents(logs)
+			events := make([]interface{}, len(logs))
+			for i, l := range logs {
+				events[i], err = ef.parseEvent(l)
+				if err != nil {
+					return fmt.Errorf("couldn't parse event: %s", err)
+				}
+			}
+
+			if ef.config.PersistEvents {
+				if err := ef.persistEvents(ctx, logs, events); err != nil {
+					return fmt.Errorf("persist events: %s", err)
+				}
+			}
+
+			blocksEvents, err := ef.packEvents(logs, events)
 			if err != nil {
 				return fmt.Errorf("packing events: %s", err)
 			}
@@ -182,14 +201,14 @@ func (ef *EventFeed) Start(
 // 1) First, by block_number.
 // 2) Within a block_number, by txn_hash.
 // Remember that one block contains multiple txns, and each txn can have more than one event.
-func (ef *EventFeed) packEvents(logs []types.Log) ([]*eventfeed.BlockEvents, error) {
+func (ef *EventFeed) packEvents(logs []types.Log, parsedEvents []interface{}) ([]*eventfeed.BlockEvents, error) {
 	if len(logs) == 0 {
 		return nil, nil
 	}
 
 	var ret []*eventfeed.BlockEvents
 	var new *eventfeed.BlockEvents
-	for _, l := range logs {
+	for i, l := range logs {
 		// New block number detected? -> Close the block grouping.
 		if new == nil || new.BlockNumber != int64(l.BlockNumber) {
 			new = &eventfeed.BlockEvents{
@@ -203,11 +222,7 @@ func (ef *EventFeed) packEvents(logs []types.Log) ([]*eventfeed.BlockEvents, err
 				TxnHash: l.TxHash,
 			})
 		}
-		event, err := ef.parseEvent(l)
-		if err != nil {
-			return nil, fmt.Errorf("couldn't parse event: %s", err)
-		}
-		new.Txns[len(new.Txns)-1].Events = append(new.Txns[len(new.Txns)-1].Events, event)
+		new.Txns[len(new.Txns)-1].Events = append(new.Txns[len(new.Txns)-1].Events, parsedEvents[i])
 	}
 
 	return ret, nil
@@ -342,6 +357,79 @@ func (ef *EventFeed) notifyNewBlocks(ctx context.Context, clientCh chan *types.H
 		}
 		ef.log.Info().Msg("gracefully closing notifier")
 	}()
+
+	return nil
+}
+
+func (ef *EventFeed) persistEvents(ctx context.Context, logs []types.Log, parsedEvents []interface{}) error {
+	tx, err := ef.systemStore.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("opening db tx: %s", err)
+	}
+	defer tx.Rollback()
+
+	store := ef.systemStore.WithTx(tx)
+
+	evmTxnAlreadyPersisted := map[common.Hash]struct{}{}
+	tblEvents := make([]tableland.EVMEvent, len(logs))
+	for i, e := range logs {
+		// If we already have registered events for the TxHash, we skip persisting this log.
+		// This means that one of two things happened:
+		// - We persisted the events before, and the validator closed without EventProcessor executing them; so, in the
+		//   next restart these events will be fetched again and re-tried to be persisted. We're safe to skip that work.
+		// - In circumstantces where the validator config allows reorgs, the same EVM txn can appear in a "later" block
+		//   again. The way EventProcessor works is by skipping executing this EVM txn if appears later, so the first
+		//   time it was seen is the one that counts. For persistence we do the same; only the first time it appeared
+		//   is the event information we save to be coherent with execution. In any case, a validator config that allows
+		//   reorgs isn't safe for state coherence between validators so this should only happen in test environments.
+		if _, ok := evmTxnAlreadyPersisted[e.TxHash]; ok {
+			continue
+		}
+		areTxnEventsPersisted, err := store.AreEVMEventsPersisted(ctx, e.TxHash)
+		if err != nil {
+			return fmt.Errorf("check if evm txn events are persisted: %s", err)
+		}
+		if areTxnEventsPersisted {
+			evmTxnAlreadyPersisted[e.TxHash] = struct{}{}
+			continue
+		}
+
+		eventJSONBytes, err := json.Marshal(parsedEvents[i])
+		if err != nil {
+			return fmt.Errorf("marshaling event: %s", err)
+		}
+		topicsHex := make([]string, len(e.Topics))
+		for _, t := range e.Topics {
+			topicsHex[i] = t.Hex()
+		}
+		topicsJSONBytes, err := json.Marshal(topicsHex)
+		if err != nil {
+			return fmt.Errorf("marshaling topics array: %s", err)
+		}
+		tblEvents[i] = tableland.EVMEvent{
+			// Direct mapping from types.Log
+			Address:     e.Address,
+			Topics:      topicsJSONBytes,
+			Data:        e.Data,
+			BlockNumber: e.BlockNumber,
+			TxHash:      e.TxHash,
+			TxIndex:     e.TxIndex,
+			BlockHash:   e.BlockHash,
+			Index:       e.Index,
+
+			// Enhanced fields
+			ChainID:   ef.chainID,
+			EventJSON: eventJSONBytes,
+		}
+	}
+
+	if err := store.SaveEVMEvents(ctx, tblEvents); err != nil {
+		return fmt.Errorf("persisting events: %s", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit db tx: %s", err)
+	}
 
 	return nil
 }

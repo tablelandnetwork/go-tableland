@@ -14,15 +14,23 @@ import (
 type SystemStore interface {
 	GetTable(context.Context, tableland.TableID) (Table, error)
 	GetTablesByController(context.Context, string) ([]Table, error)
+
 	GetACLOnTableByController(context.Context, tableland.TableID, string) (SystemACL, error)
+
 	ListPendingTx(context.Context, common.Address) ([]nonce.PendingTx, error)
 	InsertPendingTx(context.Context, common.Address, int64, common.Hash) error
 	DeletePendingTxByHash(context.Context, common.Hash) error
 	ReplacePendingTxByHash(context.Context, common.Hash, common.Hash) error
-	WithTx(tx *sql.Tx) SystemStore
-	Begin(context.Context) (*sql.Tx, error)
+
 	GetReceipt(context.Context, string) (eventprocessor.Receipt, bool, error)
+
 	GetTablesByStructure(context.Context, string) ([]Table, error)
 	GetSchemaByTableName(context.Context, string) (TableSchema, error)
+
+	AreEVMEventsPersisted(context.Context, common.Hash) (bool, error)
+	SaveEVMEvents(context.Context, []tableland.EVMEvent) error
+
+	Begin(context.Context) (*sql.Tx, error)
+	WithTx(tx *sql.Tx) SystemStore
 	Close() error
 }

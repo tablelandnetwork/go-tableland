@@ -7,6 +7,8 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // RelayWriteQueryRequest is a user RelayWriteQuery request.
@@ -175,4 +177,19 @@ func NewTableFromName(name string) (Table, error) {
 		prefix:  strings.Join(parts[:len(parts)-2], "_"),
 		chainID: ChainID(i),
 	}, nil
+}
+
+type EVMEvent struct {
+	Address     common.Address
+	Topics      []byte
+	Data        []byte
+	BlockNumber uint64
+	TxHash      common.Hash
+	TxIndex     uint
+	BlockHash   common.Hash
+	Index       uint
+
+	// Enhanced fields
+	ChainID   ChainID
+	EventJSON []byte
 }

@@ -9,14 +9,15 @@ import (
 
 	"github.com/XSAM/otelsql"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
+	logger "github.com/rs/zerolog/log"
 	"github.com/tablelandnetwork/sqlparser"
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/sqlite3" // migration for sqlite3
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
-	_ "github.com/mattn/go-sqlite3" // sqlite3 driver
+	"github.com/mattn/go-sqlite3"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/nonce"
@@ -30,6 +31,7 @@ import (
 // For safety reasons, this layer has no access to the database object or the transaction object.
 // The access is made through the dbWithTx interface.
 type SystemStore struct {
+	log      zerolog.Logger
 	chainID  tableland.ChainID
 	dbWithTx dbWithTx
 	db       *sql.DB
@@ -52,16 +54,24 @@ func New(dbURI string, chainID tableland.ChainID) (*SystemStore, error) {
 		return nil, fmt.Errorf("registering dbstats: %s", err)
 	}
 
-	as := bindata.Resource(migrations.AssetNames(), migrations.Asset)
-	if err := executeMigration(dbURI, as); err != nil {
-		return nil, fmt.Errorf("initializing db connection: %s", err)
-	}
+	log := logger.With().
+		Str("component", "systemstore").
+		Int64("chain_id", int64(chainID)).
+		Logger()
 
-	return &SystemStore{
+	systemStore := &SystemStore{
+		log:      log,
 		dbWithTx: &dbWithTxImpl{db: db.New(dbc)},
 		db:       dbc,
 		chainID:  chainID,
-	}, nil
+	}
+
+	as := bindata.Resource(migrations.AssetNames(), migrations.Asset)
+	if err := systemStore.executeMigration(dbURI, as); err != nil {
+		return nil, fmt.Errorf("initializing db connection: %s", err)
+	}
+
+	return systemStore, nil
 }
 
 // GetTable fetchs a table from its UUID.
@@ -327,6 +337,48 @@ func (s *SystemStore) GetReceipt(
 	return receipt, true, nil
 }
 
+func (s *SystemStore) AreEVMEventsPersisted(ctx context.Context, txnHash common.Hash) (bool, error) {
+	params := db.AreEVMTxnEventsPersistedParams{
+		ChainID: uint64(s.chainID),
+		TxHash:  txnHash.Hex(),
+	}
+	ok, err := s.dbWithTx.queries().AreEVMEventsPersisted(ctx, params)
+	if err != nil {
+		return false, fmt.Errorf("evm txn events lookup: %s", err)
+	}
+	return ok, nil
+}
+
+func (s *SystemStore) SaveEVMEvents(ctx context.Context, events []tableland.EVMEvent) error {
+	queries := s.dbWithTx.queries()
+	for _, e := range events {
+		args := db.InsertEVMEventParams{
+			ChainID:     uint64(e.ChainID),
+			EventJSON:   e.EventJSON,
+			Address:     e.Address.Hex(),
+			Topics:      e.Topics,
+			Data:        e.Data,
+			BlockNumber: e.BlockNumber,
+			TxHash:      e.TxHash.Hex(),
+			TxIndex:     e.TxIndex,
+			BlockHash:   e.BlockHash.Hex(),
+			Index:       e.Index,
+		}
+		if err := queries.InsertEVMEvent(ctx, args); err != nil {
+			var sqlErr sqlite3.Error
+			if errors.As(err, &sqlErr) {
+				if sqlErr.ExtendedCode == sqlite3.ErrConstraintPrimaryKey {
+					s.log.Warn().Str("txn_hash", e.TxHash.Hex()).Msg("event was already stored")
+					continue
+				}
+				return fmt.Errorf("insert evm event: %s", err)
+			}
+		}
+	}
+
+	return nil
+}
+
 // Close closes the store.
 func (s *SystemStore) Close() error {
 	if err := s.db.Close(); err != nil {
@@ -336,7 +388,7 @@ func (s *SystemStore) Close() error {
 }
 
 // executeMigration run db migrations and return a ready to use connection to the SQLite database.
-func executeMigration(dbURI string, as *bindata.AssetSource) error {
+func (s *SystemStore) executeMigration(dbURI string, as *bindata.AssetSource) error {
 	d, err := bindata.WithInstance(as)
 	if err != nil {
 		return fmt.Errorf("creating source driver: %s", err)
@@ -347,7 +399,7 @@ func executeMigration(dbURI string, as *bindata.AssetSource) error {
 		return fmt.Errorf("creating migration: %s", err)
 	}
 	version, dirty, err := m.Version()
-	log.Info().
+	s.log.Info().
 		Uint("dbVersion", version).
 		Bool("dirty", dirty).
 		Err(err).

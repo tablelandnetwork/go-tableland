@@ -44,6 +44,12 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.insertPendingTxStmt, err = db.PrepareContext(ctx, insertPendingTx); err != nil {
 		return nil, fmt.Errorf("error preparing query InsertPendingTx: %w", err)
 	}
+	if q.insertEVMEventStmt, err = db.PrepareContext(ctx, insertEVMEvent); err != nil {
+		return nil, fmt.Errorf("error preparing query InsertEVMEvent: %w", err)
+	}
+	if q.areEVMEventsPersistedStmt, err = db.PrepareContext(ctx, areEVMTxnEventsPersisted); err != nil {
+		return nil, fmt.Errorf("error preparing query AreEVMEventsPersisted: %w", err)
+	}
 	if q.listPendingTxStmt, err = db.PrepareContext(ctx, listPendingTx); err != nil {
 		return nil, fmt.Errorf("error preparing query ListPendingTx: %w", err)
 	}
@@ -90,6 +96,16 @@ func (q *Queries) Close() error {
 	if q.insertPendingTxStmt != nil {
 		if cerr := q.insertPendingTxStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing insertPendingTxStmt: %w", cerr)
+		}
+	}
+	if q.insertEVMEventStmt != nil {
+		if cerr := q.insertEVMEventStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing insertEVMEventStmt: %w", cerr)
+		}
+	}
+	if q.areEVMEventsPersistedStmt != nil {
+		if cerr := q.areEVMEventsPersistedStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing areEVMEventsPersistedStmt: %w", cerr)
 		}
 	}
 	if q.listPendingTxStmt != nil {
@@ -143,6 +159,8 @@ type Queries struct {
 	getTableStmt                   *sql.Stmt
 	getTablesByControllerStmt      *sql.Stmt
 	insertPendingTxStmt            *sql.Stmt
+	insertEVMEventStmt             *sql.Stmt
+	areEVMEventsPersistedStmt      *sql.Stmt
 	listPendingTxStmt              *sql.Stmt
 	getTablesByStructureStmt       *sql.Stmt
 }
@@ -157,6 +175,8 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getTableStmt:                   q.getTableStmt,
 		getTablesByControllerStmt:      q.getTablesByControllerStmt,
 		insertPendingTxStmt:            q.insertPendingTxStmt,
+		insertEVMEventStmt:             q.insertEVMEventStmt,
+		areEVMEventsPersistedStmt:      q.areEVMEventsPersistedStmt,
 		listPendingTxStmt:              q.listPendingTxStmt,
 		getTablesByStructureStmt:       q.getTablesByStructureStmt,
 	}
