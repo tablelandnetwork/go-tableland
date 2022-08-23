@@ -48,12 +48,20 @@ func TestList(t *testing.T) {
 	require.Len(t, res, 1)
 }
 
-func TestWrite(t *testing.T) {
+func TestRelayWrite(t *testing.T) {
 	t.Parallel()
 
 	calls := setup(t)
 	_, table := requireCreate(t, calls)
-	requireWrite(t, calls, table)
+	requireWrite(t, calls, table, WriteRelay(true))
+}
+
+func TestDirectWrite(t *testing.T) {
+	t.Parallel()
+
+	calls := setup(t)
+	_, table := requireCreate(t, calls)
+	requireWrite(t, calls, table, WriteRelay(false))
 }
 
 func TestRead(t *testing.T) {
@@ -75,6 +83,15 @@ func TestHash(t *testing.T) {
 	require.NotEmpty(t, hash)
 }
 
+func TestValidate(t *testing.T) {
+	t.Parallel()
+
+	calls := setup(t)
+	id, table := requireCreate(t, calls)
+	res := calls.validate(fmt.Sprintf("insert into %s (bar) values ('hi')", table))
+	require.Equal(t, id, res)
+}
+
 func TestSetController(t *testing.T) {
 	t.Parallel()
 
@@ -93,8 +110,8 @@ func requireCreate(t *testing.T, calls clientCalls) (TableID, string) {
 	return id, table
 }
 
-func requireWrite(t *testing.T, calls clientCalls, table string) string {
-	hash := calls.write(fmt.Sprintf("insert into %s (bar) values('baz')", table))
+func requireWrite(t *testing.T, calls clientCalls, table string, opts ...WriteOption) string {
+	hash := calls.write(fmt.Sprintf("insert into %s (bar) values('baz')", table), opts...)
 	require.NotEmpty(t, hash)
 	return hash
 }
@@ -129,8 +146,9 @@ type clientCalls struct {
 	list          func() []TableInfo
 	create        func(schema string, opts ...CreateOption) (TableID, string)
 	read          func(query string) string
-	write         func(query string) string
+	write         func(query string, opts ...WriteOption) string
 	hash          func(statement string) string
+	validate      func(statement string) TableID
 	receipt       func(txnHash string, options ...ReceiptOption) (*TxnReceipt, bool)
 	setController func(controller common.Address, tableID TableID) string
 }
@@ -188,13 +206,13 @@ func setup(t *testing.T) clientCalls {
 
 	server := httptest.NewServer(router.Handler())
 
-	client, err := NewClient(ctx, Config{
-		TblAPIURL:    server.URL,
-		EthBackend:   backend,
-		ChainID:      1337,
+	ni := NetworkInfo{
+		Network:      Network(server.URL),
+		ChainID:      ChainID(1337),
 		ContractAddr: addr,
-		Wallet:       wallet,
-	})
+	}
+
+	client, err := NewClient(ctx, wallet, NewClientNetworkInfo(ni), NewClientContractBackend(backend))
 	require.NoError(t, err)
 
 	// Spin up dependencies needed for the EventProcessor.
@@ -234,8 +252,8 @@ func setup(t *testing.T) clientCalls {
 			require.NoError(t, err)
 			return res
 		},
-		write: func(query string) string {
-			hash, err := client.Write(ctx, query)
+		write: func(query string, opts ...WriteOption) string {
+			hash, err := client.Write(ctx, query, opts...)
 			require.NoError(t, err)
 			backend.Commit()
 			return hash
@@ -244,6 +262,11 @@ func setup(t *testing.T) clientCalls {
 			hash, err := client.Hash(ctx, statement)
 			require.NoError(t, err)
 			return hash
+		},
+		validate: func(statement string) TableID {
+			tableID, err := client.Validate(ctx, statement)
+			require.NoError(t, err)
+			return tableID
 		},
 		receipt: func(txnHash string, options ...ReceiptOption) (*TxnReceipt, bool) {
 			receipt, found, err := client.Receipt(ctx, txnHash, options...)
