@@ -283,7 +283,7 @@ func createChainIDStack(
 		eventfeed.WithNewBlockTimeout(newBlockTimeout),
 		eventfeed.WithEventPersistence(config.EventFeed.PersistEvents),
 	}
-	ef, err := efimpl.New(config.ChainID, conn, scAddress, efOpts...)
+	ef, err := efimpl.New(systemStore, config.ChainID, conn, scAddress, efOpts...)
 	if err != nil {
 		return chains.ChainStack{}, fmt.Errorf("creating event feed: %s", err)
 	}

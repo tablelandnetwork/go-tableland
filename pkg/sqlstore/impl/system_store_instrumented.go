@@ -258,7 +258,7 @@ func (s *InstrumentedSystemStore) GetReceipt(
 	ctx context.Context,
 	txnHash string,
 ) (eventprocessor.Receipt, bool, error) {
-	log.Debug().Str("hash", txnHash).Msg("call GetReceipt")
+	log.Debug().Str("txn_hash", txnHash).Msg("call GetReceipt")
 	start := time.Now()
 	receipt, ok, err := s.store.GetReceipt(ctx, txnHash)
 	latency := time.Since(start).Milliseconds()
@@ -273,4 +273,42 @@ func (s *InstrumentedSystemStore) GetReceipt(
 	s.latencyHistogram.Record(ctx, latency, attributes...)
 
 	return receipt, ok, err
+}
+
+// AreEVMEventsPersisted implements sqlstore.SystemStore
+func (s *InstrumentedSystemStore) AreEVMEventsPersisted(ctx context.Context, txnHash common.Hash) (bool, error) {
+	log.Debug().Str("txn_hash", txnHash.Hex()).Msg("call AreEVMEventsPersisted")
+	start := time.Now()
+	ok, err := s.store.AreEVMEventsPersisted(ctx, txnHash)
+	latency := time.Since(start).Milliseconds()
+
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("AreEVMEventsPersisted")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+		{Key: "chainID", Value: attribute.Int64Value(int64(s.chainID))},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return ok, err
+}
+
+// SaveEVMEvents implements sqlstore.SystemStore
+func (s *InstrumentedSystemStore) SaveEVMEvents(ctx context.Context, events []tableland.EVMEvent) error {
+	log.Debug().Msg("call SaveEVMEvents")
+	start := time.Now()
+	err := s.store.SaveEVMEvents(ctx, events)
+	latency := time.Since(start).Milliseconds()
+
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("SaveEVMEvents")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+		{Key: "chainID", Value: attribute.Int64Value(int64(s.chainID))},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return err
 }
