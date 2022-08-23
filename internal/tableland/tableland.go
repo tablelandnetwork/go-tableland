@@ -193,4 +193,5 @@ type EVMEvent struct {
 	// Enhanced fields
 	ChainID   ChainID
 	EventJSON []byte
+	EventType string
 }

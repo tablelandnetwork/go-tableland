@@ -435,6 +435,8 @@ func (ef *EventFeed) persistEvents(ctx context.Context, events []types.Log, pars
 		if err != nil {
 			return fmt.Errorf("marshaling topics array: %s", err)
 		}
+		// The reflect names are *ethereum.XXXXX, so we get only XXXXX.
+		eventType := strings.SplitN(reflect.TypeOf(parsedEvents[i]).String(), ".", 2)[1]
 		tblEvents = append(tblEvents, tableland.EVMEvent{
 			// Direct mapping from types.Log
 			Address:     e.Address,
@@ -449,6 +451,7 @@ func (ef *EventFeed) persistEvents(ctx context.Context, events []types.Log, pars
 			// Enhanced fields
 			ChainID:   ef.chainID,
 			EventJSON: eventJSONBytes,
+			EventType: eventType,
 		})
 	}
 

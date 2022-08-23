@@ -56,6 +56,7 @@ type SystemTxnReceipt struct {
 type EVMEvent struct {
 	ChainID     uint64
 	EventJSON   []byte
+	EventType   string
 	Address     string
 	Topics      []byte
 	Data        []byte

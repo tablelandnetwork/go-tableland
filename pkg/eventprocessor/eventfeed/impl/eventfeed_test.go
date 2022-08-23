@@ -165,6 +165,7 @@ func TestAllEvents(t *testing.T) {
 
 			require.Equal(t, txn1.ChainId().Int64(), int64(evmEvent.ChainID))
 			require.NotEmpty(t, evmEvent.EventJSON)
+			require.Equal(t, "ContractCreateTable", evmEvent.EventType)
 			require.Equal(t, *txn1.To(), evmEvent.Address)
 			require.NotEmpty(t, evmEvent.Topics)
 			require.NotEmpty(t, txn1.Data(), evmEvent.Data)
@@ -186,6 +187,7 @@ func TestAllEvents(t *testing.T) {
 
 			require.Equal(t, txn2.ChainId().Int64(), int64(evmEvent.ChainID))
 			require.NotEmpty(t, evmEvent.EventJSON)
+			require.Equal(t, "ContractRunSQL", evmEvent.EventType)
 			require.Equal(t, *txn2.To(), evmEvent.Address)
 			require.NotEmpty(t, evmEvent.Topics)
 			require.NotEmpty(t, txn2.Data(), evmEvent.Data)
@@ -206,6 +208,7 @@ func TestAllEvents(t *testing.T) {
 
 			require.Equal(t, txn3.ChainId().Int64(), int64(evmEvent.ChainID))
 			require.NotEmpty(t, evmEvent.EventJSON)
+			require.Equal(t, "ContractSetController", evmEvent.EventType)
 			require.Equal(t, *txn3.To(), evmEvent.Address)
 			require.NotEmpty(t, evmEvent.Topics)
 			require.NotEmpty(t, txn3.Data(), evmEvent.Data)
@@ -226,6 +229,7 @@ func TestAllEvents(t *testing.T) {
 
 			require.Equal(t, txn4.ChainId().Int64(), int64(evmEvent.ChainID))
 			require.NotEmpty(t, evmEvent.EventJSON)
+			require.Equal(t, "ContractTransferTable", evmEvent.EventType)
 			require.Equal(t, *txn4.To(), evmEvent.Address)
 			require.NotEmpty(t, evmEvent.Topics)
 			require.NotEmpty(t, txn4.Data(), evmEvent.Data)

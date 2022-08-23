@@ -356,6 +356,7 @@ func (s *SystemStore) SaveEVMEvents(ctx context.Context, events []tableland.EVME
 		args := db.InsertEVMEventParams{
 			ChainID:     int64(e.ChainID),
 			EventJSON:   e.EventJSON,
+			EventType:   e.EventType,
 			Address:     e.Address.Hex(),
 			Topics:      e.Topics,
 			Data:        e.Data,
@@ -427,6 +428,7 @@ func (s *SystemStore) GetEVMEvents(ctx context.Context, txnHash common.Hash) ([]
 			Index:       event.Index,
 			ChainID:     tableland.ChainID(event.ChainID),
 			EventJSON:   event.EventJSON,
+			EventType:   event.EventType,
 		}
 	}
 
