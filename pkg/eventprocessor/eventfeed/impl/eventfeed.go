@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	jsoniter "github.com/json-iterator/go"
+
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -381,6 +383,15 @@ func (ef *EventFeed) notifyNewBlocks(ctx context.Context, clientCh chan *types.H
 }
 
 func (ef *EventFeed) persistEvents(ctx context.Context, logs []types.Log, parsedEvents []interface{}) error {
+	// All Contract* auto-generated structs contain the `Raw` field which we wan't to avoid appearing in the JSON
+	// serialization. The only thing we know about events is that they're interface{}.
+	// We can't use `json:"-"` because Contract* is auto-generated so we can't easily edit the struct tags.
+	//
+	// We use jsoniter to dynamically configure the Marshal(...) function to omit any field named `Raw` dynamically.
+	// This is exactly what we need.
+	cfg := jsoniter.Config{}.Froze()
+	cfg.RegisterExtension(&OmitRawFieldExtension{})
+
 	tx, err := ef.systemStore.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("opening db tx: %s", err)
@@ -422,10 +433,11 @@ func (ef *EventFeed) persistEvents(ctx context.Context, logs []types.Log, parsed
 			blockHeaderCache[e.BlockHash] = blockHeader
 		}
 
-		eventJSONBytes, err := json.Marshal(parsedEvents[i])
+		eventJSONBytes, err := cfg.Marshal(parsedEvents[i])
 		if err != nil {
 			return fmt.Errorf("marshaling event: %s", err)
 		}
+
 		topicsHex := make([]string, len(e.Topics))
 		for i, t := range e.Topics {
 			topicsHex[i] = t.Hex()
@@ -461,4 +473,15 @@ func (ef *EventFeed) persistEvents(ctx context.Context, logs []types.Log, parsed
 	}
 
 	return nil
+}
+
+// Based on https://github.com/json-iterator/go/issues/392
+type OmitRawFieldExtension struct {
+	jsoniter.DummyExtension
+}
+
+func (e *OmitRawFieldExtension) UpdateStructDescriptor(structDescriptor *jsoniter.StructDescriptor) {
+	if binding := structDescriptor.GetField("Raw"); binding != nil {
+		binding.ToNames = []string{}
+	}
 }

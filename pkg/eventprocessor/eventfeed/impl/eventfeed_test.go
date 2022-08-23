@@ -189,7 +189,6 @@ func TestAllEvents(t *testing.T) {
 			require.Equal(t, uint(1), evmEvent.TxIndex)
 			require.NotEmpty(t, evmEvent.BlockHash)
 			require.Equal(t, uint(2), evmEvent.Index)
-
 		}
 
 		// Txn3
@@ -224,7 +223,6 @@ func TestAllEvents(t *testing.T) {
 			require.Equal(t, uint(3), evmEvent.TxIndex)
 			require.NotEmpty(t, evmEvent.BlockHash)
 			require.Equal(t, uint(5), evmEvent.Index)
-
 		}
 	case <-time.After(time.Second):
 		t.Fatalf("didn't receive expected log")
