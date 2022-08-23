@@ -206,13 +206,13 @@ func setup(t *testing.T) clientCalls {
 
 	server := httptest.NewServer(router.Handler())
 
-	ni := NetworkInfo{
-		Network:      Network(server.URL),
-		ChainID:      ChainID(1337),
+	c := Chain{
+		Endpoint:     server.URL,
+		ID:           ChainID(1337),
 		ContractAddr: addr,
 	}
 
-	client, err := NewClient(ctx, wallet, NewClientNetworkInfo(ni), NewClientContractBackend(backend))
+	client, err := NewClient(ctx, wallet, NewClientChain(c), NewClientContractBackend(backend))
 	require.NoError(t, err)
 
 	// Spin up dependencies needed for the EventProcessor.
