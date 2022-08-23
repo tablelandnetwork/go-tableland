@@ -122,7 +122,15 @@ func (b *Backuper) Backup(ctx context.Context) (_ BackupResult, err error) {
 	}
 
 	if b.config.Compression {
-		panic("compression not implemented")
+		backupResult.Path, backupResult.SizeAfterCompression, backupResult.CompressionElapsedTime, err = b.doCompress(b.backup.Path()) // nolint
+		if err != nil {
+			return BackupResult{}, errors.Errorf("do compress: %s", err)
+		}
+
+		// removes uncompressed file
+		if err := os.Remove(b.backup.Path()); err != nil {
+			return BackupResult{}, errors.Errorf("os remove: %s", err)
+		}
 	}
 
 	if b.config.Pruning {
@@ -201,6 +209,21 @@ func (b *Backuper) doVacuum(ctx context.Context, conn *sql.Conn) (int64, time.Du
 	return size, time.Since(startTime), nil
 }
 
+func (b *Backuper) doCompress(filepath string) (string, int64, time.Duration, error) {
+	startTime := time.Now()
+	newFilepath, err := Compress(filepath)
+	if err != nil {
+		return "", 0, 0, errors.Errorf("compress: %s", err)
+	}
+
+	size, err := b.getFileSize(b.backup.Path())
+	if err != nil {
+		return "", 0, 0, errors.Errorf("get file size: %s", err)
+	}
+
+	return newFilepath, size, time.Since(startTime), nil
+}
+
 func (b *Backuper) getFileSize(filename string) (int64, error) {
 	fi, err := os.Stat(filename)
 	if err != nil {
@@ -242,10 +265,12 @@ type BackupResult struct {
 	Path string
 
 	// Stats
-	ElapsedTime       time.Duration
-	VacuumElapsedTime time.Duration
-	Size              int64
-	SizeAfterVacuum   int64
+	ElapsedTime            time.Duration
+	VacuumElapsedTime      time.Duration
+	CompressionElapsedTime time.Duration
+	Size                   int64
+	SizeAfterVacuum        int64
+	SizeAfterCompression   int64
 }
 
 // DB is a subset of *sql.DB operations used in Backuper. This interfaces aids with testing.

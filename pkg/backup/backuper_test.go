@@ -75,7 +75,8 @@ func TestBackuperWithVacuum(t *testing.T) {
 func TestBackuperWithCompression(t *testing.T) {
 	t.Parallel()
 
-	backuper, err := NewBackuper(createControlDatabase(t).Path(), backupDir(t), []Option{
+	dir := backupDir(t)
+	backuper, err := NewBackuper(createControlDatabase(t).Path(), dir, []Option{
 		WithVacuum(true),
 		WithCompression(true),
 	}...,
@@ -88,9 +89,25 @@ func TestBackuperWithCompression(t *testing.T) {
 	err = backuper.Init()
 	require.NoError(t, err)
 
-	require.Panicsf(t, func() {
-		_, _ = backuper.Backup(context.Background())
-	}, "compression not implemented")
+	// substitutes the to a mocked version
+	backuper.fileCreator = func(dir string, _ time.Time) (string, error) {
+		timestamp := time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC)
+		return createBackupFile(dir, timestamp)
+	}
+	err = backuper.Init()
+	require.NoError(t, err)
+
+	result, err := backuper.Backup(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, int64(311296), result.Size)
+	require.Equal(t, int64(159744), result.SizeAfterVacuum)
+	require.Greater(t, result.VacuumElapsedTime, time.Duration(0))
+	require.Equal(t, fmt.Sprintf("%s/tbl_backup_2009-11-17T20:34:58Z.db.gz", dir), result.Path)
+	require.FileExists(t, fmt.Sprintf("%s/tbl_backup_2009-11-17T20:34:58Z.db.gz", dir))
+	require.NoFileExists(t, fmt.Sprintf("%s/tbl_backup_2009-11-17T20:34:58Z.db", dir))
+	require.Greater(t, result.ElapsedTime, time.Duration(0))
+	require.Greater(t, result.CompressionElapsedTime, time.Duration(0))
+	require.Greater(t, result.SizeAfterCompression, int64(38573))
 
 	require.NoError(t, backuper.Close())
 }
@@ -103,13 +120,14 @@ func TestBackuperWithPruning(t *testing.T) {
 	backuper, err := NewBackuper(db.Path(), dir, []Option{
 		WithVacuum(true),
 		WithPruning(true),
+		WithCompression(true),
 		WithKeepFiles(1),
 	}...,
 	)
 	require.NoError(t, err)
 	require.Equal(t, true, backuper.config.Vacuum)
 	require.Equal(t, true, backuper.config.Pruning)
-	require.Equal(t, false, backuper.config.Compression)
+	require.Equal(t, true, backuper.config.Compression)
 	require.Equal(t, 1, backuper.config.KeepFiles)
 
 	err = backuper.Init()
