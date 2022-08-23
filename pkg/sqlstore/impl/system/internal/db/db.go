@@ -53,6 +53,12 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.areEVMEventsPersistedStmt, err = db.PrepareContext(ctx, areEVMTxnEventsPersisted); err != nil {
 		return nil, fmt.Errorf("error preparing query AreEVMEventsPersisted: %w", err)
 	}
+	if q.getBlocksMissingExtraInfoStmt, err = db.PrepareContext(ctx, getBlocksMissingExtraInfo); err != nil {
+		return nil, fmt.Errorf("error preparing query GetBlocksMissingExtraInfo: %w", err)
+	}
+	if q.insertBlockExtraInfoStmt, err = db.PrepareContext(ctx, insertBlockExtraInfo); err != nil {
+		return nil, fmt.Errorf("error preparing query InsertBlocksExtraInfo: %w", err)
+	}
 	if q.listPendingTxStmt, err = db.PrepareContext(ctx, listPendingTx); err != nil {
 		return nil, fmt.Errorf("error preparing query ListPendingTx: %w", err)
 	}
@@ -116,6 +122,16 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing areEVMEventsPersistedStmt: %w", cerr)
 		}
 	}
+	if q.getBlocksMissingExtraInfoStmt != nil {
+		if cerr := q.getBlocksMissingExtraInfoStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getBlocksMissingExtraInfo: %w", cerr)
+		}
+	}
+	if q.insertBlockExtraInfoStmt != nil {
+		if cerr := q.insertBlockExtraInfoStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing insertBlocksExtraInfo: %w", cerr)
+		}
+	}
 	if q.listPendingTxStmt != nil {
 		if cerr := q.listPendingTxStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing listPendingTxStmt: %w", cerr)
@@ -170,6 +186,8 @@ type Queries struct {
 	insertEVMEventStmt             *sql.Stmt
 	getEVMEventsStmt               *sql.Stmt
 	areEVMEventsPersistedStmt      *sql.Stmt
+	getBlocksMissingExtraInfoStmt  *sql.Stmt
+	insertBlockExtraInfoStmt       *sql.Stmt
 	listPendingTxStmt              *sql.Stmt
 	getTablesByStructureStmt       *sql.Stmt
 }
@@ -187,6 +205,8 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		insertEVMEventStmt:             q.insertEVMEventStmt,
 		getEVMEventsStmt:               q.getEVMEventsStmt,
 		areEVMEventsPersistedStmt:      q.areEVMEventsPersistedStmt,
+		getBlocksMissingExtraInfoStmt:  q.getBlocksMissingExtraInfoStmt,
+		insertBlockExtraInfoStmt:       q.insertBlockExtraInfoStmt,
 		listPendingTxStmt:              q.listPendingTxStmt,
 		getTablesByStructureStmt:       q.getTablesByStructureStmt,
 	}

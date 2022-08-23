@@ -40,7 +40,10 @@ type config struct {
 		Human bool `default:"false"`
 		Debug bool `default:"false"`
 	}
-	Chains []ChainConfig
+	Chains    []ChainConfig
+	Analytics struct {
+		FetchExtraBlockInfo bool `default:"false"`
+	}
 }
 
 // TableConstraints describes contraints to be enforced for Tableland tables.

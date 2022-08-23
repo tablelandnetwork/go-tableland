@@ -371,6 +371,34 @@ func (s *SystemStore) SaveEVMEvents(ctx context.Context, events []tableland.EVME
 	return nil
 }
 
+func (s *SystemStore) GetBlocksMissingExtraInfo(ctx context.Context) ([]int64, error) {
+	params := db.GetBlocksMissingExtraInfoParams{
+		ChainID: int64(s.chainID),
+	}
+	blockNumbers, err := s.dbWithTx.queries().GetBlocksMissingExtraInfo(ctx, params)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get blocks missing extra info: %s", err)
+	}
+
+	return blockNumbers, nil
+}
+
+func (s *SystemStore) InsertBlockExtraInfo(ctx context.Context, blockNumber int64, timestamp uint64) error {
+	params := db.InsertBlockExtraInfoParams{
+		ChainID:     int64(s.chainID),
+		BlockNumber: blockNumber,
+		Timestamp:   timestamp,
+	}
+	if err := s.dbWithTx.queries().InsertBlockExtraInfo(ctx, params); err != nil {
+		return fmt.Errorf("insert block extra info: %s", err)
+	}
+
+	return nil
+}
+
 func (s *SystemStore) GetEVMEvents(ctx context.Context, txnHash common.Hash) ([]tableland.EVMEvent, error) {
 	args := db.GetEVMEventsParams{
 		ChainID: int64(s.chainID),

@@ -98,6 +98,10 @@ func (ef *EventFeed) Start(
 	ef.log.Debug().Msg("starting...")
 	defer ef.log.Debug().Msg("stopped")
 
+	if ef.config.FetchExtraBlockInfo {
+		go ef.fetchExtraBlockInfo(ctx)
+	}
+
 	// Spinup a background process that will post to chHeads when a new block is detected.
 	// This channel will be the heart-beat to pull new logs from the chain.
 	// We defer the ctx cancelation to be sure we always gracefully close this background go routine

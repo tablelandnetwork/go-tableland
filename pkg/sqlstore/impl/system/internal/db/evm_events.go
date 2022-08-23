@@ -95,3 +95,51 @@ func (q *Queries) AreEVMEventsPersisted(ctx context.Context, arg AreEVMTxnEvents
 	}
 	return true, nil
 }
+
+const getBlocksMissingExtraInfo = `
+SELECT block_number
+FROM system_evm_events e 
+LEFT OUTER JOIN system_evm_blocks b ON e.chain_id=b.chain_id AND e.block_number=b.block_number
+WHERE e.chain_id=?1 AND b.block_number is null
+ORDER BY e.block_number`
+
+type GetBlocksMissingExtraInfoParams struct {
+	ChainID int64
+}
+
+func (q *Queries) GetBlocksMissingExtraInfo(ctx context.Context, arg GetBlocksMissingExtraInfoParams) ([]int64, error) {
+	rows, err := q.query(ctx, q.getBlocksMissingExtraInfoStmt, getBlocksMissingExtraInfo, arg.ChainID)
+	if err != nil {
+		return nil, fmt.Errorf("executing getBlocksMissingExtraInfo query: %s", err)
+	}
+	defer rows.Close()
+
+	var ret []int64
+	for rows.Next() {
+		var blockNumber int64
+		if err = rows.Scan(&blockNumber); err != nil {
+			return nil, err
+		}
+		ret = append(ret, blockNumber)
+	}
+
+	return ret, nil
+}
+
+const insertBlockExtraInfo = `INSERT INTO system_evm_blocks VALUES (chain_id, block_number, timestamp) 
+VALUES (?1, ?2, ?3)`
+
+type InsertBlockExtraInfoParams struct {
+	ChainID     int64
+	BlockNumber int64
+	Timestamp   uint64
+}
+
+func (q *Queries) InsertBlockExtraInfo(ctx context.Context, arg InsertBlockExtraInfoParams) error {
+	_, err := q.exec(ctx, q.insertBlockExtraInfoStmt, insertBlockExtraInfo,
+		arg.ChainID,
+		arg.BlockNumber,
+		arg.Timestamp,
+	)
+	return err
+}

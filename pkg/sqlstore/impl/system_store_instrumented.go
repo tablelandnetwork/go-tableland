@@ -331,3 +331,41 @@ func (s *InstrumentedSystemStore) GetEVMEvents(ctx context.Context, txnHash comm
 
 	return events, err
 }
+
+// GetBlocksMissingExtraInfo implements sqlstore.SystemStore
+func (s *InstrumentedSystemStore) GetBlocksMissingExtraInfo(ctx context.Context) ([]int64, error) {
+	log.Debug().Msg("call GetBlocksMissingExtraInfo")
+	start := time.Now()
+	blockNumbers, err := s.store.GetBlocksMissingExtraInfo(ctx)
+	latency := time.Since(start).Milliseconds()
+
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("GetBlocksMissingExtraInfo")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+		{Key: "chainID", Value: attribute.Int64Value(int64(s.chainID))},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return blockNumbers, err
+}
+
+// InsertBlockExtraInfo implements sqlstore.SystemStore
+func (s *InstrumentedSystemStore) InsertBlockExtraInfo(ctx context.Context, blockNumber int64, timestamp uint64) error {
+	log.Debug().Int64("block_number", blockNumber).Msg("call InsertBlockExtraInfo")
+	start := time.Now()
+	err := s.store.InsertBlockExtraInfo(ctx, blockNumber, timestamp)
+	latency := time.Since(start).Milliseconds()
+
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("InsertBlockExtraInfo")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+		{Key: "chainID", Value: attribute.Int64Value(int64(s.chainID))},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return err
+}
