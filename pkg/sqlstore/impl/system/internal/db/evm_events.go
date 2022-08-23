@@ -97,7 +97,7 @@ func (q *Queries) AreEVMEventsPersisted(ctx context.Context, arg AreEVMTxnEvents
 }
 
 const getBlocksMissingExtraInfo = `
-SELECT block_number
+SELECT DISTINCT e.block_number
 FROM system_evm_events e 
 LEFT OUTER JOIN system_evm_blocks b ON e.chain_id=b.chain_id AND e.block_number=b.block_number
 WHERE e.chain_id=?1 AND b.block_number is null
@@ -126,8 +126,8 @@ func (q *Queries) GetBlocksMissingExtraInfo(ctx context.Context, arg GetBlocksMi
 	return ret, nil
 }
 
-const insertBlockExtraInfo = `INSERT INTO system_evm_blocks VALUES (chain_id, block_number, timestamp) 
-VALUES (?1, ?2, ?3)`
+const insertBlockExtraInfo = `
+INSERT INTO system_evm_blocks ("chain_id", "block_number", "timestamp") VALUES (?1, ?2, ?3)`
 
 type InsertBlockExtraInfoParams struct {
 	ChainID     int64

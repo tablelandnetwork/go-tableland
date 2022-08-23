@@ -28,6 +28,9 @@
         "Human": false,
         "Debug": true
     },
+    "Analytics": {
+        "FetchExtraBlockInfo": true
+    },
     "Chains": [
         {
             "Name": "Optimism Kovan",

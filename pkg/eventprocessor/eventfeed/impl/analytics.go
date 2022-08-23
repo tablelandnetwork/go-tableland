@@ -19,6 +19,7 @@ func (ef *EventFeed) fetchExtraBlockInfo(ctx context.Context) {
 		blockNumbers, err := ef.systemStore.GetBlocksMissingExtraInfo(ctx)
 		if err != nil {
 			ef.log.Error().Err(err).Msg("get blocks without extra info")
+			continue
 		}
 
 		rateLim := make(chan struct{}, 10)
