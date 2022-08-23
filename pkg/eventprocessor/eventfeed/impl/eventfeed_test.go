@@ -131,10 +131,10 @@ func TestAllEvents(t *testing.T) {
 		"CREATE TABLE foo (bar int)")
 	require.NoError(t, err)
 
-	_, err = sc.RunSQL(authOpts, ctrl, big.NewInt(1), "stmt-2")
+	txn2, err := sc.RunSQL(authOpts, ctrl, big.NewInt(1), "stmt-2")
 	require.NoError(t, err)
 
-	_, err = sc.SetController(
+	txn3, err := sc.SetController(
 		authOpts,
 		ctrl,
 		big.NewInt(1),
@@ -142,7 +142,7 @@ func TestAllEvents(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	_, err = sc.TransferFrom(
+	txn4, err := sc.TransferFrom(
 		authOpts,
 		ctrl,
 		common.HexToAddress("0xB0Cf943Cf94E7B6A2657D15af41c5E06c2BFEA3E"),
@@ -159,6 +159,7 @@ func TestAllEvents(t *testing.T) {
 		{
 			require.NotEqual(t, emptyHash, bes.Txns[0].TxnHash)
 			require.IsType(t, &ethereum.ContractCreateTable{}, bes.Txns[0].Events[0])
+
 			evmEvent := getPersistedEVMEvent(t, dbURI, bes.Txns[0].TxnHash)
 			require.Equal(t, txn1.ChainId().Int64(), int64(evmEvent.ChainID))
 			require.NotEmpty(t, evmEvent.EventJSON)
@@ -176,16 +177,54 @@ func TestAllEvents(t *testing.T) {
 		{
 			require.NotEqual(t, emptyHash, bes.Txns[1].TxnHash)
 			require.IsType(t, &ethereum.ContractRunSQL{}, bes.Txns[1].Events[0])
+
+			evmEvent := getPersistedEVMEvent(t, dbURI, bes.Txns[1].TxnHash)
+			require.Equal(t, txn2.ChainId().Int64(), int64(evmEvent.ChainID))
+			require.NotEmpty(t, evmEvent.EventJSON)
+			require.Equal(t, *txn2.To(), evmEvent.Address)
+			require.NotEmpty(t, evmEvent.Topics)
+			require.NotEmpty(t, txn2.Data(), evmEvent.Data)
+			require.Equal(t, bes.BlockNumber, int64(evmEvent.BlockNumber))
+			require.Equal(t, txn2.Hash(), evmEvent.TxHash)
+			require.Equal(t, uint(1), evmEvent.TxIndex)
+			require.NotEmpty(t, evmEvent.BlockHash)
+			require.Equal(t, uint(2), evmEvent.Index)
+
 		}
 
 		// Txn3
 		{
 			require.IsType(t, &ethereum.ContractSetController{}, bes.Txns[2].Events[0])
+
+			evmEvent := getPersistedEVMEvent(t, dbURI, bes.Txns[2].TxnHash)
+			require.Equal(t, txn3.ChainId().Int64(), int64(evmEvent.ChainID))
+			require.NotEmpty(t, evmEvent.EventJSON)
+			require.Equal(t, *txn3.To(), evmEvent.Address)
+			require.NotEmpty(t, evmEvent.Topics)
+			require.NotEmpty(t, txn3.Data(), evmEvent.Data)
+			require.Equal(t, bes.BlockNumber, int64(evmEvent.BlockNumber))
+			require.Equal(t, txn3.Hash(), evmEvent.TxHash)
+			require.Equal(t, uint(2), evmEvent.TxIndex)
+			require.NotEmpty(t, evmEvent.BlockHash)
+			require.Equal(t, uint(3), evmEvent.Index)
 		}
 
 		// Txn4
 		{
 			require.IsType(t, &ethereum.ContractTransferTable{}, bes.Txns[3].Events[0])
+
+			evmEvent := getPersistedEVMEvent(t, dbURI, bes.Txns[3].TxnHash)
+			require.Equal(t, txn4.ChainId().Int64(), int64(evmEvent.ChainID))
+			require.NotEmpty(t, evmEvent.EventJSON)
+			require.Equal(t, *txn4.To(), evmEvent.Address)
+			require.NotEmpty(t, evmEvent.Topics)
+			require.NotEmpty(t, txn4.Data(), evmEvent.Data)
+			require.Equal(t, bes.BlockNumber, int64(evmEvent.BlockNumber))
+			require.Equal(t, txn4.Hash(), evmEvent.TxHash)
+			require.Equal(t, uint(3), evmEvent.TxIndex)
+			require.NotEmpty(t, evmEvent.BlockHash)
+			require.Equal(t, uint(5), evmEvent.Index)
+
 		}
 	case <-time.After(time.Second):
 		t.Fatalf("didn't receive expected log")
