@@ -47,6 +47,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.insertEVMEventStmt, err = db.PrepareContext(ctx, insertEVMEvent); err != nil {
 		return nil, fmt.Errorf("error preparing query InsertEVMEvent: %w", err)
 	}
+	if q.getEVMEventsStmt, err = db.PrepareContext(ctx, getEVMEvents); err != nil {
+		return nil, fmt.Errorf("error preparing query GetEVMEvents: %w", err)
+	}
 	if q.areEVMEventsPersistedStmt, err = db.PrepareContext(ctx, areEVMTxnEventsPersisted); err != nil {
 		return nil, fmt.Errorf("error preparing query AreEVMEventsPersisted: %w", err)
 	}
@@ -101,6 +104,11 @@ func (q *Queries) Close() error {
 	if q.insertEVMEventStmt != nil {
 		if cerr := q.insertEVMEventStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing insertEVMEventStmt: %w", cerr)
+		}
+	}
+	if q.getEVMEventsStmt != nil {
+		if cerr := q.getEVMEventsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getEVMEventsStmt: %w", cerr)
 		}
 	}
 	if q.areEVMEventsPersistedStmt != nil {
@@ -160,6 +168,7 @@ type Queries struct {
 	getTablesByControllerStmt      *sql.Stmt
 	insertPendingTxStmt            *sql.Stmt
 	insertEVMEventStmt             *sql.Stmt
+	getEVMEventsStmt               *sql.Stmt
 	areEVMEventsPersistedStmt      *sql.Stmt
 	listPendingTxStmt              *sql.Stmt
 	getTablesByStructureStmt       *sql.Stmt
@@ -176,6 +185,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getTablesByControllerStmt:      q.getTablesByControllerStmt,
 		insertPendingTxStmt:            q.insertPendingTxStmt,
 		insertEVMEventStmt:             q.insertEVMEventStmt,
+		getEVMEventsStmt:               q.getEVMEventsStmt,
 		areEVMEventsPersistedStmt:      q.areEVMEventsPersistedStmt,
 		listPendingTxStmt:              q.listPendingTxStmt,
 		getTablesByStructureStmt:       q.getTablesByStructureStmt,

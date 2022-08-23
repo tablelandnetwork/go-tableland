@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"fmt"
 )
 
 const insertEVMEvent = `
@@ -11,7 +12,7 @@ VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
 `
 
 type InsertEVMEventParams struct {
-	ChainID     uint64
+	ChainID     int64
 	EventJSON   []byte
 	Timestamp   uint64
 	Address     string
@@ -41,7 +42,44 @@ func (q *Queries) InsertEVMEvent(ctx context.Context, arg InsertEVMEventParams) 
 	return err
 }
 
-const areEVMTxnEventsPersisted = `select 1 from system_evm_events where chain_id=?1 and tx_hash=?2 LIMIT 1`
+const getEVMEvents = `SELECT * FROM system_evm_events WHERE chain_id=?1 AND tx_hash=?2`
+
+type GetEVMEventsParams struct {
+	ChainID int64
+	TxHash  string
+}
+
+func (q *Queries) GetEVMEvents(ctx context.Context, arg GetEVMEventsParams) ([]EVMEvent, error) {
+	rows, err := q.query(ctx, q.getEVMEventsStmt, getEVMEvents, arg.ChainID, arg.TxHash)
+	if err != nil {
+		return nil, fmt.Errorf("executing getEvmEvents query: %s", err)
+	}
+	defer rows.Close()
+
+	var ret []EVMEvent
+	for rows.Next() {
+		var evmEvent EVMEvent
+		if err = rows.Scan(
+			&evmEvent.ChainID,
+			&evmEvent.EventJSON,
+			&evmEvent.Timestamp,
+			&evmEvent.Address,
+			&evmEvent.Topics,
+			&evmEvent.Data,
+			&evmEvent.BlockNumber,
+			&evmEvent.TxHash,
+			&evmEvent.TxIndex,
+			&evmEvent.BlockHash,
+			&evmEvent.Index); err != nil {
+			return nil, err
+		}
+		ret = append(ret, evmEvent)
+	}
+
+	return ret, nil
+}
+
+const areEVMTxnEventsPersisted = `SELECT 1 FROM system_evm_events where chain_id=?1 and tx_hash=?2 LIMIT 1`
 
 type AreEVMTxnEventsPersistedParams struct {
 	ChainID uint64
@@ -50,10 +88,12 @@ type AreEVMTxnEventsPersistedParams struct {
 
 func (q *Queries) AreEVMEventsPersisted(ctx context.Context, arg AreEVMTxnEventsPersistedParams) (bool, error) {
 	row := q.queryRow(ctx, q.areEVMEventsPersistedStmt, areEVMTxnEventsPersisted, arg.ChainID, arg.TxHash)
-	if row.Err() == sql.ErrNoRows {
+	var dummy int
+	err := row.Scan(&dummy)
+	if err == sql.ErrNoRows {
 		return false, nil
 	}
-	if row.Err() != nil {
+	if err != nil {
 		return false, row.Err()
 	}
 	return true, nil

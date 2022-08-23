@@ -29,6 +29,7 @@ type SystemStore interface {
 
 	AreEVMEventsPersisted(context.Context, common.Hash) (bool, error)
 	SaveEVMEvents(context.Context, []tableland.EVMEvent) error
+	GetEVMEvents(context.Context, common.Hash) ([]tableland.EVMEvent, error)
 
 	Begin(context.Context) (*sql.Tx, error)
 	WithTx(tx *sql.Tx) SystemStore

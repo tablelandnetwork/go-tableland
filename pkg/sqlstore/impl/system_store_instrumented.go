@@ -312,3 +312,22 @@ func (s *InstrumentedSystemStore) SaveEVMEvents(ctx context.Context, events []ta
 
 	return err
 }
+
+// GetEVMEvents implements sqlstore.SystemStore
+func (s *InstrumentedSystemStore) GetEVMEvents(ctx context.Context, txnHash common.Hash) ([]tableland.EVMEvent, error) {
+	log.Debug().Str("txn_hash", txnHash.Hex()).Msg("call GetEVMEvents")
+	start := time.Now()
+	events, err := s.store.GetEVMEvents(ctx, txnHash)
+	latency := time.Since(start).Milliseconds()
+
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("GetEVMEvents")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+		{Key: "chainID", Value: attribute.Int64Value(int64(s.chainID))},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return events, err
+}

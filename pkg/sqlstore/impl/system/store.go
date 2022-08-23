@@ -17,7 +17,6 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/sqlite3" // migration for sqlite3
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
-	"github.com/mattn/go-sqlite3"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/nonce"
@@ -353,7 +352,7 @@ func (s *SystemStore) SaveEVMEvents(ctx context.Context, events []tableland.EVME
 	queries := s.dbWithTx.queries()
 	for _, e := range events {
 		args := db.InsertEVMEventParams{
-			ChainID:     uint64(e.ChainID),
+			ChainID:     int64(e.ChainID),
 			EventJSON:   e.EventJSON,
 			Timestamp:   e.Timestamp,
 			Address:     e.Address.Hex(),
@@ -366,18 +365,41 @@ func (s *SystemStore) SaveEVMEvents(ctx context.Context, events []tableland.EVME
 			Index:       e.Index,
 		}
 		if err := queries.InsertEVMEvent(ctx, args); err != nil {
-			var sqlErr sqlite3.Error
-			if errors.As(err, &sqlErr) {
-				if sqlErr.ExtendedCode == sqlite3.ErrConstraintPrimaryKey {
-					s.log.Warn().Str("txn_hash", e.TxHash.Hex()).Msg("event was already stored")
-					continue
-				}
-				return fmt.Errorf("insert evm event: %s", err)
-			}
+			return fmt.Errorf("insert evm event: %s", err)
 		}
 	}
 
 	return nil
+}
+
+func (s *SystemStore) GetEVMEvents(ctx context.Context, txnHash common.Hash) ([]tableland.EVMEvent, error) {
+	args := db.GetEVMEventsParams{
+		ChainID: int64(s.chainID),
+		TxHash:  txnHash.Hex(),
+	}
+	events, err := s.dbWithTx.queries().GetEVMEvents(ctx, args)
+	if err != nil {
+		return nil, fmt.Errorf("get events by txhash: %s", err)
+	}
+
+	ret := make([]tableland.EVMEvent, len(events))
+	for i, event := range events {
+		ret[i] = tableland.EVMEvent{
+			Address:     common.HexToAddress(event.Address),
+			Topics:      event.Topics,
+			Data:        event.Data,
+			BlockNumber: event.BlockNumber,
+			TxHash:      common.HexToHash(event.TxHash),
+			TxIndex:     event.TxIndex,
+			BlockHash:   common.HexToHash(event.BlockHash),
+			Index:       event.Index,
+			ChainID:     tableland.ChainID(event.ChainID),
+			EventJSON:   event.EventJSON,
+			Timestamp:   event.Timestamp,
+		}
+	}
+
+	return ret, nil
 }
 
 // Close closes the store.

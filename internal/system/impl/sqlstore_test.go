@@ -269,3 +269,75 @@ func TestGetMetadata(t *testing.T) {
 		require.Equal(t, "Table not found", metadata.Message)
 	})
 }
+
+func TestEVMEventPersitance(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	dbURI := tests.Sqlite3URI()
+
+	store, err := system.New(dbURI, chainID)
+	require.NoError(t, err)
+
+	testData := []tableland.EVMEvent{
+		{
+			Address:     common.HexToAddress("0x10"),
+			Topics:      []byte(`["0x111,"0x122"]`),
+			Data:        []byte("data1"),
+			BlockNumber: 1,
+			TxHash:      common.HexToHash("0x11"),
+			TxIndex:     11,
+			BlockHash:   common.HexToHash("0x12"),
+			Index:       12,
+			ChainID:     chainID,
+			EventJSON:   []byte("eventjson1"),
+			Timestamp:   13,
+		},
+		{
+			Address:     common.HexToAddress("0x20"),
+			Topics:      []byte(`["0x211,"0x222"]`),
+			Data:        []byte("data2"),
+			BlockNumber: 2,
+			TxHash:      common.HexToHash("0x21"),
+			TxIndex:     11,
+			BlockHash:   common.HexToHash("0x22"),
+			Index:       12,
+			ChainID:     chainID,
+			EventJSON:   []byte("eventjson2"),
+			Timestamp:   23,
+		},
+	}
+
+	// Check that AreEVMEventsPersisted for the future txn hashes aren't found.
+	for _, event := range testData {
+		exists, err := store.AreEVMEventsPersisted(ctx, event.TxHash)
+		require.NoError(t, err)
+		require.False(t, exists)
+	}
+
+	err = store.SaveEVMEvents(ctx, testData)
+	require.NoError(t, err)
+
+	// Check that AreEVMEventsPersisted for the future txn hashes are found, and the data matches.
+	for _, event := range testData {
+		exists, err := store.AreEVMEventsPersisted(ctx, event.TxHash)
+		require.NoError(t, err)
+		require.True(t, exists)
+
+		events, err := store.GetEVMEvents(ctx, event.TxHash)
+		require.NoError(t, err)
+		require.Len(t, events, 1)
+
+		require.Equal(t, events[0].Address, event.Address)
+		require.Equal(t, events[0].Topics, event.Topics)
+		require.Equal(t, events[0].Data, event.Data)
+		require.Equal(t, events[0].BlockNumber, event.BlockNumber)
+		require.Equal(t, events[0].TxHash, event.TxHash)
+		require.Equal(t, events[0].TxIndex, event.TxIndex)
+		require.Equal(t, events[0].BlockHash, event.BlockHash)
+		require.Equal(t, events[0].Index, event.Index)
+		require.Equal(t, events[0].ChainID, chainID)
+		require.Equal(t, events[0].EventJSON, event.EventJSON)
+		require.Equal(t, events[0].Timestamp, event.Timestamp)
+	}
+}

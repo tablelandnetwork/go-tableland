@@ -382,7 +382,7 @@ func (ef *EventFeed) notifyNewBlocks(ctx context.Context, clientCh chan *types.H
 	return nil
 }
 
-func (ef *EventFeed) persistEvents(ctx context.Context, logs []types.Log, parsedEvents []interface{}) error {
+func (ef *EventFeed) persistEvents(ctx context.Context, events []types.Log, parsedEvents []interface{}) error {
 	// All Contract* auto-generated structs contain the `Raw` field which we wan't to avoid appearing in the JSON
 	// serialization. The only thing we know about events is that they're interface{}.
 	// We can't use `json:"-"` because Contract* is auto-generated so we can't easily edit the struct tags.
@@ -400,11 +400,11 @@ func (ef *EventFeed) persistEvents(ctx context.Context, logs []types.Log, parsed
 
 	store := ef.systemStore.WithTx(tx)
 
-	shouldPersistTxnHashEvents := map[common.Hash]bool{}
+	txnsEventsExistInDB := map[common.Hash]bool{}
 	blockHeaderCache := map[common.Hash]*types.Header{}
-	tblEvents := make([]tableland.EVMEvent, 0, len(logs))
-	for i, e := range logs {
-		// If we already have registered events for the TxHash, we skip persisting this log.
+	tblEvents := make([]tableland.EVMEvent, 0, len(events))
+	for i, e := range events {
+		// If we already have registered events for the TxHash, we skip persisting this event.
 		// This means that one of two things happened:
 		// - We persisted the events before, and the validator closed without EventProcessor executing them; so, in the
 		//   next restart these events will be fetched again and re-tried to be persisted. We're safe to skip that work.
@@ -413,17 +413,20 @@ func (ef *EventFeed) persistEvents(ctx context.Context, logs []types.Log, parsed
 		//   time it was seen is the one that counts. For persistence we do the same; only the first time it appeared
 		//   is the event information we save to be coherent with execution. In any case, a validator config that allows
 		//   reorgs isn't safe for state coherence between validators so this should only happen in test environments.
-		if _, ok := shouldPersistTxnHashEvents[e.TxHash]; !ok {
-			areTxnEventsPersisted, err := store.AreEVMEventsPersisted(ctx, e.TxHash)
+		if _, ok := txnsEventsExistInDB[e.TxHash]; !ok {
+			txnHashEventsExistsInDB, err := store.AreEVMEventsPersisted(ctx, e.TxHash)
 			if err != nil {
 				return fmt.Errorf("check if evm txn events are persisted: %s", err)
 			}
-			shouldPersistTxnHashEvents[e.TxHash] = areTxnEventsPersisted
+			txnsEventsExistInDB[e.TxHash] = txnHashEventsExistsInDB
 		}
-		if !shouldPersistTxnHashEvents[e.TxHash] {
+		if txnsEventsExistInDB[e.TxHash] {
 			continue
 		}
 
+		// We keep a cache of block headers for the events since many of them come from the same block.
+		// This guarantees that we do a single API HeaderByNumber() per block, instead of repeating the same call
+		// for the same block in every processed events.
 		blockHeader, ok := blockHeaderCache[e.BlockHash]
 		if !ok {
 			blockHeader, err = ef.ethClient.HeaderByNumber(ctx, big.NewInt(int64(e.BlockNumber)))

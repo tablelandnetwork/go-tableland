@@ -52,3 +52,17 @@ type SystemTxnReceipt struct {
 	ErrorEventIdx sql.NullInt64
 	TableID       sql.NullInt64
 }
+
+type EVMEvent struct {
+	ChainID     uint64
+	EventJSON   []byte
+	Timestamp   uint64
+	Address     string
+	Topics      []byte
+	Data        []byte
+	BlockNumber uint64
+	TxHash      string
+	TxIndex     uint
+	BlockHash   string
+	Index       uint
+}

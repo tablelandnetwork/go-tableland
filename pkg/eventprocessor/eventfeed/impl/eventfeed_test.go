@@ -2,7 +2,6 @@ package impl
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"math/big"
 	"os"
@@ -160,7 +159,10 @@ func TestAllEvents(t *testing.T) {
 			require.NotEqual(t, emptyHash, bes.Txns[0].TxnHash)
 			require.IsType(t, &ethereum.ContractCreateTable{}, bes.Txns[0].Events[0])
 
-			evmEvent := getPersistedEVMEvent(t, dbURI, bes.Txns[0].TxnHash)
+			evmEvents, err := systemStore.GetEVMEvents(ctx, bes.Txns[0].TxnHash)
+			require.NoError(t, err)
+			evmEvent := evmEvents[0]
+
 			require.Equal(t, txn1.ChainId().Int64(), int64(evmEvent.ChainID))
 			require.NotEmpty(t, evmEvent.EventJSON)
 			require.Equal(t, *txn1.To(), evmEvent.Address)
@@ -178,7 +180,10 @@ func TestAllEvents(t *testing.T) {
 			require.NotEqual(t, emptyHash, bes.Txns[1].TxnHash)
 			require.IsType(t, &ethereum.ContractRunSQL{}, bes.Txns[1].Events[0])
 
-			evmEvent := getPersistedEVMEvent(t, dbURI, bes.Txns[1].TxnHash)
+			evmEvents, err := systemStore.GetEVMEvents(ctx, bes.Txns[1].TxnHash)
+			require.NoError(t, err)
+			evmEvent := evmEvents[0]
+
 			require.Equal(t, txn2.ChainId().Int64(), int64(evmEvent.ChainID))
 			require.NotEmpty(t, evmEvent.EventJSON)
 			require.Equal(t, *txn2.To(), evmEvent.Address)
@@ -195,7 +200,10 @@ func TestAllEvents(t *testing.T) {
 		{
 			require.IsType(t, &ethereum.ContractSetController{}, bes.Txns[2].Events[0])
 
-			evmEvent := getPersistedEVMEvent(t, dbURI, bes.Txns[2].TxnHash)
+			evmEvents, err := systemStore.GetEVMEvents(ctx, bes.Txns[2].TxnHash)
+			require.NoError(t, err)
+			evmEvent := evmEvents[0]
+
 			require.Equal(t, txn3.ChainId().Int64(), int64(evmEvent.ChainID))
 			require.NotEmpty(t, evmEvent.EventJSON)
 			require.Equal(t, *txn3.To(), evmEvent.Address)
@@ -212,7 +220,10 @@ func TestAllEvents(t *testing.T) {
 		{
 			require.IsType(t, &ethereum.ContractTransferTable{}, bes.Txns[3].Events[0])
 
-			evmEvent := getPersistedEVMEvent(t, dbURI, bes.Txns[3].TxnHash)
+			evmEvents, err := systemStore.GetEVMEvents(ctx, bes.Txns[3].TxnHash)
+			require.NoError(t, err)
+			evmEvent := evmEvents[0]
+
 			require.Equal(t, txn4.ChainId().Int64(), int64(evmEvent.ChainID))
 			require.NotEmpty(t, evmEvent.EventJSON)
 			require.Equal(t, *txn4.To(), evmEvent.Address)
@@ -281,53 +292,5 @@ func TestInfura(t *testing.T) {
 		case <-chFeedClosed:
 			return
 		}
-	}
-}
-
-func getPersistedEVMEvent(t *testing.T, dbURI string, txnHash common.Hash) tableland.EVMEvent {
-	dbc, err := sql.Open("sqlite3", dbURI)
-	require.NoError(t, err)
-
-	row := dbc.QueryRow("select * from system_evm_events where tx_hash=?1", txnHash.Hex())
-	require.Nil(t, row.Err())
-	var evmEvent struct {
-		ChainID     uint64
-		EventJSON   []byte
-		Timestamp   uint64
-		Address     string
-		Topics      []byte
-		Data        []byte
-		BlockNumber uint64
-		TxHash      string
-		TxIndex     uint
-		BlockHash   string
-		Index       uint
-	}
-	err = row.Scan(
-		&evmEvent.ChainID,
-		&evmEvent.EventJSON,
-		&evmEvent.Timestamp,
-		&evmEvent.Address,
-		&evmEvent.Topics,
-		&evmEvent.Data,
-		&evmEvent.BlockNumber,
-		&evmEvent.TxHash,
-		&evmEvent.TxIndex,
-		&evmEvent.BlockHash,
-		&evmEvent.Index)
-	require.NoError(t, err)
-
-	return tableland.EVMEvent{
-		Address:     common.HexToAddress(evmEvent.Address),
-		Topics:      evmEvent.EventJSON,
-		Data:        evmEvent.Data,
-		BlockNumber: evmEvent.BlockNumber,
-		TxHash:      common.HexToHash(evmEvent.TxHash),
-		TxIndex:     evmEvent.TxIndex,
-		BlockHash:   common.HexToHash(evmEvent.BlockHash),
-		Index:       evmEvent.Index,
-		ChainID:     tableland.ChainID(evmEvent.ChainID),
-		EventJSON:   evmEvent.EventJSON,
-		Timestamp:   evmEvent.Timestamp,
 	}
 }
