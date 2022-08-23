@@ -5,6 +5,8 @@
 // migrations/001_init.up.sql
 // migrations/002_receipterroridx.down.sql
 // migrations/002_receipterroridx.up.sql
+// migrations/003_evm_events.down.sql
+// migrations/003_evm_events.up.sql
 package migrations
 
 import (
@@ -116,7 +118,7 @@ func _001_initUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "001_init.up.sql", size: 1907, mode: os.FileMode(436), modTime: time.Unix(1657550241, 0)}
+	info := bindataFileInfo{name: "001_init.up.sql", size: 1907, mode: os.FileMode(436), modTime: time.Unix(1659637402, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -136,12 +138,12 @@ func _002_receipterroridxDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_receipterroridx.down.sql", size: 60, mode: os.FileMode(436), modTime: time.Unix(1659547163, 0)}
+	info := bindataFileInfo{name: "002_receipterroridx.down.sql", size: 60, mode: os.FileMode(436), modTime: time.Unix(1659703594, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
-var __002_receipterroridxUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\xf4\x09\x71\x0d\x52\x08\x71\x74\xf2\x71\x55\x28\xae\x2c\x2e\x49\xcd\x8d\x2f\xa9\xc8\x8b\x2f\x4a\x4d\x4e\xcd\x2c\x28\x29\x56\x70\x74\x71\x51\x48\x2d\x2a\xca\x2f\x8a\x4f\x2d\x4b\xcd\x2b\x89\xcf\x4c\xa9\x50\xf0\xf4\x0b\x71\x75\x77\x0d\xb2\xe6\x0a\x0d\x70\x71\x0c\xc1\xae\x2f\xd8\x35\x04\x5d\x9f\xad\x81\x42\xb8\x87\x6b\x90\x2b\x44\x5c\xc1\xc6\x4e\x41\x5d\xdd\x1a\x10\x00\x00\xff\xff\x8c\x00\x06\x53\x80\x00\x00\x00")
+var __002_receipterroridxUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\xf4\x09\x71\x0d\x52\x08\x71\x74\xf2\x71\x55\x28\xae\x2c\x2e\x49\xcd\x8d\x2f\xa9\xc8\x8b\x2f\x4a\x4d\x4e\xcd\x2c\x28\x29\x56\x70\x74\x71\x51\x48\x2d\x2a\xca\x2f\x8a\x4f\x2d\x4b\xcd\x2b\x89\xcf\x4c\xa9\x50\xf0\xf4\x0b\x71\x75\x77\x0d\xb2\xe6\xe2\x0a\x0d\x70\x71\x0c\xc1\xae\x31\xd8\x35\x04\x5d\xa3\xad\x81\x42\xb8\x87\x6b\x90\x2b\x44\x5c\xc1\xc6\x4e\x41\x5d\xdd\x1a\x10\x00\x00\xff\xff\xc1\x2e\x7a\x22\x81\x00\x00\x00")
 
 func _002_receipterroridxUpSqlBytes() ([]byte, error) {
 	return bindataRead(
@@ -156,7 +158,47 @@ func _002_receipterroridxUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_receipterroridx.up.sql", size: 128, mode: os.FileMode(436), modTime: time.Unix(1659635757, 0)}
+	info := bindataFileInfo{name: "002_receipterroridx.up.sql", size: 129, mode: os.FileMode(436), modTime: time.Unix(1659703594, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __003_evm_eventsDownSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\x09\xf2\x0f\x50\x08\x71\x74\xf2\x71\x55\x28\xae\x2c\x2e\x49\xcd\x8d\x2f\x49\x4c\xca\x49\x2d\xb6\x06\x04\x00\x00\xff\xff\x63\xc3\x98\x16\x19\x00\x00\x00")
+
+func _003_evm_eventsDownSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__003_evm_eventsDownSql,
+		"003_evm_events.down.sql",
+	)
+}
+
+func _003_evm_eventsDownSql() (*asset, error) {
+	bytes, err := _003_evm_eventsDownSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "003_evm_events.down.sql", size: 25, mode: os.FileMode(436), modTime: time.Unix(1660742407, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __003_evm_eventsUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x74\x90\xc1\x4e\xc4\x20\x10\x86\xef\x7d\x8a\x39\x6e\x93\xbe\xc1\x9e\x5a\x1d\x0d\xb1\x76\x0d\x8b\x49\xf7\x34\x61\x0b\x49\x51\x17\xcc\x82\x06\xdf\xde\x08\xd6\xc4\xdd\x72\xe0\x32\xdf\x7c\xcc\x9f\xff\x86\x63\x2b\x10\x44\xdb\xf5\x08\xec\x0e\x86\x9d\x00\x1c\xd9\x5e\xec\xc1\x7f\xf9\xa0\x4f\xa4\x3f\x7f\x9e\xb6\xc1\xc3\xa6\x02\x00\x98\x66\x69\x2c\x19\x05\x6c\x10\x78\x8f\x3c\x39\xc3\x73\xdf\x37\x09\xa7\x5d\x7a\xf1\xce\x82\xc0\x51\x5c\x50\xa9\xd4\x59\x7b\xbf\x86\x82\x7b\x37\xd3\x2a\x51\x32\x48\xe8\xfa\x5d\xf7\x37\x4f\xe3\xe3\x9b\x9b\x5e\xc9\x7e\x9c\x8e\xfa\x5c\x08\x13\x22\xcd\xd2\xcf\xab\xe7\x22\x19\xab\x74\x2c\x98\xf9\xf3\x92\x5c\x32\x13\x7c\xe2\xec\xb1\xe5\x07\x78\xc0\xc3\x66\x29\xab\x59\xa2\x34\xd9\xad\x9b\xaa\xde\x56\xbf\xed\xb3\xe1\x16\xc7\xeb\xbe\x69\x91\x29\x44\x9b\xa3\x38\x7b\xbd\xf6\xef\x46\xde\xab\xb7\xdf\x01\x00\x00\xff\xff\xfc\x0d\x0f\xdb\xd8\x01\x00\x00")
+
+func _003_evm_eventsUpSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__003_evm_eventsUpSql,
+		"003_evm_events.up.sql",
+	)
+}
+
+func _003_evm_eventsUpSql() (*asset, error) {
+	bytes, err := _003_evm_eventsUpSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "003_evm_events.up.sql", size: 472, mode: os.FileMode(436), modTime: time.Unix(1660752722, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -217,6 +259,8 @@ var _bindata = map[string]func() (*asset, error){
 	"001_init.up.sql":              _001_initUpSql,
 	"002_receipterroridx.down.sql": _002_receipterroridxDownSql,
 	"002_receipterroridx.up.sql":   _002_receipterroridxUpSql,
+	"003_evm_events.down.sql":      _003_evm_eventsDownSql,
+	"003_evm_events.up.sql":        _003_evm_eventsUpSql,
 }
 
 // AssetDir returns the file names below a certain
@@ -264,6 +308,8 @@ var _bintree = &bintree{nil, map[string]*bintree{
 	"001_init.up.sql":              &bintree{_001_initUpSql, map[string]*bintree{}},
 	"002_receipterroridx.down.sql": &bintree{_002_receipterroridxDownSql, map[string]*bintree{}},
 	"002_receipterroridx.up.sql":   &bintree{_002_receipterroridxUpSql, map[string]*bintree{}},
+	"003_evm_events.down.sql":      &bintree{_003_evm_eventsDownSql, map[string]*bintree{}},
+	"003_evm_events.up.sql":        &bintree{_003_evm_eventsUpSql, map[string]*bintree{}},
 }}
 
 // RestoreAsset restores an asset under the given directory
