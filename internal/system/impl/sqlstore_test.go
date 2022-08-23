@@ -270,7 +270,7 @@ func TestGetMetadata(t *testing.T) {
 	})
 }
 
-func TestEVMEventPersitance(t *testing.T) {
+func TestEVMEventPersistence(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
