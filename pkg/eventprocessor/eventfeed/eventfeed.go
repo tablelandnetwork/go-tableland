@@ -71,6 +71,7 @@ type Config struct {
 	MinBlockChainDepth int
 	ChainAPIBackoff    time.Duration
 	NewBlockTimeout    time.Duration
+	PersistEvents      bool
 }
 
 // DefaultConfig returns the default configuration.
@@ -119,6 +120,13 @@ func WithNewBlockTimeout(timeout time.Duration) Option {
 			return fmt.Errorf("new head timeout is too low (<1s)")
 		}
 		c.NewBlockTimeout = timeout
+		return nil
+	}
+}
+
+func WithEventPersistence(enabled bool) Option {
+	return func(c *Config) error {
+		c.PersistEvents = enabled
 		return nil
 	}
 }

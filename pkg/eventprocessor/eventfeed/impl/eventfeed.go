@@ -243,7 +243,7 @@ func (ef *EventFeed) parseEvent(l types.Log) (interface{}, error) {
 			return eventfeed.TxnEvents{}, fmt.Errorf("unpacking into interface: %s", err)
 		}
 	}
-	// Second, we unmarshal indexed fields which aren't in data but in Topics[:1].
+	// Second, we unmarshal indexed fields which aren't in data but in Topics[1:].
 	var indexed abi.Arguments
 	for _, arg := range eventDescr.Inputs {
 		if arg.Indexed {
