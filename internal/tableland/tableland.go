@@ -179,6 +179,7 @@ func NewTableFromName(name string) (Table, error) {
 	}, nil
 }
 
+// EVMEvent is a Tableland on-chain event produced by the Registry SC.
 type EVMEvent struct {
 	Address     common.Address
 	Topics      []byte

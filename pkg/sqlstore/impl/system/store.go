@@ -336,6 +336,7 @@ func (s *SystemStore) GetReceipt(
 	return receipt, true, nil
 }
 
+// AreEVMEventsPersisted returns true if there're events persisted for the provided txn hash, and false otherwise.
 func (s *SystemStore) AreEVMEventsPersisted(ctx context.Context, txnHash common.Hash) (bool, error) {
 	params := db.AreEVMTxnEventsPersistedParams{
 		ChainID: uint64(s.chainID),
@@ -348,6 +349,7 @@ func (s *SystemStore) AreEVMEventsPersisted(ctx context.Context, txnHash common.
 	return ok, nil
 }
 
+// SaveEVMEvents saves the provider EVMEvents.
 func (s *SystemStore) SaveEVMEvents(ctx context.Context, events []tableland.EVMEvent) error {
 	queries := s.dbWithTx.queries()
 	for _, e := range events {
@@ -371,6 +373,7 @@ func (s *SystemStore) SaveEVMEvents(ctx context.Context, events []tableland.EVME
 	return nil
 }
 
+// GetBlocksMissingExtraInfo returns a list of block numbers that don't contain enhanced information.
 func (s *SystemStore) GetBlocksMissingExtraInfo(ctx context.Context) ([]int64, error) {
 	params := db.GetBlocksMissingExtraInfoParams{
 		ChainID: int64(s.chainID),
@@ -386,6 +389,7 @@ func (s *SystemStore) GetBlocksMissingExtraInfo(ctx context.Context) ([]int64, e
 	return blockNumbers, nil
 }
 
+// InsertBlockExtraInfo inserts enhanced information for a block.
 func (s *SystemStore) InsertBlockExtraInfo(ctx context.Context, blockNumber int64, timestamp uint64) error {
 	params := db.InsertBlockExtraInfoParams{
 		ChainID:     int64(s.chainID),
@@ -399,6 +403,7 @@ func (s *SystemStore) InsertBlockExtraInfo(ctx context.Context, blockNumber int6
 	return nil
 }
 
+// GetEVMEvents returns all the persisted events for a transaction.
 func (s *SystemStore) GetEVMEvents(ctx context.Context, txnHash common.Hash) ([]tableland.EVMEvent, error) {
 	args := db.GetEVMEventsParams{
 		ChainID: int64(s.chainID),

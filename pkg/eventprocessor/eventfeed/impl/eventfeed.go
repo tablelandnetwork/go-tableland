@@ -196,15 +196,7 @@ func (ef *EventFeed) Start(
 					}
 				}
 
-				blocksEvents, err := ef.packEvents(logs, events)
-				if err != nil {
-					ef.log.
-						Error().
-						Err(err).
-						Msg("pack events")
-					time.Sleep(ef.config.ChainAPIBackoff)
-					continue Loop
-				}
+				blocksEvents := ef.packEvents(logs, events)
 				for i := range blocksEvents {
 					ch <- *blocksEvents[i]
 				}
@@ -226,9 +218,9 @@ func (ef *EventFeed) Start(
 // 1) First, by block_number.
 // 2) Within a block_number, by txn_hash.
 // Remember that one block contains multiple txns, and each txn can have more than one event.
-func (ef *EventFeed) packEvents(logs []types.Log, parsedEvents []interface{}) ([]*eventfeed.BlockEvents, error) {
+func (ef *EventFeed) packEvents(logs []types.Log, parsedEvents []interface{}) []*eventfeed.BlockEvents {
 	if len(logs) == 0 {
-		return nil, nil
+		return nil
 	}
 
 	var ret []*eventfeed.BlockEvents
@@ -250,7 +242,7 @@ func (ef *EventFeed) packEvents(logs []types.Log, parsedEvents []interface{}) ([
 		new.Txns[len(new.Txns)-1].Events = append(new.Txns[len(new.Txns)-1].Events, parsedEvents[i])
 	}
 
-	return ret, nil
+	return ret
 }
 
 // parseEvent deconstructs a raw event that was received from the Ethereum node,
@@ -394,13 +386,17 @@ func (ef *EventFeed) persistEvents(ctx context.Context, events []types.Log, pars
 	// We use jsoniter to dynamically configure the Marshal(...) function to omit any field named `Raw` dynamically.
 	// This is exactly what we need.
 	cfg := jsoniter.Config{}.Froze()
-	cfg.RegisterExtension(&OmitRawFieldExtension{})
+	cfg.RegisterExtension(&omitRawFieldExtension{})
 
 	tx, err := ef.systemStore.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("opening db tx: %s", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			ef.log.Error().Err(err).Msg("persist events rollback txn")
+		}
+	}()
 
 	store := ef.systemStore.WithTx(tx)
 
@@ -468,11 +464,11 @@ func (ef *EventFeed) persistEvents(ctx context.Context, events []types.Log, pars
 }
 
 // Based on https://github.com/json-iterator/go/issues/392
-type OmitRawFieldExtension struct {
+type omitRawFieldExtension struct {
 	jsoniter.DummyExtension
 }
 
-func (e *OmitRawFieldExtension) UpdateStructDescriptor(structDescriptor *jsoniter.StructDescriptor) {
+func (e *omitRawFieldExtension) UpdateStructDescriptor(structDescriptor *jsoniter.StructDescriptor) {
 	if binding := structDescriptor.GetField("Raw"); binding != nil {
 		binding.ToNames = []string{}
 	}

@@ -321,6 +321,7 @@ func setup(t *testing.T) (
 	require.NoError(t, err)
 
 	systemStore, err := system.New(dbURI, tableland.ChainID(chainID))
+	require.NoError(t, err)
 	ef, err := efimpl.New(systemStore, chainID, backend, addr, eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
 

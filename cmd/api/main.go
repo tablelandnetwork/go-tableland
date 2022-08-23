@@ -78,7 +78,12 @@ func main() {
 		if _, ok := chainStacks[chainCfg.ChainID]; ok {
 			log.Fatal().Int64("chain_id", int64(chainCfg.ChainID)).Msg("chain id configuration is duplicated")
 		}
-		chainStack, err := createChainIDStack(chainCfg, databaseURL, parser, config.TableConstraints, config.Analytics.FetchExtraBlockInfo)
+		chainStack, err := createChainIDStack(
+			chainCfg,
+			databaseURL,
+			parser,
+			config.TableConstraints,
+			config.Analytics.FetchExtraBlockInfo)
 		if err != nil {
 			log.Fatal().Int64("chain_id", int64(chainCfg.ChainID)).Err(err).Msg("spinning up chain stack")
 		}

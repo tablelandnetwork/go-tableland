@@ -275,7 +275,7 @@ func (s *InstrumentedSystemStore) GetReceipt(
 	return receipt, ok, err
 }
 
-// AreEVMEventsPersisted implements sqlstore.SystemStore
+// AreEVMEventsPersisted implements sqlstore.SystemStore.
 func (s *InstrumentedSystemStore) AreEVMEventsPersisted(ctx context.Context, txnHash common.Hash) (bool, error) {
 	log.Debug().Str("txn_hash", txnHash.Hex()).Msg("call AreEVMEventsPersisted")
 	start := time.Now()
@@ -294,7 +294,7 @@ func (s *InstrumentedSystemStore) AreEVMEventsPersisted(ctx context.Context, txn
 	return ok, err
 }
 
-// SaveEVMEvents implements sqlstore.SystemStore
+// SaveEVMEvents implements sqlstore.SystemStore.
 func (s *InstrumentedSystemStore) SaveEVMEvents(ctx context.Context, events []tableland.EVMEvent) error {
 	log.Debug().Msg("call SaveEVMEvents")
 	start := time.Now()
@@ -313,7 +313,7 @@ func (s *InstrumentedSystemStore) SaveEVMEvents(ctx context.Context, events []ta
 	return err
 }
 
-// GetEVMEvents implements sqlstore.SystemStore
+// GetEVMEvents implements sqlstore.SystemStore.
 func (s *InstrumentedSystemStore) GetEVMEvents(ctx context.Context, txnHash common.Hash) ([]tableland.EVMEvent, error) {
 	log.Debug().Str("txn_hash", txnHash.Hex()).Msg("call GetEVMEvents")
 	start := time.Now()
@@ -332,7 +332,7 @@ func (s *InstrumentedSystemStore) GetEVMEvents(ctx context.Context, txnHash comm
 	return events, err
 }
 
-// GetBlocksMissingExtraInfo implements sqlstore.SystemStore
+// GetBlocksMissingExtraInfo implements sqlstore.SystemStore.
 func (s *InstrumentedSystemStore) GetBlocksMissingExtraInfo(ctx context.Context) ([]int64, error) {
 	log.Debug().Msg("call GetBlocksMissingExtraInfo")
 	start := time.Now()
@@ -351,7 +351,7 @@ func (s *InstrumentedSystemStore) GetBlocksMissingExtraInfo(ctx context.Context)
 	return blockNumbers, err
 }
 
-// InsertBlockExtraInfo implements sqlstore.SystemStore
+// InsertBlockExtraInfo implements sqlstore.SystemStore.
 func (s *InstrumentedSystemStore) InsertBlockExtraInfo(ctx context.Context, blockNumber int64, timestamp uint64) error {
 	log.Debug().Int64("block_number", blockNumber).Msg("call InsertBlockExtraInfo")
 	start := time.Now()

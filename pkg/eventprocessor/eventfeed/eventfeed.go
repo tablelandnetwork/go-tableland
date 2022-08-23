@@ -127,6 +127,7 @@ func WithNewBlockTimeout(timeout time.Duration) Option {
 	}
 }
 
+// WithEventPersistence indicates that all events should be persisted.
 func WithEventPersistence(enabled bool) Option {
 	return func(c *Config) error {
 		c.PersistEvents = enabled
@@ -134,6 +135,8 @@ func WithEventPersistence(enabled bool) Option {
 	}
 }
 
+// WithFetchExtraBlockInformation indicates that we'll persist extra block information
+// from persisted events.
 func WithFetchExtraBlockInformation(enabled bool) Option {
 	return func(c *Config) error {
 		c.FetchExtraBlockInfo = enabled
