@@ -6,7 +6,7 @@ import (
 )
 
 const insertEVMEvent = `
-INSERT INTO system_evm_events ("chain_id", "event_json", "address", "topics", "data", "block_number", "tx_hash", "tx_index", "block_hash", "index")
+INSERT INTO system_evm_events ("chain_id", "event_json", "address", "topics", "data", "block_number", "tx_hash", "tx_index", "block_hash", "event_index")
 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
 `
 

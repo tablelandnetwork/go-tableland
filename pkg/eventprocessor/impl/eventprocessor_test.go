@@ -314,13 +314,14 @@ func setup(t *testing.T) (
 
 	// Spin up dependencies needed for the EventProcessor.
 	// i.e: Executor, Parser, and EventFeed (connected to the EVM chain)
-	ef, err := efimpl.New(chainID, backend, addr, eventfeed.WithMinBlockDepth(0))
-	require.NoError(t, err)
-
 	dbURI := tests.Sqlite3URI()
 	parser, err := parserimpl.New([]string{"system_", "registry", "sqlite_"})
 	require.NoError(t, err)
 	ex, err := executor.NewExecutor(chainID, dbURI, parser, 0, &aclMock{})
+	require.NoError(t, err)
+
+	systemStore, err := system.New(dbURI, tableland.ChainID(chainID))
+	ef, err := efimpl.New(systemStore, chainID, backend, addr, eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
 
 	// Create EventProcessor for our test.
@@ -353,8 +354,6 @@ func setup(t *testing.T) (
 		backend.Commit()
 		return txn.Hash()
 	}
-
-	systemStore, err := system.New(dbURI, tableland.ChainID(chainID))
 
 	transferFrom := func(controller common.Address) common.Hash {
 		txn, err := sc.TransferFrom(authOpts, authOpts.From, controller, big.NewInt(1))

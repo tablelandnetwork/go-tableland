@@ -11,9 +11,12 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
+	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
+	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/tables/impl/testutil"
+	"github.com/textileio/go-tableland/tests"
 )
 
 var emptyHash = common.HexToHash("0x0")
@@ -21,8 +24,12 @@ var emptyHash = common.HexToHash("0x0")
 func TestRunSQLEvents(t *testing.T) {
 	t.Parallel()
 
+	dbURI := tests.Sqlite3URI()
+	systemStore, err := system.New(dbURI, tableland.ChainID(1337))
+	require.NoError(t, err)
+
 	backend, addr, sc, authOpts, _ := testutil.Setup(t)
-	qf, err := New(1337, backend, addr, eventfeed.WithMinBlockDepth(0))
+	ef, err := New(systemStore, 1337, backend, addr, eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
 
 	// Create the table
@@ -42,7 +49,7 @@ func TestRunSQLEvents(t *testing.T) {
 	currBlockNumber := backend.Blockchain().CurrentHeader().Number.Int64()
 	ch := make(chan eventfeed.BlockEvents)
 	go func() {
-		err := qf.Start(context.Background(), currBlockNumber+1, ch, []eventfeed.EventType{eventfeed.RunSQL})
+		err := ef.Start(context.Background(), currBlockNumber+1, ch, []eventfeed.EventType{eventfeed.RunSQL})
 		require.NoError(t, err)
 	}()
 
@@ -91,8 +98,12 @@ func TestRunSQLEvents(t *testing.T) {
 func TestAllEvents(t *testing.T) {
 	t.Parallel()
 
+	dbURI := tests.Sqlite3URI()
+	systemStore, err := system.New(dbURI, tableland.ChainID(1337))
+	require.NoError(t, err)
+
 	backend, addr, sc, authOpts, _ := testutil.Setup(t)
-	qf, err := New(1337, backend, addr, eventfeed.WithMinBlockDepth(0))
+	ef, err := New(systemStore, 1337, backend, addr, eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
 
 	ctx, cls := context.WithCancel(context.Background())
@@ -100,7 +111,7 @@ func TestAllEvents(t *testing.T) {
 	chFeedClosed := make(chan struct{})
 	ch := make(chan eventfeed.BlockEvents)
 	go func() {
-		err := qf.Start(ctx, 0, ch, []eventfeed.EventType{
+		err := ef.Start(ctx, 0, ch, []eventfeed.EventType{
 			eventfeed.RunSQL,
 			eventfeed.CreateTable,
 			eventfeed.SetController,
@@ -168,7 +179,10 @@ func TestInfura(t *testing.T) {
 	require.NoError(t, err)
 	rinkebyContractAddr := common.HexToAddress("0x847645b7dAA32eFda757d3c10f1c82BFbB7b41D0")
 
-	qf, err := New(1337, conn, rinkebyContractAddr, eventfeed.WithMinBlockDepth(0))
+	dbURI := tests.Sqlite3URI()
+	systemStore, err := system.New(dbURI, tableland.ChainID(1337))
+	require.NoError(t, err)
+	ef, err := New(systemStore, 1337, conn, rinkebyContractAddr, eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
 
 	ctx, cls := context.WithCancel(context.Background())
@@ -177,7 +191,7 @@ func TestInfura(t *testing.T) {
 	ch := make(chan eventfeed.BlockEvents)
 	go func() {
 		contractDeploymentBlockNumber := 10140812 - 100
-		err := qf.Start(ctx,
+		err := ef.Start(ctx,
 			int64(contractDeploymentBlockNumber),
 			ch,
 			[]eventfeed.EventType{

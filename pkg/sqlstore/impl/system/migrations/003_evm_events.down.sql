@@ -1,1 +1,1 @@
-DROP TABLE system_tables;
+DROP TABLE system_evm_events;
