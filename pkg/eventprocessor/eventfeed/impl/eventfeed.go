@@ -126,6 +126,7 @@ func (ef *EventFeed) Start(
 		// avoid asking the API for very big ranges (e.g: newHead - fromHeight > 100k) since
 		// that could would be too big (i.e: make the API fail, the response would be too big,
 		// and would consume too much memory).
+	Loop:
 		for {
 			if ctx.Err() != nil {
 				break
@@ -160,29 +161,47 @@ func (ef *EventFeed) Start(
 				} else {
 					time.Sleep(ef.config.ChainAPIBackoff)
 				}
-				continue
+				continue Loop
 			}
 
-			events := make([]interface{}, len(logs))
-			for i, l := range logs {
-				events[i], err = ef.parseEvent(l)
+			if len(logs) > 0 {
+				events := make([]interface{}, len(logs))
+				for i, l := range logs {
+					events[i], err = ef.parseEvent(l)
+					if err != nil {
+						ef.log.
+							Error().
+							Str("txn_hash", l.TxHash.Hex()).
+							Err(err).
+							Msg("parsing event")
+						time.Sleep(ef.config.ChainAPIBackoff)
+						continue Loop
+					}
+				}
+
+				if ef.config.PersistEvents {
+					if err := ef.persistEvents(ctx, logs, events); err != nil {
+						ef.log.
+							Error().
+							Err(err).
+							Msg("persist events")
+						time.Sleep(ef.config.ChainAPIBackoff)
+						continue Loop
+					}
+				}
+
+				blocksEvents, err := ef.packEvents(logs, events)
 				if err != nil {
-					return fmt.Errorf("couldn't parse event: %s", err)
+					ef.log.
+						Error().
+						Err(err).
+						Msg("pack events")
+					time.Sleep(ef.config.ChainAPIBackoff)
+					continue Loop
 				}
-			}
-
-			if ef.config.PersistEvents {
-				if err := ef.persistEvents(ctx, logs, events); err != nil {
-					return fmt.Errorf("persist events: %s", err)
+				for i := range blocksEvents {
+					ch <- *blocksEvents[i]
 				}
-			}
-
-			blocksEvents, err := ef.packEvents(logs, events)
-			if err != nil {
-				return fmt.Errorf("packing events: %s", err)
-			}
-			for i := range blocksEvents {
-				ch <- *blocksEvents[i]
 			}
 
 			// Update our fromHeight to the latest processed height plus one.
@@ -370,8 +389,9 @@ func (ef *EventFeed) persistEvents(ctx context.Context, logs []types.Log, parsed
 
 	store := ef.systemStore.WithTx(tx)
 
-	evmTxnAlreadyPersisted := map[common.Hash]struct{}{}
-	tblEvents := make([]tableland.EVMEvent, len(logs))
+	shouldPersistTxnHashEvents := map[common.Hash]bool{}
+	blockHeaderCache := map[common.Hash]*types.Header{}
+	tblEvents := make([]tableland.EVMEvent, 0, len(logs))
 	for i, e := range logs {
 		// If we already have registered events for the TxHash, we skip persisting this log.
 		// This means that one of two things happened:
@@ -382,16 +402,24 @@ func (ef *EventFeed) persistEvents(ctx context.Context, logs []types.Log, parsed
 		//   time it was seen is the one that counts. For persistence we do the same; only the first time it appeared
 		//   is the event information we save to be coherent with execution. In any case, a validator config that allows
 		//   reorgs isn't safe for state coherence between validators so this should only happen in test environments.
-		if _, ok := evmTxnAlreadyPersisted[e.TxHash]; ok {
+		if _, ok := shouldPersistTxnHashEvents[e.TxHash]; !ok {
+			areTxnEventsPersisted, err := store.AreEVMEventsPersisted(ctx, e.TxHash)
+			if err != nil {
+				return fmt.Errorf("check if evm txn events are persisted: %s", err)
+			}
+			shouldPersistTxnHashEvents[e.TxHash] = areTxnEventsPersisted
+		}
+		if !shouldPersistTxnHashEvents[e.TxHash] {
 			continue
 		}
-		areTxnEventsPersisted, err := store.AreEVMEventsPersisted(ctx, e.TxHash)
-		if err != nil {
-			return fmt.Errorf("check if evm txn events are persisted: %s", err)
-		}
-		if areTxnEventsPersisted {
-			evmTxnAlreadyPersisted[e.TxHash] = struct{}{}
-			continue
+
+		blockHeader, ok := blockHeaderCache[e.BlockHash]
+		if !ok {
+			blockHeader, err = ef.ethClient.HeaderByNumber(ctx, big.NewInt(int64(e.BlockNumber)))
+			if err != nil {
+				return fmt.Errorf("get block header %d: %s", e.BlockNumber, err)
+			}
+			blockHeaderCache[e.BlockHash] = blockHeader
 		}
 
 		eventJSONBytes, err := json.Marshal(parsedEvents[i])
@@ -399,14 +427,14 @@ func (ef *EventFeed) persistEvents(ctx context.Context, logs []types.Log, parsed
 			return fmt.Errorf("marshaling event: %s", err)
 		}
 		topicsHex := make([]string, len(e.Topics))
-		for _, t := range e.Topics {
+		for i, t := range e.Topics {
 			topicsHex[i] = t.Hex()
 		}
 		topicsJSONBytes, err := json.Marshal(topicsHex)
 		if err != nil {
 			return fmt.Errorf("marshaling topics array: %s", err)
 		}
-		tblEvents[i] = tableland.EVMEvent{
+		tblEvents = append(tblEvents, tableland.EVMEvent{
 			// Direct mapping from types.Log
 			Address:     e.Address,
 			Topics:      topicsJSONBytes,
@@ -420,7 +448,8 @@ func (ef *EventFeed) persistEvents(ctx context.Context, logs []types.Log, parsed
 			// Enhanced fields
 			ChainID:   ef.chainID,
 			EventJSON: eventJSONBytes,
-		}
+			Timestamp: blockHeader.Time,
+		})
 	}
 
 	if err := store.SaveEVMEvents(ctx, tblEvents); err != nil {

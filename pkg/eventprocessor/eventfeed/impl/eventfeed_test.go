@@ -2,6 +2,7 @@ package impl
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"math/big"
 	"os"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
@@ -103,7 +105,7 @@ func TestAllEvents(t *testing.T) {
 	require.NoError(t, err)
 
 	backend, addr, sc, authOpts, _ := testutil.Setup(t)
-	ef, err := New(systemStore, 1337, backend, addr, eventfeed.WithMinBlockDepth(0))
+	ef, err := New(systemStore, 1337, backend, addr, eventfeed.WithMinBlockDepth(0), eventfeed.WithEventPersistence(true))
 	require.NoError(t, err)
 
 	ctx, cls := context.WithCancel(context.Background())
@@ -123,7 +125,7 @@ func TestAllEvents(t *testing.T) {
 
 	ctrl := authOpts.From
 	// Make four calls to different functions emitting different events
-	_, err = sc.CreateTable(
+	txn1, err := sc.CreateTable(
 		authOpts,
 		ctrl,
 		"CREATE TABLE foo (bar int)")
@@ -152,12 +154,39 @@ func TestAllEvents(t *testing.T) {
 	select {
 	case bes := <-ch:
 		require.Len(t, bes.Txns, 4)
-		require.NotEqual(t, emptyHash, bes.Txns[0].TxnHash)
-		require.NotEqual(t, emptyHash, bes.Txns[1].TxnHash)
-		require.IsType(t, &ethereum.ContractCreateTable{}, bes.Txns[0].Events[0])
-		require.IsType(t, &ethereum.ContractRunSQL{}, bes.Txns[1].Events[0])
-		require.IsType(t, &ethereum.ContractSetController{}, bes.Txns[2].Events[0])
-		require.IsType(t, &ethereum.ContractTransferTable{}, bes.Txns[3].Events[0])
+
+		// Txn1
+		{
+			require.NotEqual(t, emptyHash, bes.Txns[0].TxnHash)
+			require.IsType(t, &ethereum.ContractCreateTable{}, bes.Txns[0].Events[0])
+			evmEvent := getPersistedEVMEvent(t, dbURI, bes.Txns[0].TxnHash)
+			require.Equal(t, txn1.ChainId().Int64(), int64(evmEvent.ChainID))
+			require.NotEmpty(t, evmEvent.EventJSON)
+			require.Equal(t, *txn1.To(), evmEvent.Address)
+			require.NotEmpty(t, evmEvent.Topics)
+			require.NotEmpty(t, txn1.Data(), evmEvent.Data)
+			require.Equal(t, bes.BlockNumber, int64(evmEvent.BlockNumber))
+			require.Equal(t, txn1.Hash(), evmEvent.TxHash)
+			require.Equal(t, uint(0), evmEvent.TxIndex)
+			require.NotEmpty(t, evmEvent.BlockHash)
+			require.Equal(t, uint(1), evmEvent.Index)
+		}
+
+		// Txn2
+		{
+			require.NotEqual(t, emptyHash, bes.Txns[1].TxnHash)
+			require.IsType(t, &ethereum.ContractRunSQL{}, bes.Txns[1].Events[0])
+		}
+
+		// Txn3
+		{
+			require.IsType(t, &ethereum.ContractSetController{}, bes.Txns[2].Events[0])
+		}
+
+		// Txn4
+		{
+			require.IsType(t, &ethereum.ContractTransferTable{}, bes.Txns[3].Events[0])
+		}
 	case <-time.After(time.Second):
 		t.Fatalf("didn't receive expected log")
 	}
@@ -215,5 +244,53 @@ func TestInfura(t *testing.T) {
 		case <-chFeedClosed:
 			return
 		}
+	}
+}
+
+func getPersistedEVMEvent(t *testing.T, dbURI string, txnHash common.Hash) tableland.EVMEvent {
+	dbc, err := sql.Open("sqlite3", dbURI)
+	require.NoError(t, err)
+
+	row := dbc.QueryRow("select * from system_evm_events where tx_hash=?1", txnHash.Hex())
+	require.Nil(t, row.Err())
+	var evmEvent struct {
+		ChainID     uint64
+		EventJSON   []byte
+		Timestamp   uint64
+		Address     string
+		Topics      []byte
+		Data        []byte
+		BlockNumber uint64
+		TxHash      string
+		TxIndex     uint
+		BlockHash   string
+		Index       uint
+	}
+	err = row.Scan(
+		&evmEvent.ChainID,
+		&evmEvent.EventJSON,
+		&evmEvent.Timestamp,
+		&evmEvent.Address,
+		&evmEvent.Topics,
+		&evmEvent.Data,
+		&evmEvent.BlockNumber,
+		&evmEvent.TxHash,
+		&evmEvent.TxIndex,
+		&evmEvent.BlockHash,
+		&evmEvent.Index)
+	require.NoError(t, err)
+
+	return tableland.EVMEvent{
+		Address:     common.HexToAddress(evmEvent.Address),
+		Topics:      evmEvent.EventJSON,
+		Data:        evmEvent.Data,
+		BlockNumber: evmEvent.BlockNumber,
+		TxHash:      common.HexToHash(evmEvent.TxHash),
+		TxIndex:     evmEvent.TxIndex,
+		BlockHash:   common.HexToHash(evmEvent.BlockHash),
+		Index:       evmEvent.Index,
+		ChainID:     tableland.ChainID(evmEvent.ChainID),
+		EventJSON:   evmEvent.EventJSON,
+		Timestamp:   evmEvent.Timestamp,
 	}
 }

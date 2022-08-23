@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS system_evm_events (
     chain_id INTEGER NOT NULL,
     event_json TEXT NOT NULL,
+    timestamp INTEGER NOT NULL,
     address TEXT NOT NULL,
     topics TEXT NOT NULL,
     data BLOB NOT NULL,
