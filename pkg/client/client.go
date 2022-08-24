@@ -20,7 +20,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/wallet"
 )
 
-var defaultNetwork = TestnetPolygonMumbai
+var defaultChain = Chains.PolygonMumbai
 
 // TxnReceipt is a Tableland event processing receipt.
 type TxnReceipt struct {
@@ -74,13 +74,13 @@ type Client struct {
 	tblRPC      *rpc.Client
 	tblHTTP     *http.Client
 	tblContract *ethereum.Client
-	networkInfo NetworkInfo
+	chain       Chain
 	relayWrites bool
 	wallet      *wallet.Wallet
 }
 
 type config struct {
-	networkInfo     *NetworkInfo
+	chain           *Chain
 	relayWrites     *bool
 	infuraAPIKey    string
 	alchemyAPIKey   string
@@ -91,10 +91,10 @@ type config struct {
 // NewClientOption controls the behavior of NewClient.
 type NewClientOption func(*config)
 
-// NewClientNetworkInfo specifies network info.
-func NewClientNetworkInfo(networkInfo NetworkInfo) NewClientOption {
+// NewClientChain specifies chaininfo.
+func NewClientChain(chain Chain) NewClientOption {
 	return func(ncc *config) {
-		ncc.networkInfo = &networkInfo
+		ncc.chain = &chain
 	}
 }
 
@@ -135,7 +135,7 @@ func NewClientContractBackend(backend bind.ContractBackend) NewClientOption {
 
 // NewClient creates a new Client.
 func NewClient(ctx context.Context, wallet *wallet.Wallet, opts ...NewClientOption) (*Client, error) {
-	config := config{networkInfo: &defaultNetwork}
+	config := config{chain: &defaultChain}
 	for _, opt := range opts {
 		opt(&config)
 	}
@@ -143,10 +143,10 @@ func NewClient(ctx context.Context, wallet *wallet.Wallet, opts ...NewClientOpti
 	if config.relayWrites != nil {
 		relay = *config.relayWrites
 	} else {
-		relay = config.networkInfo.CanRelayWrites()
+		relay = config.chain.CanRelayWrites()
 	}
-	if relay && !config.networkInfo.CanRelayWrites() {
-		return nil, errors.New("options specified to relay writes for a network that doesn't support it")
+	if relay && !config.chain.CanRelayWrites() {
+		return nil, errors.New("options specified to relay writes for a chain that doesn't support it")
 	}
 
 	contractBackend, err := getContractBackend(ctx, config)
@@ -156,8 +156,8 @@ func NewClient(ctx context.Context, wallet *wallet.Wallet, opts ...NewClientOpti
 
 	tblContract, err := ethereum.NewClient(
 		contractBackend,
-		tableland.ChainID(config.networkInfo.ChainID),
-		config.networkInfo.ContractAddr,
+		tableland.ChainID(config.chain.ID),
+		config.chain.ContractAddr,
 		wallet,
 		impl.NewSimpleTracker(wallet, contractBackend),
 	)
@@ -165,12 +165,12 @@ func NewClient(ctx context.Context, wallet *wallet.Wallet, opts ...NewClientOpti
 		return nil, fmt.Errorf("creating contract client: %v", err)
 	}
 
-	siwe, err := siwe.EncodedSIWEMsg(tableland.ChainID(config.networkInfo.ChainID), wallet, time.Hour*24*365)
+	siwe, err := siwe.EncodedSIWEMsg(tableland.ChainID(config.chain.ID), wallet, time.Hour*24*365)
 	if err != nil {
 		return nil, fmt.Errorf("creating siwe value: %v", err)
 	}
 
-	tblRPC, err := rpc.DialContext(ctx, string(config.networkInfo.Network)+"/rpc")
+	tblRPC, err := rpc.DialContext(ctx, config.chain.Endpoint+"/rpc")
 	if err != nil {
 		return nil, fmt.Errorf("creating rpc client: %v", err)
 	}
@@ -180,7 +180,7 @@ func NewClient(ctx context.Context, wallet *wallet.Wallet, opts ...NewClientOpti
 		tblRPC:      tblRPC,
 		tblHTTP:     &http.Client{},
 		tblContract: tblContract,
-		networkInfo: *config.networkInfo,
+		chain:       *config.chain,
 		relayWrites: relay,
 		wallet:      wallet,
 	}, nil
@@ -190,8 +190,8 @@ func NewClient(ctx context.Context, wallet *wallet.Wallet, opts ...NewClientOpti
 func (c *Client) List(ctx context.Context) ([]TableInfo, error) {
 	url := fmt.Sprintf(
 		"%s/chain/%d/tables/controller/%s",
-		c.networkInfo.Network,
-		c.networkInfo.ChainID,
+		c.chain.Endpoint,
+		c.chain.ID,
 		c.wallet.Address().Hex(),
 	)
 	res, err := c.tblHTTP.Get(url)
@@ -243,7 +243,7 @@ func (c *Client) Create(ctx context.Context, schema string, opts ...CreateOption
 		opt(&conf)
 	}
 
-	createStatement := fmt.Sprintf("CREATE TABLE %s_%d %s", conf.prefix, c.networkInfo.ChainID, schema)
+	createStatement := fmt.Sprintf("CREATE TABLE %s_%d %s", conf.prefix, c.chain.ID, schema)
 	req := &tableland.ValidateCreateTableRequest{CreateStatement: createStatement}
 	var res tableland.ValidateCreateTableResponse
 
@@ -269,7 +269,7 @@ func (c *Client) Create(ctx context.Context, schema string, opts ...CreateOption
 		return TableID{}, "", errors.New("parsing table id from response")
 	}
 
-	return TableID(*tableID), fmt.Sprintf("%s_%d_%s", conf.prefix, c.networkInfo.ChainID, *r.TableID), nil
+	return TableID(*tableID), fmt.Sprintf("%s_%d_%s", conf.prefix, c.chain.ID, *r.TableID), nil
 }
 
 // Read runs a read query and returns the results.
@@ -454,21 +454,21 @@ func getContractBackend(ctx context.Context, config config) (bind.ContractBacken
 	if config.contractBackend != nil && config.infuraAPIKey == "" && config.alchemyAPIKey == "" {
 		return config.contractBackend, nil
 	} else if config.infuraAPIKey != "" && config.contractBackend == nil && config.alchemyAPIKey == "" {
-		tmpl, found := infuraURLs[config.networkInfo.ChainID]
+		tmpl, found := infuraURLs[config.chain.ID]
 		if !found {
-			return nil, fmt.Errorf("chain id %v not supported for Infura", config.networkInfo.ChainID)
+			return nil, fmt.Errorf("chain id %v not supported for Infura", config.chain.ID)
 		}
 		return ethclient.DialContext(ctx, fmt.Sprintf(tmpl, config.infuraAPIKey))
 	} else if config.alchemyAPIKey != "" && config.contractBackend == nil && config.infuraAPIKey == "" {
-		tmpl, found := alchemyURLs[config.networkInfo.ChainID]
+		tmpl, found := alchemyURLs[config.chain.ID]
 		if !found {
-			return nil, fmt.Errorf("chain id %v not supported for Alchemy", config.networkInfo.ChainID)
+			return nil, fmt.Errorf("chain id %v not supported for Alchemy", config.chain.ID)
 		}
 		return ethclient.DialContext(ctx, fmt.Sprintf(tmpl, config.alchemyAPIKey))
 	} else if config.local {
-		url, found := localURLs[config.networkInfo.ChainID]
+		url, found := localURLs[config.chain.ID]
 		if !found {
-			return nil, fmt.Errorf("chain id %v not supported for Local", config.networkInfo.ChainID)
+			return nil, fmt.Errorf("chain id %v not supported for Local", config.chain.ID)
 		}
 		return ethclient.DialContext(ctx, url)
 	}
