@@ -190,7 +190,7 @@ func main() {
 		if err != nil {
 			log.Fatal().
 				Err(err).
-				Msg("could instantiate backup scheduler")
+				Msg("could not instantiate backup scheduler")
 		}
 		go backupScheduler.Run()
 	}
