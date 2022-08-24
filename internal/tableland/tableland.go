@@ -7,6 +7,9 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // RelayWriteQueryRequest is a user RelayWriteQuery request.
@@ -175,4 +178,28 @@ func NewTableFromName(name string) (Table, error) {
 		prefix:  strings.Join(parts[:len(parts)-2], "_"),
 		chainID: ChainID(i),
 	}, nil
+}
+
+// EVMEvent is a Tableland on-chain event produced by the Registry SC.
+type EVMEvent struct {
+	Address     common.Address
+	Topics      []byte
+	Data        []byte
+	BlockNumber uint64
+	TxHash      common.Hash
+	TxIndex     uint
+	BlockHash   common.Hash
+	Index       uint
+
+	// Enhanced fields
+	ChainID   ChainID
+	EventJSON []byte
+	EventType string
+}
+
+// EVMBlockInfo contains information about an EVM block.
+type EVMBlockInfo struct {
+	ChainID     ChainID
+	BlockNumber int64
+	Timestamp   time.Time
 }

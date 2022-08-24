@@ -78,7 +78,12 @@ func main() {
 		if _, ok := chainStacks[chainCfg.ChainID]; ok {
 			log.Fatal().Int64("chain_id", int64(chainCfg.ChainID)).Msg("chain id configuration is duplicated")
 		}
-		chainStack, err := createChainIDStack(chainCfg, databaseURL, parser, config.TableConstraints)
+		chainStack, err := createChainIDStack(
+			chainCfg,
+			databaseURL,
+			parser,
+			config.TableConstraints,
+			config.Analytics.FetchExtraBlockInfo)
 		if err != nil {
 			log.Fatal().Int64("chain_id", int64(chainCfg.ChainID)).Err(err).Msg("spinning up chain stack")
 		}
@@ -202,6 +207,7 @@ func createChainIDStack(
 	dbURI string,
 	parser parsing.SQLValidator,
 	tableConstraints TableConstraints,
+	fetchExtraBlockInfo bool,
 ) (chains.ChainStack, error) {
 	store, err := system.New(dbURI, config.ChainID)
 	if err != nil {
@@ -281,8 +287,10 @@ func createChainIDStack(
 		eventfeed.WithChainAPIBackoff(chainAPIBackoff),
 		eventfeed.WithMinBlockDepth(config.EventFeed.MinBlockDepth),
 		eventfeed.WithNewBlockTimeout(newBlockTimeout),
+		eventfeed.WithEventPersistence(config.EventFeed.PersistEvents),
+		eventfeed.WithFetchExtraBlockInformation(fetchExtraBlockInfo),
 	}
-	ef, err := efimpl.New(config.ChainID, conn, scAddress, efOpts...)
+	ef, err := efimpl.New(systemStore, config.ChainID, conn, scAddress, efOpts...)
 	if err != nil {
 		return chains.ChainStack{}, fmt.Errorf("creating event feed: %s", err)
 	}

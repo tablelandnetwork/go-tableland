@@ -6,17 +6,18 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/XSAM/otelsql"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
+	logger "github.com/rs/zerolog/log"
 	"github.com/tablelandnetwork/sqlparser"
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/sqlite3" // migration for sqlite3
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
-	_ "github.com/mattn/go-sqlite3" // sqlite3 driver
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/nonce"
@@ -30,6 +31,7 @@ import (
 // For safety reasons, this layer has no access to the database object or the transaction object.
 // The access is made through the dbWithTx interface.
 type SystemStore struct {
+	log      zerolog.Logger
 	chainID  tableland.ChainID
 	dbWithTx dbWithTx
 	db       *sql.DB
@@ -52,16 +54,24 @@ func New(dbURI string, chainID tableland.ChainID) (*SystemStore, error) {
 		return nil, fmt.Errorf("registering dbstats: %s", err)
 	}
 
-	as := bindata.Resource(migrations.AssetNames(), migrations.Asset)
-	if err := executeMigration(dbURI, as); err != nil {
-		return nil, fmt.Errorf("initializing db connection: %s", err)
-	}
+	log := logger.With().
+		Str("component", "systemstore").
+		Int64("chain_id", int64(chainID)).
+		Logger()
 
-	return &SystemStore{
+	systemStore := &SystemStore{
+		log:      log,
 		dbWithTx: &dbWithTxImpl{db: db.New(dbc)},
 		db:       dbc,
 		chainID:  chainID,
-	}, nil
+	}
+
+	as := bindata.Resource(migrations.AssetNames(), migrations.Asset)
+	if err := systemStore.executeMigration(dbURI, as); err != nil {
+		return nil, fmt.Errorf("initializing db connection: %s", err)
+	}
+
+	return systemStore, nil
 }
 
 // GetTable fetchs a table from its UUID.
@@ -327,6 +337,127 @@ func (s *SystemStore) GetReceipt(
 	return receipt, true, nil
 }
 
+// AreEVMEventsPersisted returns true if there're events persisted for the provided txn hash, and false otherwise.
+func (s *SystemStore) AreEVMEventsPersisted(ctx context.Context, txnHash common.Hash) (bool, error) {
+	params := db.AreEVMTxnEventsPersistedParams{
+		ChainID: uint64(s.chainID),
+		TxHash:  txnHash.Hex(),
+	}
+	ok, err := s.dbWithTx.queries().AreEVMEventsPersisted(ctx, params)
+	if err != nil {
+		return false, fmt.Errorf("evm txn events lookup: %s", err)
+	}
+	return ok, nil
+}
+
+// SaveEVMEvents saves the provider EVMEvents.
+func (s *SystemStore) SaveEVMEvents(ctx context.Context, events []tableland.EVMEvent) error {
+	queries := s.dbWithTx.queries()
+	for _, e := range events {
+		args := db.InsertEVMEventParams{
+			ChainID:     int64(e.ChainID),
+			EventJSON:   e.EventJSON,
+			EventType:   e.EventType,
+			Address:     e.Address.Hex(),
+			Topics:      e.Topics,
+			Data:        e.Data,
+			BlockNumber: e.BlockNumber,
+			TxHash:      e.TxHash.Hex(),
+			TxIndex:     e.TxIndex,
+			BlockHash:   e.BlockHash.Hex(),
+			Index:       e.Index,
+		}
+		if err := queries.InsertEVMEvent(ctx, args); err != nil {
+			return fmt.Errorf("insert evm event: %s", err)
+		}
+	}
+
+	return nil
+}
+
+// GetBlocksMissingExtraInfo returns a list of block numbers that don't contain enhanced information.
+func (s *SystemStore) GetBlocksMissingExtraInfo(ctx context.Context) ([]int64, error) {
+	params := db.GetBlocksMissingExtraInfoParams{
+		ChainID: int64(s.chainID),
+	}
+	blockNumbers, err := s.dbWithTx.queries().GetBlocksMissingExtraInfo(ctx, params)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get blocks missing extra info: %s", err)
+	}
+
+	return blockNumbers, nil
+}
+
+// InsertBlockExtraInfo inserts enhanced information for a block.
+func (s *SystemStore) InsertBlockExtraInfo(ctx context.Context, blockNumber int64, timestamp uint64) error {
+	params := db.InsertBlockExtraInfoParams{
+		ChainID:     int64(s.chainID),
+		BlockNumber: blockNumber,
+		Timestamp:   timestamp,
+	}
+	if err := s.dbWithTx.queries().InsertBlockExtraInfo(ctx, params); err != nil {
+		return fmt.Errorf("insert block extra info: %s", err)
+	}
+
+	return nil
+}
+
+// GetBlockExtraInfo info returns stored information about an EVM block.
+func (s *SystemStore) GetBlockExtraInfo(ctx context.Context, blockNumber int64) (tableland.EVMBlockInfo, error) {
+	params := db.GetBlockExtraInfoParams{
+		ChainID:     int64(s.chainID),
+		BlockNumber: blockNumber,
+	}
+
+	blockInfo, err := s.dbWithTx.queries().GetBlockExtraInfo(ctx, params)
+	if err == sql.ErrNoRows {
+		return tableland.EVMBlockInfo{}, fmt.Errorf("block information not found: %w", err)
+	}
+	if err != nil {
+		return tableland.EVMBlockInfo{}, fmt.Errorf("get block information: %s", err)
+	}
+
+	return tableland.EVMBlockInfo{
+		ChainID:     tableland.ChainID(blockInfo.ChainID),
+		BlockNumber: blockInfo.BlockNumber,
+		Timestamp:   time.Unix(blockInfo.Timestamp, 0),
+	}, nil
+}
+
+// GetEVMEvents returns all the persisted events for a transaction.
+func (s *SystemStore) GetEVMEvents(ctx context.Context, txnHash common.Hash) ([]tableland.EVMEvent, error) {
+	args := db.GetEVMEventsParams{
+		ChainID: int64(s.chainID),
+		TxHash:  txnHash.Hex(),
+	}
+	events, err := s.dbWithTx.queries().GetEVMEvents(ctx, args)
+	if err != nil {
+		return nil, fmt.Errorf("get events by txhash: %s", err)
+	}
+
+	ret := make([]tableland.EVMEvent, len(events))
+	for i, event := range events {
+		ret[i] = tableland.EVMEvent{
+			Address:     common.HexToAddress(event.Address),
+			Topics:      event.Topics,
+			Data:        event.Data,
+			BlockNumber: event.BlockNumber,
+			TxHash:      common.HexToHash(event.TxHash),
+			TxIndex:     event.TxIndex,
+			BlockHash:   common.HexToHash(event.BlockHash),
+			Index:       event.Index,
+			ChainID:     tableland.ChainID(event.ChainID),
+			EventJSON:   event.EventJSON,
+			EventType:   event.EventType,
+		}
+	}
+
+	return ret, nil
+}
+
 // Close closes the store.
 func (s *SystemStore) Close() error {
 	if err := s.db.Close(); err != nil {
@@ -336,7 +467,7 @@ func (s *SystemStore) Close() error {
 }
 
 // executeMigration run db migrations and return a ready to use connection to the SQLite database.
-func executeMigration(dbURI string, as *bindata.AssetSource) error {
+func (s *SystemStore) executeMigration(dbURI string, as *bindata.AssetSource) error {
 	d, err := bindata.WithInstance(as)
 	if err != nil {
 		return fmt.Errorf("creating source driver: %s", err)
@@ -347,7 +478,7 @@ func executeMigration(dbURI string, as *bindata.AssetSource) error {
 		return fmt.Errorf("creating migration: %s", err)
 	}
 	version, dirty, err := m.Version()
-	log.Info().
+	s.log.Info().
 		Uint("dbVersion", version).
 		Bool("dirty", dirty).
 		Err(err).

@@ -44,6 +44,24 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.insertPendingTxStmt, err = db.PrepareContext(ctx, insertPendingTx); err != nil {
 		return nil, fmt.Errorf("error preparing query InsertPendingTx: %w", err)
 	}
+	if q.insertEVMEventStmt, err = db.PrepareContext(ctx, insertEVMEvent); err != nil {
+		return nil, fmt.Errorf("error preparing query InsertEVMEvent: %w", err)
+	}
+	if q.getEVMEventsStmt, err = db.PrepareContext(ctx, getEVMEvents); err != nil {
+		return nil, fmt.Errorf("error preparing query GetEVMEvents: %w", err)
+	}
+	if q.areEVMEventsPersistedStmt, err = db.PrepareContext(ctx, areEVMTxnEventsPersisted); err != nil {
+		return nil, fmt.Errorf("error preparing query AreEVMEventsPersisted: %w", err)
+	}
+	if q.getBlocksMissingExtraInfoStmt, err = db.PrepareContext(ctx, getBlocksMissingExtraInfo); err != nil {
+		return nil, fmt.Errorf("error preparing query GetBlocksMissingExtraInfo: %w", err)
+	}
+	if q.getBlockExtraInfoStmt, err = db.PrepareContext(ctx, getBlockExtraInfo); err != nil {
+		return nil, fmt.Errorf("error preparing query GetBlockExtraInfo: %w", err)
+	}
+	if q.insertBlockExtraInfoStmt, err = db.PrepareContext(ctx, insertBlockExtraInfo); err != nil {
+		return nil, fmt.Errorf("error preparing query InsertBlocksExtraInfo: %w", err)
+	}
 	if q.listPendingTxStmt, err = db.PrepareContext(ctx, listPendingTx); err != nil {
 		return nil, fmt.Errorf("error preparing query ListPendingTx: %w", err)
 	}
@@ -90,6 +108,36 @@ func (q *Queries) Close() error {
 	if q.insertPendingTxStmt != nil {
 		if cerr := q.insertPendingTxStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing insertPendingTxStmt: %w", cerr)
+		}
+	}
+	if q.insertEVMEventStmt != nil {
+		if cerr := q.insertEVMEventStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing insertEVMEventStmt: %w", cerr)
+		}
+	}
+	if q.getEVMEventsStmt != nil {
+		if cerr := q.getEVMEventsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getEVMEventsStmt: %w", cerr)
+		}
+	}
+	if q.areEVMEventsPersistedStmt != nil {
+		if cerr := q.areEVMEventsPersistedStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing areEVMEventsPersistedStmt: %w", cerr)
+		}
+	}
+	if q.getBlocksMissingExtraInfoStmt != nil {
+		if cerr := q.getBlocksMissingExtraInfoStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getBlocksMissingExtraInfo: %w", cerr)
+		}
+	}
+	if q.getBlockExtraInfoStmt != nil {
+		if cerr := q.getBlockExtraInfoStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getBlockExtraInfo: %w", cerr)
+		}
+	}
+	if q.insertBlockExtraInfoStmt != nil {
+		if cerr := q.insertBlockExtraInfoStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing insertBlocksExtraInfo: %w", cerr)
 		}
 	}
 	if q.listPendingTxStmt != nil {
@@ -143,6 +191,12 @@ type Queries struct {
 	getTableStmt                   *sql.Stmt
 	getTablesByControllerStmt      *sql.Stmt
 	insertPendingTxStmt            *sql.Stmt
+	insertEVMEventStmt             *sql.Stmt
+	getEVMEventsStmt               *sql.Stmt
+	areEVMEventsPersistedStmt      *sql.Stmt
+	getBlocksMissingExtraInfoStmt  *sql.Stmt
+	getBlockExtraInfoStmt          *sql.Stmt
+	insertBlockExtraInfoStmt       *sql.Stmt
 	listPendingTxStmt              *sql.Stmt
 	getTablesByStructureStmt       *sql.Stmt
 }
@@ -157,6 +211,12 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getTableStmt:                   q.getTableStmt,
 		getTablesByControllerStmt:      q.getTablesByControllerStmt,
 		insertPendingTxStmt:            q.insertPendingTxStmt,
+		insertEVMEventStmt:             q.insertEVMEventStmt,
+		getEVMEventsStmt:               q.getEVMEventsStmt,
+		areEVMEventsPersistedStmt:      q.areEVMEventsPersistedStmt,
+		getBlocksMissingExtraInfoStmt:  q.getBlocksMissingExtraInfoStmt,
+		getBlockExtraInfoStmt:          q.getBlockExtraInfoStmt,
+		insertBlockExtraInfoStmt:       q.insertBlockExtraInfoStmt,
 		listPendingTxStmt:              q.listPendingTxStmt,
 		getTablesByStructureStmt:       q.getTablesByStructureStmt,
 	}

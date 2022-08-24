@@ -2,11 +2,14 @@ package impl
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"reflect"
 	"strings"
 	"time"
+
+	jsoniter "github.com/json-iterator/go"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -16,6 +19,7 @@ import (
 	logger "github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
+	"github.com/textileio/go-tableland/pkg/sqlstore"
 	tbleth "github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
@@ -29,6 +33,7 @@ const (
 // EventFeed provides a stream of filtered events from a SC.
 type EventFeed struct {
 	log                zerolog.Logger
+	systemStore        sqlstore.SystemStore
 	chainID            tableland.ChainID
 	ethClient          eventfeed.ChainClient
 	scAddress          common.Address
@@ -44,6 +49,7 @@ type EventFeed struct {
 
 // New returns a new EventFeed.
 func New(
+	systemStore sqlstore.SystemStore,
 	chainID tableland.ChainID,
 	ethClient eventfeed.ChainClient,
 	scAddress common.Address,
@@ -65,6 +71,7 @@ func New(
 		Logger()
 	ef := &EventFeed{
 		log:                log,
+		systemStore:        systemStore,
 		chainID:            chainID,
 		ethClient:          ethClient,
 		scAddress:          scAddress,
@@ -90,6 +97,10 @@ func (ef *EventFeed) Start(
 ) error {
 	ef.log.Debug().Msg("starting...")
 	defer ef.log.Debug().Msg("stopped")
+
+	if ef.config.FetchExtraBlockInfo {
+		go ef.fetchExtraBlockInfo(ctx)
+	}
 
 	// Spinup a background process that will post to chHeads when a new block is detected.
 	// This channel will be the heart-beat to pull new logs from the chain.
@@ -121,6 +132,7 @@ func (ef *EventFeed) Start(
 		// avoid asking the API for very big ranges (e.g: newHead - fromHeight > 100k) since
 		// that could would be too big (i.e: make the API fail, the response would be too big,
 		// and would consume too much memory).
+	Loop:
 		for {
 			if ctx.Err() != nil {
 				break
@@ -155,15 +167,39 @@ func (ef *EventFeed) Start(
 				} else {
 					time.Sleep(ef.config.ChainAPIBackoff)
 				}
-				continue
+				continue Loop
 			}
 
-			blocksEvents, err := ef.packEvents(logs)
-			if err != nil {
-				return fmt.Errorf("packing events: %s", err)
-			}
-			for i := range blocksEvents {
-				ch <- *blocksEvents[i]
+			if len(logs) > 0 {
+				events := make([]interface{}, len(logs))
+				for i, l := range logs {
+					events[i], err = ef.parseEvent(l)
+					if err != nil {
+						ef.log.
+							Error().
+							Str("txn_hash", l.TxHash.Hex()).
+							Err(err).
+							Msg("parsing event")
+						time.Sleep(ef.config.ChainAPIBackoff)
+						continue Loop
+					}
+				}
+
+				if ef.config.PersistEvents {
+					if err := ef.persistEvents(ctx, logs, events); err != nil {
+						ef.log.
+							Error().
+							Err(err).
+							Msg("persist events")
+						time.Sleep(ef.config.ChainAPIBackoff)
+						continue Loop
+					}
+				}
+
+				blocksEvents := ef.packEvents(logs, events)
+				for i := range blocksEvents {
+					ch <- *blocksEvents[i]
+				}
 			}
 
 			// Update our fromHeight to the latest processed height plus one.
@@ -182,14 +218,14 @@ func (ef *EventFeed) Start(
 // 1) First, by block_number.
 // 2) Within a block_number, by txn_hash.
 // Remember that one block contains multiple txns, and each txn can have more than one event.
-func (ef *EventFeed) packEvents(logs []types.Log) ([]*eventfeed.BlockEvents, error) {
+func (ef *EventFeed) packEvents(logs []types.Log, parsedEvents []interface{}) []*eventfeed.BlockEvents {
 	if len(logs) == 0 {
-		return nil, nil
+		return nil
 	}
 
 	var ret []*eventfeed.BlockEvents
 	var new *eventfeed.BlockEvents
-	for _, l := range logs {
+	for i, l := range logs {
 		// New block number detected? -> Close the block grouping.
 		if new == nil || new.BlockNumber != int64(l.BlockNumber) {
 			new = &eventfeed.BlockEvents{
@@ -203,14 +239,10 @@ func (ef *EventFeed) packEvents(logs []types.Log) ([]*eventfeed.BlockEvents, err
 				TxnHash: l.TxHash,
 			})
 		}
-		event, err := ef.parseEvent(l)
-		if err != nil {
-			return nil, fmt.Errorf("couldn't parse event: %s", err)
-		}
-		new.Txns[len(new.Txns)-1].Events = append(new.Txns[len(new.Txns)-1].Events, event)
+		new.Txns[len(new.Txns)-1].Events = append(new.Txns[len(new.Txns)-1].Events, parsedEvents[i])
 	}
 
-	return ret, nil
+	return ret
 }
 
 // parseEvent deconstructs a raw event that was received from the Ethereum node,
@@ -243,7 +275,7 @@ func (ef *EventFeed) parseEvent(l types.Log) (interface{}, error) {
 			return eventfeed.TxnEvents{}, fmt.Errorf("unpacking into interface: %s", err)
 		}
 	}
-	// Second, we unmarshal indexed fields which aren't in data but in Topics[:1].
+	// Second, we unmarshal indexed fields which aren't in data but in Topics[1:].
 	var indexed abi.Arguments
 	for _, arg := range eventDescr.Inputs {
 		if arg.Indexed {
@@ -344,4 +376,103 @@ func (ef *EventFeed) notifyNewBlocks(ctx context.Context, clientCh chan *types.H
 	}()
 
 	return nil
+}
+
+func (ef *EventFeed) persistEvents(ctx context.Context, events []types.Log, parsedEvents []interface{}) error {
+	// All Contract* auto-generated structs contain the `Raw` field which we wan't to avoid appearing in the JSON
+	// serialization. The only thing we know about events is that they're interface{}.
+	// We can't use `json:"-"` because Contract* is auto-generated so we can't easily edit the struct tags.
+	//
+	// We use jsoniter to dynamically configure the Marshal(...) function to omit any field named `Raw` dynamically.
+	// This is exactly what we need.
+	cfg := jsoniter.Config{}.Froze()
+	cfg.RegisterExtension(&omitRawFieldExtension{})
+
+	tx, err := ef.systemStore.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("opening db tx: %s", err)
+	}
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			ef.log.Error().Err(err).Msg("persist events rollback txn")
+		}
+	}()
+
+	store := ef.systemStore.WithTx(tx)
+
+	txnsEventsExistInDB := map[common.Hash]bool{}
+	tblEvents := make([]tableland.EVMEvent, 0, len(events))
+	for i, e := range events {
+		// If we already have registered events for the TxHash, we skip persisting this event.
+		// This means that one of two things happened:
+		// - We persisted the events before, and the validator closed without EventProcessor executing them; so, in the
+		//   next restart these events will be fetched again and re-tried to be persisted. We're safe to skip that work.
+		// - In circumstantces where the validator config allows reorgs, the same EVM txn can appear in a "later" block
+		//   again. The way EventProcessor works is by skipping executing this EVM txn if appears later, so the first
+		//   time it was seen is the one that counts. For persistence we do the same; only the first time it appeared
+		//   is the event information we save to be coherent with execution. In any case, a validator config that allows
+		//   reorgs isn't safe for state coherence between validators so this should only happen in test environments.
+		if _, ok := txnsEventsExistInDB[e.TxHash]; !ok {
+			txnHashEventsExistsInDB, err := store.AreEVMEventsPersisted(ctx, e.TxHash)
+			if err != nil {
+				return fmt.Errorf("check if evm txn events are persisted: %s", err)
+			}
+			txnsEventsExistInDB[e.TxHash] = txnHashEventsExistsInDB
+		}
+		if txnsEventsExistInDB[e.TxHash] {
+			continue
+		}
+
+		eventJSONBytes, err := cfg.Marshal(parsedEvents[i])
+		if err != nil {
+			return fmt.Errorf("marshaling event: %s", err)
+		}
+		topicsHex := make([]string, len(e.Topics))
+		for i, t := range e.Topics {
+			topicsHex[i] = t.Hex()
+		}
+		topicsJSONBytes, err := json.Marshal(topicsHex)
+		if err != nil {
+			return fmt.Errorf("marshaling topics array: %s", err)
+		}
+		// The reflect names are *ethereum.XXXXX, so we get only XXXXX.
+		eventType := strings.SplitN(reflect.TypeOf(parsedEvents[i]).String(), ".", 2)[1]
+		tblEvents = append(tblEvents, tableland.EVMEvent{
+			// Direct mapping from types.Log
+			Address:     e.Address,
+			Topics:      topicsJSONBytes,
+			Data:        e.Data,
+			BlockNumber: e.BlockNumber,
+			TxHash:      e.TxHash,
+			TxIndex:     e.TxIndex,
+			BlockHash:   e.BlockHash,
+			Index:       e.Index,
+
+			// Enhanced fields
+			ChainID:   ef.chainID,
+			EventJSON: eventJSONBytes,
+			EventType: eventType,
+		})
+	}
+
+	if err := store.SaveEVMEvents(ctx, tblEvents); err != nil {
+		return fmt.Errorf("persisting events: %s", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit db tx: %s", err)
+	}
+
+	return nil
+}
+
+// Based on https://github.com/json-iterator/go/issues/392
+type omitRawFieldExtension struct {
+	jsoniter.DummyExtension
+}
+
+func (e *omitRawFieldExtension) UpdateStructDescriptor(structDescriptor *jsoniter.StructDescriptor) {
+	if binding := structDescriptor.GetField("Raw"); binding != nil {
+		binding.ToNames = []string{}
+	}
 }

@@ -258,7 +258,7 @@ func (s *InstrumentedSystemStore) GetReceipt(
 	ctx context.Context,
 	txnHash string,
 ) (eventprocessor.Receipt, bool, error) {
-	log.Debug().Str("hash", txnHash).Msg("call GetReceipt")
+	log.Debug().Str("txn_hash", txnHash).Msg("call GetReceipt")
 	start := time.Now()
 	receipt, ok, err := s.store.GetReceipt(ctx, txnHash)
 	latency := time.Since(start).Milliseconds()
@@ -273,4 +273,121 @@ func (s *InstrumentedSystemStore) GetReceipt(
 	s.latencyHistogram.Record(ctx, latency, attributes...)
 
 	return receipt, ok, err
+}
+
+// AreEVMEventsPersisted implements sqlstore.SystemStore.
+func (s *InstrumentedSystemStore) AreEVMEventsPersisted(ctx context.Context, txnHash common.Hash) (bool, error) {
+	log.Debug().Str("txn_hash", txnHash.Hex()).Msg("call AreEVMEventsPersisted")
+	start := time.Now()
+	ok, err := s.store.AreEVMEventsPersisted(ctx, txnHash)
+	latency := time.Since(start).Milliseconds()
+
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("AreEVMEventsPersisted")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+		{Key: "chainID", Value: attribute.Int64Value(int64(s.chainID))},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return ok, err
+}
+
+// SaveEVMEvents implements sqlstore.SystemStore.
+func (s *InstrumentedSystemStore) SaveEVMEvents(ctx context.Context, events []tableland.EVMEvent) error {
+	log.Debug().Msg("call SaveEVMEvents")
+	start := time.Now()
+	err := s.store.SaveEVMEvents(ctx, events)
+	latency := time.Since(start).Milliseconds()
+
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("SaveEVMEvents")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+		{Key: "chainID", Value: attribute.Int64Value(int64(s.chainID))},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return err
+}
+
+// GetEVMEvents implements sqlstore.SystemStore.
+func (s *InstrumentedSystemStore) GetEVMEvents(ctx context.Context, txnHash common.Hash) ([]tableland.EVMEvent, error) {
+	log.Debug().Str("txn_hash", txnHash.Hex()).Msg("call GetEVMEvents")
+	start := time.Now()
+	events, err := s.store.GetEVMEvents(ctx, txnHash)
+	latency := time.Since(start).Milliseconds()
+
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("GetEVMEvents")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+		{Key: "chainID", Value: attribute.Int64Value(int64(s.chainID))},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return events, err
+}
+
+// GetBlocksMissingExtraInfo implements sqlstore.SystemStore.
+func (s *InstrumentedSystemStore) GetBlocksMissingExtraInfo(ctx context.Context) ([]int64, error) {
+	log.Debug().Msg("call GetBlocksMissingExtraInfo")
+	start := time.Now()
+	blockNumbers, err := s.store.GetBlocksMissingExtraInfo(ctx)
+	latency := time.Since(start).Milliseconds()
+
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("GetBlocksMissingExtraInfo")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+		{Key: "chainID", Value: attribute.Int64Value(int64(s.chainID))},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return blockNumbers, err
+}
+
+// GetBlockExtraInfo implements sqlstore.SystemStore.
+func (s *InstrumentedSystemStore) GetBlockExtraInfo(
+	ctx context.Context,
+	blockNumber int64,
+) (tableland.EVMBlockInfo, error) {
+	log.Debug().Msg("call GetBlockExtraInfo")
+	start := time.Now()
+	blockInfo, err := s.store.GetBlockExtraInfo(ctx, blockNumber)
+	latency := time.Since(start).Milliseconds()
+
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("GetBlockExtraInfo")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+		{Key: "chainID", Value: attribute.Int64Value(int64(s.chainID))},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return blockInfo, err
+}
+
+// InsertBlockExtraInfo implements sqlstore.SystemStore.
+func (s *InstrumentedSystemStore) InsertBlockExtraInfo(ctx context.Context, blockNumber int64, timestamp uint64) error {
+	log.Debug().Int64("block_number", blockNumber).Msg("call InsertBlockExtraInfo")
+	start := time.Now()
+	err := s.store.InsertBlockExtraInfo(ctx, blockNumber, timestamp)
+	latency := time.Since(start).Milliseconds()
+
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("InsertBlockExtraInfo")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+		{Key: "chainID", Value: attribute.Int64Value(int64(s.chainID))},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return err
 }

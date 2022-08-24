@@ -68,17 +68,21 @@ var SupportedEvents = map[EventType]reflect.Type{
 
 // Config contains configuration parameters for an event feed.
 type Config struct {
-	MinBlockChainDepth int
-	ChainAPIBackoff    time.Duration
-	NewBlockTimeout    time.Duration
+	MinBlockChainDepth  int
+	ChainAPIBackoff     time.Duration
+	NewBlockTimeout     time.Duration
+	PersistEvents       bool
+	FetchExtraBlockInfo bool
 }
 
 // DefaultConfig returns the default configuration.
 func DefaultConfig() *Config {
 	return &Config{
-		MinBlockChainDepth: 5,
-		ChainAPIBackoff:    time.Second * 15,
-		NewBlockTimeout:    time.Second * 30,
+		MinBlockChainDepth:  5,
+		ChainAPIBackoff:     time.Second * 15,
+		NewBlockTimeout:     time.Second * 30,
+		PersistEvents:       false,
+		FetchExtraBlockInfo: false,
 	}
 }
 
@@ -119,6 +123,23 @@ func WithNewBlockTimeout(timeout time.Duration) Option {
 			return fmt.Errorf("new head timeout is too low (<1s)")
 		}
 		c.NewBlockTimeout = timeout
+		return nil
+	}
+}
+
+// WithEventPersistence indicates that all events should be persisted.
+func WithEventPersistence(enabled bool) Option {
+	return func(c *Config) error {
+		c.PersistEvents = enabled
+		return nil
+	}
+}
+
+// WithFetchExtraBlockInformation indicates that we'll persist extra block information
+// from persisted events.
+func WithFetchExtraBlockInformation(enabled bool) Option {
+	return func(c *Config) error {
+		c.FetchExtraBlockInfo = enabled
 		return nil
 	}
 }

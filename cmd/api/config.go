@@ -40,7 +40,10 @@ type config struct {
 		Human bool `default:"false"`
 		Debug bool `default:"false"`
 	}
-	Chains []ChainConfig
+	Chains    []ChainConfig
+	Analytics struct {
+		FetchExtraBlockInfo bool `default:"false"`
+	}
 }
 
 // TableConstraints describes contraints to be enforced for Tableland tables.
@@ -70,6 +73,7 @@ type ChainConfig struct {
 		ChainAPIBackoff string `default:"15s"`
 		MinBlockDepth   int    `default:"5"`
 		NewBlockTimeout string `default:"30s"`
+		PersistEvents   bool   `default:"true"`
 	}
 	EventProcessor struct {
 		BlockFailedExecutionBackoff string `default:"10s"`
