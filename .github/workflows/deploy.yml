@@ -17,7 +17,6 @@ jobs:
     if: github.event_name == 'release' || github.ref == 'refs/heads/main' || contains(github.event.head_commit.message, '[stagingdeploy]') || contains(github.event.head_commit.message, '[testnetdeploy]')
     name: Deploy
     runs-on: ubuntu-latest
-    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -49,6 +48,7 @@ jobs:
           key: ${{ env.vm_ssh_key }}
           port: 22
           script_stop: true
+          command_timeout: 30m
           script: |
             cd go-tableland
             git fetch && git checkout -f ${{ github.sha }}
