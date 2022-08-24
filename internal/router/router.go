@@ -22,6 +22,7 @@ import (
 // ConfiguredRouter returns a fully configured Router that can be used as an http handler.
 func ConfiguredRouter(
 	extURLPrefix string,
+	metadataRendererURI string,
 	maxRPI uint64,
 	rateLimInterval time.Duration,
 	parser parsing.SQLValidator,
@@ -49,7 +50,7 @@ func ConfiguredRouter(
 	for chainID, stack := range chainStacks {
 		stores[chainID] = stack.Store
 	}
-	sysStore, err := systemimpl.NewSystemSQLStoreService(stores, extURLPrefix)
+	sysStore, err := systemimpl.NewSystemSQLStoreService(stores, extURLPrefix, metadataRendererURI)
 	if err != nil {
 		log.Fatal().Err(err).Msg("creating system store")
 	}
@@ -81,11 +82,14 @@ func ConfiguredRouter(
 	}, middlewares.WithLogging, middlewares.OtelHTTP("rpc"), middlewares.Authentication, rateLim)
 
 	// Gateway configuration.
-	router.Get("/chain/{chainID}/tables/{id}", systemController.GetTable, middlewares.WithLogging, middlewares.OtelHTTP("GetTable"), middlewares.RESTChainID, rateLim)                                           // nolint
-	router.Get("/chain/{chainID}/tables/{id}/{key}/{value}", userController.GetTableRow, middlewares.WithLogging, middlewares.OtelHTTP("GetTableRow"), middlewares.RESTChainID, rateLim)                         // nolint
-	router.Get("/chain/{chainID}/tables/controller/{address}", systemController.GetTablesByController, middlewares.WithLogging, middlewares.OtelHTTP("GetTablesByController"), middlewares.RESTChainID, rateLim) // nolint
-	router.Get("/query", userController.GetTableQuery, middlewares.WithLogging, middlewares.OtelHTTP("GetTableQuery"), rateLim)                                                                                  // nolint
-	router.Get("/version", infraController.Version, middlewares.WithLogging, middlewares.OtelHTTP("Version"), rateLim)                                                                                           // nolint
+	router.Get("/chain/{chainID}/tables/{id}", systemController.GetTable, middlewares.WithLogging, middlewares.OtelHTTP("GetTable"), middlewares.RESTChainID, rateLim)                                             // nolint
+	router.Get("/chain/{chainID}/tables/{id}/{key}/{value}", userController.GetTableRow, middlewares.WithLogging, middlewares.OtelHTTP("GetTableRow"), middlewares.RESTChainID, rateLim)                           // nolint
+	router.Get("/chain/{chainID}/tables/controller/{address}", systemController.GetTablesByController, middlewares.WithLogging, middlewares.OtelHTTP("GetTablesByController"), middlewares.RESTChainID, rateLim)   // nolint
+	router.Get("/chain/{chainID}/tables/structure/{hash}", systemController.GetTablesByStructureHash, middlewares.WithLogging, middlewares.OtelHTTP("GetTablesByStructureHash"), middlewares.RESTChainID, rateLim) // nolint
+	router.Get("/schema/{table_name}", systemController.GetSchemaByTableName, middlewares.WithLogging, middlewares.OtelHTTP("GetSchemaFromTableName"), rateLim)                                                    // nolint
+
+	router.Get("/query", userController.GetTableQuery, middlewares.WithLogging, middlewares.OtelHTTP("GetTableQuery"), rateLim) // nolint
+	router.Get("/version", infraController.Version, middlewares.WithLogging, middlewares.OtelHTTP("Version"), rateLim)          // nolint
 
 	// Health endpoint configuration.
 	router.Get("/healthz", healthHandler)

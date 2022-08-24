@@ -11,6 +11,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/nonce/impl"
@@ -19,30 +20,16 @@ import (
 	"github.com/textileio/go-tableland/pkg/wallet"
 )
 
-// Client is the Tableland client.
-type Client struct {
-	tblRPC      *rpc.Client
-	tblHTTP     *http.Client
-	tblContract *ethereum.Client
-	config      Config
-}
-
-// Config configures the Client.
-type Config struct {
-	TblAPIURL    string
-	EthBackend   bind.ContractBackend
-	ChainID      ChainID
-	ContractAddr common.Address
-	Wallet       *wallet.Wallet
-}
+var defaultChain = Chains.PolygonMumbai
 
 // TxnReceipt is a Tableland event processing receipt.
 type TxnReceipt struct {
-	ChainID     ChainID `json:"chain_id"`
-	TxnHash     string  `json:"txn_hash"`
-	BlockNumber int64   `json:"block_number"`
-	Error       *string `json:"error,omitempty"`
-	TableID     *string `json:"table_id,omitempty"`
+	ChainID       ChainID `json:"chain_id"`
+	TxnHash       string  `json:"txn_hash"`
+	BlockNumber   int64   `json:"block_number"`
+	Error         string  `json:"error"`
+	ErrorEventIdx int     `json:"error_event_idx"`
+	TableID       *string `json:"table_id,omitempty"`
 }
 
 // TableID is the ID of a Table.
@@ -61,9 +48,6 @@ func (tid TableID) ToBigInt() *big.Int {
 	b.Set(&bi)
 	return b
 }
-
-// ChainID is a supported EVM chain identifier.
-type ChainID int64
 
 // TableInfo summarizes information about a table.
 type TableInfo struct {
@@ -85,25 +69,108 @@ func NewTableID(strID string) (TableID, error) {
 	return TableID(*tableID), nil
 }
 
+// Client is the Tableland client.
+type Client struct {
+	tblRPC      *rpc.Client
+	tblHTTP     *http.Client
+	tblContract *ethereum.Client
+	chain       Chain
+	relayWrites bool
+	wallet      *wallet.Wallet
+}
+
+type config struct {
+	chain           *Chain
+	relayWrites     *bool
+	infuraAPIKey    string
+	alchemyAPIKey   string
+	local           bool
+	contractBackend bind.ContractBackend
+}
+
+// NewClientOption controls the behavior of NewClient.
+type NewClientOption func(*config)
+
+// NewClientChain specifies chaininfo.
+func NewClientChain(chain Chain) NewClientOption {
+	return func(ncc *config) {
+		ncc.chain = &chain
+	}
+}
+
+// NewClientRelayWrites specifies whether or not to relay write queries through the Tableland validator.
+func NewClientRelayWrites(relay bool) NewClientOption {
+	return func(ncc *config) {
+		ncc.relayWrites = &relay
+	}
+}
+
+// NewClientInfuraAPIKey specifies an Infura API to use when creating an EVM backend.
+func NewClientInfuraAPIKey(key string) NewClientOption {
+	return func(c *config) {
+		c.infuraAPIKey = key
+	}
+}
+
+// NewClientAlchemyAPIKey specifies an Alchemy API to use when creating an EVM backend.
+func NewClientAlchemyAPIKey(key string) NewClientOption {
+	return func(c *config) {
+		c.alchemyAPIKey = key
+	}
+}
+
+// NewClientLocal specifies that a local EVM backend should be used.
+func NewClientLocal() NewClientOption {
+	return func(c *config) {
+		c.local = true
+	}
+}
+
+// NewClientContractBackend specifies a custom EVM backend to use.
+func NewClientContractBackend(backend bind.ContractBackend) NewClientOption {
+	return func(c *config) {
+		c.contractBackend = backend
+	}
+}
+
 // NewClient creates a new Client.
-func NewClient(ctx context.Context, config Config) (*Client, error) {
+func NewClient(ctx context.Context, wallet *wallet.Wallet, opts ...NewClientOption) (*Client, error) {
+	config := config{chain: &defaultChain}
+	for _, opt := range opts {
+		opt(&config)
+	}
+	var relay bool
+	if config.relayWrites != nil {
+		relay = *config.relayWrites
+	} else {
+		relay = config.chain.CanRelayWrites()
+	}
+	if relay && !config.chain.CanRelayWrites() {
+		return nil, errors.New("options specified to relay writes for a chain that doesn't support it")
+	}
+
+	contractBackend, err := getContractBackend(ctx, config)
+	if err != nil {
+		return nil, fmt.Errorf("getting contract backend: %v", err)
+	}
+
 	tblContract, err := ethereum.NewClient(
-		config.EthBackend,
-		tableland.ChainID(config.ChainID),
-		config.ContractAddr,
-		config.Wallet,
-		impl.NewSimpleTracker(config.Wallet, config.EthBackend),
+		contractBackend,
+		tableland.ChainID(config.chain.ID),
+		config.chain.ContractAddr,
+		wallet,
+		impl.NewSimpleTracker(wallet, contractBackend),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating contract client: %v", err)
 	}
 
-	siwe, err := siwe.EncodedSIWEMsg(tableland.ChainID(config.ChainID), config.Wallet, time.Hour*24*365)
+	siwe, err := siwe.EncodedSIWEMsg(tableland.ChainID(config.chain.ID), wallet, time.Hour*24*365)
 	if err != nil {
 		return nil, fmt.Errorf("creating siwe value: %v", err)
 	}
 
-	tblRPC, err := rpc.DialContext(ctx, config.TblAPIURL+"/rpc")
+	tblRPC, err := rpc.DialContext(ctx, config.chain.Endpoint+"/rpc")
 	if err != nil {
 		return nil, fmt.Errorf("creating rpc client: %v", err)
 	}
@@ -113,7 +180,9 @@ func NewClient(ctx context.Context, config Config) (*Client, error) {
 		tblRPC:      tblRPC,
 		tblHTTP:     &http.Client{},
 		tblContract: tblContract,
-		config:      config,
+		chain:       *config.chain,
+		relayWrites: relay,
+		wallet:      wallet,
 	}, nil
 }
 
@@ -121,9 +190,9 @@ func NewClient(ctx context.Context, config Config) (*Client, error) {
 func (c *Client) List(ctx context.Context) ([]TableInfo, error) {
 	url := fmt.Sprintf(
 		"%s/chain/%d/tables/controller/%s",
-		c.config.TblAPIURL,
-		c.config.ChainID,
-		c.config.Wallet.Address().Hex(),
+		c.chain.Endpoint,
+		c.chain.ID,
+		c.wallet.Address().Hex(),
 	)
 	res, err := c.tblHTTP.Get(url)
 	if err != nil {
@@ -174,7 +243,7 @@ func (c *Client) Create(ctx context.Context, schema string, opts ...CreateOption
 		opt(&conf)
 	}
 
-	createStatement := fmt.Sprintf("CREATE TABLE %s_%d %s", conf.prefix, c.config.ChainID, schema)
+	createStatement := fmt.Sprintf("CREATE TABLE %s_%d %s", conf.prefix, c.chain.ID, schema)
 	req := &tableland.ValidateCreateTableRequest{CreateStatement: createStatement}
 	var res tableland.ValidateCreateTableResponse
 
@@ -182,7 +251,7 @@ func (c *Client) Create(ctx context.Context, schema string, opts ...CreateOption
 		return TableID{}, "", fmt.Errorf("calling rpc validateCreateTable: %v", err)
 	}
 
-	t, err := c.tblContract.CreateTable(ctx, c.config.Wallet.Address(), createStatement)
+	t, err := c.tblContract.CreateTable(ctx, c.wallet.Address(), createStatement)
 	if err != nil {
 		return TableID{}, "", fmt.Errorf("calling contract create table: %v", err)
 	}
@@ -200,7 +269,7 @@ func (c *Client) Create(ctx context.Context, schema string, opts ...CreateOption
 		return TableID{}, "", errors.New("parsing table id from response")
 	}
 
-	return TableID(*tableID), fmt.Sprintf("%s_%d_%s", conf.prefix, c.config.ChainID, *r.TableID), nil
+	return TableID(*tableID), fmt.Sprintf("%s_%d_%s", conf.prefix, c.chain.ID, *r.TableID), nil
 }
 
 // Read runs a read query and returns the results.
@@ -221,28 +290,69 @@ func (c *Client) Read(ctx context.Context, query string) (string, error) {
 	return string(b), nil
 }
 
-// Write initiates a write query, returning the txn hash.
-func (c *Client) Write(ctx context.Context, query string) (string, error) {
-	req := &tableland.RelayWriteQueryRequest{Statement: query}
-	var res tableland.RelayWriteQueryResponse
+type writeConfig struct {
+	relay bool
+}
 
-	if err := c.tblRPC.CallContext(ctx, &res, "tableland_relayWriteQuery", req); err != nil {
-		return "", fmt.Errorf("calling rpc relayWriteQuery: %v", err)
+// WriteOption controls the behavior of Write.
+type WriteOption func(*writeConfig)
+
+// WriteRelay specifies whether or not to relay write queries through the Tableland validator.
+// Default behavior is false for main net EVM chains, true for all others.
+func WriteRelay(relay bool) WriteOption {
+	return func(wc *writeConfig) {
+		wc.relay = relay
 	}
+}
 
-	return res.Transaction.Hash, nil
+// Write initiates a write query, returning the txn hash.
+func (c *Client) Write(ctx context.Context, query string, opts ...WriteOption) (string, error) {
+	conf := writeConfig{relay: c.relayWrites}
+	for _, opt := range opts {
+		opt(&conf)
+	}
+	if conf.relay {
+		req := &tableland.RelayWriteQueryRequest{Statement: query}
+		var res tableland.RelayWriteQueryResponse
+		if err := c.tblRPC.CallContext(ctx, &res, "tableland_relayWriteQuery", req); err != nil {
+			return "", fmt.Errorf("calling rpc relayWriteQuery: %v", err)
+		}
+		return res.Transaction.Hash, nil
+	}
+	tableID, err := c.Validate(ctx, query)
+	if err != nil {
+		return "", fmt.Errorf("calling Validate: %v", err)
+	}
+	res, err := c.tblContract.RunSQL(ctx, c.wallet.Address(), tableland.TableID(tableID), query)
+	if err != nil {
+		return "", fmt.Errorf("calling RunSQL: %v", err)
+	}
+	return res.Hash().Hex(), nil
 }
 
 // Hash validates the provided create table statement and returns its hash.
 func (c *Client) Hash(ctx context.Context, statement string) (string, error) {
 	req := &tableland.ValidateCreateTableRequest{CreateStatement: statement}
 	var res tableland.ValidateCreateTableResponse
-
 	if err := c.tblRPC.CallContext(ctx, &res, "tableland_validateCreateTable", req); err != nil {
 		return "", fmt.Errorf("calling rpc validateCreateTable: %v", err)
 	}
-
 	return res.StructureHash, nil
+}
+
+// Validate validates a write query, returning the table id.
+func (c *Client) Validate(ctx context.Context, statement string) (TableID, error) {
+	req := &tableland.ValidateWriteQueryRequest{Statement: statement}
+	var res tableland.ValidateWriteQueryResponse
+	if err := c.tblRPC.CallContext(ctx, &res, "tableland_validateWriteQuery", req); err != nil {
+		return TableID{}, fmt.Errorf("calling rpc validateWriteQuery: %v", err)
+	}
+	tableID, ok := big.NewInt(0).SetString(res.TableID, 10)
+	if !ok {
+		return TableID{}, errors.New("parsing table id from response")
+	}
+
+	return TableID(*tableID), nil
 }
 
 type receiptConfig struct {
@@ -300,12 +410,14 @@ func (c *Client) getReceipt(ctx context.Context, txnHash string) (*TxnReceipt, b
 	if !res.Ok {
 		return nil, res.Ok, nil
 	}
+
 	receipt := TxnReceipt{
-		ChainID:     ChainID(res.Receipt.ChainID),
-		TxnHash:     res.Receipt.TxnHash,
-		BlockNumber: res.Receipt.BlockNumber,
-		Error:       res.Receipt.Error,
-		TableID:     res.Receipt.TableID,
+		ChainID:       ChainID(res.Receipt.ChainID),
+		TxnHash:       res.Receipt.TxnHash,
+		BlockNumber:   res.Receipt.BlockNumber,
+		Error:         res.Receipt.Error,
+		ErrorEventIdx: res.Receipt.ErrorEventIdx,
+		TableID:       res.Receipt.TableID,
 	}
 	return &receipt, res.Ok, nil
 }
@@ -336,4 +448,29 @@ func (c *Client) waitForReceipt(
 // Close implements Close.
 func (c *Client) Close() {
 	c.tblRPC.Close()
+}
+
+func getContractBackend(ctx context.Context, config config) (bind.ContractBackend, error) {
+	if config.contractBackend != nil && config.infuraAPIKey == "" && config.alchemyAPIKey == "" {
+		return config.contractBackend, nil
+	} else if config.infuraAPIKey != "" && config.contractBackend == nil && config.alchemyAPIKey == "" {
+		tmpl, found := infuraURLs[config.chain.ID]
+		if !found {
+			return nil, fmt.Errorf("chain id %v not supported for Infura", config.chain.ID)
+		}
+		return ethclient.DialContext(ctx, fmt.Sprintf(tmpl, config.infuraAPIKey))
+	} else if config.alchemyAPIKey != "" && config.contractBackend == nil && config.infuraAPIKey == "" {
+		tmpl, found := alchemyURLs[config.chain.ID]
+		if !found {
+			return nil, fmt.Errorf("chain id %v not supported for Alchemy", config.chain.ID)
+		}
+		return ethclient.DialContext(ctx, fmt.Sprintf(tmpl, config.alchemyAPIKey))
+	} else if config.local {
+		url, found := localURLs[config.chain.ID]
+		if !found {
+			return nil, fmt.Errorf("chain id %v not supported for Local", config.chain.ID)
+		}
+		return ethclient.DialContext(ctx, url)
+	}
+	return nil, errors.New("no provider specified, must provide an Infura API key, Alchemy API key, or an ETH backend")
 }

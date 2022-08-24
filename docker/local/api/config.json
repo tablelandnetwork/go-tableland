@@ -4,12 +4,14 @@
     "Debug": true
   },
   "Gateway": {
-    "ExternalURIPrefix": "http://localhost:8080"
+    "ExternalURIPrefix": "http://localhost:8080",
+    "MetadataRendererURI": ""
   },
   "Chains": [
     {
       "Name": "Local Hardhat",
       "ChainID": 31337,
+      "AllowTransactionRelay": true,
       "Registry": {
         "EthEndpoint": "ws://host.docker.internal:8545",
         "ContractAddress": "[FILL ME]"

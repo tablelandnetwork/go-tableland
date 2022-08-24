@@ -7,7 +7,8 @@
     "TLSKey": "${VALIDATOR_TLS_KEY}"
   },
   "Gateway": {
-    "ExternalURIPrefix": "https://staging.tableland.network"
+    "ExternalURIPrefix": "https://staging.tableland.network",
+    "MetadataRendererURI": ""
   },
   "DB": {
     "Port": "5432"
@@ -29,6 +30,7 @@
   "Chains": [
     {
       "Name": "Optimism Kovan",
+      "AllowTransactionRelay" : true,
       "ChainID": 69,
       "Registry": {
         "EthEndpoint": "wss://opt-kovan.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_OPTIMISM_KOVAN_API_KEY}",
@@ -36,6 +38,32 @@
       },
       "Signer": {
         "PrivateKey": "${VALIDATOR_OPTIMISM_KOVAN_SIGNER_PRIVATE_KEY}"
+      },
+      "EventFeed": {
+        "ChainAPIBackoff": "15s",
+        "NewBlockTimeout": "30s",
+        "MinBlockDepth": 0
+      },
+      "EventProcessor": {
+        "BlockFailedExecutionBackoff": "10s",
+        "DedupExecutedTxns": true
+      },
+      "NonceTracker": {
+        "CheckInterval": "10s",
+        "StuckInterval": "10m",
+        "MinBlockDepth": 0
+      }
+    },
+    {
+      "Name": "Optimism Goerli",
+      "AllowTransactionRelay" : true,
+      "ChainID": 420,
+      "Registry": {
+        "EthEndpoint": "wss://opt-goerli.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_OPTIMISM_GOERLI_API_KEY}",
+        "ContractAddress": "0xfe79824f6E5894a3DD86908e637B7B4AF57eEE28"
+      },
+      "Signer": {
+        "PrivateKey": "${VALIDATOR_OPTIMISM_GOERLI_SIGNER_PRIVATE_KEY}"
       },
       "EventFeed": {
         "ChainAPIBackoff": "15s",

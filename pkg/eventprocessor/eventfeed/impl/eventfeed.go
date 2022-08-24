@@ -61,7 +61,7 @@ func New(
 	}
 	log := logger.With().
 		Str("component", "eventfeed").
-		Int64("chainID", int64(chainID)).
+		Int64("chain_id", int64(chainID)).
 		Logger()
 	ef := &EventFeed{
 		log:                log,
@@ -113,7 +113,7 @@ func (ef *EventFeed) Start(
 		if h.Number.Int64()%100 == 0 {
 			ef.log.Debug().
 				Int64("height", h.Number.Int64()).
-				Int64("maxBlocksFetchSize", int64(ef.maxBlocksFetchSize)).
+				Int64("max_blocks_fetch_size", int64(ef.maxBlocksFetchSize)).
 				Msg("received new chain header")
 		}
 		// We do a for loop since we'll try to catch from fromHeight to the new reported
@@ -158,36 +158,12 @@ func (ef *EventFeed) Start(
 				continue
 			}
 
-			if len(logs) > 0 {
-				// We received new events. We'll group/pack them by block number in
-				// BlockEvents structs, and send them to the `ch` channel provided
-				// by the caller.
-				bq := eventfeed.BlockEvents{
-					BlockNumber: int64(logs[0].BlockNumber),
-				}
-				observedTxns := map[string]struct{}{}
-				for _, l := range logs {
-					if bq.BlockNumber != int64(l.BlockNumber) {
-						ch <- bq
-						bq = eventfeed.BlockEvents{
-							BlockNumber: int64(l.BlockNumber),
-						}
-						observedTxns = map[string]struct{}{}
-					}
-					if _, ok := observedTxns[l.TxHash.Hex()]; ok {
-						ef.log.Warn().Str("txnHash", l.TxHash.String()).Msg("txn has more than one event")
-						continue
-					}
-					observedTxns[l.TxHash.Hex()] = struct{}{}
-
-					event, err := ef.parseEvent(l)
-					if err != nil {
-						return fmt.Errorf("couldn't parse event: %s", err)
-					}
-					bq.Events = append(bq.Events, event)
-				}
-				// Sent last block events construction of the loop.
-				ch <- bq
+			blocksEvents, err := ef.packEvents(logs)
+			if err != nil {
+				return fmt.Errorf("packing events: %s", err)
+			}
+			for i := range blocksEvents {
+				ch <- *blocksEvents[i]
 			}
 
 			// Update our fromHeight to the latest processed height plus one.
@@ -202,23 +178,58 @@ func (ef *EventFeed) Start(
 	return nil
 }
 
+// packEvents packs a linear stream of events in two nested groups:
+// 1) First, by block_number.
+// 2) Within a block_number, by txn_hash.
+// Remember that one block contains multiple txns, and each txn can have more than one event.
+func (ef *EventFeed) packEvents(logs []types.Log) ([]*eventfeed.BlockEvents, error) {
+	if len(logs) == 0 {
+		return nil, nil
+	}
+
+	var ret []*eventfeed.BlockEvents
+	var new *eventfeed.BlockEvents
+	for _, l := range logs {
+		// New block number detected? -> Close the block grouping.
+		if new == nil || new.BlockNumber != int64(l.BlockNumber) {
+			new = &eventfeed.BlockEvents{
+				BlockNumber: int64(l.BlockNumber),
+			}
+			ret = append(ret, new)
+		}
+		// New txn hash detected? -> Close the txn hash event grouping, and continue with the next.
+		if len(new.Txns) == 0 || new.Txns[len(new.Txns)-1].TxnHash.String() != l.TxHash.String() {
+			new.Txns = append(new.Txns, eventfeed.TxnEvents{
+				TxnHash: l.TxHash,
+			})
+		}
+		event, err := ef.parseEvent(l)
+		if err != nil {
+			return nil, fmt.Errorf("couldn't parse event: %s", err)
+		}
+		new.Txns[len(new.Txns)-1].Events = append(new.Txns[len(new.Txns)-1].Events, event)
+	}
+
+	return ret, nil
+}
+
 // parseEvent deconstructs a raw event that was received from the Ethereum node,
 // to a structured representation. Since the event can be from different types,
 // we return an interface.
 // Every possible type in the interface{} is an auto-generated struct by
 // `make ethereum` named `Contract*` (e.g: ContractRunSQL, ContractTransfer, etc).
 // See this mapping in the `supportedEvents` map global variable in this file.
-func (ef *EventFeed) parseEvent(l types.Log) (eventfeed.BlockEvent, error) {
+func (ef *EventFeed) parseEvent(l types.Log) (interface{}, error) {
 	// We get an event descriptior from the common.Hash value that is always
 	// in Topic[0] in events. This is an ID for the kind of event.
 	eventDescr, err := ef.scABI.EventByID(l.Topics[0])
 	if err != nil {
-		return eventfeed.BlockEvent{}, fmt.Errorf("detecting event type: %s", err)
+		return eventfeed.TxnEvents{}, fmt.Errorf("detecting event type: %s", err)
 	}
 
 	se, ok := eventfeed.SupportedEvents[eventfeed.EventType(eventDescr.Name)]
 	if !ok {
-		return eventfeed.BlockEvent{}, fmt.Errorf("unknown event type %s", eventDescr.Name)
+		return eventfeed.TxnEvents{}, fmt.Errorf("unknown event type %s", eventDescr.Name)
 	}
 	// Create a new *ContractXXXX struct that corresponds to this event.
 	// e.g: *ContractRunSQL if this event was one fired by runSQL(..) SC function.
@@ -229,7 +240,7 @@ func (ef *EventFeed) parseEvent(l types.Log) (eventfeed.BlockEvent, error) {
 	// are non-indexed fields of the event.
 	if len(l.Data) > 0 {
 		if err := ef.scABI.UnpackIntoInterface(i, eventDescr.Name, l.Data); err != nil {
-			return eventfeed.BlockEvent{}, fmt.Errorf("unpacking into interface: %s", err)
+			return eventfeed.TxnEvents{}, fmt.Errorf("unpacking into interface: %s", err)
 		}
 	}
 	// Second, we unmarshal indexed fields which aren't in data but in Topics[:1].
@@ -240,7 +251,7 @@ func (ef *EventFeed) parseEvent(l types.Log) (eventfeed.BlockEvent, error) {
 		}
 	}
 	if err := abi.ParseTopics(i, indexed, l.Topics[1:]); err != nil {
-		return eventfeed.BlockEvent{}, fmt.Errorf("unpacking indexed topics: %s", err)
+		return eventfeed.TxnEvents{}, fmt.Errorf("unpacking indexed topics: %s", err)
 	}
 	// Note that the above two steps of unmarshalling isn't something particular
 	// to us, it's just how Ethereum works.
@@ -250,7 +261,7 @@ func (ef *EventFeed) parseEvent(l types.Log) (eventfeed.BlockEvent, error) {
 	attrs := append([]attribute.KeyValue{attribute.String("name", eventDescr.Name)}, ef.mBaseLabels...)
 	ef.mEventTypeCounter.Add(context.Background(), 1, attrs...)
 
-	return eventfeed.BlockEvent{TxnHash: l.TxHash, Event: i}, nil
+	return i, nil
 }
 
 func (ef *EventFeed) getTopicsForEventTypes(ets []eventfeed.EventType) ([]common.Hash, error) {

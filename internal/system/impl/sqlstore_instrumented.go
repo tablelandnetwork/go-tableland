@@ -80,3 +80,45 @@ func (s *InstrumentedSystemSQLStoreService) GetTablesByController(ctx context.Co
 
 	return tables, err
 }
+
+// GetTablesByStructure returns all tables that share the same structure.
+func (s *InstrumentedSystemSQLStoreService) GetTablesByStructure(
+	ctx context.Context,
+	structure string,
+) ([]sqlstore.Table, error) {
+	start := time.Now()
+	tables, err := s.system.GetTablesByStructure(ctx, structure)
+	latency := time.Since(start).Milliseconds()
+	chainID, _ := ctx.Value(middlewares.ContextKeyChainID).(tableland.ChainID)
+
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("GetTablesByStructure")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+		{Key: "chainID", Value: attribute.Int64Value(int64(chainID))},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return tables, err
+}
+
+// GetSchemaByTableName returns the schema of a table by its name.
+func (s *InstrumentedSystemSQLStoreService) GetSchemaByTableName(
+	ctx context.Context,
+	tableName string,
+) (sqlstore.TableSchema, error) {
+	start := time.Now()
+	tables, err := s.system.GetSchemaByTableName(ctx, tableName)
+	latency := time.Since(start).Milliseconds()
+
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("GetSchemaByTableName")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return tables, err
+}

@@ -87,6 +87,49 @@ func (s *InstrumentedSystemStore) GetTablesByController(
 	return tables, err
 }
 
+// GetTablesByStructure gets all tables with a particular structure hash.
+func (s *InstrumentedSystemStore) GetTablesByStructure(
+	ctx context.Context,
+	structure string,
+) ([]sqlstore.Table, error) {
+	start := time.Now()
+	tables, err := s.store.GetTablesByStructure(ctx, structure)
+	latency := time.Since(start).Milliseconds()
+
+	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("GetTablesByStructure")},
+		{Key: "structure", Value: attribute.StringValue(structure)},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+		{Key: "chainID", Value: attribute.Int64Value(int64(s.chainID))},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return tables, err
+}
+
+// GetSchemaByTableName get the schema of a table by its name.
+func (s *InstrumentedSystemStore) GetSchemaByTableName(ctx context.Context, name string) (sqlstore.TableSchema, error) {
+	start := time.Now()
+	tables, err := s.store.GetSchemaByTableName(ctx, name)
+	latency := time.Since(start).Milliseconds()
+
+	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("GetSchemaByTableName")},
+		{Key: "name", Value: attribute.StringValue(name)},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+		{Key: "chainID", Value: attribute.Int64Value(int64(s.chainID))},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return tables, err
+}
+
 // GetACLOnTableByController increments the counter.
 func (s *InstrumentedSystemStore) GetACLOnTableByController(
 	ctx context.Context,

@@ -10,6 +10,7 @@ import (
 	"github.com/XSAM/otelsql"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog/log"
+	"github.com/tablelandnetwork/sqlparser"
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -29,9 +30,9 @@ import (
 // For safety reasons, this layer has no access to the database object or the transaction object.
 // The access is made through the dbWithTx interface.
 type SystemStore struct {
-	chainID tableland.ChainID
-	db      dbWithTx
-	pool    *sql.DB
+	chainID  tableland.ChainID
+	dbWithTx dbWithTx
+	db       *sql.DB
 }
 
 // New returns a new SystemStore backed by database/sql.
@@ -43,6 +44,7 @@ func New(dbURI string, chainID tableland.ChainID) (*SystemStore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("connecting to db: %s", err)
 	}
+	dbc.SetMaxIdleConns(0)
 	if err := otelsql.RegisterDBStatsMetrics(dbc, otelsql.WithAttributes(
 		attribute.String("name", "systemstore"),
 		attribute.Int64("chain_id", int64(chainID)),
@@ -56,20 +58,20 @@ func New(dbURI string, chainID tableland.ChainID) (*SystemStore, error) {
 	}
 
 	return &SystemStore{
-		db:      &dbWithTxImpl{db: db.New(dbc)},
-		pool:    dbc,
-		chainID: chainID,
+		dbWithTx: &dbWithTxImpl{db: db.New(dbc)},
+		db:       dbc,
+		chainID:  chainID,
 	}, nil
 }
 
 // GetTable fetchs a table from its UUID.
 func (s *SystemStore) GetTable(ctx context.Context, id tableland.TableID) (sqlstore.Table, error) {
-	table, err := s.db.queries().GetTable(ctx, db.GetTableParams{
+	table, err := s.dbWithTx.queries().GetTable(ctx, db.GetTableParams{
 		ChainID: int64(s.chainID),
 		ID:      id.ToBigInt().Int64(),
 	})
 	if err != nil {
-		return sqlstore.Table{}, fmt.Errorf("failed to get the table: %s", err)
+		return sqlstore.Table{}, fmt.Errorf("failed to get the table: %w", err)
 	}
 	return tableFromSQLToDTO(table)
 }
@@ -79,7 +81,7 @@ func (s *SystemStore) GetTablesByController(ctx context.Context, controller stri
 	if err := sanitizeAddress(controller); err != nil {
 		return []sqlstore.Table{}, fmt.Errorf("sanitizing address: %s", err)
 	}
-	sqlcTables, err := s.db.queries().GetTablesByController(ctx, db.GetTablesByControllerParams{
+	sqlcTables, err := s.dbWithTx.queries().GetTablesByController(ctx, db.GetTablesByControllerParams{
 		ChainID:    int64(s.chainID),
 		Controller: controller,
 	})
@@ -110,7 +112,7 @@ func (s *SystemStore) GetACLOnTableByController(
 		TableID:    id.ToBigInt().Int64(),
 	}
 
-	systemACL, err := s.db.queries().GetAclByTableAndController(ctx, params)
+	systemACL, err := s.dbWithTx.queries().GetAclByTableAndController(ctx, params)
 	if err == sql.ErrNoRows {
 		return sqlstore.SystemACL{
 			Controller: controller,
@@ -132,7 +134,7 @@ func (s *SystemStore) ListPendingTx(ctx context.Context, addr common.Address) ([
 		ChainID: int64(s.chainID),
 	}
 
-	res, err := s.db.queries().ListPendingTx(ctx, params)
+	res, err := s.dbWithTx.queries().ListPendingTx(ctx, params)
 	if err != nil {
 		return nil, fmt.Errorf("list pending tx: %s", err)
 	}
@@ -167,7 +169,7 @@ func (s *SystemStore) InsertPendingTx(
 		Hash:    hash.Hex(),
 	}
 
-	err := s.db.queries().InsertPendingTx(ctx, params)
+	err := s.dbWithTx.queries().InsertPendingTx(ctx, params)
 	if err != nil {
 		return fmt.Errorf("insert pending tx: %s", err)
 	}
@@ -177,7 +179,7 @@ func (s *SystemStore) InsertPendingTx(
 
 // DeletePendingTxByHash deletes a pending tx.
 func (s *SystemStore) DeletePendingTxByHash(ctx context.Context, hash common.Hash) error {
-	err := s.db.queries().DeletePendingTxByHash(ctx, db.DeletePendingTxByHashParams{
+	err := s.dbWithTx.queries().DeletePendingTxByHash(ctx, db.DeletePendingTxByHashParams{
 		ChainID: int64(s.chainID),
 		Hash:    hash.Hex(),
 	})
@@ -190,7 +192,7 @@ func (s *SystemStore) DeletePendingTxByHash(ctx context.Context, hash common.Has
 
 // ReplacePendingTxByHash replaces the txn hash of a pending txn and bumps the counter of how many times this happened.
 func (s *SystemStore) ReplacePendingTxByHash(ctx context.Context, oldHash common.Hash, newHash common.Hash) error {
-	err := s.db.queries().ReplacePendingTxByHash(ctx, db.ReplacePendingTxByHashParams{
+	err := s.dbWithTx.queries().ReplacePendingTxByHash(ctx, db.ReplacePendingTxByHashParams{
 		ChainID:      int64(s.chainID),
 		PreviousHash: oldHash.Hex(),
 		NewHash:      newHash.Hex(),
@@ -201,21 +203,87 @@ func (s *SystemStore) ReplacePendingTxByHash(ctx context.Context, oldHash common
 	return nil
 }
 
+// GetTablesByStructure gets all tables with a particular structure hash.
+func (s *SystemStore) GetTablesByStructure(ctx context.Context, structure string) ([]sqlstore.Table, error) {
+	rows, err := s.dbWithTx.queries().GetTablesByStructure(ctx, db.GetTablesByStructureParams{
+		ChainID:   int64(s.chainID),
+		Structure: structure,
+	})
+	if err != nil {
+		return []sqlstore.Table{}, fmt.Errorf("failed to get the table: %s", err)
+	}
+
+	tables := make([]sqlstore.Table, len(rows))
+	for i := range rows {
+		tables[i], err = tableFromSQLToDTO(rows[i])
+		if err != nil {
+			return nil, fmt.Errorf("parsing database table to dto: %s", err)
+		}
+	}
+
+	return tables, nil
+}
+
+// GetSchemaByTableName get the schema of a table by its name.
+func (s *SystemStore) GetSchemaByTableName(ctx context.Context, name string) (sqlstore.TableSchema, error) {
+	createStmt, err := s.dbWithTx.queries().GetSchemaByTableName(ctx, db.GetSchemaByTableNameParams{
+		TableName: name,
+	})
+	if err != nil {
+		return sqlstore.TableSchema{}, fmt.Errorf("failed to get the table: %s", err)
+	}
+
+	index := strings.LastIndex(createStmt, "STRICT")
+	ast, err := sqlparser.Parse(createStmt[:index])
+	if err != nil {
+		return sqlstore.TableSchema{}, fmt.Errorf("failed to parse create stmt: %s", err)
+	}
+
+	if ast.Errors[0] != nil {
+		return sqlstore.TableSchema{}, fmt.Errorf("non-syntax error: %s", ast.Errors[0])
+	}
+
+	createTableNode := ast.Statements[0].(*sqlparser.CreateTable)
+	columns := make([]sqlstore.ColumnSchema, len(createTableNode.Columns))
+	for i, col := range createTableNode.Columns {
+		colConstraints := []string{}
+		for _, colConstraint := range col.Constraints {
+			colConstraints = append(colConstraints, colConstraint.String())
+		}
+
+		columns[i] = sqlstore.ColumnSchema{
+			Name:        col.Name.String(),
+			Type:        strings.ToLower(col.Type),
+			Constraints: colConstraints,
+		}
+	}
+
+	tableConstraints := make([]string, len(createTableNode.Constraints))
+	for i, tableConstraint := range createTableNode.Constraints {
+		tableConstraints[i] = tableConstraint.String()
+	}
+
+	return sqlstore.TableSchema{
+		Columns:          columns,
+		TableConstraints: tableConstraints,
+	}, nil
+}
+
 // WithTx returns a copy of the current SystemStore with a tx attached.
 func (s *SystemStore) WithTx(tx *sql.Tx) sqlstore.SystemStore {
 	return &SystemStore{
 		chainID: s.chainID,
-		db: &dbWithTxImpl{
-			db: s.db.queries(),
+		dbWithTx: &dbWithTxImpl{
+			db: s.dbWithTx.queries(),
 			tx: tx,
 		},
-		pool: s.pool,
+		db: s.db,
 	}
 }
 
 // Begin returns a new tx.
 func (s *SystemStore) Begin(ctx context.Context) (*sql.Tx, error) {
-	return s.pool.Begin()
+	return s.db.Begin()
 }
 
 // GetReceipt returns a event receipt by transaction hash.
@@ -228,7 +296,7 @@ func (s *SystemStore) GetReceipt(
 		TxnHash: txnHash,
 	}
 
-	res, err := s.db.queries().GetReceipt(ctx, params)
+	res, err := s.dbWithTx.queries().GetReceipt(ctx, params)
 	if err == sql.ErrNoRows {
 		return eventprocessor.Receipt{}, false, nil
 	}
@@ -244,6 +312,9 @@ func (s *SystemStore) GetReceipt(
 	}
 	if res.Error.Valid {
 		receipt.Error = &res.Error.String
+
+		errorEventIdx := int(res.ErrorEventIdx.Int64)
+		receipt.ErrorEventIdx = &errorEventIdx
 	}
 	if res.TableID.Valid {
 		id, err := tableland.NewTableIDFromInt64(res.TableID.Int64)
@@ -258,7 +329,7 @@ func (s *SystemStore) GetReceipt(
 
 // Close closes the store.
 func (s *SystemStore) Close() error {
-	if err := s.pool.Close(); err != nil {
+	if err := s.db.Close(); err != nil {
 		return fmt.Errorf("closing db: %s", err)
 	}
 	return nil

@@ -15,12 +15,12 @@ import (
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
+	executor "github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor/impl"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
 	"github.com/textileio/go-tableland/pkg/tables/impl/testutil"
-	txnpimpl "github.com/textileio/go-tableland/pkg/txn/impl"
 	"github.com/textileio/go-tableland/tests"
 )
 
@@ -313,18 +313,18 @@ func setup(t *testing.T) (
 	backend, addr, sc, authOpts, _ := testutil.Setup(t)
 
 	// Spin up dependencies needed for the EventProcessor.
-	// i.e: TxnProcessor, Parser, and EventFeed (connected to the EVM chain)
+	// i.e: Executor, Parser, and EventFeed (connected to the EVM chain)
 	ef, err := efimpl.New(chainID, backend, addr, eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
 
 	dbURI := tests.Sqlite3URI()
-	txnp, err := txnpimpl.NewTxnProcessor(chainID, dbURI, 0, &aclMock{})
+	parser, err := parserimpl.New([]string{"system_", "registry", "sqlite_"})
 	require.NoError(t, err)
-	parser, err := parserimpl.New([]string{"system_", "registry"})
+	ex, err := executor.NewExecutor(chainID, dbURI, parser, 0, &aclMock{})
 	require.NoError(t, err)
 
 	// Create EventProcessor for our test.
-	ep, err := New(parser, txnp, ef, chainID)
+	ep, err := New(parser, ex, ef, chainID)
 	require.NoError(t, err)
 
 	ctx := context.Background()

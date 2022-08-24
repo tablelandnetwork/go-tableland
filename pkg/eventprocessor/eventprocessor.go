@@ -62,6 +62,7 @@ type Receipt struct {
 	IndexInBlock int64
 	TxnHash      string
 
-	Error   *string
-	TableID *tableland.TableID
+	TableID       *tableland.TableID
+	Error         *string
+	ErrorEventIdx *int
 }

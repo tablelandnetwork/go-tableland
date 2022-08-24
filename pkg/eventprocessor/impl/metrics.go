@@ -37,9 +37,9 @@ func (ep *EventProcessor) initMetrics(chainID tableland.ChainID) error {
 	if err != nil {
 		return fmt.Errorf("creating event execution count instrument: %s", err)
 	}
-	ep.mEventExecutionLatency, err = meter.SyncInt64().Histogram("tableland.eventprocessor.event.execution.latency")
+	ep.mTxnExecutionLatency, err = meter.SyncInt64().Histogram("tableland.eventprocessor.txn.execution.latency")
 	if err != nil {
-		return fmt.Errorf("creating event execution latency instrument: %s", err)
+		return fmt.Errorf("creating txn execution latency instrument: %s", err)
 	}
 	ep.mBlockExecutionLatency, err = meter.SyncInt64().Histogram("tableland.eventprocessor.block.execution.latency")
 	if err != nil {

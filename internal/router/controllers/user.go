@@ -270,7 +270,7 @@ func (c *UserController) GetTableQuery(rw http.ResponseWriter, r *http.Request) 
 					rw.WriteHeader(http.StatusBadRequest)
 					log.Ctx(r.Context()).
 						Error().
-						Str("sqlRequest", stm).
+						Str("sql_request", stm).
 						Err(err)
 
 					_ = encoder.Encode(errors.ServiceError{Message: err.Error()})
@@ -293,7 +293,7 @@ func (c *UserController) GetTableQuery(rw http.ResponseWriter, r *http.Request) 
 					rw.WriteHeader(http.StatusBadRequest)
 					log.Ctx(r.Context()).
 						Error().
-						Str("sqlRequest", stm).
+						Str("sql_request", stm).
 						Err(err)
 
 					_ = encoder.Encode(errors.ServiceError{Message: err.Error()})
@@ -328,7 +328,7 @@ func (c *UserController) runReadRequest(
 		rw.WriteHeader(http.StatusBadRequest)
 		log.Ctx(ctx).
 			Error().
-			Str("sqlRequest", req.Statement).
+			Str("sql_request", req.Statement).
 			Err(err).
 			Msg("executing read query")
 

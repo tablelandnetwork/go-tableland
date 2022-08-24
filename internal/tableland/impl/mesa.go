@@ -117,6 +117,11 @@ func (t *TablelandMesa) RelayWriteQuery(
 		return tableland.RelayWriteQueryResponse{}, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
 	}
 
+	if !stack.AllowTransactionRelay {
+		return tableland.RelayWriteQueryResponse{},
+			fmt.Errorf("chain id %d does not suppport relaying of transactions", chainID)
+	}
+
 	mutatingStmts, err := t.parser.ValidateMutatingQuery(req.Statement, chainID)
 	if err != nil {
 		return tableland.RelayWriteQueryResponse{}, fmt.Errorf("validating query: %s", err)
@@ -176,13 +181,22 @@ func (t *TablelandMesa) GetReceipt(
 		return tableland.GetReceiptResponse{Ok: false}, nil
 	}
 
+	errorEventIdx := -1
+	if receipt.ErrorEventIdx != nil {
+		errorEventIdx = *receipt.ErrorEventIdx
+	}
+	errorMsg := ""
+	if receipt.Error != nil {
+		errorMsg = *receipt.Error
+	}
 	ret := tableland.GetReceiptResponse{
 		Ok: ok,
 		Receipt: &tableland.TxnReceipt{
-			ChainID:     receipt.ChainID,
-			TxnHash:     receipt.TxnHash,
-			BlockNumber: receipt.BlockNumber,
-			Error:       receipt.Error,
+			ChainID:       receipt.ChainID,
+			TxnHash:       receipt.TxnHash,
+			BlockNumber:   receipt.BlockNumber,
+			Error:         errorMsg,
+			ErrorEventIdx: errorEventIdx,
 		},
 	}
 
@@ -217,6 +231,11 @@ func (t *TablelandMesa) SetController(
 	stack, ok := t.chainStacks[chainID]
 	if !ok {
 		return tableland.SetControllerResponse{}, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
+	}
+
+	if !stack.AllowTransactionRelay {
+		return tableland.SetControllerResponse{},
+			fmt.Errorf("chain id %d does not suppport relaying of transactions", chainID)
 	}
 
 	tx, err := stack.Registry.SetController(

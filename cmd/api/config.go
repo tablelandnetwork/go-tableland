@@ -28,7 +28,8 @@ type config struct {
 		MaxRequestPerInterval uint64 `default:"10"`
 	}
 	Gateway struct {
-		ExternalURIPrefix string `default:"https://testnet.tableland.network"`
+		ExternalURIPrefix   string `default:"https://testnet.tableland.network"`
+		MetadataRendererURI string `default:""`
 	}
 	TableConstraints TableConstraints
 	QueryConstraints QueryConstraints
@@ -55,9 +56,10 @@ type QueryConstraints struct {
 
 // ChainConfig contains all the chain execution stack configuration for a particular EVM chain.
 type ChainConfig struct {
-	Name     string            `default:""`
-	ChainID  tableland.ChainID `default:"0"`
-	Registry struct {
+	Name                  string            `default:""`
+	ChainID               tableland.ChainID `default:"0"`
+	AllowTransactionRelay bool              `default:"false"`
+	Registry              struct {
 		EthEndpoint     string `default:"eth_endpoint"`
 		ContractAddress string `default:"contract_address"`
 	}
@@ -95,9 +97,9 @@ func setupConfig() (*config, string) {
 	fullPath := path.Join(dirPath, configFilename)
 	configFileBytes, err := os.ReadFile(fullPath)
 	if os.IsNotExist(err) {
-		log.Info().Str("configFilePath", fullPath).Msg("config file not found")
+		log.Info().Str("config_file_path", fullPath).Msg("config file not found")
 	} else if err != nil {
-		log.Fatal().Str("configFilePath", fullPath).Err(err).Msg("opening config file")
+		log.Fatal().Str("config_file_path", fullPath).Err(err).Msg("opening config file")
 	} else {
 		fileStr := os.ExpandEnv(string(configFileBytes))
 		plugins = append(plugins, file.NewReader(strings.NewReader(fileStr), json.Unmarshal))
