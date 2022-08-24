@@ -22,7 +22,7 @@ func TestBackuperDefault(t *testing.T) {
 	require.Equal(t, false, backuper.config.Pruning)
 	require.Equal(t, false, backuper.config.Compression)
 
-	// substitutes the to a mocked version
+	// substitutes fileCreator to a mocked version
 	backuper.fileCreator = func(dir string, _ time.Time) (string, error) {
 		timestamp := time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC)
 		return createBackupFile(dir, timestamp)
@@ -52,7 +52,7 @@ func TestBackuperWithVacuum(t *testing.T) {
 	require.Equal(t, false, backuper.config.Pruning)
 	require.Equal(t, false, backuper.config.Compression)
 
-	// substitutes the to a mocked version
+	// substitutes fileCreator the to a mocked version
 	backuper.fileCreator = func(dir string, _ time.Time) (string, error) {
 		timestamp := time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC)
 		return createBackupFile(dir, timestamp)
@@ -89,7 +89,7 @@ func TestBackuperWithCompression(t *testing.T) {
 	err = backuper.Init()
 	require.NoError(t, err)
 
-	// substitutes the to a mocked version
+	// substitutes fileCreator the to a mocked version
 	backuper.fileCreator = func(dir string, _ time.Time) (string, error) {
 		timestamp := time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC)
 		return createBackupFile(dir, timestamp)
@@ -213,7 +213,7 @@ func TestBackuperBackupError(t *testing.T) {
 	backuper, err := NewBackuper(createControlDatabase(t).Path(), dir)
 	require.NoError(t, err)
 
-	// substitutes the to a mocked version
+	// substitutes fileCreator the to a mocked version
 	backuper.fileCreator = func(dir string, _ time.Time) (string, error) {
 		timestamp := time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC)
 		return createBackupFile(dir, timestamp)
