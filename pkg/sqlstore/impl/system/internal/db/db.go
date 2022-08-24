@@ -56,6 +56,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getBlocksMissingExtraInfoStmt, err = db.PrepareContext(ctx, getBlocksMissingExtraInfo); err != nil {
 		return nil, fmt.Errorf("error preparing query GetBlocksMissingExtraInfo: %w", err)
 	}
+	if q.getBlockExtraInfoStmt, err = db.PrepareContext(ctx, getBlockExtraInfo); err != nil {
+		return nil, fmt.Errorf("error preparing query GetBlockExtraInfo: %w", err)
+	}
 	if q.insertBlockExtraInfoStmt, err = db.PrepareContext(ctx, insertBlockExtraInfo); err != nil {
 		return nil, fmt.Errorf("error preparing query InsertBlocksExtraInfo: %w", err)
 	}
@@ -127,6 +130,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getBlocksMissingExtraInfo: %w", cerr)
 		}
 	}
+	if q.getBlockExtraInfoStmt != nil {
+		if cerr := q.getBlockExtraInfoStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getBlockExtraInfo: %w", cerr)
+		}
+	}
 	if q.insertBlockExtraInfoStmt != nil {
 		if cerr := q.insertBlockExtraInfoStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing insertBlocksExtraInfo: %w", cerr)
@@ -187,6 +195,7 @@ type Queries struct {
 	getEVMEventsStmt               *sql.Stmt
 	areEVMEventsPersistedStmt      *sql.Stmt
 	getBlocksMissingExtraInfoStmt  *sql.Stmt
+	getBlockExtraInfoStmt          *sql.Stmt
 	insertBlockExtraInfoStmt       *sql.Stmt
 	listPendingTxStmt              *sql.Stmt
 	getTablesByStructureStmt       *sql.Stmt
@@ -206,6 +215,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getEVMEventsStmt:               q.getEVMEventsStmt,
 		areEVMEventsPersistedStmt:      q.areEVMEventsPersistedStmt,
 		getBlocksMissingExtraInfoStmt:  q.getBlocksMissingExtraInfoStmt,
+		getBlockExtraInfoStmt:          q.getBlockExtraInfoStmt,
 		insertBlockExtraInfoStmt:       q.insertBlockExtraInfoStmt,
 		listPendingTxStmt:              q.listPendingTxStmt,
 		getTablesByStructureStmt:       q.getTablesByStructureStmt,

@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -194,4 +195,11 @@ type EVMEvent struct {
 	ChainID   ChainID
 	EventJSON []byte
 	EventType string
+}
+
+// EVMBlockInfo contains information about an EVM block.
+type EVMBlockInfo struct {
+	ChainID     ChainID
+	BlockNumber int64
+	Timestamp   time.Time
 }

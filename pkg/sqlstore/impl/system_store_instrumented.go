@@ -351,6 +351,28 @@ func (s *InstrumentedSystemStore) GetBlocksMissingExtraInfo(ctx context.Context)
 	return blockNumbers, err
 }
 
+// GetBlockExtraInfo implements sqlstore.SystemStore.
+func (s *InstrumentedSystemStore) GetBlockExtraInfo(
+	ctx context.Context,
+	blockNumber int64,
+) (tableland.EVMBlockInfo, error) {
+	log.Debug().Msg("call GetBlockExtraInfo")
+	start := time.Now()
+	blockInfo, err := s.store.GetBlockExtraInfo(ctx, blockNumber)
+	latency := time.Since(start).Milliseconds()
+
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("GetBlockExtraInfo")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+		{Key: "chainID", Value: attribute.Int64Value(int64(s.chainID))},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return blockInfo, err
+}
+
 // InsertBlockExtraInfo implements sqlstore.SystemStore.
 func (s *InstrumentedSystemStore) InsertBlockExtraInfo(ctx context.Context, blockNumber int64, timestamp uint64) error {
 	log.Debug().Int64("block_number", blockNumber).Msg("call InsertBlockExtraInfo")

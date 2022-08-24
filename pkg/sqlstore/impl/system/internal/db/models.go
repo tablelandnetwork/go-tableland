@@ -66,3 +66,9 @@ type EVMEvent struct {
 	BlockHash   string
 	Index       uint
 }
+
+type EVMBlockExtraInfo struct {
+	ChainID     uint64
+	BlockNumber int64
+	Timestamp   int64
+}

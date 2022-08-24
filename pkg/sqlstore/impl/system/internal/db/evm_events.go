@@ -129,6 +129,30 @@ func (q *Queries) GetBlocksMissingExtraInfo(ctx context.Context, arg GetBlocksMi
 	return ret, nil
 }
 
+const getBlockExtraInfo = `SELECT * FROM system_evm_blocks WHERE chain_id=?1 and block_number=?2`
+
+type GetBlockExtraInfoParams struct {
+	ChainID     int64
+	BlockNumber int64
+}
+
+func (q *Queries) GetBlockExtraInfo(ctx context.Context, arg GetBlockExtraInfoParams) (EVMBlockExtraInfo, error) {
+	row := q.queryRow(ctx, q.getBlockExtraInfoStmt, getBlockExtraInfo, arg.ChainID, arg.BlockNumber)
+	var blockInfo EVMBlockExtraInfo
+	err := row.Scan(
+		&blockInfo.ChainID,
+		&blockInfo.BlockNumber,
+		&blockInfo.Timestamp)
+	if err == sql.ErrNoRows {
+		return EVMBlockExtraInfo{}, fmt.Errorf("block extra info not found")
+	}
+	if err != nil {
+		return EVMBlockExtraInfo{}, row.Err()
+	}
+
+	return blockInfo, nil
+}
+
 const insertBlockExtraInfo = `
 INSERT INTO system_evm_blocks ("chain_id", "block_number", "timestamp") VALUES (?1, ?2, ?3)`
 

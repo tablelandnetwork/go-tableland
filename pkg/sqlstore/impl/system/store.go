@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/XSAM/otelsql"
 	"github.com/ethereum/go-ethereum/common"
@@ -402,6 +403,28 @@ func (s *SystemStore) InsertBlockExtraInfo(ctx context.Context, blockNumber int6
 	}
 
 	return nil
+}
+
+// GetBlockExtraInfo info returns stored information about an EVM block.
+func (s *SystemStore) GetBlockExtraInfo(ctx context.Context, blockNumber int64) (tableland.EVMBlockInfo, error) {
+	params := db.GetBlockExtraInfoParams{
+		ChainID:     int64(s.chainID),
+		BlockNumber: blockNumber,
+	}
+
+	blockInfo, err := s.dbWithTx.queries().GetBlockExtraInfo(ctx, params)
+	if err == sql.ErrNoRows {
+		return tableland.EVMBlockInfo{}, fmt.Errorf("block information not found: %w", err)
+	}
+	if err != nil {
+		return tableland.EVMBlockInfo{}, fmt.Errorf("get block information: %s", err)
+	}
+
+	return tableland.EVMBlockInfo{
+		ChainID:     tableland.ChainID(blockInfo.ChainID),
+		BlockNumber: blockInfo.BlockNumber,
+		Timestamp:   time.Unix(blockInfo.Timestamp, 0),
+	}, nil
 }
 
 // GetEVMEvents returns all the persisted events for a transaction.

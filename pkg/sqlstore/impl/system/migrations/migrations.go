@@ -178,7 +178,7 @@ func _003_evm_eventsDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "003_evm_events.down.sql", size: 59, mode: os.FileMode(436), modTime: time.Unix(1660846613, 0)}
+	info := bindataFileInfo{name: "003_evm_events.down.sql", size: 59, mode: os.FileMode(436), modTime: time.Unix(1661268420, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -198,7 +198,7 @@ func _003_evm_eventsUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "003_evm_events.up.sql", size: 701, mode: os.FileMode(436), modTime: time.Unix(1660856135, 0)}
+	info := bindataFileInfo{name: "003_evm_events.up.sql", size: 701, mode: os.FileMode(436), modTime: time.Unix(1661268422, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }

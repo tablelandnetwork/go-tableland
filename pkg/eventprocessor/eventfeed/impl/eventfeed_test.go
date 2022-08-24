@@ -104,7 +104,15 @@ func TestAllEvents(t *testing.T) {
 	require.NoError(t, err)
 
 	backend, addr, sc, authOpts, _ := testutil.Setup(t)
-	ef, err := New(systemStore, 1337, backend, addr, eventfeed.WithMinBlockDepth(0), eventfeed.WithEventPersistence(true))
+	fetchBlockExtraInfoDelay = time.Millisecond
+	ef, err := New(
+		systemStore,
+		1337,
+		backend,
+		addr,
+		eventfeed.WithMinBlockDepth(0),
+		eventfeed.WithEventPersistence(true),
+		eventfeed.WithFetchExtraBlockInformation(true))
 	require.NoError(t, err)
 
 	ctx, cls := context.WithCancel(context.Background())
@@ -121,6 +129,14 @@ func TestAllEvents(t *testing.T) {
 		require.NoError(t, err)
 		close(chFeedClosed)
 	}()
+
+	// Check that there's no enhanced information for the first 10 blocks.
+	// 10 is an arbitrary choice to make it future proof if the setup stage decides to mine
+	// some extra blocks, so we make sure we're 100% clean.
+	for i := int64(0); i < 10; i++ {
+		_, err = ef.systemStore.GetBlockExtraInfo(ctx, i)
+		require.Error(t, err)
+	}
 
 	ctrl := authOpts.From
 	// Make four calls to different functions emitting different events
@@ -239,6 +255,16 @@ func TestAllEvents(t *testing.T) {
 			require.NotEmpty(t, evmEvent.BlockHash)
 			require.Equal(t, uint(5), evmEvent.Index)
 		}
+
+		var bi tableland.EVMBlockInfo
+		require.Eventually(t, func() bool {
+			bi, err = ef.systemStore.GetBlockExtraInfo(ctx, bes.BlockNumber)
+			return err == nil
+		}, time.Second*10, time.Second)
+		require.Equal(t, txn1.ChainId().Int64(), int64(bi.ChainID))
+		require.Equal(t, bes.BlockNumber, bi.BlockNumber)
+		require.NotZero(t, time.Since(bi.Timestamp).Seconds())
+
 	case <-time.After(time.Second):
 		t.Fatalf("didn't receive expected log")
 	}
