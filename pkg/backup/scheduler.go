@@ -14,7 +14,7 @@ var log = logger.With().Str("component", "backup").Logger()
 
 // Scheduler executes backups at a regular interval.
 type Scheduler struct {
-	NotificationCh chan bool
+	NotificationCh chan error
 
 	notify          bool
 	backuper        *Backuper
@@ -43,7 +43,7 @@ func NewScheduler(frequency int, opts BackuperOptions, notify bool) (*Scheduler,
 	}
 
 	return &Scheduler{
-		NotificationCh:  make(chan bool),
+		NotificationCh:  make(chan error),
 		notify:          notify,
 		backuper:        backuper,
 		tickerFrequency: time.Duration(frequency) * time.Minute,
@@ -57,7 +57,7 @@ func (s *Scheduler) Run() {
 
 	// wait until next interval to start
 	now, interval := time.Now(), s.tickerFrequency
-	wait := now.Truncate(interval).Add(interval).Sub(now)
+	wait := now.Round(interval).Sub(now)
 
 	for {
 		select {
@@ -66,10 +66,12 @@ func (s *Scheduler) Run() {
 			return
 		case <-time.After(wait):
 			startTime := time.Now()
-			s.backup()
+			err := s.backup()
 			if s.notify {
-				s.NotificationCh <- true
+				s.NotificationCh <- err
 			}
+			// It executes again next tick independent of error
+			// We could implement a retry strategy if needed
 			wait = s.tickerFrequency - time.Since(startTime)
 		}
 	}
@@ -83,12 +85,18 @@ func (s *Scheduler) Shutdown() {
 	})
 }
 
-func (s *Scheduler) backup() {
+func (s *Scheduler) backup() error {
 	result, err := s.backuper.Backup(context.Background())
 	if err != nil {
 		log.Error().Err(err).Msg("backup failed")
-		return
+		return errors.Errorf("backup failed: %s", err)
 	}
+
+	if err := s.backuper.Close(); err != nil {
+		log.Error().Err(err).Msg("closing backup")
+		return errors.Errorf("closing backup: %s", err)
+	}
+
 	log.Info().
 		Str("path", result.Path).
 		Int64("elapsed_time", result.ElapsedTime.Milliseconds()).
@@ -99,8 +107,5 @@ func (s *Scheduler) backup() {
 		Int64("size_compression", result.SizeAfterCompression).
 		Msg("backup succeeded")
 
-	if err := s.backuper.Close(); err != nil {
-		log.Error().Err(err).Msg("closing backup")
-		return
-	}
+	return nil
 }

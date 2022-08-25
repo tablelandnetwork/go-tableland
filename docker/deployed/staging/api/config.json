@@ -33,12 +33,12 @@
   "Backup" : {
 		"Enabled": true,
 		"Dir": "backups",               
-		"Frequency": 1,
+		"Frequency": 120,
 		"EnableVacuum": true,      
 		"EnableCompression": true,
     "Pruning" : {
         "Enabled": true,
-        "KeepFiles": 1
+        "KeepFiles": 10
     }
 	},
   "Chains": [
