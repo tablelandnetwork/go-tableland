@@ -176,15 +176,14 @@ func main() {
 	}()
 
 	var backupScheduler *backup.Scheduler
-	if config.Backup.Enable {
+	if config.Backup.Enabled {
 		backupScheduler, err = backup.NewScheduler(config.Backup.Frequency, backup.BackuperOptions{
 			SourcePath: path.Join(dirPath, "database.db"),
 			BackupDir:  path.Join(dirPath, config.Backup.Dir),
 			Opts: []backup.Option{
 				backup.WithCompression(config.Backup.EnableCompression),
 				backup.WithVacuum(config.Backup.EnableVacuum),
-				backup.WithPruning(config.Backup.EnablePruning),
-				backup.WithKeepFiles(config.Backup.KeepFiles),
+				backup.WithPruning(config.Backup.Pruning.Enabled, config.Backup.Pruning.KeepFiles),
 			},
 		}, false)
 		if err != nil {
@@ -217,7 +216,7 @@ func main() {
 			log.Error().Err(err).Msg("shutting down http server")
 		}
 
-		if config.Backup.Enable {
+		if config.Backup.Enabled {
 			backupScheduler.Shutdown()
 		}
 

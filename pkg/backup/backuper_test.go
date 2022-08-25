@@ -119,9 +119,8 @@ func TestBackuperWithPruning(t *testing.T) {
 
 	backuper, err := NewBackuper(db.Path(), dir, []Option{
 		WithVacuum(true),
-		WithPruning(true),
+		WithPruning(true, 1),
 		WithCompression(true),
-		WithKeepFiles(1),
 	}...,
 	)
 	require.NoError(t, err)
@@ -139,8 +138,7 @@ func TestBackuperWithPruning(t *testing.T) {
 	// executes second backup and check the number of files
 	backuper, err = NewBackuper(db.Path(), dir, []Option{
 		WithVacuum(true),
-		WithPruning(true),
-		WithKeepFiles(1),
+		WithPruning(true, 1),
 	}...,
 	)
 	require.NoError(t, err)

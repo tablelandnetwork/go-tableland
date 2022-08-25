@@ -45,13 +45,15 @@ type config struct {
 		FetchExtraBlockInfo bool `default:"false"`
 	}
 	Backup struct {
-		Enable            bool   `default:"true"`
+		Enabled           bool   `default:"true"`
 		Dir               string `default:"backups"` // relative to dir path config (e.g. ${HOME}/.tableland/backups )
 		Frequency         int    `default:"120"`     // in minutes
 		EnableVacuum      bool   `default:"true"`
 		EnableCompression bool   `default:"true"`
-		EnablePruning     bool   `default:"true"`
-		KeepFiles         int    `default:"5"` // number of files to keep
+		Pruning           struct {
+			Enabled   bool `default:"true"`
+			KeepFiles int  `default:"5"` // number of files to keep
+		}
 	}
 }
 

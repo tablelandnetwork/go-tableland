@@ -332,9 +332,10 @@ func WithCompression(v bool) Option {
 }
 
 // WithPruning enables pruning of old backup files.
-func WithPruning(v bool) Option {
+func WithPruning(v bool, keep int) Option {
 	return func(c *Config) error {
 		c.Pruning = v
+		c.KeepFiles = keep
 		return nil
 	}
 }
@@ -343,14 +344,6 @@ func WithPruning(v bool) Option {
 func WithVacuum(v bool) Option {
 	return func(c *Config) error {
 		c.Vacuum = v
-		return nil
-	}
-}
-
-// WithKeepFiles indicates to pruner how many files to keep.
-func WithKeepFiles(n int) Option {
-	return func(c *Config) error {
-		c.KeepFiles = n
 		return nil
 	}
 }

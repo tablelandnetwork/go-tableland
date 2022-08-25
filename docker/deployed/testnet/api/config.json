@@ -32,13 +32,15 @@
         "FetchExtraBlockInfo": true
     },
     "Backup" : {
-		"Enable": true,            
+		"Enabled": true, 
 		"Dir": "backups",               
-		"Frequency": 240,         
+		"Frequency": 240,  
 		"EnableVacuum": true,      
-		"EnableCompression": true, 
-		"EnablePruning": true,     
-		"KeepFiles": 5        
+		"EnableCompression": true,
+        "Pruning" : {
+            "Enabled": true,
+            "KeepFiles": 5
+        }
 	},
     "Chains": [
         {
