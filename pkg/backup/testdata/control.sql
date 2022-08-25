@@ -6,7 +6,7 @@
 -- 
 -- Size: 311296
 -- Size (vacuum): 159744
--- Size (vacuum/compression): 38305
+-- Size (vacuum/compression): 39999
 
 create table mock (
 	id INT,
