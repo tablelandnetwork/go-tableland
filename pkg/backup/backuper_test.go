@@ -2,13 +2,11 @@ package backup
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"testing"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
 
@@ -27,8 +25,6 @@ func TestBackuperDefault(t *testing.T) {
 		timestamp := time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC)
 		return createBackupFile(dir, timestamp)
 	}
-	err = backuper.Init()
-	require.NoError(t, err)
 
 	result, err := backuper.Backup(context.Background())
 	require.NoError(t, err)
@@ -57,8 +53,6 @@ func TestBackuperWithVacuum(t *testing.T) {
 		timestamp := time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC)
 		return createBackupFile(dir, timestamp)
 	}
-	err = backuper.Init()
-	require.NoError(t, err)
 
 	result, err := backuper.Backup(context.Background())
 	require.NoError(t, err)
@@ -86,16 +80,11 @@ func TestBackuperWithCompression(t *testing.T) {
 	require.Equal(t, false, backuper.config.Pruning)
 	require.Equal(t, true, backuper.config.Compression)
 
-	err = backuper.Init()
-	require.NoError(t, err)
-
 	// substitutes fileCreator the to a mocked version
 	backuper.fileCreator = func(dir string, _ time.Time) (string, error) {
 		timestamp := time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC)
 		return createBackupFile(dir, timestamp)
 	}
-	err = backuper.Init()
-	require.NoError(t, err)
 
 	result, err := backuper.Backup(context.Background())
 	require.NoError(t, err)
@@ -129,9 +118,6 @@ func TestBackuperWithPruning(t *testing.T) {
 	require.Equal(t, true, backuper.config.Compression)
 	require.Equal(t, 1, backuper.config.KeepFiles)
 
-	err = backuper.Init()
-	require.NoError(t, err)
-
 	_, err = backuper.Backup(context.Background())
 	require.NoError(t, err)
 
@@ -147,9 +133,6 @@ func TestBackuperWithPruning(t *testing.T) {
 	require.Equal(t, false, backuper.config.Compression)
 	require.Equal(t, 1, backuper.config.KeepFiles)
 
-	err = backuper.Init()
-	require.NoError(t, err)
-
 	_, err = backuper.Backup(context.Background())
 	require.NoError(t, err)
 	requireFileCount(t, dir, 1)
@@ -161,9 +144,6 @@ func TestBackuperMultipleBackupCalls(t *testing.T) {
 	t.Parallel()
 
 	backuper, err := NewBackuper(createControlDatabase(t).Path(), backupDir(t))
-	require.NoError(t, err)
-
-	err = backuper.Init()
 	require.NoError(t, err)
 
 	// first call
@@ -181,59 +161,4 @@ func TestBackuperMultipleBackupCalls(t *testing.T) {
 	require.Greater(t, result.ElapsedTime, time.Duration(0))
 
 	require.NoError(t, backuper.Close())
-}
-
-func TestBackuperClose(t *testing.T) {
-	t.Parallel()
-
-	backuper, err := NewBackuper(createControlDatabase(t).Path(), backupDir(t))
-	require.NoError(t, err)
-
-	err = backuper.Init()
-	require.NoError(t, err)
-
-	// first call
-	_, err = backuper.Backup(context.Background())
-	require.NoError(t, err)
-
-	// closes backuper
-	require.NoError(t, backuper.Close())
-
-	// second call in a closed backuper throws an error
-	_, err = backuper.Backup(context.Background())
-	require.ErrorContains(t, err, "database is closed")
-}
-
-func TestBackuperBackupError(t *testing.T) {
-	t.Parallel()
-
-	dir := backupDir(t)
-	backuper, err := NewBackuper(createControlDatabase(t).Path(), dir)
-	require.NoError(t, err)
-
-	// substitutes fileCreator the to a mocked version
-	backuper.fileCreator = func(dir string, _ time.Time) (string, error) {
-		timestamp := time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC)
-		return createBackupFile(dir, timestamp)
-	}
-	err = backuper.Init()
-	require.NoError(t, err)
-	require.FileExists(t, fmt.Sprintf("%s/tbl_backup_2009-11-17T20:34:58Z.db", dir))
-
-	// forcing a DB implementation with broken connection to force an error
-	backuper.source = &brokenConnDatabase{backuper.source}
-
-	_, err = backuper.Backup(context.Background())
-	require.ErrorContains(t, err, "getting db conn: connection is broken")
-	require.NoFileExists(t, fmt.Sprintf("%s/tbl_backup_2009-11-17T20:34:58Z.db", dir)) // file was deleted
-
-	require.NoError(t, backuper.Close())
-}
-
-type brokenConnDatabase struct {
-	DB
-}
-
-func (db *brokenConnDatabase) Conn(_ context.Context) (*sql.Conn, error) {
-	return nil, errors.New("connection is broken")
 }

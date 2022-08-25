@@ -14,12 +14,11 @@ var log = logger.With().Str("component", "backup").Logger()
 
 // Scheduler executes backups at a regular interval.
 type Scheduler struct {
-	Frequency      int // in minutes
 	NotificationCh chan bool
 
-	backuper       *Backuper
-	notify         bool
-	tickerInterval time.Duration
+	notify          bool
+	backuper        *Backuper
+	tickerFrequency time.Duration
 
 	// control
 	close     chan struct{}
@@ -35,7 +34,7 @@ type BackuperOptions struct {
 // NewScheduler creates a new backup scheduler.
 func NewScheduler(frequency int, opts BackuperOptions, notify bool) (*Scheduler, error) {
 	if frequency < 1 || frequency >= 1440 {
-		return nil, errors.New("interval should be in [1,1440)")
+		return nil, errors.New("frequency should be in [1,1440)")
 	}
 
 	backuper, err := NewBackuper(opts.SourcePath, opts.BackupDir, opts.Opts...)
@@ -44,14 +43,11 @@ func NewScheduler(frequency int, opts BackuperOptions, notify bool) (*Scheduler,
 	}
 
 	return &Scheduler{
-		Frequency:      frequency,
-		NotificationCh: make(chan bool),
-
-		notify:   notify,
-		backuper: backuper,
-		close:    make(chan struct{}),
-
-		tickerInterval: time.Minute,
+		NotificationCh:  make(chan bool),
+		notify:          notify,
+		backuper:        backuper,
+		tickerFrequency: time.Duration(frequency) * time.Minute,
+		close:           make(chan struct{}),
 	}, nil
 }
 
@@ -60,7 +56,7 @@ func (s *Scheduler) Run() {
 	log.Info().Msg("starting backup scheduler")
 
 	// wait until next interval to start
-	now, interval := time.Now(), time.Duration(s.Frequency)*s.tickerInterval
+	now, interval := time.Now(), s.tickerFrequency
 	wait := now.Truncate(interval).Add(interval).Sub(now)
 
 	for {
@@ -74,7 +70,7 @@ func (s *Scheduler) Run() {
 			if s.notify {
 				s.NotificationCh <- true
 			}
-			wait = time.Duration(s.Frequency)*s.tickerInterval - time.Since(startTime)
+			wait = s.tickerFrequency - time.Since(startTime)
 		}
 	}
 }
@@ -88,10 +84,6 @@ func (s *Scheduler) Shutdown() {
 }
 
 func (s *Scheduler) backup() {
-	if err := s.backuper.Init(); err != nil {
-		log.Error().Err(err).Msg("initializing backuper")
-		return
-	}
 	result, err := s.backuper.Backup(context.Background())
 	if err != nil {
 		log.Error().Err(err).Msg("backup failed")

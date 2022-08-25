@@ -49,39 +49,18 @@ func NewBackuper(sourcePath string, backupDir string, opts ...Option) (*Backuper
 	return b, nil
 }
 
-// Init opens databases and ping them, then initializes variables.
-func (b *Backuper) Init() error {
-	source, err := open(b.sourcePath)
-	if err != nil {
-		return errors.Errorf("opening source db: %s", err)
-	}
-
-	timestamp := time.Now().UTC()
-	filename, err := b.fileCreator(b.dir, timestamp)
-	if err != nil {
-		return errors.Errorf("creating backup file: %s", err)
-	}
-
-	backup, err := open(filename)
-	if err != nil {
-		return errors.Errorf("opening backup db: %s", err)
-	}
-
-	b.source = source
-	b.backup = backup
-	return nil
-}
-
 // Backup creates a backup to a file in disk.
-// Multiple calls to Backup can be perfomed.
-// But the file in which backup occurs was already created, which means the backup always occur at the same file.
-// This can be used to perform retries in case of errors.
+// Multiple serial calls to Backup can be perfomed. This can be used to perform retries in case of errors.
 func (b *Backuper) Backup(ctx context.Context) (_ BackupResult, err error) {
 	defer func() {
 		if err != nil {
 			_ = os.Remove(b.backup.Path())
 		}
 	}()
+
+	if err := b.init(); err != nil {
+		return BackupResult{}, errors.Errorf("initializing backup: %s", err)
+	}
 
 	// SQLite backup starts
 	startTime := time.Now()
@@ -156,6 +135,29 @@ func (b *Backuper) Close() error {
 	if err := b.backup.Close(); err != nil {
 		return errors.Errorf("closing backup db: %s", err)
 	}
+	return nil
+}
+
+// init opens databases and ping them, then initializes variables.
+func (b *Backuper) init() error {
+	source, err := open(b.sourcePath)
+	if err != nil {
+		return errors.Errorf("opening source db: %s", err)
+	}
+
+	timestamp := time.Now().UTC()
+	filename, err := b.fileCreator(b.dir, timestamp)
+	if err != nil {
+		return errors.Errorf("creating backup file: %s", err)
+	}
+
+	backup, err := open(filename)
+	if err != nil {
+		return errors.Errorf("opening backup db: %s", err)
+	}
+
+	b.source = source
+	b.backup = backup
 	return nil
 }
 

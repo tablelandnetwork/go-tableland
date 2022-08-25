@@ -20,7 +20,7 @@ func TestScheduler(t *testing.T) {
 	}, true)
 	require.NoError(t, err)
 
-	scheduler.tickerInterval = time.Second // for test, ticks every second
+	scheduler.tickerFrequency = time.Duration(interval) * time.Second // for test, ticks every second
 	go scheduler.Run()
 
 	var counter int
