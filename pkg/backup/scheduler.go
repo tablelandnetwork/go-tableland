@@ -93,6 +93,7 @@ func (s *Scheduler) backup() {
 		Str("path", result.Path).
 		Int64("elapsed_time", result.ElapsedTime.Milliseconds()).
 		Int64("elapsed_time_vacuum", result.VacuumElapsedTime.Milliseconds()).
+		Int64("elapsed_time_compression", result.CompressionElapsedTime.Milliseconds()).
 		Int64("size", result.Size).
 		Int64("size_vacuum", result.SizeAfterVacuum).
 		Int64("size_compression", result.SizeAfterCompression).

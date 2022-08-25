@@ -91,12 +91,12 @@ func TestBackuperWithCompression(t *testing.T) {
 	require.Equal(t, int64(311296), result.Size)
 	require.Equal(t, int64(159744), result.SizeAfterVacuum)
 	require.Greater(t, result.VacuumElapsedTime, time.Duration(0))
-	require.Equal(t, fmt.Sprintf("%s/tbl_backup_2009-11-17T20:34:58Z.db.gz", dir), result.Path)
-	require.FileExists(t, fmt.Sprintf("%s/tbl_backup_2009-11-17T20:34:58Z.db.gz", dir))
+	require.Equal(t, fmt.Sprintf("%s/tbl_backup_2009-11-17T20:34:58Z.db.zst", dir), result.Path)
+	require.FileExists(t, fmt.Sprintf("%s/tbl_backup_2009-11-17T20:34:58Z.db.zst", dir))
 	require.NoFileExists(t, fmt.Sprintf("%s/tbl_backup_2009-11-17T20:34:58Z.db", dir))
 	require.Greater(t, result.ElapsedTime, time.Duration(0))
 	require.Greater(t, result.CompressionElapsedTime, time.Duration(0))
-	require.Equal(t, int64(38305), result.SizeAfterCompression)
+	require.Equal(t, int64(39999), result.SizeAfterCompression)
 
 	require.NoError(t, backuper.Close())
 }

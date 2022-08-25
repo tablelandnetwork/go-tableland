@@ -325,7 +325,7 @@ func DefaultConfig() *Config {
 // Option modifies a configuration attribute.
 type Option func(*Config) error
 
-// WithCompression enables gzip compression.
+// WithCompression enables compression.
 func WithCompression(v bool) Option {
 	return func(c *Config) error {
 		c.Compression = v

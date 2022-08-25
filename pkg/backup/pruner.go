@@ -48,7 +48,7 @@ func readBackupFiles(dir string) ([]fs.FileInfo, error) {
 			continue
 		}
 
-		if !strings.HasSuffix(f.Name(), ".db") && !strings.HasSuffix(f.Name(), ".db.gz") {
+		if !strings.HasSuffix(f.Name(), ".db") && !strings.HasSuffix(f.Name(), ".db."+extension) {
 			continue
 		}
 
