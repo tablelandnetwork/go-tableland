@@ -74,6 +74,12 @@ func (ts *txnScope) insertTable(
 		return fmt.Errorf("get query for table id: %s", err)
 	}
 	if _, err := ts.txn.ExecContext(ctx, query); err != nil {
+		if code, ok := isErrCausedByQuery(err); ok {
+			return &errQueryExecution{
+				Code: "SQLITE_" + code,
+				Msg:  err.Error(),
+			}
+		}
 		return fmt.Errorf("exec CREATE statement: %s", err)
 	}
 
