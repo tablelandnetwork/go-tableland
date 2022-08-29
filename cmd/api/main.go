@@ -20,6 +20,7 @@ import (
 	systemimpl "github.com/textileio/go-tableland/internal/system/impl"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/internal/tableland/impl"
+	"github.com/textileio/go-tableland/pkg/backup"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
@@ -163,7 +164,7 @@ func main() {
 		} else {
 			if err := server.ListenAndServe(); err != nil {
 				if err == http.ErrServerClosed {
-					log.Info().Msg("http serve gracefully closed")
+					log.Info().Msg("http server gracefully closed")
 					return
 				}
 				log.Fatal().
@@ -173,6 +174,25 @@ func main() {
 			}
 		}
 	}()
+
+	var backupScheduler *backup.Scheduler
+	if config.Backup.Enabled {
+		backupScheduler, err = backup.NewScheduler(config.Backup.Frequency, backup.BackuperOptions{
+			SourcePath: path.Join(dirPath, "database.db"),
+			BackupDir:  path.Join(dirPath, config.Backup.Dir),
+			Opts: []backup.Option{
+				backup.WithCompression(config.Backup.EnableCompression),
+				backup.WithVacuum(config.Backup.EnableVacuum),
+				backup.WithPruning(config.Backup.Pruning.Enabled, config.Backup.Pruning.KeepFiles),
+			},
+		}, false)
+		if err != nil {
+			log.Fatal().
+				Err(err).
+				Msg("could not instantiate backup scheduler")
+		}
+		go backupScheduler.Run()
+	}
 
 	cli.HandleInterrupt(func() {
 		var wg sync.WaitGroup
@@ -194,6 +214,10 @@ func main() {
 		defer cls()
 		if err := server.Shutdown(ctx); err != nil {
 			log.Error().Err(err).Msg("shutting down http server")
+		}
+
+		if config.Backup.Enabled {
+			backupScheduler.Shutdown()
 		}
 
 		if err := userStore.Close(); err != nil {
@@ -318,6 +342,7 @@ func createChainIDStack(
 			defer log.Info().Int64("chain_id", int64(config.ChainID)).Msg("stack closed")
 
 			ep.Stop()
+			tracker.Close()
 			conn.Close()
 			if err := systemStore.Close(); err != nil {
 				log.Error().Int64("chain_id", int64(config.ChainID)).Err(err).Msg("closing system store")

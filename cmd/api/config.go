@@ -44,6 +44,17 @@ type config struct {
 	Analytics struct {
 		FetchExtraBlockInfo bool `default:"false"`
 	}
+	Backup struct {
+		Enabled           bool   `default:"true"`
+		Dir               string `default:"backups"` // relative to dir path config (e.g. ${HOME}/.tableland/backups )
+		Frequency         int    `default:"120"`     // in minutes
+		EnableVacuum      bool   `default:"true"`
+		EnableCompression bool   `default:"true"`
+		Pruning           struct {
+			Enabled   bool `default:"true"`
+			KeepFiles int  `default:"5"` // number of files to keep
+		}
+	}
 }
 
 // TableConstraints describes contraints to be enforced for Tableland tables.
