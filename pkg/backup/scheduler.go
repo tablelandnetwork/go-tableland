@@ -57,7 +57,7 @@ func (s *Scheduler) Run() {
 
 	// wait until next interval to start
 	now, interval := time.Now(), s.tickerFrequency
-	wait := now.Round(interval).Sub(now)
+	wait := now.Truncate(interval).Add(interval).Sub(now)
 
 	for {
 		select {
