@@ -15,7 +15,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.15
 	github.com/omeid/uconfig v1.2.0
 	github.com/pkg/errors v0.9.1
-	github.com/rs/zerolog v1.27.0
+	github.com/rs/zerolog v1.28.0
 	github.com/sethvargo/go-limiter v0.7.2
 	github.com/spf13/cobra v1.5.0
 	github.com/spruceid/siwe-go v0.2.1-0.20220711143404-817846826282
