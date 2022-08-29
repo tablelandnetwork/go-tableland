@@ -58,7 +58,8 @@ func (b *Backuper) Backup(ctx context.Context) (_ BackupResult, err error) {
 		}
 	}()
 
-	if err := b.init(); err != nil {
+	timestamp, err := b.init()
+	if err != nil {
 		return BackupResult{}, errors.Errorf("initializing backup: %s", err)
 	}
 
@@ -124,6 +125,7 @@ func (b *Backuper) Backup(ctx context.Context) (_ BackupResult, err error) {
 	}
 
 	backupResult.Size = backupSize
+	backupResult.Timestamp = timestamp
 	return backupResult, nil
 }
 
@@ -139,26 +141,26 @@ func (b *Backuper) Close() error {
 }
 
 // init opens databases and ping them, then initializes variables.
-func (b *Backuper) init() error {
+func (b *Backuper) init() (time.Time, error) {
 	source, err := open(b.sourcePath)
 	if err != nil {
-		return errors.Errorf("opening source db: %s", err)
+		return time.Time{}, errors.Errorf("opening source db: %s", err)
 	}
 
 	timestamp := time.Now().UTC()
 	filename, err := b.fileCreator(b.dir, timestamp)
 	if err != nil {
-		return errors.Errorf("creating backup file: %s", err)
+		return time.Time{}, errors.Errorf("creating backup file: %s", err)
 	}
 
 	backup, err := open(filename)
 	if err != nil {
-		return errors.Errorf("opening backup db: %s", err)
+		return time.Time{}, errors.Errorf("opening backup db: %s", err)
 	}
 
 	b.source = source
 	b.backup = backup
-	return nil
+	return timestamp, nil
 }
 
 // doBackup gets raw driver connections and call doBackupRaw.
@@ -269,7 +271,8 @@ func createBackupFile(dir string, timestamp time.Time) (string, error) {
 
 // BackupResult represents the result of a backup process.
 type BackupResult struct {
-	Path string
+	Timestamp time.Time
+	Path      string
 
 	// Stats
 	ElapsedTime            time.Duration

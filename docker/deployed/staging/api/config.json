@@ -33,7 +33,7 @@
   "Backup" : {
 		"Enabled": true,
 		"Dir": "backups",               
-		"Frequency": 120,
+		"Frequency": 5,
 		"EnableVacuum": true,      
 		"EnableCompression": true,
     "Pruning" : {

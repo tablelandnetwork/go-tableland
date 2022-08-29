@@ -8,6 +8,8 @@ import (
 
 	"github.com/pkg/errors"
 	logger "github.com/rs/zerolog/log"
+	"go.opentelemetry.io/otel/metric/global"
+	"go.opentelemetry.io/otel/metric/instrument"
 )
 
 var log = logger.With().Str("component", "backup").Logger()
@@ -23,6 +25,9 @@ type Scheduler struct {
 	// control
 	close     chan struct{}
 	closeOnce sync.Once
+
+	// metrics
+	mLastExecution time.Time
 }
 
 // BackuperOptions options needed to instantiate a backuper.
@@ -42,13 +47,17 @@ func NewScheduler(frequency int, opts BackuperOptions, notify bool) (*Scheduler,
 		return nil, fmt.Errorf("new backuper: %s", err)
 	}
 
-	return &Scheduler{
+	s := &Scheduler{
 		NotificationCh:  make(chan error),
 		notify:          notify,
 		backuper:        backuper,
 		tickerFrequency: time.Duration(frequency) * time.Minute,
 		close:           make(chan struct{}),
-	}, nil
+	}
+	if err := s.initMetrics(); err != nil {
+		return nil, errors.Errorf("init metrics: %s", err)
+	}
+	return s, nil
 }
 
 // Run starts the scheduler and listens for a shutdown call.
@@ -99,6 +108,7 @@ func (s *Scheduler) backup() error {
 
 	log.Info().
 		Str("path", result.Path).
+		Str("timestamp", result.Timestamp.Format(time.RFC3339)).
 		Int64("elapsed_time", result.ElapsedTime.Milliseconds()).
 		Int64("elapsed_time_vacuum", result.VacuumElapsedTime.Milliseconds()).
 		Int64("elapsed_time_compression", result.CompressionElapsedTime.Milliseconds()).
@@ -106,6 +116,26 @@ func (s *Scheduler) backup() error {
 		Int64("size_vacuum", result.SizeAfterVacuum).
 		Int64("size_compression", result.SizeAfterCompression).
 		Msg("backup succeeded")
+
+	s.mLastExecution = result.Timestamp
+
+	return nil
+}
+
+func (s *Scheduler) initMetrics() error {
+	meter := global.MeterProvider().Meter("tableland")
+	mLastExecution, err := meter.AsyncInt64().Gauge("tableland.backup.last_execution")
+	if err != nil {
+		return fmt.Errorf("registering last execution gauge: %s", err)
+	}
+
+	if err := meter.RegisterCallback([]instrument.Asynchronous{mLastExecution}, func(ctx context.Context) {
+		if !s.mLastExecution.IsZero() {
+			mLastExecution.Observe(ctx, s.mLastExecution.Unix())
+		}
+	}); err != nil {
+		return fmt.Errorf("registering callback on instruments: %s", err)
+	}
 
 	return nil
 }
