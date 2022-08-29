@@ -10,6 +10,7 @@ import (
 	"github.com/textileio/go-tableland/internal/chains"
 	"github.com/textileio/go-tableland/internal/router/controllers"
 	"github.com/textileio/go-tableland/internal/router/middlewares"
+	"github.com/textileio/go-tableland/internal/router/rpcservice"
 	systemimpl "github.com/textileio/go-tableland/internal/system/impl"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/internal/tableland/impl"
@@ -35,13 +36,15 @@ func ConfiguredRouter(
 	}
 
 	mesaService := impl.NewTablelandMesa(parser, instrUserStore, chainStacks)
-	userController := controllers.NewUserController(mesaService)
 	mesaService, err = impl.NewInstrumentedTablelandMesa(mesaService)
 	if err != nil {
 		log.Fatal().Err(err).Msg("instrumenting mesa")
 	}
+	rpcService := rpcservice.NewRPCService(mesaService)
+	userController := controllers.NewUserController(mesaService)
+
 	server := rpc.NewServer()
-	if err := server.RegisterName("tableland", mesaService); err != nil {
+	if err := server.RegisterName("tableland", rpcService); err != nil {
 		log.Fatal().Err(err).Msg("failed to register a json-rpc service")
 	}
 	infraController := controllers.NewInfraController()
