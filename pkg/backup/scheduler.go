@@ -108,7 +108,7 @@ func (s *Scheduler) backup() error {
 
 	log.Info().
 		Str("path", result.Path).
-		Str("timestamp", result.Timestamp.Format(time.RFC3339)).
+		Str("file_timestamp", result.Timestamp.Format(time.RFC3339)).
 		Int64("elapsed_time", result.ElapsedTime.Milliseconds()).
 		Int64("elapsed_time_vacuum", result.VacuumElapsedTime.Milliseconds()).
 		Int64("elapsed_time_compression", result.CompressionElapsedTime.Milliseconds()).
