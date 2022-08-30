@@ -48,7 +48,7 @@ func New(systemTablePrefixes []string, opts ...parsing.Option) (parsing.SQLValid
 func (pp *QueryValidator) ValidateCreateTable(query string, chainID tableland.ChainID) (parsing.CreateStmt, error) {
 	ast, err := sqlparser.Parse(query)
 	if err != nil {
-		return nil, &parsing.ErrInvalidSyntax{InternalError: err}
+		return nil, fmt.Errorf("unable to parse the query: %w", err)
 	}
 
 	if err := checkNonEmptyStatement(ast); err != nil {
@@ -58,10 +58,6 @@ func (pp *QueryValidator) ValidateCreateTable(query string, chainID tableland.Ch
 	stmt := ast.Statements[0]
 	if _, ok := stmt.(sqlparser.CreateTableStatement); !ok {
 		return nil, &parsing.ErrNoTopLevelCreate{}
-	}
-
-	if ast.Errors[0] != nil {
-		return nil, fmt.Errorf("non syntax error: %w", ast.Errors[0])
 	}
 
 	node := stmt.(*sqlparser.CreateTable)
@@ -110,7 +106,7 @@ func (pp *QueryValidator) ValidateMutatingQuery(
 
 	ast, err := sqlparser.Parse(query)
 	if err != nil {
-		return nil, &parsing.ErrInvalidSyntax{InternalError: err}
+		return nil, fmt.Errorf("unable to parse the query: %w", err)
 	}
 
 	if err := checkNonEmptyStatement(ast); err != nil {
@@ -210,7 +206,7 @@ func (pp *QueryValidator) ValidateReadQuery(query string) (parsing.ReadStmt, err
 
 	ast, err := sqlparser.Parse(query)
 	if err != nil {
-		return nil, &parsing.ErrInvalidSyntax{InternalError: err}
+		return nil, fmt.Errorf("unable to parse the query: %w", err)
 	}
 
 	if err := checkNonEmptyStatement(ast); err != nil {
@@ -219,10 +215,6 @@ func (pp *QueryValidator) ValidateReadQuery(query string) (parsing.ReadStmt, err
 
 	if _, ok := ast.Statements[0].(*sqlparser.Select); !ok {
 		return nil, errors.New("the query isn't a read-query")
-	}
-
-	if ast.Errors[0] != nil {
-		return nil, fmt.Errorf("non syntax error: %w", ast.Errors[0])
 	}
 
 	return &readStmt{
