@@ -376,9 +376,12 @@ func (s *SystemStore) SaveEVMEvents(ctx context.Context, events []tableland.EVME
 }
 
 // GetBlocksMissingExtraInfo returns a list of block numbers that don't contain enhanced information.
-func (s *SystemStore) GetBlocksMissingExtraInfo(ctx context.Context) ([]int64, error) {
+// It receives an optional fromHeight to only look for blocks after a block number. If null it will look
+// for blocks at any height.
+func (s *SystemStore) GetBlocksMissingExtraInfo(ctx context.Context, lastKnownHeight *int64) ([]int64, error) {
 	params := db.GetBlocksMissingExtraInfoParams{
-		ChainID: int64(s.chainID),
+		ChainID:    int64(s.chainID),
+		FromHeight: lastKnownHeight,
 	}
 	blockNumbers, err := s.dbWithTx.queries().GetBlocksMissingExtraInfo(ctx, params)
 	if err == sql.ErrNoRows {

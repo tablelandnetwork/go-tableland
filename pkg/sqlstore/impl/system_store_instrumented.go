@@ -333,10 +333,13 @@ func (s *InstrumentedSystemStore) GetEVMEvents(ctx context.Context, txnHash comm
 }
 
 // GetBlocksMissingExtraInfo implements sqlstore.SystemStore.
-func (s *InstrumentedSystemStore) GetBlocksMissingExtraInfo(ctx context.Context) ([]int64, error) {
+func (s *InstrumentedSystemStore) GetBlocksMissingExtraInfo(
+	ctx context.Context,
+	fromHeight *int64,
+) ([]int64, error) {
 	log.Debug().Msg("call GetBlocksMissingExtraInfo")
 	start := time.Now()
-	blockNumbers, err := s.store.GetBlocksMissingExtraInfo(ctx)
+	blockNumbers, err := s.store.GetBlocksMissingExtraInfo(ctx, fromHeight)
 	latency := time.Since(start).Milliseconds()
 
 	attributes := []attribute.KeyValue{
