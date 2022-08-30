@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/XSAM/otelsql"
 	"github.com/mattn/go-sqlite3"
@@ -26,6 +27,9 @@ type Executor struct {
 
 	chainID          tableland.ChainID
 	maxTableRowCount int
+
+	closeOnce sync.Once
+	closed    chan struct{}
 }
 
 var _ executor.Executor = (*Executor)(nil)
@@ -70,6 +74,8 @@ func NewExecutor(
 
 		chainID:          chainID,
 		maxTableRowCount: maxTableRowCount,
+
+		closed: make(chan struct{}),
 	}
 	tblp.chBlockScope <- struct{}{}
 
@@ -80,6 +86,8 @@ func NewExecutor(
 func (ex *Executor) NewBlockScope(ctx context.Context, newBlockNum int64) (executor.BlockScope, error) {
 	select {
 	case <-ex.chBlockScope:
+	case <-ex.closed:
+		return nil, fmt.Errorf("executor is closed")
 	default:
 		panic("parallel block scope detected, this must never happen")
 	}
@@ -138,10 +146,17 @@ func (ex *Executor) getLastExecutedBlockNumber(ctx context.Context, txn *sql.Tx)
 // Close closes the processor gracefully. It will wait for any pending
 // batch to be closed, or until ctx is canceled.
 func (ex *Executor) Close(ctx context.Context) error {
+	ex.closeOnce.Do(func() { close(ex.closed) })
 	select {
 	case <-ctx.Done():
+		if err := ex.db.Close(); err != nil {
+			ex.log.Error().Err(err).Msg("forced close of database connection")
+		}
 		return errors.New("closing ctx done")
 	case <-ex.chBlockScope:
+		if err := ex.db.Close(); err != nil {
+			ex.log.Error().Err(err).Msg("closing database connection")
+		}
 		ex.log.Info().Msg("executor closed gracefully")
 		return nil
 	}
