@@ -4,18 +4,18 @@ go 1.17
 
 require (
 	cloud.google.com/go/logging v1.5.0
-	github.com/XSAM/otelsql v0.15.0
-	github.com/ethereum/go-ethereum v1.10.22
+	github.com/XSAM/otelsql v0.16.0
+	github.com/ethereum/go-ethereum v1.10.23
 	github.com/golang-migrate/migrate/v4 v4.15.2
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/hetiansu5/urlquery v1.2.7
 	github.com/json-iterator/go v1.1.12
-	github.com/klauspost/compress v1.13.6
+	github.com/klauspost/compress v1.15.9
 	github.com/mattn/go-sqlite3 v1.14.15
 	github.com/omeid/uconfig v1.2.0
 	github.com/pkg/errors v0.9.1
-	github.com/rs/zerolog v1.27.0
+	github.com/rs/zerolog v1.28.0
 	github.com/sethvargo/go-limiter v0.7.2
 	github.com/spf13/cobra v1.5.0
 	github.com/spruceid/siwe-go v0.2.1-0.20220711143404-817846826282
