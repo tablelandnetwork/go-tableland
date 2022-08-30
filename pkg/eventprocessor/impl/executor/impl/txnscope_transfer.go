@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/tables"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 )
 
@@ -18,7 +19,7 @@ func (ts *txnScope) executeTransferEvent(
 		return eventExecutionResult{Error: &tableIDIsEmpty}, nil
 	}
 
-	tableID := tableland.TableID(*e.TableId)
+	tableID := tables.TableID(*e.TableId)
 	if err := ts.changeTableOwner(ctx, tableID, e.To); err != nil {
 		var dbErr *errQueryExecution
 		if errors.As(err, &dbErr) {
@@ -52,7 +53,7 @@ func (ts *txnScope) executeTransferEvent(
 // changeTableOwner changes the owner of the table in the registry table.
 func (ts *txnScope) changeTableOwner(
 	ctx context.Context,
-	id tableland.TableID,
+	id tables.TableID,
 	newOwner common.Address,
 ) error {
 	if _, err := ts.txn.ExecContext(ctx,

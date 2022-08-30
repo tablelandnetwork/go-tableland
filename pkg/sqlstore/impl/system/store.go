@@ -24,6 +24,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system/internal/db"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system/migrations"
+	"github.com/textileio/go-tableland/pkg/tables"
 )
 
 // SystemStore provides a persistent layer for storage requests.
@@ -75,7 +76,7 @@ func New(dbURI string, chainID tableland.ChainID) (*SystemStore, error) {
 }
 
 // GetTable fetchs a table from its UUID.
-func (s *SystemStore) GetTable(ctx context.Context, id tableland.TableID) (sqlstore.Table, error) {
+func (s *SystemStore) GetTable(ctx context.Context, id tables.TableID) (sqlstore.Table, error) {
 	table, err := s.dbWithTx.queries().GetTable(ctx, db.GetTableParams{
 		ChainID: int64(s.chainID),
 		ID:      id.ToBigInt().Int64(),
@@ -113,7 +114,7 @@ func (s *SystemStore) GetTablesByController(ctx context.Context, controller stri
 // GetACLOnTableByController returns the privileges on table stored in the database for a given controller.
 func (s *SystemStore) GetACLOnTableByController(
 	ctx context.Context,
-	id tableland.TableID,
+	id tables.TableID,
 	controller string,
 ) (sqlstore.SystemACL, error) {
 	params := db.GetAclByTableAndControllerParams{
@@ -327,7 +328,7 @@ func (s *SystemStore) GetReceipt(
 		receipt.ErrorEventIdx = &errorEventIdx
 	}
 	if res.TableID.Valid {
-		id, err := tableland.NewTableIDFromInt64(res.TableID.Int64)
+		id, err := tables.NewTableIDFromInt64(res.TableID.Int64)
 		if err != nil {
 			return eventprocessor.Receipt{}, false, fmt.Errorf("parsing id to string: %s", err)
 		}
@@ -492,7 +493,7 @@ func (s *SystemStore) executeMigration(dbURI string, as *bindata.AssetSource) er
 }
 
 func tableFromSQLToDTO(table db.Registry) (sqlstore.Table, error) {
-	id, err := tableland.NewTableIDFromInt64(table.ID)
+	id, err := tables.NewTableIDFromInt64(table.ID)
 	if err != nil {
 		return sqlstore.Table{}, fmt.Errorf("parsing id to string: %s", err)
 	}
@@ -507,7 +508,7 @@ func tableFromSQLToDTO(table db.Registry) (sqlstore.Table, error) {
 }
 
 func aclFromSQLtoDTO(acl db.SystemAcl) (sqlstore.SystemACL, error) {
-	id, err := tableland.NewTableIDFromInt64(acl.TableID)
+	id, err := tables.NewTableIDFromInt64(acl.TableID)
 	if err != nil {
 		return sqlstore.SystemACL{}, fmt.Errorf("parsing id to string: %s", err)
 	}

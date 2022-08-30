@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/textileio/go-tableland/internal/router/middlewares"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/tables"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
@@ -44,11 +46,9 @@ func NewInstrumentedTablelandMesa(t tableland.Tableland) (tableland.Tableland, e
 }
 
 // ValidateCreateTable validates a CREATE TABLE statement and returns its structure hash.
-func (t *InstrumentedTablelandMesa) ValidateCreateTable(ctx context.Context,
-	req tableland.ValidateCreateTableRequest,
-) (tableland.ValidateCreateTableResponse, error) {
+func (t *InstrumentedTablelandMesa) ValidateCreateTable(ctx context.Context, statement string) (string, error) {
 	start := time.Now()
-	resp, err := t.tableland.ValidateCreateTable(ctx, req)
+	resp, err := t.tableland.ValidateCreateTable(ctx, statement)
 	latency := time.Since(start).Milliseconds()
 	chainID, _ := ctx.Value(middlewares.ContextKeyChainID).(tableland.ChainID)
 	t.record(ctx, recordData{"ValidateCreateTable", "", "", err == nil, latency, chainID})
@@ -56,11 +56,9 @@ func (t *InstrumentedTablelandMesa) ValidateCreateTable(ctx context.Context,
 }
 
 // ValidateWriteQuery validates a statement that would mutate a table and returns the table ID.
-func (t *InstrumentedTablelandMesa) ValidateWriteQuery(ctx context.Context,
-	req tableland.ValidateWriteQueryRequest,
-) (tableland.ValidateWriteQueryResponse, error) {
+func (t *InstrumentedTablelandMesa) ValidateWriteQuery(ctx context.Context, statement string) (tables.TableID, error) {
 	start := time.Now()
-	resp, err := t.tableland.ValidateWriteQuery(ctx, req)
+	resp, err := t.tableland.ValidateWriteQuery(ctx, statement)
 	latency := time.Since(start).Milliseconds()
 	chainID, _ := ctx.Value(middlewares.ContextKeyChainID).(tableland.ChainID)
 	t.record(ctx, recordData{"ValidateWriteQuery", "", "", err == nil, latency, chainID})
@@ -68,11 +66,9 @@ func (t *InstrumentedTablelandMesa) ValidateWriteQuery(ctx context.Context,
 }
 
 // RunReadQuery allows the user to run SQL.
-func (t *InstrumentedTablelandMesa) RunReadQuery(ctx context.Context,
-	req tableland.RunReadQueryRequest,
-) (tableland.RunReadQueryResponse, error) {
+func (t *InstrumentedTablelandMesa) RunReadQuery(ctx context.Context, statement string) (interface{}, error) {
 	start := time.Now()
-	resp, err := t.tableland.RunReadQuery(ctx, req)
+	resp, err := t.tableland.RunReadQuery(ctx, statement)
 	latency := time.Since(start).Milliseconds()
 
 	controller, _ := ctx.Value(middlewares.ContextKeyAddress).(string)
@@ -81,12 +77,9 @@ func (t *InstrumentedTablelandMesa) RunReadQuery(ctx context.Context,
 }
 
 // RelayWriteQuery allows the user to rely on the validator to wrap a write-query in a chain transaction.
-func (t *InstrumentedTablelandMesa) RelayWriteQuery(
-	ctx context.Context,
-	req tableland.RelayWriteQueryRequest,
-) (tableland.RelayWriteQueryResponse, error) {
+func (t *InstrumentedTablelandMesa) RelayWriteQuery(ctx context.Context, statement string) (tables.Transaction, error) {
 	start := time.Now()
-	resp, err := t.tableland.RelayWriteQuery(ctx, req)
+	resp, err := t.tableland.RelayWriteQuery(ctx, statement)
 	latency := time.Since(start).Milliseconds()
 
 	controller, _ := ctx.Value(middlewares.ContextKeyAddress).(string)
@@ -98,28 +91,29 @@ func (t *InstrumentedTablelandMesa) RelayWriteQuery(
 // GetReceipt returns the receipt for a txn hash.
 func (t *InstrumentedTablelandMesa) GetReceipt(
 	ctx context.Context,
-	req tableland.GetReceiptRequest,
-) (tableland.GetReceiptResponse, error) {
+	txnHash string,
+) (bool, *tableland.TxnReceipt, error) {
 	start := time.Now()
-	resp, err := t.tableland.GetReceipt(ctx, req)
+	ok, resp, err := t.tableland.GetReceipt(ctx, txnHash)
 	latency := time.Since(start).Milliseconds()
 
 	chainID, _ := ctx.Value(middlewares.ContextKeyChainID).(tableland.ChainID)
 	t.record(ctx, recordData{"GetReceipt", "", "", err == nil, latency, chainID})
-	return resp, err
+	return ok, resp, err
 }
 
 // SetController allows users to the controller for a token id.
-func (t *InstrumentedTablelandMesa) SetController(ctx context.Context,
-	req tableland.SetControllerRequest,
-) (tableland.SetControllerResponse, error) {
+func (t *InstrumentedTablelandMesa) SetController(
+	ctx context.Context,
+	controller common.Address,
+	tableID tables.TableID,
+) (tables.Transaction, error) {
 	start := time.Now()
-	resp, err := t.tableland.SetController(ctx, req)
+	resp, err := t.tableland.SetController(ctx, controller, tableID)
 	latency := time.Since(start).Milliseconds()
 
-	controller, _ := ctx.Value(middlewares.ContextKeyAddress).(string)
 	chainID, _ := ctx.Value(middlewares.ContextKeyChainID).(tableland.ChainID)
-	t.record(ctx, recordData{"SetController", controller, "", err == nil, latency, chainID})
+	t.record(ctx, recordData{"SetController", controller.Hex(), "", err == nil, latency, chainID})
 	return resp, err
 }
 

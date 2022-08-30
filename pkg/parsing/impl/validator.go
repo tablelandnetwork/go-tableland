@@ -11,6 +11,7 @@ import (
 	"github.com/tablelandnetwork/sqlparser"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
+	"github.com/textileio/go-tableland/pkg/tables"
 )
 
 // QueryValidator enforces the Tablealand SQL spec.
@@ -160,7 +161,7 @@ func (pp *QueryValidator) ValidateMutatingQuery(
 	ret := make([]parsing.MutatingStmt, len(ast.Statements))
 	for i := range ast.Statements {
 		stmt := ast.Statements[i]
-		tblID, err := tableland.NewTableID(tableID)
+		tblID, err := tables.NewTableID(tableID)
 		if err != nil {
 			return nil, &parsing.ErrInvalidTableName{}
 		}
@@ -264,9 +265,9 @@ func (pp *QueryValidator) deconstructRefTable(refTable string) (string, tablelan
 
 type mutatingStmt struct {
 	node        sqlparser.Statement
-	prefix      string            // From {prefix}_{chainID}_{tableID} -> {prefix}
-	tableID     tableland.TableID // From {prefix}_{chainID}_{tableID} -> {tableID}
-	dbTableName string            // {prefix}_{chainID}_{tableID}
+	prefix      string         // From {prefix}_{chainID}_{tableID} -> {prefix}
+	tableID     tables.TableID // From {prefix}_{chainID}_{tableID} -> {tableID}
+	dbTableName string         // {prefix}_{chainID}_{tableID}
 	operation   tableland.Operation
 }
 
@@ -280,7 +281,7 @@ func (s *mutatingStmt) GetPrefix() string {
 	return s.prefix
 }
 
-func (s *mutatingStmt) GetTableID() tableland.TableID {
+func (s *mutatingStmt) GetTableID() tables.TableID {
 	return s.tableID
 }
 
@@ -459,7 +460,7 @@ type createStmt struct {
 
 var _ parsing.CreateStmt = (*createStmt)(nil)
 
-func (cs *createStmt) GetRawQueryForTableID(id tableland.TableID) (string, error) {
+func (cs *createStmt) GetRawQueryForTableID(id tables.TableID) (string, error) {
 	cs.cNode.Table.Name = sqlparser.Identifier(fmt.Sprintf("%s_%d_%s", cs.prefix, cs.chainID, id))
 	cs.cNode.StrictMode = true
 	return cs.cNode.String(), nil

@@ -21,6 +21,7 @@ import (
 	"github.com/textileio/go-tableland/internal/tableland"
 	nonceimpl "github.com/textileio/go-tableland/pkg/nonce/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
+	"github.com/textileio/go-tableland/pkg/tables"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum/test/controller"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum/test/erc721Enumerable"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum/test/erc721aQueryable"
@@ -70,7 +71,7 @@ func TestRunSQL(t *testing.T) {
 
 	tokenID := requireMint(t, backend, contract, txOpts, txOpts.From)
 
-	tableID, err := tableland.NewTableID(tokenID.String())
+	tableID, err := tables.NewTableID(tokenID.String())
 	require.NoError(t, err)
 
 	statement := "insert into foo_1 values (1,2,3)"
@@ -112,7 +113,7 @@ func TestSetController(t *testing.T) {
 	// You have to be the owner of the token to set the controller
 	tokenID := requireMint(t, backend, contract, txOpts, txOpts.From)
 
-	tableID, err := tableland.NewTableID(tokenID.String())
+	tableID, err := tables.NewTableID(tokenID.String())
 	require.NoError(t, err)
 
 	// Use the high-level Ethereum client to make the call.
@@ -184,7 +185,7 @@ func TestRunSQLWithPolicy(t *testing.T) {
 
 	// You have to be the owner of the token to set the controller
 	tokenID := requireMint(t, backend, contract, txOpts, callerAddress)
-	tableID, err := tableland.NewTableID(tokenID.String())
+	tableID, err := tables.NewTableID(tokenID.String())
 	require.NoError(t, err)
 
 	_, err = client.SetController(context.Background(), callerAddress, tableID, controllerAddress)
@@ -253,7 +254,7 @@ func TestNonceTooLow(t *testing.T) {
 
 		tokenID := requireMint(t, backend, contract, txOpts, txOpts.From)
 
-		tableID, err := tableland.NewTableID(tokenID.String())
+		tableID, err := tables.NewTableID(tokenID.String())
 		require.NoError(t, err)
 
 		statement := "insert into foo_1 values (1,2,3)"
@@ -270,7 +271,7 @@ func TestNonceTooLow(t *testing.T) {
 
 		tokenID := requireMint(t, backend, contract, txOpts, txOpts.From)
 
-		tableID, err := tableland.NewTableID(tokenID.String())
+		tableID, err := tables.NewTableID(tokenID.String())
 		require.NoError(t, err)
 
 		// Use the high-level Ethereum client to make the call.

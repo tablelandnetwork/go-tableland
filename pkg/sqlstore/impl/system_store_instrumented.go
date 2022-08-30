@@ -12,6 +12,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/nonce"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
+	"github.com/textileio/go-tableland/pkg/tables"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
@@ -46,7 +47,7 @@ func NewInstrumentedSystemStore(chainID tableland.ChainID, store sqlstore.System
 }
 
 // GetTable fetchs a table from its UUID.
-func (s *InstrumentedSystemStore) GetTable(ctx context.Context, id tableland.TableID) (sqlstore.Table, error) {
+func (s *InstrumentedSystemStore) GetTable(ctx context.Context, id tables.TableID) (sqlstore.Table, error) {
 	start := time.Now()
 	table, err := s.store.GetTable(ctx, id)
 	latency := time.Since(start).Milliseconds()
@@ -133,7 +134,7 @@ func (s *InstrumentedSystemStore) GetSchemaByTableName(ctx context.Context, name
 // GetACLOnTableByController increments the counter.
 func (s *InstrumentedSystemStore) GetACLOnTableByController(
 	ctx context.Context,
-	table tableland.TableID,
+	table tables.TableID,
 	address string,
 ) (sqlstore.SystemACL, error) {
 	start := time.Now()

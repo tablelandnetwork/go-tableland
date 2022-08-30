@@ -16,6 +16,7 @@ import (
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
+	"github.com/textileio/go-tableland/pkg/tables"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 	"github.com/textileio/go-tableland/tests"
 )
@@ -39,7 +40,7 @@ func TestSystemSQLStoreService(t *testing.T) {
 	bs, err := ex.NewBlockScope(ctx, 0)
 	require.NoError(t, err)
 
-	id, _ := tableland.NewTableID("42")
+	id, _ := tables.NewTableID("42")
 	require.NoError(t, err)
 
 	res, err := bs.ExecuteTxnEvents(ctx, eventfeed.TxnEvents{
@@ -167,7 +168,7 @@ func TestGetMetadata(t *testing.T) {
 	bs, err := ex.NewBlockScope(ctx, 0)
 	require.NoError(t, err)
 
-	id, _ := tableland.NewTableID("42")
+	id, _ := tables.NewTableID("42")
 	require.NoError(t, err)
 
 	res, err := bs.ExecuteTxnEvents(ctx, eventfeed.TxnEvents{
@@ -258,7 +259,7 @@ func TestGetMetadata(t *testing.T) {
 		svc, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables", "foo")
 		require.NoError(t, err)
 
-		id, _ := tableland.NewTableID("43")
+		id, _ := tables.NewTableID("43")
 		require.NoError(t, err)
 
 		metadata, err := svc.GetTableMetadata(ctx, id)

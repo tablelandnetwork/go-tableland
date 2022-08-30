@@ -20,6 +20,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
+	"github.com/textileio/go-tableland/pkg/tables"
 	"github.com/textileio/go-tableland/pkg/tables/impl/testutil"
 	"github.com/textileio/go-tableland/tests"
 )
@@ -29,7 +30,7 @@ const chainID = 1337
 func TestRunSQLBlockProcessing(t *testing.T) {
 	t.Parallel()
 
-	tableID, err := tableland.NewTableID("1")
+	tableID, err := tables.NewTableID("1")
 	require.NoError(t, err)
 
 	expWrongTypeErr := "db query execution failed (code: SQLITE_table test_1337_1 has 1 columns but 2 values were supplied, msg: table test_1337_1 has 1 columns but 2 values were supplied)" //nolint
@@ -171,7 +172,7 @@ func TestCreateTableBlockProcessing(t *testing.T) {
 		for i := 0; i < 2; i++ {
 			txnHash := contractCalls.createTable("CREATE TABLE Foo_1337 (bar int)")
 
-			tableID, err := tableland.NewTableID(strconv.Itoa(i + 2))
+			tableID, err := tables.NewTableID(strconv.Itoa(i + 2))
 			require.NoError(t, err)
 			expReceipt := eventprocessor.Receipt{
 				ChainID: chainID,
@@ -229,7 +230,7 @@ func TestSetController(t *testing.T) {
 		controller := common.HexToAddress("0x39b1b9B439312Dd9E1aE137ce9866e873eA4d211")
 		txnHash := contractCalls.setController(controller)
 
-		tid := tableland.TableID(*big.NewInt(1))
+		tid := tables.TableID(*big.NewInt(1))
 		expReceipt := eventprocessor.Receipt{
 			ChainID: chainID,
 			TxnHash: txnHash.Hex(),
@@ -244,7 +245,7 @@ func TestSetController(t *testing.T) {
 		fmt.Println(controller.Hex())
 		txnHash := contractCalls.setController(controller)
 
-		tid := tableland.TableID(*big.NewInt(1))
+		tid := tables.TableID(*big.NewInt(1))
 		expReceipt := eventprocessor.Receipt{
 			ChainID: chainID,
 			TxnHash: txnHash.Hex(),
@@ -261,7 +262,7 @@ func TestTransfer(t *testing.T) {
 	contractCalls, checkReceipts, _ := setup(t)
 
 	txnHash := contractCalls.createTable("CREATE TABLE Foo_1337 (bar int)")
-	tableID, err := tableland.NewTableID("2")
+	tableID, err := tables.NewTableID("2")
 	require.NoError(t, err)
 	expReceipt := eventprocessor.Receipt{
 		ChainID: chainID,
@@ -275,7 +276,7 @@ func TestTransfer(t *testing.T) {
 		controller := common.HexToAddress("0x39b1b9B439312Dd9E1aE137ce9866e873eA4d211")
 		txnHash := contractCalls.transfer(controller)
 
-		tid := tableland.TableID(*big.NewInt(1))
+		tid := tables.TableID(*big.NewInt(1))
 		expReceipt := eventprocessor.Receipt{
 			ChainID: chainID,
 			TxnHash: txnHash.Hex(),
@@ -421,7 +422,7 @@ func (acl *aclMock) CheckPrivileges(
 	ctx context.Context,
 	tx *sql.Tx,
 	controller common.Address,
-	id tableland.TableID,
+	id tables.TableID,
 	op tableland.Operation,
 ) (bool, error) {
 	return true, nil

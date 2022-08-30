@@ -24,6 +24,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
+	"github.com/textileio/go-tableland/pkg/tables"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/tables/impl/testutil"
 	"github.com/textileio/go-tableland/pkg/wallet"
@@ -131,14 +132,14 @@ func (acl *aclHalfMock) CheckPrivileges(
 	ctx context.Context,
 	tx *sql.Tx,
 	controller common.Address,
-	id tableland.TableID,
+	id tables.TableID,
 	op tableland.Operation,
 ) (bool, error) {
 	aclImpl := tblimpl.NewACL(acl.sqlStore, nil)
 	return aclImpl.CheckPrivileges(ctx, tx, controller, id, op)
 }
 
-func (acl *aclHalfMock) IsOwner(ctx context.Context, controller common.Address, id tableland.TableID) (bool, error) {
+func (acl *aclHalfMock) IsOwner(ctx context.Context, controller common.Address, id tables.TableID) (bool, error) {
 	return true, nil
 }
 

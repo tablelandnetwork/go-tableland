@@ -14,6 +14,7 @@ import (
 	"github.com/textileio/go-tableland/internal/system"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
+	"github.com/textileio/go-tableland/pkg/tables"
 )
 
 var log = logger.With().Str("component", "systemsqlstore").Logger()
@@ -57,7 +58,7 @@ func NewSystemSQLStoreService(
 // GetTableMetadata returns table's metadata fetched from SQLStore.
 func (s *SystemSQLStoreService) GetTableMetadata(
 	ctx context.Context,
-	id tableland.TableID,
+	id tables.TableID,
 ) (sqlstore.TableMetadata, error) {
 	ctxChainID := ctx.Value(middlewares.ContextKeyChainID)
 	chainID, ok := ctxChainID.(tableland.ChainID)
@@ -165,7 +166,7 @@ func (s *SystemSQLStoreService) GetSchemaByTableName(
 	return schema, nil
 }
 
-func (s *SystemSQLStoreService) getMetadataImage(chainID tableland.ChainID, tableID tableland.TableID) string {
+func (s *SystemSQLStoreService) getMetadataImage(chainID tableland.ChainID, tableID tables.TableID) string {
 	if s.metadataRendererURI == "" {
 		return DefaultMetadataImage
 	}

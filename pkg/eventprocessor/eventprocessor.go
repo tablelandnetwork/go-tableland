@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/tables"
 )
 
 // Config contains configuration attributes for an event processor.
@@ -62,7 +63,7 @@ type Receipt struct {
 	IndexInBlock int64
 	TxnHash      string
 
-	TableID       *tableland.TableID
+	TableID       *tables.TableID
 	Error         *string
 	ErrorEventIdx *int
 }

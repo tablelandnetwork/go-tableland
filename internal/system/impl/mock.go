@@ -9,6 +9,7 @@ import (
 	"github.com/textileio/go-tableland/internal/system"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
+	"github.com/textileio/go-tableland/pkg/tables"
 )
 
 // SystemMockService is a dummy implementation that returns a fixed value.
@@ -20,7 +21,7 @@ func NewSystemMockService() system.SystemService {
 }
 
 // GetTableMetadata returns a fixed value for testing and demo purposes.
-func (*SystemMockService) GetTableMetadata(ctx context.Context, id tableland.TableID) (sqlstore.TableMetadata, error) {
+func (*SystemMockService) GetTableMetadata(ctx context.Context, id tables.TableID) (sqlstore.TableMetadata, error) {
 	return sqlstore.TableMetadata{
 		Name:        "name-1",
 		ExternalURL: fmt.Sprintf("https://tableland.network/tables/%s", id),
@@ -39,7 +40,7 @@ func (*SystemMockService) GetTableMetadata(ctx context.Context, id tableland.Tab
 func (s *SystemMockService) GetTablesByController(ctx context.Context, controller string) ([]sqlstore.Table, error) {
 	return []sqlstore.Table{
 		{
-			ID:         tableland.TableID(*big.NewInt(0)),
+			ID:         tables.TableID(*big.NewInt(0)),
 			ChainID:    tableland.ChainID(1337),
 			Controller: "0x2a891118Cf3a8FdeBb00109ea3ed4E33B82D960f",
 			Prefix:     "test",
@@ -47,7 +48,7 @@ func (s *SystemMockService) GetTablesByController(ctx context.Context, controlle
 			Structure: "0605f6c6705c7c1257edb2d61d94a03ad15f1d253a5a75525c6da8cda34a99ee",
 		},
 		{
-			ID:         tableland.TableID(*big.NewInt(1)),
+			ID:         tables.TableID(*big.NewInt(1)),
 			ChainID:    tableland.ChainID(1337),
 			Controller: "0x2a891118Cf3a8FdeBb00109ea3ed4E33B82D960f",
 			Prefix:     "test2",
@@ -61,7 +62,7 @@ func (s *SystemMockService) GetTablesByController(ctx context.Context, controlle
 func (s *SystemMockService) GetTablesByStructure(ctx context.Context, structure string) ([]sqlstore.Table, error) {
 	return []sqlstore.Table{
 		{
-			ID:         tableland.TableID(*big.NewInt(0)),
+			ID:         tables.TableID(*big.NewInt(0)),
 			ChainID:    tableland.ChainID(1337),
 			Controller: "0x2a891118Cf3a8FdeBb00109ea3ed4E33B82D960f",
 			Prefix:     "test",
@@ -69,7 +70,7 @@ func (s *SystemMockService) GetTablesByStructure(ctx context.Context, structure 
 			Structure: "0605f6c6705c7c1257edb2d61d94a03ad15f1d253a5a75525c6da8cda34a99ee",
 		},
 		{
-			ID:         tableland.TableID(*big.NewInt(1)),
+			ID:         tables.TableID(*big.NewInt(1)),
 			ChainID:    tableland.ChainID(1337),
 			Controller: "0x2a891118Cf3a8FdeBb00109ea3ed4E33B82D960f",
 			Prefix:     "test2",
@@ -111,7 +112,7 @@ func NewSystemMockErrService() system.SystemService {
 // GetTableMetadata returns a fixed value for testing and demo purposes.
 func (*SystemMockErrService) GetTableMetadata(
 	ctx context.Context,
-	id tableland.TableID,
+	id tables.TableID,
 ) (sqlstore.TableMetadata, error) {
 	return sqlstore.TableMetadata{}, errors.New("table not found")
 }

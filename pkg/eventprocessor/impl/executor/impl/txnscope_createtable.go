@@ -7,6 +7,7 @@ import (
 
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
+	"github.com/textileio/go-tableland/pkg/tables"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 )
 
@@ -23,7 +24,7 @@ func (ts *txnScope) executeCreateTableEvent(
 	if e.TableId == nil {
 		return eventExecutionResult{Error: &tableIDIsEmpty}, nil
 	}
-	tableID := tableland.TableID(*e.TableId)
+	tableID := tables.TableID(*e.TableId)
 
 	if err := ts.insertTable(ctx, tableID, e.Owner.Hex(), createStmt); err != nil {
 		var dbErr *errQueryExecution
@@ -43,7 +44,7 @@ func (ts *txnScope) executeCreateTableEvent(
 // - Add default privileges in the system_acl table.
 func (ts *txnScope) insertTable(
 	ctx context.Context,
-	id tableland.TableID,
+	id tables.TableID,
 	controller string,
 	createStmt parsing.CreateStmt,
 ) error {

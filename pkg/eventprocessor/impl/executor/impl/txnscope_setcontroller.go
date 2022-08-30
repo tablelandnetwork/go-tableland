@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/tables"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 )
 
@@ -17,7 +17,7 @@ func (ts *txnScope) executeSetControllerEvent(
 	if e.TableId == nil {
 		return eventExecutionResult{Error: &tableIDIsEmpty}, nil
 	}
-	tableID := tableland.TableID(*e.TableId)
+	tableID := tables.TableID(*e.TableId)
 
 	if err := ts.setController(ctx, tableID, e.Controller); err != nil {
 		var dbErr *errQueryExecution
@@ -34,7 +34,7 @@ func (ts *txnScope) executeSetControllerEvent(
 // SetController sets and unsets the controller of a table.
 func (ts *txnScope) setController(
 	ctx context.Context,
-	id tableland.TableID,
+	id tables.TableID,
 	controller common.Address,
 ) error {
 	if controller == common.HexToAddress("0x0") {

@@ -13,9 +13,11 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/textileio/go-tableland/internal/router/rpcservice"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/nonce/impl"
 	"github.com/textileio/go-tableland/pkg/siwe"
+	"github.com/textileio/go-tableland/pkg/tables"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/wallet"
 )
@@ -235,7 +237,7 @@ func WithReceiptTimeout(timeout time.Duration) CreateOption {
 	}
 }
 
-// Create creates a new table on the Tableland.
+// Create creates a new table on the rpcservice.
 func (c *Client) Create(ctx context.Context, schema string, opts ...CreateOption) (TableID, string, error) {
 	defaultTimeout := time.Minute * 10
 	conf := createConfig{receiptTimeout: &defaultTimeout}
@@ -244,8 +246,8 @@ func (c *Client) Create(ctx context.Context, schema string, opts ...CreateOption
 	}
 
 	createStatement := fmt.Sprintf("CREATE TABLE %s_%d %s", conf.prefix, c.chain.ID, schema)
-	req := &tableland.ValidateCreateTableRequest{CreateStatement: createStatement}
-	var res tableland.ValidateCreateTableResponse
+	req := &rpcservice.ValidateCreateTableRequest{CreateStatement: createStatement}
+	var res rpcservice.ValidateCreateTableResponse
 
 	if err := c.tblRPC.CallContext(ctx, &res, "tableland_validateCreateTable", req); err != nil {
 		return TableID{}, "", fmt.Errorf("calling rpc validateCreateTable: %v", err)
@@ -274,8 +276,8 @@ func (c *Client) Create(ctx context.Context, schema string, opts ...CreateOption
 
 // Read runs a read query and returns the results.
 func (c *Client) Read(ctx context.Context, query string) (string, error) {
-	req := &tableland.RunReadQueryRequest{Statement: query}
-	var res tableland.RunReadQueryResponse
+	req := &rpcservice.RunReadQueryRequest{Statement: query}
+	var res rpcservice.RunReadQueryResponse
 
 	if err := c.tblRPC.CallContext(ctx, &res, "tableland_runReadQuery", req); err != nil {
 		return "", fmt.Errorf("calling rpc runReadQuery: %v", err)
@@ -312,8 +314,8 @@ func (c *Client) Write(ctx context.Context, query string, opts ...WriteOption) (
 		opt(&conf)
 	}
 	if conf.relay {
-		req := &tableland.RelayWriteQueryRequest{Statement: query}
-		var res tableland.RelayWriteQueryResponse
+		req := &rpcservice.RelayWriteQueryRequest{Statement: query}
+		var res rpcservice.RelayWriteQueryResponse
 		if err := c.tblRPC.CallContext(ctx, &res, "tableland_relayWriteQuery", req); err != nil {
 			return "", fmt.Errorf("calling rpc relayWriteQuery: %v", err)
 		}
@@ -323,7 +325,7 @@ func (c *Client) Write(ctx context.Context, query string, opts ...WriteOption) (
 	if err != nil {
 		return "", fmt.Errorf("calling Validate: %v", err)
 	}
-	res, err := c.tblContract.RunSQL(ctx, c.wallet.Address(), tableland.TableID(tableID), query)
+	res, err := c.tblContract.RunSQL(ctx, c.wallet.Address(), tables.TableID(tableID), query)
 	if err != nil {
 		return "", fmt.Errorf("calling RunSQL: %v", err)
 	}
@@ -332,8 +334,8 @@ func (c *Client) Write(ctx context.Context, query string, opts ...WriteOption) (
 
 // Hash validates the provided create table statement and returns its hash.
 func (c *Client) Hash(ctx context.Context, statement string) (string, error) {
-	req := &tableland.ValidateCreateTableRequest{CreateStatement: statement}
-	var res tableland.ValidateCreateTableResponse
+	req := &rpcservice.ValidateCreateTableRequest{CreateStatement: statement}
+	var res rpcservice.ValidateCreateTableResponse
 	if err := c.tblRPC.CallContext(ctx, &res, "tableland_validateCreateTable", req); err != nil {
 		return "", fmt.Errorf("calling rpc validateCreateTable: %v", err)
 	}
@@ -342,8 +344,8 @@ func (c *Client) Hash(ctx context.Context, statement string) (string, error) {
 
 // Validate validates a write query, returning the table id.
 func (c *Client) Validate(ctx context.Context, statement string) (TableID, error) {
-	req := &tableland.ValidateWriteQueryRequest{Statement: statement}
-	var res tableland.ValidateWriteQueryResponse
+	req := &rpcservice.ValidateWriteQueryRequest{Statement: statement}
+	var res rpcservice.ValidateWriteQueryResponse
 	if err := c.tblRPC.CallContext(ctx, &res, "tableland_validateWriteQuery", req); err != nil {
 		return TableID{}, fmt.Errorf("calling rpc validateWriteQuery: %v", err)
 	}
@@ -391,8 +393,8 @@ func (c *Client) SetController(
 	controller common.Address,
 	tableID TableID,
 ) (string, error) {
-	req := tableland.SetControllerRequest{Controller: controller.Hex(), TokenID: tableID.String()}
-	var res tableland.SetControllerResponse
+	req := rpcservice.SetControllerRequest{Controller: controller.Hex(), TokenID: tableID.String()}
+	var res rpcservice.SetControllerResponse
 
 	if err := c.tblRPC.CallContext(ctx, &res, "tableland_setController", req); err != nil {
 		return "", fmt.Errorf("calling rpc setController: %v", err)
@@ -402,8 +404,8 @@ func (c *Client) SetController(
 }
 
 func (c *Client) getReceipt(ctx context.Context, txnHash string) (*TxnReceipt, bool, error) {
-	req := tableland.GetReceiptRequest{TxnHash: txnHash}
-	var res tableland.GetReceiptResponse
+	req := rpcservice.GetReceiptRequest{TxnHash: txnHash}
+	var res rpcservice.GetReceiptResponse
 	if err := c.tblRPC.CallContext(ctx, &res, "tableland_getReceipt", req); err != nil {
 		return nil, false, fmt.Errorf("calling rpc getReceipt: %v", err)
 	}
