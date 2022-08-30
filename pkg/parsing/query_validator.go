@@ -109,16 +109,6 @@ var (
 	ErrCanOnlyCheckColumnsOnUPDATE = errors.New("can only check columns on update")
 )
 
-// ErrInvalidSyntax is an error returned when parsing the query.
-// The InternalError attribute has the underlying parser error when parsing the query.
-type ErrInvalidSyntax struct {
-	InternalError error
-}
-
-func (e *ErrInvalidSyntax) Error() string {
-	return fmt.Sprintf("unable to parse the query: %s", e.InternalError)
-}
-
 // ErrEmptyStatement is an error returned when the statement is empty.
 type ErrEmptyStatement struct{}
 

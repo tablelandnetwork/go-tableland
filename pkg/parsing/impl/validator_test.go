@@ -897,8 +897,8 @@ func newParser(t *testing.T, prefixes []string, opts ...parsing.Option) parsing.
 }
 
 // Helpers to have a pointer to pointer for generic test-case running.
-func ptr2ErrInvalidSyntax() **parsing.ErrInvalidSyntax {
-	var e *parsing.ErrInvalidSyntax
+func ptr2ErrInvalidSyntax() **sqlparser.ErrSyntaxError {
+	var e *sqlparser.ErrSyntaxError
 	return &e
 }
 
