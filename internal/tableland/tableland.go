@@ -23,19 +23,25 @@ type TxnReceipt struct {
 	ErrorEventIdx int     `json:"error_event_idx"`
 }
 
-// SQLRunner defines the run SQL interface of Tableland.
-type SQLRunner interface {
-	RunReadQuery(context.Context, string) (interface{}, error)
-}
-
 // Tableland defines the interface of Tableland.
 type Tableland interface {
-	SQLRunner
-	ValidateCreateTable(context.Context, string) (string, error)
-	ValidateWriteQuery(context.Context, string) (tables.TableID, error)
-	RelayWriteQuery(context.Context, string) (tables.Transaction, error)
-	GetReceipt(context.Context, string) (bool, *TxnReceipt, error)
-	SetController(context.Context, common.Address, tables.TableID) (tables.Transaction, error)
+	RunReadQuery(ctx context.Context, stmt string) (interface{}, error)
+	ValidateCreateTable(ctx context.Context, chainID ChainID, stmt string) (string, error)
+	ValidateWriteQuery(ctx context.Context, chainID ChainID, stmt string) (tables.TableID, error)
+	RelayWriteQuery(
+		ctx context.Context,
+		chainID ChainID,
+		caller common.Address,
+		stmt string,
+	) (tables.Transaction, error)
+	GetReceipt(ctx context.Context, chainID ChainID, txnHash string) (bool, *TxnReceipt, error)
+	SetController(
+		ctx context.Context,
+		chainID ChainID,
+		caller common.Address,
+		controller common.Address,
+		tableID tables.TableID,
+	) (tables.Transaction, error)
 }
 
 // ChainID is a supported EVM chain identifier.

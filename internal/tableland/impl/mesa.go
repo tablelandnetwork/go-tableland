@@ -2,12 +2,10 @@ package impl
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/textileio/go-tableland/internal/chains"
-	"github.com/textileio/go-tableland/internal/router/middlewares"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
@@ -36,12 +34,11 @@ func NewTablelandMesa(
 
 // ValidateCreateTable allows to validate a CREATE TABLE statement and also return the structure hash of it.
 // This RPC method is stateless.
-func (t *TablelandMesa) ValidateCreateTable(ctx context.Context, statement string) (string, error) {
-	ctxChainID := ctx.Value(middlewares.ContextKeyChainID)
-	chainID, ok := ctxChainID.(tableland.ChainID)
-	if !ok {
-		return "", errors.New("no chain id found in context")
-	}
+func (t *TablelandMesa) ValidateCreateTable(
+	ctx context.Context,
+	chainID tableland.ChainID,
+	statement string,
+) (string, error) {
 	createStmt, err := t.parser.ValidateCreateTable(statement, chainID)
 	if err != nil {
 		return "", fmt.Errorf("parsing create table statement: %s", err)
@@ -50,19 +47,11 @@ func (t *TablelandMesa) ValidateCreateTable(ctx context.Context, statement strin
 }
 
 // ValidateWriteQuery allows the user to validate a write query.
-func (t *TablelandMesa) ValidateWriteQuery(ctx context.Context, statement string) (tables.TableID, error) {
-	ctxController := ctx.Value(middlewares.ContextKeyAddress)
-	controller, ok := ctxController.(string)
-	if !ok || controller == "" {
-		return tables.TableID{}, errors.New("no controller address found in context")
-	}
-
-	ctxChainID := ctx.Value(middlewares.ContextKeyChainID)
-	chainID, ok := ctxChainID.(tableland.ChainID)
-	if !ok {
-		return tables.TableID{}, errors.New("no chain id found in context")
-	}
-
+func (t *TablelandMesa) ValidateWriteQuery(
+	ctx context.Context,
+	chainID tableland.ChainID,
+	statement string,
+) (tables.TableID, error) {
 	stack, chainOk := t.chainStacks[chainID]
 	if !chainOk {
 		return tables.TableID{}, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
@@ -91,17 +80,12 @@ func (t *TablelandMesa) ValidateWriteQuery(ctx context.Context, statement string
 }
 
 // RelayWriteQuery allows the user to rely on the validator wrapping the query in a chain transaction.
-func (t *TablelandMesa) RelayWriteQuery(ctx context.Context, statement string) (tables.Transaction, error) {
-	ctxController := ctx.Value(middlewares.ContextKeyAddress)
-	controller, ok := ctxController.(string)
-	if !ok || controller == "" {
-		return nil, errors.New("no controller address found in context")
-	}
-	ctxChainID := ctx.Value(middlewares.ContextKeyChainID)
-	chainID, ok := ctxChainID.(tableland.ChainID)
-	if !ok {
-		return nil, errors.New("no chain id found in context")
-	}
+func (t *TablelandMesa) RelayWriteQuery(
+	ctx context.Context,
+	chainID tableland.ChainID,
+	caller common.Address,
+	statement string,
+) (tables.Transaction, error) {
 	stack, ok := t.chainStacks[chainID]
 	if !ok {
 		return nil, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
@@ -118,7 +102,7 @@ func (t *TablelandMesa) RelayWriteQuery(ctx context.Context, statement string) (
 	}
 
 	tableID := mutatingStmts[0].GetTableID()
-	tx, err := stack.Registry.RunSQL(ctx, common.HexToAddress(controller), tableID, statement)
+	tx, err := stack.Registry.RunSQL(ctx, caller, tableID, statement)
 	if err != nil {
 		return nil, fmt.Errorf("sending tx: %s", err)
 	}
@@ -141,15 +125,13 @@ func (t *TablelandMesa) RunReadQuery(ctx context.Context, statement string) (int
 }
 
 // GetReceipt returns the receipt of a processed event by txn hash.
-func (t *TablelandMesa) GetReceipt(ctx context.Context, txnHash string) (bool, *tableland.TxnReceipt, error) {
+func (t *TablelandMesa) GetReceipt(
+	ctx context.Context,
+	chainID tableland.ChainID,
+	txnHash string,
+) (bool, *tableland.TxnReceipt, error) {
 	if err := (&common.Hash{}).UnmarshalText([]byte(txnHash)); err != nil {
 		return false, nil, fmt.Errorf("invalid txn hash: %s", err)
-	}
-
-	ctxChainID := ctx.Value(middlewares.ContextKeyChainID)
-	chainID, ok := ctxChainID.(tableland.ChainID)
-	if !ok {
-		return false, nil, errors.New("no chain id found in context")
 	}
 	stack, ok := t.chainStacks[chainID]
 	if !ok {
@@ -191,20 +173,11 @@ func (t *TablelandMesa) GetReceipt(ctx context.Context, txnHash string) (bool, *
 // SetController allows users to the controller for a token id.
 func (t *TablelandMesa) SetController(
 	ctx context.Context,
+	chainID tableland.ChainID,
+	caller common.Address,
 	controller common.Address,
 	tableID tables.TableID,
 ) (tables.Transaction, error) {
-	ctxCaller := ctx.Value(middlewares.ContextKeyAddress)
-	caller, ok := ctxCaller.(string)
-	if !ok || caller == "" {
-		return nil, errors.New("no caller address found in context")
-	}
-
-	ctxChainID := ctx.Value(middlewares.ContextKeyChainID)
-	chainID, ok := ctxChainID.(tableland.ChainID)
-	if !ok {
-		return nil, errors.New("no chain id found in context")
-	}
 	stack, ok := t.chainStacks[chainID]
 	if !ok {
 		return nil, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
@@ -214,7 +187,7 @@ func (t *TablelandMesa) SetController(
 		return nil, fmt.Errorf("chain id %d does not suppport relaying of transactions", chainID)
 	}
 
-	tx, err := stack.Registry.SetController(ctx, common.HexToAddress(caller), tableID, controller)
+	tx, err := stack.Registry.SetController(ctx, caller, tableID, controller)
 	if err != nil {
 		return nil, fmt.Errorf("sending tx: %s", err)
 	}

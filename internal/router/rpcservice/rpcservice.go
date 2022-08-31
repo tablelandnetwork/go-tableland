@@ -2,9 +2,11 @@ package rpcservice
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/textileio/go-tableland/internal/router/middlewares"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/tables"
 )
@@ -104,7 +106,12 @@ func (rs *RPCService) ValidateCreateTable(
 	ctx context.Context,
 	req ValidateCreateTableRequest,
 ) (ValidateCreateTableResponse, error) {
-	hash, err := rs.tbl.ValidateCreateTable(ctx, req.CreateStatement)
+	ctxChainID := ctx.Value(middlewares.ContextKeyChainID)
+	chainID, ok := ctxChainID.(tableland.ChainID)
+	if !ok {
+		return ValidateCreateTableResponse{}, errors.New("no chain id found in context")
+	}
+	hash, err := rs.tbl.ValidateCreateTable(ctx, chainID, req.CreateStatement)
 	if err != nil {
 		return ValidateCreateTableResponse{}, fmt.Errorf("calling ValidateCreateTable %v", err)
 	}
@@ -116,7 +123,12 @@ func (rs *RPCService) ValidateWriteQuery(
 	ctx context.Context,
 	req ValidateWriteQueryRequest,
 ) (ValidateWriteQueryResponse, error) {
-	tableID, err := rs.tbl.ValidateWriteQuery(ctx, req.Statement)
+	ctxChainID := ctx.Value(middlewares.ContextKeyChainID)
+	chainID, ok := ctxChainID.(tableland.ChainID)
+	if !ok {
+		return ValidateWriteQueryResponse{}, errors.New("no chain id found in context")
+	}
+	tableID, err := rs.tbl.ValidateWriteQuery(ctx, chainID, req.Statement)
 	if err != nil {
 		return ValidateWriteQueryResponse{}, fmt.Errorf("calling ValidateWriteQuery: %v", err)
 	}
@@ -128,7 +140,17 @@ func (rs *RPCService) RelayWriteQuery(
 	ctx context.Context,
 	req RelayWriteQueryRequest,
 ) (RelayWriteQueryResponse, error) {
-	txn, err := rs.tbl.RelayWriteQuery(ctx, req.Statement)
+	ctxChainID := ctx.Value(middlewares.ContextKeyChainID)
+	chainID, ok := ctxChainID.(tableland.ChainID)
+	if !ok {
+		return RelayWriteQueryResponse{}, errors.New("no chain id found in context")
+	}
+	ctxCaller := ctx.Value(middlewares.ContextKeyAddress)
+	caller, ok := ctxCaller.(string)
+	if !ok || caller == "" {
+		return RelayWriteQueryResponse{}, errors.New("no controller address found in context")
+	}
+	txn, err := rs.tbl.RelayWriteQuery(ctx, chainID, common.HexToAddress(caller), req.Statement)
 	if err != nil {
 		return RelayWriteQueryResponse{}, fmt.Errorf("calling RelayWriteQuery: %v", err)
 	}
@@ -154,7 +176,12 @@ func (rs *RPCService) GetReceipt(
 	ctx context.Context,
 	req GetReceiptRequest,
 ) (GetReceiptResponse, error) {
-	ok, receipt, err := rs.tbl.GetReceipt(ctx, req.TxnHash)
+	ctxChainID := ctx.Value(middlewares.ContextKeyChainID)
+	chainID, ok := ctxChainID.(tableland.ChainID)
+	if !ok {
+		return GetReceiptResponse{}, errors.New("no chain id found in context")
+	}
+	ok, receipt, err := rs.tbl.GetReceipt(ctx, chainID, req.TxnHash)
 	if err != nil {
 		return GetReceiptResponse{}, fmt.Errorf("calling GetReceipt: %v", err)
 	}
@@ -177,11 +204,26 @@ func (rs *RPCService) SetController(
 	ctx context.Context,
 	req SetControllerRequest,
 ) (SetControllerResponse, error) {
+	ctxChainID := ctx.Value(middlewares.ContextKeyChainID)
+	chainID, ok := ctxChainID.(tableland.ChainID)
+	if !ok {
+		return SetControllerResponse{}, errors.New("no chain id found in context")
+	}
+	ctxCaller := ctx.Value(middlewares.ContextKeyAddress)
+	caller, ok := ctxCaller.(string)
+	if !ok || caller == "" {
+		return SetControllerResponse{}, errors.New("no caller address found in context")
+	}
 	tableID, err := tables.NewTableID(req.TokenID)
 	if err != nil {
 		return SetControllerResponse{}, fmt.Errorf("parsing token ID: %v", err)
 	}
-	txn, err := rs.tbl.SetController(ctx, common.HexToAddress(req.Controller), tableID)
+	txn, err := rs.tbl.SetController(
+		ctx, chainID,
+		common.HexToAddress(caller),
+		common.HexToAddress(req.Controller),
+		tableID,
+	)
 	if err != nil {
 		return SetControllerResponse{}, fmt.Errorf("calling SetController: %v", err)
 	}

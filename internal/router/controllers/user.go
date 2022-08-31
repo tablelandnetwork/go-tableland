@@ -10,19 +10,23 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/hetiansu5/urlquery"
 	"github.com/rs/zerolog/log"
-	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/errors"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/tables"
 )
 
+// SQLRunner defines the run SQL interface of Tableland.
+type SQLRunner interface {
+	RunReadQuery(ctx context.Context, stmt string) (interface{}, error)
+}
+
 // UserController defines the HTTP handlers for interacting with user tables.
 type UserController struct {
-	runner tableland.SQLRunner
+	runner SQLRunner
 }
 
 // NewUserController creates a new UserController.
-func NewUserController(runner tableland.SQLRunner) *UserController {
+func NewUserController(runner SQLRunner) *UserController {
 	return &UserController{runner}
 }
 
