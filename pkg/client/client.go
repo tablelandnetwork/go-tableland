@@ -237,7 +237,7 @@ func WithReceiptTimeout(timeout time.Duration) CreateOption {
 	}
 }
 
-// Create creates a new table on the rpcservice.
+// Create creates a new table on the Tableland.
 func (c *Client) Create(ctx context.Context, schema string, opts ...CreateOption) (TableID, string, error) {
 	defaultTimeout := time.Minute * 10
 	conf := createConfig{receiptTimeout: &defaultTimeout}
