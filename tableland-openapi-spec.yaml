@@ -17,6 +17,8 @@ paths:
 
         * The `runReadQuery` method allows you execute a read-query in the validator and get the result.
 
+        * The `validateWriteQuery` method allows you validate a mutating query as a pre contract call check.
+
         * The `relayWriteQuery` method allows you to rely on the validator to send a runSQL SC call on your behalf for write-queries.
 
         * The `getReceipt` method allows you to get the receipt of a chain transaction to know if it was executed, and the execution details.

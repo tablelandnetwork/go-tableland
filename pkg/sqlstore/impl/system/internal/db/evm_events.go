@@ -102,16 +102,18 @@ func (q *Queries) AreEVMEventsPersisted(ctx context.Context, arg AreEVMTxnEvents
 const getBlocksMissingExtraInfo = `
 SELECT DISTINCT e.block_number
 FROM system_evm_events e 
-LEFT OUTER JOIN system_evm_blocks b ON e.chain_id=b.chain_id AND e.block_number=b.block_number
-WHERE e.chain_id=?1 AND b.block_number is null
+WHERE e.chain_id=?1 AND 
+      (?2 is null OR e.block_number>?2) AND
+      NOT EXISTS(select* from system_evm_blocks b WHERE e.chain_id=b.chain_id AND e.block_number=b.block_number)
 ORDER BY e.block_number`
 
 type GetBlocksMissingExtraInfoParams struct {
-	ChainID int64
+	ChainID    int64
+	FromHeight *int64
 }
 
 func (q *Queries) GetBlocksMissingExtraInfo(ctx context.Context, arg GetBlocksMissingExtraInfoParams) ([]int64, error) {
-	rows, err := q.query(ctx, q.getBlocksMissingExtraInfoStmt, getBlocksMissingExtraInfo, arg.ChainID)
+	rows, err := q.query(ctx, q.getBlocksMissingExtraInfoStmt, getBlocksMissingExtraInfo, arg.ChainID, arg.FromHeight)
 	if err != nil {
 		return nil, fmt.Errorf("executing getBlocksMissingExtraInfo query: %s", err)
 	}

@@ -31,7 +31,7 @@ type SystemStore interface {
 	AreEVMEventsPersisted(context.Context, common.Hash) (bool, error)
 	SaveEVMEvents(context.Context, []tableland.EVMEvent) error
 	GetEVMEvents(context.Context, common.Hash) ([]tableland.EVMEvent, error)
-	GetBlocksMissingExtraInfo(context.Context) ([]int64, error)
+	GetBlocksMissingExtraInfo(context.Context, *int64) ([]int64, error)
 	InsertBlockExtraInfo(context.Context, int64, uint64) error
 	GetBlockExtraInfo(context.Context, int64) (tableland.EVMBlockInfo, error)
 

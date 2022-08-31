@@ -9,6 +9,7 @@ import (
 var fetchBlockExtraInfoDelay = time.Second * 10
 
 func (ef *EventFeed) fetchExtraBlockInfo(ctx context.Context) {
+	var fromHeight *int64
 	for {
 		time.Sleep(fetchBlockExtraInfoDelay)
 
@@ -16,7 +17,7 @@ func (ef *EventFeed) fetchExtraBlockInfo(ctx context.Context) {
 			ef.log.Info().Msg("graceful close of extra block info fetcher")
 			return
 		}
-		blockNumbers, err := ef.systemStore.GetBlocksMissingExtraInfo(ctx)
+		blockNumbers, err := ef.systemStore.GetBlocksMissingExtraInfo(ctx, fromHeight)
 		if err != nil {
 			ef.log.Error().Err(err).Msg("get blocks without extra info")
 			continue
@@ -47,6 +48,9 @@ func (ef *EventFeed) fetchExtraBlockInfo(ctx context.Context) {
 		}
 		for i := 0; i < cap(rateLim); i++ {
 			rateLim <- struct{}{}
+		}
+		if len(blockNumbers) > 0 {
+			fromHeight = &blockNumbers[len(blockNumbers)-1]
 		}
 	}
 }
