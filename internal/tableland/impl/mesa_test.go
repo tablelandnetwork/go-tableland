@@ -756,15 +756,13 @@ func runSQLCountEq(
 		require.NoError(t, err)
 
 		r := &struct {
-			Data struct {
-				Rows [][]interface{} `json:"rows"`
-			} `json:"data"`
+			Rows [][]interface{} `json:"rows"`
 		}{}
 
 		err = json.Unmarshal(responseInBytes, r)
 		require.NoError(t, err)
 
-		return len(r.Data.Rows) == expCount
+		return len(r.Rows) == expCount
 	}
 }
 

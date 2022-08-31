@@ -92,8 +92,8 @@ type RPCService struct {
 }
 
 // NewRPCService creates a new RPCService.
-func NewRPCService(tbl tableland.Tableland) RPCService {
-	return RPCService{
+func NewRPCService(tbl tableland.Tableland) *RPCService {
+	return &RPCService{
 		tbl: tbl,
 	}
 }
@@ -158,17 +158,18 @@ func (rs *RPCService) GetReceipt(
 	if err != nil {
 		return GetReceiptResponse{}, fmt.Errorf("calling GetReceipt: %v", err)
 	}
-	return GetReceiptResponse{
-		Ok: ok,
-		Receipt: &TxnReceipt{
+	ret := GetReceiptResponse{Ok: ok}
+	if ok {
+		ret.Receipt = &TxnReceipt{
 			ChainID:       int64(receipt.ChainID),
 			TxnHash:       receipt.TxnHash,
 			BlockNumber:   receipt.BlockNumber,
 			TableID:       receipt.TableID,
 			Error:         receipt.Error,
 			ErrorEventIdx: receipt.ErrorEventIdx,
-		},
-	}, nil
+		}
+	}
+	return ret, nil
 }
 
 // SetController allows users to the controller for a token id.
