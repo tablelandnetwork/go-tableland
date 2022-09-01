@@ -166,7 +166,7 @@
       },
       "gridPos": {
         "h": 7,
-        "w": 15,
+        "w": 17,
         "x": 6,
         "y": 1
       },
@@ -500,7 +500,7 @@
       },
       "gridPos": {
         "h": 7,
-        "w": 7,
+        "w": 6,
         "x": 17,
         "y": 8
       },
@@ -534,6 +534,70 @@
       "type": "timeseries"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P1809F7CD0C75ACF3"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "dark-red",
+                "value": 18000
+              }
+            ]
+          },
+          "unit": "dtdurations"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 0,
+        "y": 15
+      },
+      "id": 82,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {},
+        "textMode": "auto"
+      },
+      "pluginVersion": "9.0.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P1809F7CD0C75ACF3"
+          },
+          "expr": "time() - tableland_backup_last_execution",
+          "refId": "A"
+        }
+      ],
+      "title": "Last backup",
+      "type": "stat"
+    },
+    {
       "collapsed": false,
       "datasource": {
         "type": "datasource",
@@ -543,7 +607,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 15
+        "y": 20
       },
       "id": 48,
       "panels": [],
@@ -615,7 +679,7 @@
         "h": 9,
         "w": 6,
         "x": 0,
-        "y": 16
+        "y": 21
       },
       "id": 46,
       "options": {
@@ -703,7 +767,7 @@
         "h": 9,
         "w": 6,
         "x": 6,
-        "y": 16
+        "y": 21
       },
       "id": 51,
       "options": {
@@ -796,7 +860,7 @@
         "h": 9,
         "w": 6,
         "x": 12,
-        "y": 16
+        "y": 21
       },
       "id": 49,
       "options": {
@@ -888,7 +952,7 @@
         "h": 9,
         "w": 6,
         "x": 18,
-        "y": 16
+        "y": 21
       },
       "id": 52,
       "options": {
@@ -936,7 +1000,7 @@
         "h": 7,
         "w": 6,
         "x": 0,
-        "y": 25
+        "y": 30
       },
       "heatmap": {},
       "hideZeroBuckets": true,
@@ -996,7 +1060,7 @@
         "h": 7,
         "w": 6,
         "x": 6,
-        "y": 25
+        "y": 30
       },
       "heatmap": {},
       "hideZeroBuckets": true,
@@ -1074,7 +1138,7 @@
         "h": 7,
         "w": 4,
         "x": 12,
-        "y": 25
+        "y": 30
       },
       "id": 50,
       "options": {
@@ -1119,7 +1183,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 32
+        "y": 37
       },
       "id": 8,
       "panels": [],
@@ -1211,7 +1275,7 @@
         "h": 8,
         "w": 6,
         "x": 0,
-        "y": 33
+        "y": 38
       },
       "id": 37,
       "options": {
@@ -1319,7 +1383,7 @@
         "h": 8,
         "w": 6,
         "x": 6,
-        "y": 33
+        "y": 38
       },
       "id": 79,
       "options": {
@@ -1411,7 +1475,7 @@
         "h": 8,
         "w": 6,
         "x": 12,
-        "y": 33
+        "y": 38
       },
       "id": 15,
       "options": {
@@ -1519,7 +1583,7 @@
         "h": 8,
         "w": 6,
         "x": 0,
-        "y": 41
+        "y": 46
       },
       "id": 80,
       "options": {
@@ -1611,7 +1675,7 @@
         "h": 8,
         "w": 6,
         "x": 6,
-        "y": 41
+        "y": 46
       },
       "id": 6,
       "options": {
@@ -1703,7 +1767,7 @@
         "h": 8,
         "w": 6,
         "x": 12,
-        "y": 41
+        "y": 46
       },
       "id": 56,
       "maxDataPoints": 25,
@@ -1746,7 +1810,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 49
+        "y": 54
       },
       "id": 12,
       "panels": [],
@@ -1821,7 +1885,7 @@
         "h": 8,
         "w": 6,
         "x": 0,
-        "y": 50
+        "y": 55
       },
       "id": 17,
       "options": {
@@ -1913,7 +1977,7 @@
         "h": 8,
         "w": 6,
         "x": 6,
-        "y": 50
+        "y": 55
       },
       "id": 57,
       "maxDataPoints": 25,
@@ -2008,7 +2072,7 @@
         "h": 8,
         "w": 6,
         "x": 0,
-        "y": 58
+        "y": 63
       },
       "id": 74,
       "maxDataPoints": 25,
@@ -2116,7 +2180,7 @@
         "h": 8,
         "w": 6,
         "x": 6,
-        "y": 58
+        "y": 63
       },
       "id": 75,
       "maxDataPoints": 25,
@@ -2172,7 +2236,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 66
+        "y": 71
       },
       "id": 60,
       "panels": [
@@ -2285,7 +2349,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 67
+        "y": 72
       },
       "id": 4,
       "panels": [],
@@ -2362,7 +2426,7 @@
         "h": 8,
         "w": 6,
         "x": 0,
-        "y": 68
+        "y": 73
       },
       "id": 72,
       "options": {
@@ -2455,7 +2519,7 @@
         "h": 8,
         "w": 6,
         "x": 6,
-        "y": 68
+        "y": 73
       },
       "id": 76,
       "options": {
@@ -2548,7 +2612,7 @@
         "h": 8,
         "w": 6,
         "x": 12,
-        "y": 68
+        "y": 73
       },
       "id": 77,
       "options": {
@@ -2641,7 +2705,7 @@
         "h": 8,
         "w": 6,
         "x": 18,
-        "y": 68
+        "y": 73
       },
       "id": 78,
       "options": {
@@ -2682,13 +2746,13 @@
     "list": []
   },
   "time": {
-    "from": "now-1h",
+    "from": "now-6h",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Validator",
   "uid": "2Le7qt_7z",
-  "version": 8,
+  "version": 4,
   "weekStart": ""
 }
