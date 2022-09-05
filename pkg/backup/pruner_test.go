@@ -2,7 +2,6 @@ package backup
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -28,7 +27,7 @@ func testPruner(t *testing.T, n, keep int) {
 	dir := t.TempDir()
 	modTime := make([]int64, n)
 	for i := 0; i < n; i++ {
-		f, err := ioutil.TempFile(dir, fmt.Sprintf("%s*.db", BackupFilenamePrefix))
+		f, err := os.CreateTemp(dir, fmt.Sprintf("%s*.db", BackupFilenamePrefix))
 		require.NoError(t, err)
 
 		fi, err := f.Stat()

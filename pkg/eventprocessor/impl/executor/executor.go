@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
+	"github.com/textileio/go-tableland/pkg/tables"
 )
 
 // Executor provides a safe way of executing events contained in an EVM blockchain block.
@@ -51,7 +51,7 @@ type BlockScope interface {
 
 // TxnExecutionResult contains the result of executing a txn with all contained events.
 type TxnExecutionResult struct {
-	TableID *tableland.TableID
+	TableID *tables.TableID
 
 	Error         *string
 	ErrorEventIdx *int

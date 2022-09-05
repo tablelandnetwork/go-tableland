@@ -12,6 +12,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
+	"github.com/textileio/go-tableland/pkg/tables"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 )
 
@@ -161,7 +162,7 @@ func TestRunSQL_OneEventPerTxn(t *testing.T) {
 		systemStore, err := system.New(dbURI, tableland.ChainID(chainID))
 		require.NoError(t, err)
 
-		tableID, _ := tableland.NewTableID("100")
+		tableID, _ := tables.NewTableID("100")
 		{
 			aclRow, err := systemStore.GetACLOnTableByController(
 				ctx,
@@ -205,7 +206,7 @@ func TestRunSQL_OneEventPerTxn(t *testing.T) {
 		systemStore, err := system.New(dbURI, tableland.ChainID(chainID))
 		require.NoError(t, err)
 
-		tableID, _ := tableland.NewTableID("100")
+		tableID, _ := tables.NewTableID("100")
 		{
 			aclRow, err := systemStore.GetACLOnTableByController(
 				ctx,

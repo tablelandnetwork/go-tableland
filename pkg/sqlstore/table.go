@@ -5,11 +5,12 @@ import (
 	"time"
 
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/tables"
 )
 
 // Table represents a system-wide table stored in Tableland.
 type Table struct {
-	ID         tableland.TableID `json:"id"` // table id
+	ID         tables.TableID    `json:"id"` // table id
 	ChainID    tableland.ChainID `json:"chain_id"`
 	Controller string            `json:"controller"` // controller address
 	Prefix     string            `json:"prefix"`
@@ -55,7 +56,7 @@ type TableMetadataAttribute struct {
 type SystemACL struct {
 	Controller string
 	ChainID    tableland.ChainID
-	TableID    tableland.TableID
+	TableID    tables.TableID
 	Privileges tableland.Privileges
 	CreatedAt  time.Time
 	UpdatedAt  *time.Time

@@ -98,7 +98,7 @@ func (c *Client) IsOwner(context context.Context, addr common.Address, id *big.I
 func (c *Client) RunSQL(
 	ctx context.Context,
 	addr common.Address,
-	table tableland.TableID,
+	table tables.TableID,
 	statement string,
 ) (tables.Transaction, error) {
 	gasPrice, err := c.backend.SuggestGasPrice(ctx)
@@ -140,7 +140,7 @@ func (c *Client) RunSQL(
 func (c *Client) SetController(
 	ctx context.Context,
 	caller common.Address,
-	table tableland.TableID,
+	table tables.TableID,
 	controller common.Address,
 ) (tables.Transaction, error) {
 	gasPrice, err := c.backend.SuggestGasPrice(ctx)

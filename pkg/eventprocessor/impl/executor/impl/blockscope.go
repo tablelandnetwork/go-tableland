@@ -60,10 +60,10 @@ func newBlockScope(
 //
 // If the events execution is successful, it returns the result.
 // If the events execution isn't successful, we have two cases:
-// 1) If caused by controlled error (e.g: invalid SQL), it will return a (res, nil) where
-//    res contains the error message.
-// 2) If caused by uncontrolled error (e.g: can't access the DB), it returns ({}, err). The caller should retry
-//    executing this transaction events when the underlying infrastructure problem is solved.
+//  1. If caused by controlled error (e.g: invalid SQL), it will return a (res, nil) where
+//     res contains the error message.
+//  2. If caused by uncontrolled error (e.g: can't access the DB), it returns ({}, err). The caller should retry
+//     executing this transaction events when the underlying infrastructure problem is solved.
 func (bs *blockScope) ExecuteTxnEvents(
 	ctx context.Context,
 	evmTxn eventfeed.TxnEvents,

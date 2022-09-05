@@ -9,6 +9,7 @@ import (
 	"github.com/textileio/go-tableland/internal/system"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
+	"github.com/textileio/go-tableland/pkg/tables"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
@@ -39,7 +40,7 @@ func NewInstrumentedSystemSQLStoreService(system system.SystemService) (system.S
 // GetTableMetadata returns table's metadata fetched from SQLStore.
 func (s *InstrumentedSystemSQLStoreService) GetTableMetadata(
 	ctx context.Context,
-	id tableland.TableID,
+	id tables.TableID,
 ) (sqlstore.TableMetadata, error) {
 	start := time.Now()
 	metadata, err := s.system.GetTableMetadata(ctx, id)

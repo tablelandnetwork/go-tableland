@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
+	"github.com/textileio/go-tableland/pkg/tables"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 )
 
@@ -24,7 +25,7 @@ func (ts *txnScope) executeRunSQLEvent(
 		err := fmt.Sprintf("parsing query: %s", err)
 		return eventExecutionResult{Error: &err}, nil
 	}
-	tableID := tableland.TableID(*e.TableId)
+	tableID := tables.TableID(*e.TableId)
 	targetedTableID := mutatingStmts[0].GetTableID()
 	if targetedTableID.ToBigInt().Cmp(tableID.ToBigInt()) != 0 {
 		err := fmt.Sprintf("query targets table id %s and not %s", targetedTableID, tableID)
@@ -124,7 +125,7 @@ func (ts *txnScope) executeGrantStmt(
 
 func (ts *txnScope) executeGrantPrivilegesTx(
 	ctx context.Context,
-	id tableland.TableID,
+	id tables.TableID,
 	addr common.Address,
 	privileges tableland.Privileges,
 ) error {
@@ -168,7 +169,7 @@ func (ts *txnScope) executeGrantPrivilegesTx(
 
 func (ts *txnScope) executeRevokePrivilegesTx(
 	ctx context.Context,
-	id tableland.TableID,
+	id tables.TableID,
 	addr common.Address,
 	privileges tableland.Privileges,
 ) error {
@@ -441,7 +442,7 @@ func (ts *txnScope) applyPolicy(ws parsing.WriteStmt, policy tableland.Policy) e
 // getController gets the controller for a given table.
 func (ts *txnScope) getController(
 	ctx context.Context,
-	tableID tableland.TableID,
+	tableID tables.TableID,
 ) (string, error) {
 	q := "SELECT controller FROM system_controller where chain_id=?1 AND table_id=?2"
 	r := ts.txn.QueryRowContext(ctx, q, ts.scopeVars.ChainID, tableID.ToBigInt().Uint64())
@@ -476,7 +477,7 @@ func getTablePrefixAndRowCountByTableID(
 	ctx context.Context,
 	tx *sql.Tx,
 	chainID tableland.ChainID,
-	tableID tableland.TableID,
+	tableID tables.TableID,
 	dbTableName string,
 ) (string, int, error) {
 	q := fmt.Sprintf(

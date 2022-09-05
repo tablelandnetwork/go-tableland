@@ -29,7 +29,7 @@ func (acl *acl) CheckPrivileges(
 	ctx context.Context,
 	tx *sql.Tx,
 	controller common.Address,
-	id tableland.TableID,
+	id tables.TableID,
 	op tableland.Operation,
 ) (bool, error) {
 	aclRule, err := acl.store.WithTx(tx).GetACLOnTableByController(ctx, id, controller.String())

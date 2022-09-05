@@ -1,7 +1,6 @@
 package backup
 
 import (
-	"io/ioutil"
 	"os"
 	"path"
 	"testing"
@@ -12,7 +11,7 @@ import (
 func createControlDatabase(t *testing.T) DB {
 	t.Helper()
 
-	f, err := ioutil.TempFile(t.TempDir(), "control_*.db")
+	f, err := os.CreateTemp(t.TempDir(), "control_*.db")
 	require.NoError(t, err)
 	require.NoError(t, f.Close())
 
@@ -35,7 +34,7 @@ func backupDir(t *testing.T) string {
 
 func requireFileCount(t *testing.T, dir string, counter int) {
 	t.Helper()
-	files, err := ioutil.ReadDir(dir)
+	files, err := os.ReadDir(dir)
 	require.NoError(t, err)
 	require.Len(t, files, counter)
 }

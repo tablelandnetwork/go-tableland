@@ -10,6 +10,7 @@ import (
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	parser "github.com/textileio/go-tableland/pkg/parsing/impl"
+	"github.com/textileio/go-tableland/pkg/tables"
 )
 
 func TestReadRunSQL(t *testing.T) {
@@ -634,7 +635,7 @@ func TestCreateTableResult(t *testing.T) {
 				require.Equal(t, tc.expPrefix, cs.GetPrefix())
 				require.Equal(t, tc.expStructureHash, cs.GetStructureHash())
 				for _, erq := range tc.expRawQueries {
-					rq, err := cs.GetRawQueryForTableID(tableland.TableID(*big.NewInt(erq.id)))
+					rq, err := cs.GetRawQueryForTableID(tables.TableID(*big.NewInt(erq.id)))
 					require.NoError(t, err)
 					require.Equal(t, erq.rawQuery, rq)
 				}

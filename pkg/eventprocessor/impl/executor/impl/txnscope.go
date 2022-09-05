@@ -10,6 +10,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor"
 	"github.com/textileio/go-tableland/pkg/parsing"
+	"github.com/textileio/go-tableland/pkg/tables"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 )
 
@@ -41,7 +42,7 @@ type txnScope struct {
 }
 
 type eventExecutionResult struct {
-	TableID *tableland.TableID
+	TableID *tables.TableID
 	Error   *string
 }
 

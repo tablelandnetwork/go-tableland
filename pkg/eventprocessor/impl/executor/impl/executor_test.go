@@ -15,6 +15,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
+	"github.com/textileio/go-tableland/pkg/tables"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 	"github.com/textileio/go-tableland/tests"
 )
@@ -212,7 +213,7 @@ func newExecutorWithTable(t *testing.T, rowsLimit int) (*Executor, string) {
 	bs := ibs.(*blockScope)
 
 	// Pre-bake a table with ID 100.
-	id, err := tableland.NewTableID("100")
+	id, err := tables.NewTableID("100")
 	require.NoError(t, err)
 	require.NoError(t, err)
 	res, err := bs.ExecuteTxnEvents(ctx, eventfeed.TxnEvents{
@@ -258,7 +259,7 @@ func (acl *aclMock) CheckPrivileges(
 	ctx context.Context,
 	tx *sql.Tx,
 	controller common.Address,
-	id tableland.TableID,
+	id tables.TableID,
 	op tableland.Operation,
 ) (bool, error) {
 	return true, nil

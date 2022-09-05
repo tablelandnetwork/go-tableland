@@ -7,8 +7,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/system"
-	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/errors"
+	"github.com/textileio/go-tableland/pkg/tables"
 )
 
 // SystemController defines the HTTP handlers for interacting with system operations.
@@ -27,7 +27,7 @@ func (c *SystemController) GetTable(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-type", "application/json")
 	vars := mux.Vars(r)
 
-	id, err := tableland.NewTableID(vars["id"])
+	id, err := tables.NewTableID(vars["id"])
 	if err != nil {
 		rw.WriteHeader(http.StatusBadRequest)
 		log.Ctx(ctx).

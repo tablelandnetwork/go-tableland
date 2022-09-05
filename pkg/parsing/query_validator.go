@@ -6,6 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/tables"
 )
 
 // Stmt represents any valid read or mutating query.
@@ -22,7 +23,7 @@ type MutatingStmt interface {
 	// Since the prefix is optional, it can return "".
 	GetPrefix() string
 	// GetTableID returns the table id. "insert into foo_100" -> 100.
-	GetTableID() tableland.TableID
+	GetTableID() tables.TableID
 
 	// Operation returns the type of the operation.
 	Operation() tableland.Operation
@@ -77,7 +78,7 @@ type CreateStmt interface {
 	// from the user, and replaces the referenced table name with
 	// the correct name from an id.
 	// e.g: "create table Person_69 (...)"(100) -> "create table Person_69_100 (...)".
-	GetRawQueryForTableID(tableland.TableID) (string, error)
+	GetRawQueryForTableID(tables.TableID) (string, error)
 	// GetStructureHash returns a structure fingerprint of the table, considering
 	// the ordered set of columns and types as defined in the spec.
 	GetStructureHash() string

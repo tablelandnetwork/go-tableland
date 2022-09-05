@@ -10,18 +10,23 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/hetiansu5/urlquery"
 	"github.com/rs/zerolog/log"
-	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/errors"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
+	"github.com/textileio/go-tableland/pkg/tables"
 )
+
+// SQLRunner defines the run SQL interface of Tableland.
+type SQLRunner interface {
+	RunReadQuery(ctx context.Context, stmt string) (interface{}, error)
+}
 
 // UserController defines the HTTP handlers for interacting with user tables.
 type UserController struct {
-	runner tableland.SQLRunner
+	runner SQLRunner
 }
 
 // NewUserController creates a new UserController.
-func NewUserController(runner tableland.SQLRunner) *UserController {
+func NewUserController(runner SQLRunner) *UserController {
 	return &UserController{runner}
 }
 
@@ -124,7 +129,7 @@ func (c *UserController) GetTableRow(rw http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	format := r.URL.Query().Get("format")
 
-	id, err := tableland.NewTableID(vars["id"])
+	id, err := tables.NewTableID(vars["id"])
 	if err != nil {
 		rw.WriteHeader(http.StatusBadRequest)
 		log.Ctx(r.Context()).
@@ -320,15 +325,12 @@ func (c *UserController) runReadRequest(
 	stm string,
 	rw http.ResponseWriter,
 ) (*sqlstore.UserRows, bool) {
-	req := tableland.RunReadQueryRequest{
-		Statement: stm,
-	}
-	res, err := c.runner.RunReadQuery(ctx, req)
+	res, err := c.runner.RunReadQuery(ctx, stm)
 	if err != nil {
 		rw.WriteHeader(http.StatusBadRequest)
 		log.Ctx(ctx).
 			Error().
-			Str("sql_request", req.Statement).
+			Str("sql_request", stm).
 			Err(err).
 			Msg("executing read query")
 
@@ -336,7 +338,7 @@ func (c *UserController) runReadRequest(
 		return nil, false
 	}
 
-	rows, ok := res.Result.(*sqlstore.UserRows)
+	rows, ok := res.(*sqlstore.UserRows)
 	if !ok {
 		rw.WriteHeader(http.StatusBadRequest)
 		log.Ctx(ctx).

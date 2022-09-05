@@ -22,7 +22,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/chains"
-	"github.com/textileio/go-tableland/internal/router/middlewares"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
@@ -34,6 +33,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
+	"github.com/textileio/go-tableland/pkg/tables"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/tables/impl/testutil"
 	"github.com/textileio/go-tableland/pkg/wallet"
@@ -48,7 +48,7 @@ func TestTodoAppWorkflow(t *testing.T) {
 		build(t)
 	tablelandClient := setup.newTablelandClient(t)
 
-	ctx, backend, sc := setup.ctx, setup.ethClient, setup.contract
+	ctx, chainID, backend, sc := setup.ctx, setup.chainID, setup.ethClient, setup.contract
 	tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
 
 	caller := txOpts.From
@@ -61,7 +61,7 @@ func TestTodoAppWorkflow(t *testing.T) {
 		  );`)
 	require.NoError(t, err)
 
-	processCSV(ctx, t, caller, tbld, "testdata/todoapp_queries.csv", backend)
+	processCSV(ctx, t, chainID, caller, tbld, "testdata/todoapp_queries.csv", backend)
 }
 
 func TestAny(t *testing.T) {
@@ -72,7 +72,7 @@ func TestAny(t *testing.T) {
 		build(t)
 	tablelandClient := setup.newTablelandClient(t)
 
-	ctx, backend, sc := setup.ctx, setup.ethClient, setup.contract
+	ctx, chainID, backend, sc := setup.ctx, setup.chainID, setup.ethClient, setup.contract
 	tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
 
 	caller := txOpts.From
@@ -82,7 +82,7 @@ func TestAny(t *testing.T) {
 		  );`)
 	require.NoError(t, err)
 
-	processCSV(ctx, t, caller, tbld, "testdata/any_queries.csv", backend)
+	processCSV(ctx, t, chainID, caller, tbld, "testdata/any_queries.csv", backend)
 }
 
 func TestInsertOnConflict(t *testing.T) {
@@ -96,7 +96,7 @@ func TestInsertOnConflict(t *testing.T) {
 		build(t)
 	tablelandClient := setup.newTablelandClient(t)
 
-	ctx, backend, sc := setup.ctx, setup.ethClient, setup.contract
+	ctx, chainID, backend, sc := setup.ctx, setup.chainID, setup.ethClient, setup.contract
 	tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
 
 	caller := txOpts.From
@@ -108,26 +108,26 @@ func TestInsertOnConflict(t *testing.T) {
 	require.NoError(t, err)
 	backend.Commit()
 
-	ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller.Hex())
-	baseReq := tableland.RelayWriteQueryRequest{}
-	req := baseReq
 	var txnHashes []string
 	for i := 0; i < 10; i++ {
-		req.Statement = `INSERT INTO foo_1337_1 VALUES ('bar', 0) ON CONFLICT (name) DO UPDATE SET count=_1.count+1`
-		r, err := tbld.RelayWriteQuery(ctx, req)
+		txn, err := tbld.RelayWriteQuery(
+			ctx,
+			chainID,
+			caller,
+			`INSERT INTO foo_1337_1 VALUES ('bar', 0) ON CONFLICT (name) DO UPDATE SET count=_1.count+1`,
+		)
 		require.NoError(t, err)
 		backend.Commit()
-		txnHashes = append(txnHashes, r.Transaction.Hash)
+		txnHashes = append(txnHashes, txn.Hash().Hex())
 	}
 
-	readReq := tableland.RunReadQueryRequest{Statement: "SELECT count FROM foo_1337_1"}
 	require.Eventually(
 		t,
-		jsonEq(ctx, t, tbld, readReq, `{"columns":[{"name":"count"}],"rows":[[9]]}`),
+		jsonEq(ctx, t, tbld, "SELECT count FROM foo_1337_1", `{"columns":[{"name":"count"}],"rows":[[9]]}`),
 		time.Second*5,
 		time.Millisecond*100,
 	)
-	requireReceipts(ctx, t, tbld, txnHashes, true)
+	requireReceipts(ctx, t, tbld, chainID, txnHashes, true)
 }
 
 func TestMultiStatement(t *testing.T) {
@@ -138,7 +138,7 @@ func TestMultiStatement(t *testing.T) {
 		build(t)
 	tablelandClient := setup.newTablelandClient(t)
 
-	ctx, backend, sc := setup.ctx, setup.ethClient, setup.contract
+	ctx, chainID, backend, sc := setup.ctx, setup.chainID, setup.ethClient, setup.contract
 	tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
 	caller := txOpts.From
 
@@ -148,22 +148,22 @@ func TestMultiStatement(t *testing.T) {
 		);`)
 	require.NoError(t, err)
 
-	ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller.Hex())
-	req := tableland.RelayWriteQueryRequest{
-		Statement: `INSERT INTO foo_1337_1 values ('bar'); UPDATE foo_1337_1 SET name='zoo'`,
-	}
-	r, err := tbld.RelayWriteQuery(ctx, req)
+	r, err := tbld.RelayWriteQuery(
+		ctx,
+		chainID,
+		caller,
+		`INSERT INTO foo_1337_1 values ('bar'); UPDATE foo_1337_1 SET name='zoo'`,
+	)
 	require.NoError(t, err)
 	backend.Commit()
 
-	readReq := tableland.RunReadQueryRequest{Statement: "SELECT name from foo_1337_1"}
 	require.Eventually(
 		t,
-		jsonEq(ctx, t, tbld, readReq, `{"columns":[{"name":"name"}],"rows":[["zoo"]]}`),
+		jsonEq(ctx, t, tbld, "SELECT name from foo_1337_1", `{"columns":[{"name":"name"}],"rows":[["zoo"]]}`),
 		time.Second*5,
 		time.Millisecond*100,
 	)
-	requireReceipts(ctx, t, tbld, []string{r.Transaction.Hash}, true)
+	requireReceipts(ctx, t, tbld, chainID, []string{r.Hash().Hex()}, true)
 }
 
 func TestReadSystemTable(t *testing.T) {
@@ -181,9 +181,9 @@ func TestReadSystemTable(t *testing.T) {
 	_, err := sc.CreateTable(txOpts, caller, `CREATE TABLE foo_1337 (myjson TEXT);`)
 	require.NoError(t, err)
 
-	res, err := runReadQuery(ctx, t, tbld, "select * from registry", caller.Hex())
+	res, err := runReadQuery(ctx, t, tbld, "select * from registry")
 	require.NoError(t, err)
-	_, err = json.Marshal(res.Result)
+	_, err = json.Marshal(res)
 	require.NoError(t, err)
 }
 
@@ -195,14 +195,14 @@ func TestJSON(t *testing.T) {
 		build(t)
 	tablelandClient := setup.newTablelandClient(t)
 
-	ctx, backend, sc := setup.ctx, setup.ethClient, setup.contract
+	ctx, chainID, backend, sc := setup.ctx, setup.chainID, setup.ethClient, setup.contract
 	tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
 	caller := txOpts.From
 
 	_, err := sc.CreateTable(txOpts, caller, `CREATE TABLE foo_1337 (myjson TEXT);`)
 	require.NoError(t, err)
 
-	processCSV(ctx, t, caller, tbld, "testdata/json_queries.csv", backend)
+	processCSV(ctx, t, chainID, caller, tbld, "testdata/json_queries.csv", backend)
 }
 
 func TestCheckInsertPrivileges(t *testing.T) {
@@ -237,14 +237,14 @@ func TestCheckInsertPrivileges(t *testing.T) {
 				granterSetup := setup.newTablelandClient(t)
 				granteeSetup := setup.newTablelandClient(t)
 
-				ctx, backend, sc := setup.ctx, setup.ethClient, setup.contract
+				ctx, chainID, backend, sc := setup.ctx, setup.chainID, setup.ethClient, setup.contract
 				tbldGranter, txOptsGranter := granterSetup.tableland, granterSetup.txOpts
 				tbldGrantee, txOptsGrantee := granteeSetup.tableland, granteeSetup.txOpts
 
-				granter := txOptsGranter.From.Hex()
-				grantee := txOptsGrantee.From.Hex()
+				granter := txOptsGranter.From
+				grantee := txOptsGrantee.From
 
-				_, err := sc.CreateTable(txOptsGranter, common.HexToAddress(granter), `CREATE TABLE foo_1337 (bar text);`)
+				_, err := sc.CreateTable(txOptsGranter, granter, `CREATE TABLE foo_1337 (bar text);`)
 				require.NoError(t, err)
 				backend.Commit()
 
@@ -257,29 +257,29 @@ func TestCheckInsertPrivileges(t *testing.T) {
 
 					// execute grant statement according to test case
 					grantQuery := fmt.Sprintf("GRANT %s ON foo_1337_1 TO '%s'", strings.Join(privileges, ","), grantee)
-					r, err := relayWriteQuery(ctx, t, tbldGranter, grantQuery, granter)
+					txn, err := relayWriteQuery(ctx, t, chainID, tbldGranter, grantQuery, granter)
 					require.NoError(t, err)
 					backend.Commit()
-					successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
+					successfulTxnHashes = append(successfulTxnHashes, txn.Hash().Hex())
 				}
 
-				r, err := relayWriteQuery(ctx, t, tbldGrantee, test.query, grantee)
+				txn, err := relayWriteQuery(ctx, t, chainID, tbldGrantee, test.query, grantee)
 				require.NoError(t, err)
 				backend.Commit()
 
 				testQuery := "SELECT * FROM foo_1337_1 WHERE bar ='Hello';"
 				if test.isAllowed {
 					require.Eventually(t,
-						runSQLCountEq(ctx, t, tbldGrantee, testQuery, grantee, 1),
+						runSQLCountEq(ctx, t, tbldGrantee, testQuery, 1),
 						5*time.Second,
 						100*time.Millisecond,
 					)
-					successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
-					requireReceipts(ctx, t, tbldGrantee, successfulTxnHashes, true)
+					successfulTxnHashes = append(successfulTxnHashes, txn.Hash().Hex())
+					requireReceipts(ctx, t, tbldGrantee, chainID, successfulTxnHashes, true)
 				} else {
-					require.Never(t, runSQLCountEq(ctx, t, tbldGrantee, testQuery, grantee, 1), 5*time.Second, 100*time.Millisecond)
-					requireReceipts(ctx, t, tbldGrantee, successfulTxnHashes, true)
-					requireReceipts(ctx, t, tbldGrantee, []string{r.Transaction.Hash}, false)
+					require.Never(t, runSQLCountEq(ctx, t, tbldGrantee, testQuery, 1), 5*time.Second, 100*time.Millisecond)
+					requireReceipts(ctx, t, tbldGrantee, chainID, successfulTxnHashes, true)
+					requireReceipts(ctx, t, tbldGrantee, chainID, []string{txn.Hash().Hex()}, false)
 				}
 			}
 		}(test))
@@ -318,23 +318,23 @@ func TestCheckUpdatePrivileges(t *testing.T) {
 				granterSetup := setup.newTablelandClient(t)
 				granteeSetup := setup.newTablelandClient(t)
 
-				ctx, backend, sc := setup.ctx, setup.ethClient, setup.contract
+				ctx, chainID, backend, sc := setup.ctx, setup.chainID, setup.ethClient, setup.contract
 				tbldGranter, txOptsGranter := granterSetup.tableland, granterSetup.txOpts
 				tbldGrantee, txOptsGrantee := granteeSetup.tableland, granteeSetup.txOpts
 
-				granter := txOptsGranter.From.Hex()
-				grantee := txOptsGrantee.From.Hex()
+				granter := txOptsGranter.From
+				grantee := txOptsGrantee.From
 
-				_, err := sc.CreateTable(txOptsGranter, common.HexToAddress(granter), `CREATE TABLE foo_1337 (bar text);`)
+				_, err := sc.CreateTable(txOptsGranter, granter, `CREATE TABLE foo_1337 (bar text);`)
 				require.NoError(t, err)
 				backend.Commit()
 				var successfulTxnHashes []string
 
 				// we initilize the table with a row to be updated
-				r, err := relayWriteQuery(ctx, t, tbldGranter, "INSERT INTO foo_1337_1 (bar) VALUES ('Hello')", granter) // nolint
+				txn, err := relayWriteQuery(ctx, t, chainID, tbldGranter, "INSERT INTO foo_1337_1 (bar) VALUES ('Hello')", granter) // nolint
 				require.NoError(t, err)
 				backend.Commit()
-				successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
+				successfulTxnHashes = append(successfulTxnHashes, txn.Hash().Hex())
 
 				if len(test.privileges) > 0 {
 					privileges := make([]string, len(test.privileges))
@@ -344,29 +344,29 @@ func TestCheckUpdatePrivileges(t *testing.T) {
 
 					// execute grant statement according to test case
 					grantQuery := fmt.Sprintf("GRANT %s ON foo_1337_1 TO '%s'", strings.Join(privileges, ","), grantee)
-					r, err := relayWriteQuery(ctx, t, tbldGranter, grantQuery, granter)
+					txn, err := relayWriteQuery(ctx, t, chainID, tbldGranter, grantQuery, granter)
 					require.NoError(t, err)
 					backend.Commit()
-					successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
+					successfulTxnHashes = append(successfulTxnHashes, txn.Hash().Hex())
 				}
 
-				r, err = relayWriteQuery(ctx, t, tbldGrantee, test.query, grantee)
+				txn, err = relayWriteQuery(ctx, t, chainID, tbldGrantee, test.query, grantee)
 				require.NoError(t, err)
 				backend.Commit()
 
 				testQuery := "SELECT * FROM foo_1337_1 WHERE bar='Hello 2';"
 				if test.isAllowed {
 					require.Eventually(t,
-						runSQLCountEq(ctx, t, tbldGrantee, testQuery, grantee, 1),
+						runSQLCountEq(ctx, t, tbldGrantee, testQuery, 1),
 						5*time.Second,
 						100*time.Millisecond,
 					)
-					successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
-					requireReceipts(ctx, t, tbldGrantee, successfulTxnHashes, true)
+					successfulTxnHashes = append(successfulTxnHashes, txn.Hash().Hex())
+					requireReceipts(ctx, t, tbldGrantee, chainID, successfulTxnHashes, true)
 				} else {
-					require.Never(t, runSQLCountEq(ctx, t, tbldGrantee, testQuery, grantee, 1), 5*time.Second, 100*time.Millisecond)
-					requireReceipts(ctx, t, tbldGrantee, successfulTxnHashes, true)
-					requireReceipts(ctx, t, tbldGrantee, []string{r.Transaction.Hash}, false)
+					require.Never(t, runSQLCountEq(ctx, t, tbldGrantee, testQuery, 1), 5*time.Second, 100*time.Millisecond)
+					requireReceipts(ctx, t, tbldGrantee, chainID, successfulTxnHashes, true)
+					requireReceipts(ctx, t, tbldGrantee, chainID, []string{txn.Hash().Hex()}, false)
 				}
 			}
 		}(test))
@@ -405,19 +405,19 @@ func TestCheckDeletePrivileges(t *testing.T) {
 				granterSetup := setup.newTablelandClient(t)
 				granteeSetup := setup.newTablelandClient(t)
 
-				ctx, backend, sc := setup.ctx, setup.ethClient, setup.contract
+				ctx, chainID, backend, sc := setup.ctx, setup.chainID, setup.ethClient, setup.contract
 				tbldGranter, txOptsGranter := granterSetup.tableland, granterSetup.txOpts
 				tbldGrantee, txOptsGrantee := granteeSetup.tableland, granteeSetup.txOpts
 
-				granter := txOptsGranter.From.Hex()
-				grantee := txOptsGrantee.From.Hex()
+				granter := txOptsGranter.From
+				grantee := txOptsGrantee.From
 
-				_, err := sc.CreateTable(txOptsGranter, common.HexToAddress(granter), `CREATE TABLE foo_1337 (bar text);`)
+				_, err := sc.CreateTable(txOptsGranter, granter, `CREATE TABLE foo_1337 (bar text);`)
 				require.NoError(t, err)
 				var successfulTxnHashes []string
 
 				// we initilize the table with a row to be delete
-				_, err = relayWriteQuery(ctx, t, tbldGranter, "INSERT INTO foo_1337_1 (bar) VALUES ('Hello')", granter) // nolint
+				_, err = relayWriteQuery(ctx, t, chainID, tbldGranter, "INSERT INTO foo_1337_1 (bar) VALUES ('Hello')", granter) // nolint
 				require.NoError(t, err)
 				backend.Commit()
 
@@ -429,28 +429,28 @@ func TestCheckDeletePrivileges(t *testing.T) {
 
 					// execute grant statement according to test case
 					grantQuery := fmt.Sprintf("GRANT %s ON foo_1337_1 TO '%s'", strings.Join(privileges, ","), grantee)
-					r, err := relayWriteQuery(ctx, t, tbldGranter, grantQuery, granter)
+					txn, err := relayWriteQuery(ctx, t, chainID, tbldGranter, grantQuery, granter)
 					require.NoError(t, err)
 					backend.Commit()
-					successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
+					successfulTxnHashes = append(successfulTxnHashes, txn.Hash().Hex())
 				}
 
-				r, err := relayWriteQuery(ctx, t, tbldGrantee, test.query, grantee)
+				txn, err := relayWriteQuery(ctx, t, chainID, tbldGrantee, test.query, grantee)
 				require.NoError(t, err)
 				backend.Commit()
 
 				testQuery := "SELECT * FROM foo_1337_1"
 				if test.isAllowed {
 					require.Eventually(t,
-						runSQLCountEq(ctx, t, tbldGrantee, testQuery, grantee, 0),
+						runSQLCountEq(ctx, t, tbldGrantee, testQuery, 0),
 						5*time.Second,
 						100*time.Millisecond,
 					)
-					successfulTxnHashes = append(successfulTxnHashes, r.Transaction.Hash)
-					requireReceipts(ctx, t, tbldGrantee, successfulTxnHashes, true)
+					successfulTxnHashes = append(successfulTxnHashes, txn.Hash().Hex())
+					requireReceipts(ctx, t, tbldGrantee, chainID, successfulTxnHashes, true)
 				} else {
-					require.Never(t, runSQLCountEq(ctx, t, tbldGrantee, testQuery, grantee, 0), 5*time.Second, 100*time.Millisecond)
-					requireReceipts(ctx, t, tbldGrantee, []string{r.Transaction.Hash}, false)
+					require.Never(t, runSQLCountEq(ctx, t, tbldGrantee, testQuery, 0), 5*time.Second, 100*time.Millisecond)
+					requireReceipts(ctx, t, tbldGrantee, chainID, []string{txn.Hash().Hex()}, false)
 				}
 			}
 		}(test))
@@ -465,27 +465,27 @@ func TestOwnerRevokesItsPrivilegeInsideMultipleStatements(t *testing.T) {
 		build(t)
 	tablelandClient := setup.newTablelandClient(t)
 
-	ctx, backend, sc := setup.ctx, setup.ethClient, setup.contract
+	ctx, chainID, backend, sc := setup.ctx, setup.chainID, setup.ethClient, setup.contract
 	tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
-	caller := txOpts.From.Hex()
+	caller := txOpts.From
 
-	_, err := sc.CreateTable(txOpts, common.HexToAddress(caller), `CREATE TABLE foo_1337 (bar text);`)
+	_, err := sc.CreateTable(txOpts, caller, `CREATE TABLE foo_1337 (bar text);`)
 	require.NoError(t, err)
 
 	multiStatements := `
 		INSERT INTO foo_1337_1 (bar) VALUES ('Hello');
 		UPDATE foo_1337_1 SET bar = 'Hello 2';
-		REVOKE update ON foo_1337_1 FROM '` + caller + `';
+		REVOKE update ON foo_1337_1 FROM '` + caller.Hex() + `';
 		UPDATE foo_1337_1 SET bar = 'Hello 3';
 	`
-	r, err := relayWriteQuery(ctx, t, tbld, multiStatements, caller)
+	txn, err := relayWriteQuery(ctx, t, chainID, tbld, multiStatements, caller)
 	require.NoError(t, err)
 	backend.Commit()
 
 	testQuery := "SELECT * FROM foo_1337_1;"
-	cond := runSQLCountEq(ctx, t, tbld, testQuery, caller, 1)
+	cond := runSQLCountEq(ctx, t, tbld, testQuery, 1)
 	require.Never(t, cond, 5*time.Second, 100*time.Millisecond)
-	requireReceipts(ctx, t, tbld, []string{r.Transaction.Hash}, false)
+	requireReceipts(ctx, t, tbld, chainID, []string{txn.Hash().Hex()}, false)
 }
 
 func TestTransferTable(t *testing.T) {
@@ -498,7 +498,7 @@ func TestTransferTable(t *testing.T) {
 	owner1Setup := setup.newTablelandClient(t)
 	owner2Setup := setup.newTablelandClient(t)
 
-	ctx, backend, sc := setup.ctx, setup.ethClient, setup.contract
+	ctx, chainID, backend, sc := setup.ctx, setup.chainID, setup.ethClient, setup.contract
 	tbldOwner1, txOptsOwner1 := owner1Setup.tableland, owner1Setup.txOpts
 	tbldOwner2, txOptsOwner2 := owner2Setup.tableland, owner2Setup.txOpts
 
@@ -511,30 +511,30 @@ func TestTransferTable(t *testing.T) {
 
 	// we'll execute one insert with owner1 and one insert with owner2
 	query1 := "INSERT INTO foo_1337_1 (bar) VALUES ('Hello')"
-	r1, err := relayWriteQuery(ctx, t, tbldOwner1, query1, txOptsOwner1.From.Hex())
+	txn1, err := relayWriteQuery(ctx, t, chainID, tbldOwner1, query1, txOptsOwner1.From)
 	require.NoError(t, err)
 	backend.Commit()
 
 	query2 := "INSERT INTO foo_1337_1 (bar) VALUES ('Hello2')"
-	r2, err := relayWriteQuery(ctx, t, tbldOwner2, query2, txOptsOwner2.From.Hex())
+	txn2, err := relayWriteQuery(ctx, t, chainID, tbldOwner2, query2, txOptsOwner2.From)
 	require.NoError(t, err)
 	backend.Commit()
 
 	// insert from owner1 will NEVER go through
 	require.Never(t,
-		runSQLCountEq(ctx, t, tbldOwner1, "SELECT * FROM foo_1337_1 WHERE bar ='Hello';", txOptsOwner1.From.Hex(), 1),
+		runSQLCountEq(ctx, t, tbldOwner1, "SELECT * FROM foo_1337_1 WHERE bar ='Hello';", 1),
 		5*time.Second,
 		100*time.Millisecond,
 	)
-	requireReceipts(ctx, t, tbldOwner1, []string{r1.Transaction.Hash}, false)
+	requireReceipts(ctx, t, tbldOwner1, chainID, []string{txn1.Hash().Hex()}, false)
 
 	// insert from owner2 will EVENTUALLY go through
 	require.Eventually(t,
-		runSQLCountEq(ctx, t, tbldOwner2, "SELECT * FROM foo_1337_1 WHERE bar ='Hello2';", txOptsOwner2.From.Hex(), 1),
+		runSQLCountEq(ctx, t, tbldOwner2, "SELECT * FROM foo_1337_1 WHERE bar ='Hello2';", 1),
 		5*time.Second,
 		100*time.Millisecond,
 	)
-	requireReceipts(ctx, t, tbldOwner2, []string{r2.Transaction.Hash}, true)
+	requireReceipts(ctx, t, tbldOwner2, chainID, []string{txn2.Hash().Hex()}, true)
 
 	// check registry table new ownership
 	require.Eventually(t,
@@ -542,7 +542,6 @@ func TestTransferTable(t *testing.T) {
 			t,
 			tbldOwner2,
 			fmt.Sprintf("SELECT * FROM registry WHERE controller = '%s' AND id = 1 AND chain_id = 1337", txOptsOwner2.From.Hex()), // nolint
-			txOptsOwner2.From.Hex(),
 			1,
 		),
 		5*time.Second,
@@ -566,7 +565,7 @@ func TestQueryConstraints(t *testing.T) {
 			build(t)
 		tablelandClient := setup.newTablelandClient(t)
 
-		ctx, backend, sc := setup.ctx, setup.ethClient, setup.contract
+		ctx, chainID, backend, sc := setup.ctx, setup.chainID, setup.ethClient, setup.contract
 		tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
 		caller := txOpts.From
 
@@ -574,10 +573,12 @@ func TestQueryConstraints(t *testing.T) {
 		require.NoError(t, err)
 		backend.Commit()
 
-		ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller.Hex())
-		_, err = tbld.RelayWriteQuery(ctx, tableland.RelayWriteQueryRequest{
-			Statement: "INSERT INTO foo_1337_1 (bar) VALUES ('hello')", // length of 45 bytes
-		})
+		_, err = tbld.RelayWriteQuery(
+			ctx,
+			chainID,
+			caller,
+			"INSERT INTO foo_1337_1 (bar) VALUES ('hello')", // length of 45 bytes
+		)
 		require.NoError(t, err)
 	})
 
@@ -593,14 +594,16 @@ func TestQueryConstraints(t *testing.T) {
 			build(t)
 		tablelandClient := setup.newTablelandClient(t)
 
-		ctx := setup.ctx
+		ctx, chainID := setup.ctx, setup.chainID
 		tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
 		caller := txOpts.From
 
-		ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller.Hex())
-		_, err := tbld.RelayWriteQuery(ctx, tableland.RelayWriteQueryRequest{
-			Statement: "INSERT INTO foo_1337_1 (bar) VALUES ('hello2')", // length of 46 bytes
-		})
+		_, err := tbld.RelayWriteQuery(
+			ctx,
+			chainID,
+			caller,
+			"INSERT INTO foo_1337_1 (bar) VALUES ('hello2')", // length of 46 bytes
+		)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "write query size is too long")
 	})
@@ -626,12 +629,9 @@ func TestQueryConstraints(t *testing.T) {
 		require.NoError(t, err)
 		backend.Commit()
 
-		ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller.Hex())
 		require.Eventually(t,
 			func() bool {
-				_, err := tbld.RunReadQuery(ctx, tableland.RunReadQueryRequest{
-					Statement: "SELECT * FROM foo_1337_1 WHERE bar = 'hello'", // length of 44 bytes
-				})
+				_, err := tbld.RunReadQuery(ctx, "SELECT * FROM foo_1337_1 WHERE bar = 'hello'") // length of 44 bytes
 				return err == nil
 			},
 			5*time.Second,
@@ -653,13 +653,9 @@ func TestQueryConstraints(t *testing.T) {
 		tablelandClient := setup.newTablelandClient(t)
 
 		ctx := setup.ctx
-		tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
-		caller := txOpts.From
+		tbld := tablelandClient.tableland
 
-		ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller.Hex())
-		_, err := tbld.RunReadQuery(ctx, tableland.RunReadQueryRequest{
-			Statement: "SELECT * FROM foo_1337_1 WHERE bar = 'hello2'", // length of 45 bytes
-		})
+		_, err := tbld.RunReadQuery(ctx, "SELECT * FROM foo_1337_1 WHERE bar = 'hello2'") // length of 45 bytes
 		require.Error(t, err)
 		require.ErrorContains(t, err, "read query size is too long")
 	})
@@ -674,16 +670,16 @@ func TestAllowTransactionRelayConfig(t *testing.T) {
 
 	tablelandClient := setup.newTablelandClient(t)
 
-	ctx, tbld, txOpts := setup.ctx, tablelandClient.tableland, tablelandClient.txOpts
+	ctx, chainID, tbld, txOpts := setup.ctx, setup.chainID, tablelandClient.tableland, tablelandClient.txOpts
 
 	t.Run("relay write query", func(t *testing.T) {
-		_, err := relayWriteQuery(ctx, t, tbld, "INSERT INTO foo_1337_1 VALUES ('bar', 0)", txOpts.From.Hex())
+		_, err := relayWriteQuery(ctx, t, chainID, tbld, "INSERT INTO foo_1337_1 VALUES ('bar', 0)", txOpts.From)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "chain id 1337 does not suppport relaying of transactions")
 	})
 
 	t.Run("set controller", func(t *testing.T) {
-		_, err := setController(ctx, t, tbld, txOpts.From.Hex(), "", "1") // values don't matter
+		_, err := setController(ctx, t, chainID, tbld, txOpts.From, common.Address{}, "1") // values don't matter
 		require.Error(t, err)
 		require.ErrorContains(t, err, "chain id 1337 does not suppport relaying of transactions")
 	})
@@ -692,6 +688,7 @@ func TestAllowTransactionRelayConfig(t *testing.T) {
 func processCSV(
 	ctx context.Context,
 	t *testing.T,
+	chainID tableland.ChainID,
 	caller common.Address,
 	tbld tableland.Tableland,
 	csvPath string,
@@ -699,15 +696,12 @@ func processCSV(
 ) {
 	t.Helper()
 
-	ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller.Hex())
 	records := readCsvFile(t, csvPath)
 	for _, record := range records {
 		if record[0] == "r" {
-			req := tableland.RunReadQueryRequest{Statement: record[1]}
-			require.Eventually(t, jsonEq(ctx, t, tbld, req, record[2]), time.Second*5, time.Millisecond*100)
+			require.Eventually(t, jsonEq(ctx, t, tbld, record[1], record[2]), time.Second*5, time.Millisecond*100)
 		} else {
-			req := tableland.RelayWriteQueryRequest{Statement: record[1]}
-			_, err := tbld.RelayWriteQuery(ctx, req)
+			_, err := tbld.RelayWriteQuery(ctx, chainID, caller, record[1])
 			require.NoError(t, err)
 			backend.Commit()
 		}
@@ -718,18 +712,18 @@ func jsonEq(
 	ctx context.Context,
 	t *testing.T,
 	tbld tableland.Tableland,
-	req tableland.RunReadQueryRequest,
+	stm string,
 	expJSON string,
 ) func() bool {
 	return func() bool {
-		r, err := tbld.RunReadQuery(ctx, req)
+		r, err := tbld.RunReadQuery(ctx, stm)
 		// if we get a table undefined error, try again
 		if err != nil && strings.Contains(err.Error(), "no such table") {
 			return false
 		}
 		require.NoError(t, err)
 
-		b, err := json.Marshal(r.Result)
+		b, err := json.Marshal(r)
 		require.NoError(t, err)
 
 		gotJSON := string(b)
@@ -755,11 +749,10 @@ func runSQLCountEq(
 	t *testing.T,
 	tbld tableland.Tableland,
 	sql string,
-	address string,
 	expCount int,
 ) func() bool {
 	return func() bool {
-		response, err := runReadQuery(ctx, t, tbld, sql, address)
+		response, err := runReadQuery(ctx, t, tbld, sql)
 		// if we get a table undefined error, try again
 		if err != nil && strings.Contains(err.Error(), "table not found") {
 			return false
@@ -770,15 +763,13 @@ func runSQLCountEq(
 		require.NoError(t, err)
 
 		r := &struct {
-			Data struct {
-				Rows [][]interface{} `json:"rows"`
-			} `json:"data"`
+			Rows [][]interface{} `json:"rows"`
 		}{}
 
 		err = json.Unmarshal(responseInBytes, r)
 		require.NoError(t, err)
 
-		return len(r.Data.Rows) == expCount
+		return len(r.Rows) == expCount
 	}
 }
 
@@ -787,52 +778,40 @@ func runReadQuery(
 	t *testing.T,
 	tbld tableland.Tableland,
 	sql string,
-	controller string,
-) (tableland.RunReadQueryResponse, error) {
+) (interface{}, error) {
 	t.Helper()
 
-	ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, controller)
-	req := tableland.RunReadQueryRequest{
-		Statement: sql,
-	}
-
-	return tbld.RunReadQuery(ctx, req)
+	return tbld.RunReadQuery(ctx, sql)
 }
 
 func relayWriteQuery(
 	ctx context.Context,
 	t *testing.T,
+	chainID tableland.ChainID,
 	tbld tableland.Tableland,
 	sql string,
-	caller string,
-) (tableland.RelayWriteQueryResponse, error) {
+	caller common.Address,
+) (tables.Transaction, error) {
 	t.Helper()
 
-	ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller)
-	req := tableland.RelayWriteQueryRequest{
-		Statement: sql,
-	}
-
-	return tbld.RelayWriteQuery(ctx, req)
+	return tbld.RelayWriteQuery(ctx, chainID, caller, sql)
 }
 
 func setController(
 	ctx context.Context,
 	t *testing.T,
+	chainID tableland.ChainID,
 	tbld tableland.Tableland,
-	caller string,
-	controller string,
+	caller common.Address,
+	controller common.Address,
 	tokenID string,
-) (tableland.SetControllerResponse, error) {
+) (tables.Transaction, error) {
 	t.Helper()
 
-	ctx = context.WithValue(ctx, middlewares.ContextKeyAddress, caller)
-	req := tableland.SetControllerRequest{
-		Controller: controller,
-		TokenID:    tokenID,
-	}
+	tableID, err := tables.NewTableID(tokenID)
+	require.NoError(t, err)
 
-	return tbld.SetController(ctx, req)
+	return tbld.SetController(ctx, chainID, caller, controller, tableID)
 }
 
 func readCsvFile(t *testing.T, filePath string) [][]string {
@@ -861,37 +840,42 @@ func (acl *aclHalfMock) CheckPrivileges(
 	ctx context.Context,
 	tx *sql.Tx,
 	controller common.Address,
-	id tableland.TableID,
+	id tables.TableID,
 	op tableland.Operation,
 ) (bool, error) {
 	aclImpl := NewACL(acl.sqlStore, nil)
 	return aclImpl.CheckPrivileges(ctx, tx, controller, id, op)
 }
 
-func (acl *aclHalfMock) IsOwner(ctx context.Context, controller common.Address, id tableland.TableID) (bool, error) {
+func (acl *aclHalfMock) IsOwner(ctx context.Context, controller common.Address, id tables.TableID) (bool, error) {
 	return true, nil
 }
 
-func requireReceipts(ctx context.Context, t *testing.T, tbld tableland.Tableland, txnHashes []string, ok bool) {
+func requireReceipts(
+	ctx context.Context,
+	t *testing.T,
+	tbld tableland.Tableland,
+	chainID tableland.ChainID,
+	txnHashes []string,
+	ok bool,
+) {
 	t.Helper()
 
 	for _, txnHash := range txnHashes {
-		r, err := tbld.GetReceipt(ctx, tableland.GetReceiptRequest{
-			TxnHash: txnHash,
-		})
+		found, receipt, err := tbld.GetReceipt(ctx, chainID, txnHash)
 		require.NoError(t, err)
-		require.True(t, r.Ok)
-		require.NotNil(t, r.Receipt)
-		require.Equal(t, tableland.ChainID(1337), r.Receipt.ChainID)
+		require.True(t, found)
+		require.NotNil(t, receipt)
+		require.Equal(t, tableland.ChainID(1337), receipt.ChainID)
 		require.Equal(t, txnHash, txnHash)
-		require.NotZero(t, r.Receipt.BlockNumber)
+		require.NotZero(t, receipt.BlockNumber)
 		if ok {
-			require.Empty(t, r.Receipt.Error)
-			require.NotNil(t, r.Receipt.TableID)
-			require.NotZero(t, r.Receipt.TableID)
+			require.Empty(t, receipt.Error)
+			require.NotNil(t, receipt.TableID)
+			require.NotZero(t, receipt.TableID)
 		} else {
-			require.NotEmpty(t, r.Receipt.Error)
-			require.Nil(t, r.Receipt.TableID)
+			require.NotEmpty(t, receipt.Error)
+			require.Nil(t, receipt.TableID)
 		}
 	}
 }
@@ -961,7 +945,7 @@ func (b *tablelandSetupBuilder) build(t *testing.T) *tablelandSetup {
 	t.Helper()
 	dbURI := tests.Sqlite3URI()
 
-	ctx := context.WithValue(context.Background(), middlewares.ContextKeyChainID, tableland.ChainID(1337))
+	ctx := context.Background()
 	store, err := system.New(dbURI, tableland.ChainID(1337))
 	require.NoError(t, err)
 
@@ -992,6 +976,8 @@ func (b *tablelandSetupBuilder) build(t *testing.T) *tablelandSetup {
 	return &tablelandSetup{
 		ctx: ctx,
 
+		chainID: tableland.ChainID(1337),
+
 		// ethereum client
 		ethClient: backend,
 
@@ -1015,6 +1001,8 @@ func (b *tablelandSetupBuilder) build(t *testing.T) *tablelandSetup {
 
 type tablelandSetup struct {
 	ctx context.Context
+
+	chainID tableland.ChainID
 
 	// ethereum client
 	ethClient *backends.SimulatedBackend
