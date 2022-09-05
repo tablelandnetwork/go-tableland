@@ -42,11 +42,11 @@ func (t *SimpleTracker) GetNonce(ctx context.Context) (nonce.RegisterPendingTx, 
 }
 
 // GetPendingCount returns the number of pendings txs.
-func (t *SimpleTracker) GetPendingCount(ctx context.Context) int {
+func (t *SimpleTracker) GetPendingCount(_ context.Context) int {
 	return 0
 }
 
 // Resync is a noop for SimpleTracker.
-func (t *SimpleTracker) Resync(ctx context.Context) error {
+func (t *SimpleTracker) Resync(_ context.Context) error {
 	return nil
 }

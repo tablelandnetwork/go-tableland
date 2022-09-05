@@ -139,7 +139,7 @@ func (acl *aclHalfMock) CheckPrivileges(
 	return aclImpl.CheckPrivileges(ctx, tx, controller, id, op)
 }
 
-func (acl *aclHalfMock) IsOwner(ctx context.Context, controller common.Address, id tables.TableID) (bool, error) {
+func (acl *aclHalfMock) IsOwner(_ context.Context, _ common.Address, _ tables.TableID) (bool, error) {
 	return true, nil
 }
 

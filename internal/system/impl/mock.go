@@ -21,7 +21,7 @@ func NewSystemMockService() system.SystemService {
 }
 
 // GetTableMetadata returns a fixed value for testing and demo purposes.
-func (*SystemMockService) GetTableMetadata(ctx context.Context, id tables.TableID) (sqlstore.TableMetadata, error) {
+func (*SystemMockService) GetTableMetadata(_ context.Context, id tables.TableID) (sqlstore.TableMetadata, error) {
 	return sqlstore.TableMetadata{
 		Name:        "name-1",
 		ExternalURL: fmt.Sprintf("https://tableland.network/tables/%s", id),
@@ -37,7 +37,7 @@ func (*SystemMockService) GetTableMetadata(ctx context.Context, id tables.TableI
 }
 
 // GetTablesByController returns table's fetched from SQLStore by controller address.
-func (s *SystemMockService) GetTablesByController(ctx context.Context, controller string) ([]sqlstore.Table, error) {
+func (s *SystemMockService) GetTablesByController(_ context.Context, _ string) ([]sqlstore.Table, error) {
 	return []sqlstore.Table{
 		{
 			ID:         tables.TableID(*big.NewInt(0)),
@@ -59,7 +59,7 @@ func (s *SystemMockService) GetTablesByController(ctx context.Context, controlle
 }
 
 // GetTablesByStructure returns all tables that share the same structure.
-func (s *SystemMockService) GetTablesByStructure(ctx context.Context, structure string) ([]sqlstore.Table, error) {
+func (s *SystemMockService) GetTablesByStructure(_ context.Context, _ string) ([]sqlstore.Table, error) {
 	return []sqlstore.Table{
 		{
 			ID:         tables.TableID(*big.NewInt(0)),
@@ -81,7 +81,7 @@ func (s *SystemMockService) GetTablesByStructure(ctx context.Context, structure 
 }
 
 // GetSchemaByTableName returns the schema of a table by its name.
-func (s *SystemMockService) GetSchemaByTableName(ctx context.Context, name string) (sqlstore.TableSchema, error) {
+func (s *SystemMockService) GetSchemaByTableName(_ context.Context, _ string) (sqlstore.TableSchema, error) {
 	return sqlstore.TableSchema{
 		Columns: []sqlstore.ColumnSchema{
 			{
@@ -111,23 +111,23 @@ func NewSystemMockErrService() system.SystemService {
 
 // GetTableMetadata returns a fixed value for testing and demo purposes.
 func (*SystemMockErrService) GetTableMetadata(
-	ctx context.Context,
-	id tables.TableID,
+	_ context.Context,
+	_ tables.TableID,
 ) (sqlstore.TableMetadata, error) {
 	return sqlstore.TableMetadata{}, errors.New("table not found")
 }
 
 // GetTablesByController returns table's fetched from SQLStore by controller address.
-func (s *SystemMockErrService) GetTablesByController(ctx context.Context, controller string) ([]sqlstore.Table, error) {
+func (s *SystemMockErrService) GetTablesByController(_ context.Context, _ string) ([]sqlstore.Table, error) {
 	return []sqlstore.Table{}, errors.New("no table found")
 }
 
 // GetTablesByStructure returns all tables that share the same structure.
-func (s *SystemMockErrService) GetTablesByStructure(ctx context.Context, structure string) ([]sqlstore.Table, error) {
+func (s *SystemMockErrService) GetTablesByStructure(_ context.Context, _ string) ([]sqlstore.Table, error) {
 	return []sqlstore.Table{}, errors.New("no table found")
 }
 
 // GetSchemaByTableName returns the schema of a table by its name.
-func (s *SystemMockErrService) GetSchemaByTableName(ctx context.Context, name string) (sqlstore.TableSchema, error) {
+func (s *SystemMockErrService) GetSchemaByTableName(_ context.Context, _ string) (sqlstore.TableSchema, error) {
 	return sqlstore.TableSchema{}, errors.New("no table found")
 }

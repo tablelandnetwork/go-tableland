@@ -153,8 +153,8 @@ type runnerMock struct {
 }
 
 func (rm *runnerMock) RunReadQuery(
-	ctx context.Context,
-	statement string,
+	_ context.Context,
+	_ string,
 ) (interface{}, error) {
 	if rm.counter == 0 {
 		rm.counter++
@@ -201,8 +201,8 @@ func (rm *runnerMock) RunReadQuery(
 type badRequestRunnerMock struct{}
 
 func (*badRequestRunnerMock) RunReadQuery(
-	ctx context.Context,
-	statement string,
+	_ context.Context,
+	_ string,
 ) (interface{}, error) {
 	return "bad result", nil
 }
@@ -210,8 +210,8 @@ func (*badRequestRunnerMock) RunReadQuery(
 type notFoundRunnerMock struct{}
 
 func (*notFoundRunnerMock) RunReadQuery(
-	ctx context.Context,
-	statement string,
+	_ context.Context,
+	_ string,
 ) (interface{}, error) {
 	return &sqlstore.UserRows{
 		Columns: []sqlstore.UserColumn{
@@ -236,8 +236,8 @@ func (*notFoundRunnerMock) RunReadQuery(
 type queryRunnerMock struct{}
 
 func (rm *queryRunnerMock) RunReadQuery(
-	ctx context.Context,
-	statement string,
+	_ context.Context,
+	_ string,
 ) (interface{}, error) {
 	return &sqlstore.UserRows{
 		Columns: []sqlstore.UserColumn{

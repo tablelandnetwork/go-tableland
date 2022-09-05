@@ -224,22 +224,22 @@ func (ef *EventFeed) packEvents(logs []types.Log, parsedEvents []interface{}) []
 	}
 
 	var ret []*eventfeed.BlockEvents
-	var new *eventfeed.BlockEvents
+	var newEvents *eventfeed.BlockEvents
 	for i, l := range logs {
 		// New block number detected? -> Close the block grouping.
-		if new == nil || new.BlockNumber != int64(l.BlockNumber) {
-			new = &eventfeed.BlockEvents{
+		if newEvents == nil || newEvents.BlockNumber != int64(l.BlockNumber) {
+			newEvents = &eventfeed.BlockEvents{
 				BlockNumber: int64(l.BlockNumber),
 			}
-			ret = append(ret, new)
+			ret = append(ret, newEvents)
 		}
 		// New txn hash detected? -> Close the txn hash event grouping, and continue with the next.
-		if len(new.Txns) == 0 || new.Txns[len(new.Txns)-1].TxnHash.String() != l.TxHash.String() {
-			new.Txns = append(new.Txns, eventfeed.TxnEvents{
+		if len(newEvents.Txns) == 0 || newEvents.Txns[len(newEvents.Txns)-1].TxnHash.String() != l.TxHash.String() {
+			newEvents.Txns = append(newEvents.Txns, eventfeed.TxnEvents{
 				TxnHash: l.TxHash,
 			})
 		}
-		new.Txns[len(new.Txns)-1].Events = append(new.Txns[len(new.Txns)-1].Events, parsedEvents[i])
+		newEvents.Txns[len(newEvents.Txns)-1].Events = append(newEvents.Txns[len(newEvents.Txns)-1].Events, parsedEvents[i])
 	}
 
 	return ret
