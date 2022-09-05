@@ -369,8 +369,8 @@ func TestRunSQL_RowCountLimit(t *testing.T) {
 	require.Equal(t, rowLimit, tableRowCountT100(t, dbURI, "select count(*) from foo_1337_100"))
 
 	// The next insert should fail.
-	error := insertRow(t)
-	require.Contains(t, *error,
+	err := insertRow(t)
+	require.Contains(t, *err,
 		fmt.Sprintf("table maximum row count exceeded (before %d, after %d)", rowLimit, rowLimit+1),
 	)
 
@@ -501,8 +501,8 @@ func TestWithCheck(t *testing.T) {
 		require.Equal(t, rowLimit, tableRowCountT100(t, dbURI, "select count(*) from foo_1337_100"))
 
 		// The next insert should fail.
-		error := insertRow(t)
-		require.Contains(t, *error,
+		err := insertRow(t)
+		require.Contains(t, *err,
 			fmt.Sprintf("table maximum row count exceeded (before %d, after %d)", rowLimit, rowLimit+1))
 		require.NoError(t, ex.Close(ctx))
 	})

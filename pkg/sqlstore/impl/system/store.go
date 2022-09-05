@@ -293,7 +293,7 @@ func (s *SystemStore) WithTx(tx *sql.Tx) sqlstore.SystemStore {
 }
 
 // Begin returns a new tx.
-func (s *SystemStore) Begin(ctx context.Context) (*sql.Tx, error) {
+func (s *SystemStore) Begin(_ context.Context) (*sql.Tx, error) {
 	return s.db.Begin()
 }
 

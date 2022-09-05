@@ -256,11 +256,11 @@ func newParser(t *testing.T, prefixes []string) parsing.SQLValidator {
 type aclMock struct{}
 
 func (acl *aclMock) CheckPrivileges(
-	ctx context.Context,
-	tx *sql.Tx,
-	controller common.Address,
-	id tables.TableID,
-	op tableland.Operation,
+	_ context.Context,
+	_ *sql.Tx,
+	_ common.Address,
+	_ tables.TableID,
+	_ tableland.Operation,
 ) (bool, error) {
 	return true, nil
 }

@@ -423,12 +423,12 @@ func TestCheckIfPendingTxIsStuck(t *testing.T) {
 type ChainMock struct{}
 
 // Using this for TestInitialization.
-func (m *ChainMock) PendingNonceAt(ctx context.Context, account common.Address) (uint64, error) {
+func (m *ChainMock) PendingNonceAt(_ context.Context, _ common.Address) (uint64, error) {
 	return 10, nil
 }
 
 // Using this for test TestMinBlockDepth and TestCheckIfPendingTxIsStuck.
-func (m *ChainMock) TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
+func (m *ChainMock) TransactionReceipt(_ context.Context, txHash common.Hash) (*types.Receipt, error) {
 	if txHash.Hex() == "0x119f50bf7f1ff2daa4712119af9dbd429ab727690565f93193f63650b020bc30" {
 		r := &types.Receipt{BlockNumber: big.NewInt(1)}
 		return r, nil
@@ -444,30 +444,30 @@ func (m *ChainMock) TransactionReceipt(ctx context.Context, txHash common.Hash) 
 }
 
 // this is not used by any test.
-func (m *ChainMock) HeaderByNumber(ctx context.Context, n *big.Int) (*types.Header, error) {
+func (m *ChainMock) HeaderByNumber(_ context.Context, _ *big.Int) (*types.Header, error) {
 	return nil, nil
 }
 
 // this is not used by any test.
-func (m *ChainMock) BalanceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (*big.Int, error) {
+func (m *ChainMock) BalanceAt(_ context.Context, _ common.Address, _ *big.Int) (*big.Int, error) {
 	return nil, nil
 }
 
 // this is not used by any test.
 func (m *ChainMock) TransactionByHash(
-	ctx context.Context,
-	hash common.Hash,
+	_ context.Context,
+	_ common.Hash,
 ) (tx *types.Transaction, isPending bool, err error) {
 	return nil, true, nil
 }
 
 // this is not used by any test.
-func (m *ChainMock) SendTransaction(ctx context.Context, tx *types.Transaction) error {
+func (m *ChainMock) SendTransaction(_ context.Context, _ *types.Transaction) error {
 	return nil
 }
 
 // this is not used by any test.
-func (m *ChainMock) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
+func (m *ChainMock) SuggestGasPrice(_ context.Context) (*big.Int, error) {
 	return big.NewInt(0), nil
 }
 

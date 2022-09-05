@@ -35,7 +35,7 @@ func NewTablelandMesa(
 // ValidateCreateTable allows to validate a CREATE TABLE statement and also return the structure hash of it.
 // This RPC method is stateless.
 func (t *TablelandMesa) ValidateCreateTable(
-	ctx context.Context,
+	_ context.Context,
 	chainID tableland.ChainID,
 	statement string,
 ) (string, error) {

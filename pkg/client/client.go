@@ -196,7 +196,12 @@ func (c *Client) List(ctx context.Context) ([]TableInfo, error) {
 		c.chain.ID,
 		c.wallet.Address().Hex(),
 	)
-	res, err := c.tblHTTP.Get(url)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %v", err)
+	}
+	req = req.WithContext(ctx)
+	res, err := c.tblHTTP.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("calling http endpoint: %v", err)
 	}

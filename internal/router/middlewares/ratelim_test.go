@@ -260,5 +260,5 @@ func TestRateLim10IPs(t *testing.T) {
 
 type dummyHandler struct{}
 
-func (dh dummyHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
+func (dh dummyHandler) ServeHTTP(_ http.ResponseWriter, _ *http.Request) {
 }

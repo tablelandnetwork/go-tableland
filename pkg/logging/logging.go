@@ -32,7 +32,7 @@ func SetupLogger(version string, debug, human bool) {
 
 type googleSeverityHook struct{}
 
-func (h googleSeverityHook) Run(e *zerolog.Event, level zerolog.Level, msg string) {
+func (h googleSeverityHook) Run(e *zerolog.Event, level zerolog.Level, _ string) {
 	e.Str("severity", levelToSeverity(level).String())
 }
 
