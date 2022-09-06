@@ -10,6 +10,7 @@ import (
 	"github.com/rs/zerolog"
 	logger "github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/dbhash"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor"
@@ -17,10 +18,11 @@ import (
 )
 
 type blockScope struct {
-	txn    *sql.Tx
-	log    zerolog.Logger
-	parser parsing.SQLValidator
-	acl    tableland.ACL
+	txn         *sql.Tx
+	log         zerolog.Logger
+	parser      parsing.SQLValidator
+	acl         tableland.ACL
+	blockNumber int64
 
 	scopeVars scopeVars
 
@@ -47,12 +49,13 @@ func newBlockScope(
 		Logger()
 
 	return &blockScope{
-		txn:       txn,
-		log:       log,
-		parser:    parser,
-		acl:       acl,
-		scopeVars: scopeVars,
-		closed:    closed,
+		txn:         txn,
+		log:         log,
+		parser:      parser,
+		acl:         acl,
+		blockNumber: blockNum,
+		scopeVars:   scopeVars,
+		closed:      closed,
 	}
 }
 
@@ -160,6 +163,54 @@ func (bs *blockScope) TxnReceiptExists(ctx context.Context, txnHash common.Hash)
 		return false, fmt.Errorf("get txn receipt: %s", err)
 	}
 	return true, nil
+}
+
+func (bs *blockScope) StateHash(ctx context.Context, chainID tableland.ChainID) (executor.StateHash, error) {
+	hash, err := dbhash.DatabaseStateHash(ctx, bs.txn, []dbhash.Option{
+		dbhash.WithFetchSchemasQuery(
+			fmt.Sprintf(`SELECT tbl_name, sql 
+				FROM sqlite_schema
+			    WHERE name NOT LIKE 'sqlite_%%'  
+				AND name LIKE '%%\_%d\_%%' ESCAPE '\'
+				AND type = 'table'
+				UNION ALL
+				SELECT tbl_name, sql 
+				FROM sqlite_schema
+				WHERE name in ('registry', 'system_acl', 'system_controller', 'system_txn_receipts')
+				ORDER BY tbl_name COLLATE nocase;`, chainID),
+		),
+		dbhash.WithPerTableQueryFn(func(tableName string) string {
+			switch tableName {
+			case "registry":
+				return fmt.Sprintf(`SELECT id, chain_id, controller, prefix, structure 
+							FROM registry 
+							WHERE chain_id = %d 
+							ORDER BY id`, chainID)
+			case "system_acl":
+				return fmt.Sprintf(`SELECT chain_id, table_id, controller, privileges 
+							FROM system_acl 
+							WHERE chain_id = %d 
+							ORDER BY table_id`, chainID)
+			case "system_controller":
+				return fmt.Sprintf(`SELECT chain_id, table_id, controller 
+							FROM system_controller 
+							WHERE chain_id = %d
+							ORDER BY table_id`, chainID)
+			case "system_txn_receipts":
+				return fmt.Sprintf(`SELECT chain_id, block_number, index_in_block, txn_hash, error, table_id 
+							FROM system_txn_receipts 
+							WHERE chain_id = %d 
+							ORDER BY table_id, block_number, index_in_block`, chainID)
+			default:
+				return fmt.Sprintf("SELECT * FROM %s", tableName)
+			}
+		}),
+	}...)
+	if err != nil {
+		return executor.StateHash{}, fmt.Errorf("database state hash: %s", err)
+	}
+
+	return executor.NewStateHash(chainID, bs.blockNumber, hash), nil
 }
 
 // Close closes gracefully the block scope.

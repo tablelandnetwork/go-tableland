@@ -14,6 +14,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor"
 	"github.com/textileio/go-tableland/pkg/parsing"
+	"github.com/textileio/go-tableland/pkg/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
 	"go.uber.org/atomic"
@@ -205,6 +206,23 @@ func (ep *EventProcessor) executeBlock(ctx context.Context, block eventfeed.Bloc
 			ep.log.Error().Err(err).Msg("closing block scope")
 		}
 	}()
+
+	startTime := time.Now()
+	stateHash, err := bs.StateHash(ctx, ep.chainID)
+	if err != nil {
+		return fmt.Errorf("calculating hash for current block: %s", err)
+	}
+	elapsedTime := time.Since(startTime).Milliseconds()
+	ep.log.Info().
+		Str("hash", stateHash.Hash()).
+		Int64("block_number", stateHash.BlockNumber()).
+		Int64("chain_id", stateHash.ChainID()).
+		Int64("elapsed_time", elapsedTime).
+		Msg("state hash")
+
+	if err := telemetry.Collect(ctx, stateHash); err != nil {
+		return fmt.Errorf("calculating hash for current block: %s", err)
+	}
 
 	receipts := make([]eventprocessor.Receipt, 0, len(block.Txns))
 	for idxInBlock, txnEvents := range block.Txns {

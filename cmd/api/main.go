@@ -96,6 +96,18 @@ func main() {
 		log.Fatal().Err(err).Msg("creating user store")
 	}
 
+	// metricsDatabaseURL := fmt.Sprintf(
+	// 	"file://%s?_busy_timeout=5000&_foreign_keys=on&_journal_mode=WAL",
+	// 	path.Join(dirPath, "metrics.db"),
+	// )
+
+	// metricsStore, err := storage.New(metricsDatabaseURL)
+	// if err != nil {
+	// 	log.Fatal().Err(err).Msg("creating metrics store")
+	// }
+
+	// telemetry.SetMetricStore(metricsStore)
+
 	rateLimInterval, err := time.ParseDuration(config.HTTP.RateLimInterval)
 	if err != nil {
 		log.Fatal().Err(err).Msg("parsing http rate lim interval")
@@ -344,6 +356,7 @@ func createChainIDStack(
 			ep.Stop()
 			tracker.Close()
 			conn.Close()
+			// metricsStore.Close()
 			if err := systemStore.Close(); err != nil {
 				log.Error().Int64("chain_id", int64(config.ChainID)).Err(err).Msg("closing system store")
 			}
