@@ -8,7 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/go-tableland/pkg/sqlstore"
+	"github.com/textileio/go-tableland/internal/tableland"
 )
 
 func TestUserController(t *testing.T) {
@@ -155,15 +155,15 @@ type runnerMock struct {
 func (rm *runnerMock) RunReadQuery(
 	_ context.Context,
 	_ string,
-) (interface{}, error) {
+) (*tableland.UserRows, error) {
 	if rm.counter == 0 {
 		rm.counter++
-		return &sqlstore.UserRows{
-			Rows: [][]*sqlstore.ColValue{{sqlstore.OtherUserValue("foo")}},
+		return &tableland.UserRows{
+			Rows: [][]*tableland.ColValue{{tableland.OtherColValue("foo")}},
 		}, nil
 	}
-	return &sqlstore.UserRows{
-		Columns: []sqlstore.UserColumn{
+	return &tableland.UserRows{
+		Columns: []tableland.UserColumn{
 			{Name: "id"},
 			{Name: "description"},
 			{Name: "image"},
@@ -178,21 +178,21 @@ func (rm *runnerMock) RunReadQuery(
 			{Name: "stamina_increase"},
 			{Name: "generation"},
 		},
-		Rows: [][]*sqlstore.ColValue{
+		Rows: [][]*tableland.ColValue{
 			{
-				sqlstore.OtherUserValue(1),
-				sqlstore.OtherUserValue("Friendly OpenSea Creature that enjoys long swims in the ocean."),
-				sqlstore.OtherUserValue("https://storage.googleapis.com/opensea-prod.appspot.com/creature/3.png"),
-				sqlstore.OtherUserValue("https://example.com/?token_id=3"),
-				sqlstore.OtherUserValue("Starfish"),
-				sqlstore.OtherUserValue("Big"),
-				sqlstore.OtherUserValue("Surprised"),
-				sqlstore.OtherUserValue(5),
-				sqlstore.OtherUserValue(1.4),
-				sqlstore.OtherUserValue("Sad"),
-				sqlstore.OtherUserValue(40),
-				sqlstore.OtherUserValue(10),
-				sqlstore.OtherUserValue(2),
+				tableland.OtherColValue(1),
+				tableland.OtherColValue("Friendly OpenSea Creature that enjoys long swims in the ocean."),
+				tableland.OtherColValue("https://storage.googleapis.com/opensea-prod.appspot.com/creature/3.png"),
+				tableland.OtherColValue("https://example.com/?token_id=3"),
+				tableland.OtherColValue("Starfish"),
+				tableland.OtherColValue("Big"),
+				tableland.OtherColValue("Surprised"),
+				tableland.OtherColValue(5),
+				tableland.OtherColValue(1.4),
+				tableland.OtherColValue("Sad"),
+				tableland.OtherColValue(40),
+				tableland.OtherColValue(10),
+				tableland.OtherColValue(2),
 			},
 		},
 	}, nil
@@ -203,8 +203,8 @@ type badRequestRunnerMock struct{}
 func (*badRequestRunnerMock) RunReadQuery(
 	_ context.Context,
 	_ string,
-) (interface{}, error) {
-	return "bad result", nil
+) (*tableland.UserRows, error) {
+	return nil, nil
 }
 
 type notFoundRunnerMock struct{}
@@ -212,9 +212,9 @@ type notFoundRunnerMock struct{}
 func (*notFoundRunnerMock) RunReadQuery(
 	_ context.Context,
 	_ string,
-) (interface{}, error) {
-	return &sqlstore.UserRows{
-		Columns: []sqlstore.UserColumn{
+) (*tableland.UserRows, error) {
+	return &tableland.UserRows{
+		Columns: []tableland.UserColumn{
 			{Name: "id"},
 			{Name: "description"},
 			{Name: "image"},
@@ -229,7 +229,7 @@ func (*notFoundRunnerMock) RunReadQuery(
 			{Name: "stamina_increase"},
 			{Name: "generation"},
 		},
-		Rows: [][]*sqlstore.ColValue{},
+		Rows: [][]*tableland.ColValue{},
 	}, nil
 }
 
@@ -238,28 +238,28 @@ type queryRunnerMock struct{}
 func (rm *queryRunnerMock) RunReadQuery(
 	_ context.Context,
 	_ string,
-) (interface{}, error) {
-	return &sqlstore.UserRows{
-		Columns: []sqlstore.UserColumn{
+) (*tableland.UserRows, error) {
+	return &tableland.UserRows{
+		Columns: []tableland.UserColumn{
 			{Name: "id"},
 			{Name: "eyes"},
 			{Name: "mouth"},
 		},
-		Rows: [][]*sqlstore.ColValue{
+		Rows: [][]*tableland.ColValue{
 			{
-				sqlstore.OtherUserValue(1),
-				sqlstore.OtherUserValue("Big"),
-				sqlstore.OtherUserValue("Surprised"),
+				tableland.OtherColValue(1),
+				tableland.OtherColValue("Big"),
+				tableland.OtherColValue("Surprised"),
 			},
 			{
-				sqlstore.OtherUserValue(2),
-				sqlstore.OtherUserValue("Medium"),
-				sqlstore.OtherUserValue("Sad"),
+				tableland.OtherColValue(2),
+				tableland.OtherColValue("Medium"),
+				tableland.OtherColValue("Sad"),
 			},
 			{
-				sqlstore.OtherUserValue(3),
-				sqlstore.OtherUserValue("Small"),
-				sqlstore.OtherUserValue("Happy"),
+				tableland.OtherColValue(3),
+				tableland.OtherColValue("Small"),
+				tableland.OtherColValue("Happy"),
 			},
 		},
 	}, nil

@@ -71,7 +71,7 @@ func (t *InstrumentedTablelandMesa) ValidateWriteQuery(
 }
 
 // RunReadQuery allows the user to run SQL.
-func (t *InstrumentedTablelandMesa) RunReadQuery(ctx context.Context, stmt string) (interface{}, error) {
+func (t *InstrumentedTablelandMesa) RunReadQuery(ctx context.Context, stmt string) (*tableland.UserRows, error) {
 	start := time.Now()
 	resp, err := t.tableland.RunReadQuery(ctx, stmt)
 	latency := time.Since(start).Milliseconds()

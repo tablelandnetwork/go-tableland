@@ -2,6 +2,7 @@ package tableland
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -11,6 +12,71 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/textileio/go-tableland/pkg/tables"
 )
+
+// UserColumn defines a column in a row result.
+type UserColumn struct {
+	Name string `json:"name"`
+}
+
+// UserRows defines a row result.
+type UserRows struct {
+	Columns []UserColumn  `json:"columns"`
+	Rows    [][]*ColValue `json:"rows"`
+}
+
+// ColValue wraps data from the db that may be raw json or any other value.
+type ColValue struct {
+	jsonValue  json.RawMessage
+	otherValue interface{}
+}
+
+// Value returns the underlying value.
+func (cv *ColValue) Value() interface{} {
+	if cv.jsonValue != nil {
+		return cv.jsonValue
+	}
+	return cv.otherValue
+}
+
+// Scan implements Scan.
+func (cv *ColValue) Scan(src interface{}) error {
+	cv.jsonValue = nil
+	cv.otherValue = nil
+	switch src := src.(type) {
+	case string:
+		trimmed := strings.TrimLeft(src, " ")
+		if (strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "[")) && json.Valid([]byte(src)) {
+			cv.jsonValue = []byte(src)
+		} else {
+			cv.otherValue = src
+		}
+	case []byte:
+		tmp := make([]byte, len(src))
+		copy(tmp, src)
+		cv.otherValue = tmp
+	default:
+		cv.otherValue = src
+	}
+	return nil
+}
+
+// MarshalJSON implements MarshalJSON.
+func (cv *ColValue) MarshalJSON() ([]byte, error) {
+	if cv.jsonValue != nil {
+		return cv.jsonValue, nil
+	}
+	return json.Marshal(cv.otherValue)
+}
+
+// JSONColValue creates a UserValue with the provided json.
+func JSONColValue(v json.RawMessage) *ColValue {
+	return &ColValue{jsonValue: v}
+}
+
+// OtherColValue creates a UserValue with the provided other value.
+func OtherColValue(v interface{}) *ColValue {
+	return &ColValue{otherValue: v}
+}
 
 // TxnReceipt is a Tableland event processing receipt.
 type TxnReceipt struct {
@@ -25,7 +91,7 @@ type TxnReceipt struct {
 
 // Tableland defines the interface of Tableland.
 type Tableland interface {
-	RunReadQuery(ctx context.Context, stmt string) (interface{}, error)
+	RunReadQuery(ctx context.Context, stmt string) (*UserRows, error)
 	ValidateCreateTable(ctx context.Context, chainID ChainID, stmt string) (string, error)
 	ValidateWriteQuery(ctx context.Context, chainID ChainID, stmt string) (tables.TableID, error)
 	RelayWriteQuery(

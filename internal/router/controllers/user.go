@@ -10,14 +10,14 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/hetiansu5/urlquery"
 	"github.com/rs/zerolog/log"
+	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/errors"
-	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/tables"
 )
 
 // SQLRunner defines the run SQL interface of Tableland.
 type SQLRunner interface {
-	RunReadQuery(ctx context.Context, stmt string) (interface{}, error)
+	RunReadQuery(ctx context.Context, stmt string) (*tableland.UserRows, error)
 }
 
 // UserController defines the HTTP handlers for interacting with user tables.
@@ -75,7 +75,7 @@ type Attribute struct {
 	Value       interface{} `json:"value"`
 }
 
-func metadataConfigToMetadata(row map[string]*sqlstore.ColValue, config MetadataConfig) Metadata {
+func metadataConfigToMetadata(row map[string]*tableland.ColValue, config MetadataConfig) Metadata {
 	var md Metadata
 	if v, ok := row[config.Image]; ok {
 		md.Image = v
@@ -114,8 +114,8 @@ func metadataConfigToMetadata(row map[string]*sqlstore.ColValue, config Metadata
 	return md
 }
 
-func userRowToMap(cols []sqlstore.UserColumn, row []*sqlstore.ColValue) map[string]*sqlstore.ColValue {
-	m := make(map[string]*sqlstore.ColValue)
+func userRowToMap(cols []tableland.UserColumn, row []*tableland.ColValue) map[string]*tableland.ColValue {
+	m := make(map[string]*tableland.ColValue)
 	for i := range cols {
 		m[cols[i].Name] = row[i]
 	}
@@ -324,7 +324,7 @@ func (c *UserController) runReadRequest(
 	ctx context.Context,
 	stm string,
 	rw http.ResponseWriter,
-) (*sqlstore.UserRows, bool) {
+) (*tableland.UserRows, bool) {
 	res, err := c.runner.RunReadQuery(ctx, stm)
 	if err != nil {
 		rw.WriteHeader(http.StatusBadRequest)
@@ -337,19 +337,7 @@ func (c *UserController) runReadRequest(
 		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: err.Error()})
 		return nil, false
 	}
-
-	rows, ok := res.(*sqlstore.UserRows)
-	if !ok {
-		rw.WriteHeader(http.StatusBadRequest)
-		log.Ctx(ctx).
-			Error().
-			Err(err).
-			Msg("bad query result")
-
-		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Bad query result"})
-		return nil, false
-	}
-	if len(rows.Rows) == 0 {
+	if len(res.Rows) == 0 {
 		rw.WriteHeader(http.StatusNotFound)
 		log.Ctx(ctx).
 			Error().
@@ -359,5 +347,5 @@ func (c *UserController) runReadRequest(
 		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Row not found"})
 		return nil, false
 	}
-	return rows, true
+	return res, true
 }

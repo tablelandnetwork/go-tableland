@@ -8,8 +8,8 @@ import (
 	"github.com/XSAM/otelsql"
 	_ "github.com/mattn/go-sqlite3" // sqlite3 driver
 	logger "github.com/rs/zerolog/log"
+	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
-	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -40,7 +40,7 @@ func New(dbURI string) (*UserStore, error) {
 }
 
 // Read executes a read statement on the db.
-func (db *UserStore) Read(ctx context.Context, rq parsing.ReadStmt) (interface{}, error) {
+func (db *UserStore) Read(ctx context.Context, rq parsing.ReadStmt) (*tableland.UserRows, error) {
 	query, err := rq.GetQuery()
 	if err != nil {
 		return nil, fmt.Errorf("get query: %s", err)
@@ -60,7 +60,7 @@ func (db *UserStore) Close() error {
 	return nil
 }
 
-func execReadQuery(ctx context.Context, tx *sql.DB, q string) (*sqlstore.UserRows, error) {
+func execReadQuery(ctx context.Context, tx *sql.DB, q string) (*tableland.UserRows, error) {
 	rows, err := tx.QueryContext(ctx, q)
 	if err != nil {
 		return nil, fmt.Errorf("executing query: %s", err)
