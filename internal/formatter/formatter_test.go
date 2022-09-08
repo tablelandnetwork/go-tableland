@@ -55,41 +55,41 @@ func TestFormat(t *testing.T) {
 		want    string
 		wantErr bool
 	}{
-		// {
-		// 	name: "table",
-		// 	args: args{userRows: input, output: Table},
-		// 	want: "{\"columns\":[{\"name\":\"name\"},{\"name\":\"age\"},{\"name\":\"location\"}],\"rows\":[[\"bob\",40,{\"city\":\"dallas\"}],[\"jane\",30,{\"city\":\"dallas\"}]]}", //nolint
-		// },
-		// {
-		// 	name: "objects",
-		// 	args: args{userRows: input, output: Objects},
-		// 	want: "[{\"name\":\"bob\",\"age\":40,\"location\":{\"city\":\"dallas\"}},{\"name\":\"jane\",\"age\":30,\"location\":{\"city\":\"dallas\"}}]", // nolint
-		// },
-		// {
-		// 	name: "objects, extract",
-		// 	args: args{userRows: inputExtractable, output: Objects, extract: true},
-		// 	want: "[\"bob\",\"jane\"]",
-		// },
-		// {
-		// 	name: "objects, extract nested json",
-		// 	args: args{userRows: inputExtractable2, output: Objects, extract: true},
-		// 	want: "[{\"city\":\"dallas\"},{\"city\":\"dallas\"}]",
-		// },
-		// {
-		// 	name:    "objects, extract error",
-		// 	args:    args{userRows: input, output: Objects, extract: true},
-		// 	wantErr: true,
-		// },
-		// {
-		// 	name: "objects, unwrap",
-		// 	args: args{userRows: input, output: Objects, unwrap: true},
-		// 	want: "{\"name\":\"bob\",\"age\":40,\"location\":{\"city\":\"dallas\"}}\n{\"name\":\"jane\",\"age\":30,\"location\":{\"city\":\"dallas\"}}\n", // nolint
-		// },
-		// {
-		// 	name: "objects, extract, unwrap",
-		// 	args: args{userRows: inputExtractable, output: Objects, extract: true, unwrap: true},
-		// 	want: "\"bob\"\n\"jane\"",
-		// },
+		{
+			name: "table",
+			args: args{userRows: input, output: Table},
+			want: "{\"columns\":[{\"name\":\"name\"},{\"name\":\"age\"},{\"name\":\"location\"}],\"rows\":[[\"bob\",40,{\"city\":\"dallas\"}],[\"jane\",30,{\"city\":\"dallas\"}]]}", //nolint
+		},
+		{
+			name: "objects",
+			args: args{userRows: input, output: Objects},
+			want: "[{\"name\":\"bob\",\"age\":40,\"location\":{\"city\":\"dallas\"}},{\"name\":\"jane\",\"age\":30,\"location\":{\"city\":\"dallas\"}}]", // nolint
+		},
+		{
+			name: "objects, extract",
+			args: args{userRows: inputExtractable, output: Objects, extract: true},
+			want: "[\"bob\",\"jane\"]",
+		},
+		{
+			name: "objects, extract nested json",
+			args: args{userRows: inputExtractable2, output: Objects, extract: true},
+			want: "[{\"city\":\"dallas\"},{\"city\":\"dallas\"}]",
+		},
+		{
+			name:    "objects, extract error",
+			args:    args{userRows: input, output: Objects, extract: true},
+			wantErr: true,
+		},
+		{
+			name: "objects, unwrap",
+			args: args{userRows: input, output: Objects, unwrap: true},
+			want: "{\"name\":\"bob\",\"age\":40,\"location\":{\"city\":\"dallas\"}}\n{\"name\":\"jane\",\"age\":30,\"location\":{\"city\":\"dallas\"}}\n", // nolint
+		},
+		{
+			name: "objects, extract, unwrap",
+			args: args{userRows: inputExtractable, output: Objects, extract: true, unwrap: true},
+			want: "\"bob\"\n\"jane\"",
+		},
 		{
 			name: "objects, extract, unwrap nested json",
 			args: args{userRows: inputExtractable2, output: Objects, extract: true, unwrap: true},
