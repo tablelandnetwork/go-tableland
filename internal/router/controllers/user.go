@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/hetiansu5/urlquery"
 	"github.com/rs/zerolog/log"
+	"github.com/textileio/go-tableland/internal/formatter"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/errors"
 	"github.com/textileio/go-tableland/pkg/tables"
@@ -125,34 +126,30 @@ func userRowToMap(cols []tableland.UserColumn, row []*tableland.ColValue) map[st
 // GetTableRow handles the GET /chain/{chainID}/tables/{id}/{key}/{value} call.
 // Use format=erc721 query param to generate JSON for ERC721 metadata.
 func (c *UserController) GetTableRow(rw http.ResponseWriter, r *http.Request) {
-	rw.Header().Set("Content-type", "application/json")
+	rw.Header().Set("Content-Type", "application/json")
 	vars := mux.Vars(r)
 	format := r.URL.Query().Get("format")
 
 	id, err := tables.NewTableID(vars["id"])
 	if err != nil {
 		rw.WriteHeader(http.StatusBadRequest)
-		log.Ctx(r.Context()).
-			Error().
-			Err(err).
-			Msg("invalid id format")
-
 		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Invalid id format"})
+		log.Ctx(r.Context()).Error().Err(err).Msg("invalid id format")
 		return
 	}
 
 	chainID := vars["chainID"]
 	stm := fmt.Sprintf("select prefix from registry where id=%s and chain_id=%s LIMIT 1", id.String(), chainID)
-	prefixRow, ok := c.runReadRequest(r.Context(), stm, rw)
+	prefixRes, ok := c.runReadRequest(r.Context(), stm, rw)
 	if !ok {
 		return
 	}
 
-	prefix := prefixRow.Rows[0][0].Value().(string)
+	prefix := prefixRes.Rows[0][0].Value().(string)
 
 	stm = fmt.Sprintf(
 		"SELECT * FROM %s_%s_%s WHERE %s=%s LIMIT 1", prefix, chainID, id.String(), vars["key"], vars["value"])
-	rows, ok := c.runReadRequest(r.Context(), stm, rw)
+	res, ok := c.runReadRequest(r.Context(), stm, rw)
 	if !ok {
 		return
 	}
@@ -172,7 +169,7 @@ func (c *UserController) GetTableRow(rw http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		row := userRowToMap(rows.Columns, rows.Rows[0])
+		row := userRowToMap(res.Columns, res.Rows[0])
 		md := metadataConfigToMetadata(row, mdc)
 		for i, ac := range mdc.Attributes {
 			if v, ok := row[mdc.Attributes[i].Column]; ok {
@@ -185,139 +182,66 @@ func (c *UserController) GetTableRow(rw http.ResponseWriter, r *http.Request) {
 		}
 		out = md
 	default:
-		out = rows
+		opts, err := formatterOptions(r)
+		if err != nil {
+			rw.WriteHeader(http.StatusBadRequest)
+			msg := fmt.Sprintf("Invalid formatting params: %v", err)
+			_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: msg})
+			log.Ctx(r.Context()).Error().Err(err).Msg(msg)
+			return
+		}
+		formatted, config, err := formatter.Format(res, opts...)
+		if err != nil {
+			rw.WriteHeader(http.StatusInternalServerError)
+			msg := fmt.Sprintf("Error formatting data: %v", err)
+			_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: msg})
+			log.Ctx(r.Context()).Error().Err(err).Msg(msg)
+			return
+		}
+		if config.Unwrap && len(res.Rows) > 1 {
+			rw.Header().Set("Content-Type", "application/jsonl+json")
+		}
+		out = formatted
 	}
 
 	rw.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(rw).Encode(out)
 }
 
-// FormatMode is used to contract the output format of a query specified with a "mode" query param.
-type FormatMode string
-
-const (
-	// ColumnsMode returns the query result with columns. This is the default mode.
-	ColumnsMode FormatMode = "columns"
-	// RowsMode returns the query result with rows only (no columns).
-	RowsMode FormatMode = "rows"
-	// JSONMode returns the query result as JSON key-value pairs.
-	JSONMode FormatMode = "json"
-	// CSVMode returns the query result as a comma-separated values. The first line contains the column header.
-	CSVMode FormatMode = "csv"
-	// ListMode returns the query result with each row on a new line. Column values are pipe-separated.
-	ListMode FormatMode = "list"
-)
-
-var modes = map[string]FormatMode{
-	"columns": ColumnsMode,
-	"rows":    RowsMode,
-	"json":    JSONMode,
-	"csv":     CSVMode,
-	"list":    ListMode,
-}
-
-func modeFromString(m string) (FormatMode, bool) {
-	mode, ok := modes[m]
-	return mode, ok
-}
-
 // GetTableQuery handles the GET /query?s=[statement] call.
 // Use mode=columns|rows|json|lines query param to control output format.
 func (c *UserController) GetTableQuery(rw http.ResponseWriter, r *http.Request) {
-	rw.Header().Set("Content-type", "application/json")
+	rw.Header().Set("Content-Type", "application/json")
 
 	stm := r.URL.Query().Get("s")
-	rows, ok := c.runReadRequest(r.Context(), stm, rw)
+	res, ok := c.runReadRequest(r.Context(), stm, rw)
 	if !ok {
 		return
 	}
 
-	rw.WriteHeader(http.StatusOK)
-	encoder := json.NewEncoder(rw)
-
-	modestr := r.URL.Query().Get("mode")
-	mode, ok := modeFromString(modestr)
-	if !ok {
-		mode = ColumnsMode
-	}
-	switch mode {
-	case ColumnsMode:
-		_ = encoder.Encode(rows)
-	case RowsMode:
-		_ = encoder.Encode(rows.Rows)
-	case JSONMode:
-		jsonrows := make([]map[string]interface{}, len(rows.Rows))
-		for i, row := range rows.Rows {
-			jsonrow := make(map[string]interface{}, len(row))
-			for j, col := range row {
-				jsonrow[rows.Columns[j].Name] = col
-			}
-			jsonrows[i] = jsonrow
-		}
-		_ = encoder.Encode(jsonrows)
-	case CSVMode:
-		rw.Header().Set("Content-type", "text/csv")
-		for i, col := range rows.Columns {
-			if i > 0 {
-				_, _ = rw.Write([]byte(","))
-			}
-			_, _ = rw.Write([]byte(col.Name))
-		}
-		_, _ = rw.Write([]byte("\n"))
-		for _, row := range rows.Rows {
-			for j, col := range row {
-				if j > 0 {
-					_, _ = rw.Write([]byte(","))
-				}
-
-				b, err := json.Marshal(col)
-				if err != nil {
-					rw.WriteHeader(http.StatusBadRequest)
-					log.Ctx(r.Context()).
-						Error().
-						Str("sql_request", stm).
-						Err(err)
-
-					_ = encoder.Encode(errors.ServiceError{Message: err.Error()})
-					return
-				}
-				_, _ = rw.Write(b)
-			}
-			_, _ = rw.Write([]byte("\n"))
-		}
-	case ListMode:
-		rw.Header().Set("Content-type", "application/jsonl+json")
-		for _, row := range rows.Rows {
-			for j, col := range row {
-				if j > 0 {
-					_, _ = rw.Write([]byte("|"))
-				}
-
-				b, err := json.Marshal(col)
-				if err != nil {
-					rw.WriteHeader(http.StatusBadRequest)
-					log.Ctx(r.Context()).
-						Error().
-						Str("sql_request", stm).
-						Err(err)
-
-					_ = encoder.Encode(errors.ServiceError{Message: err.Error()})
-					return
-				}
-				_, _ = rw.Write(b)
-			}
-			_, _ = rw.Write([]byte("\n"))
-		}
-	default:
+	opts, err := formatterOptions(r)
+	if err != nil {
 		rw.WriteHeader(http.StatusBadRequest)
-		err := fmt.Errorf("unrecognized mode: %s", modestr)
-		log.Ctx(r.Context()).
-			Error().
-			Str("mode", modestr).
-			Err(err)
-
-		_ = encoder.Encode(errors.ServiceError{Message: err.Error()})
+		msg := fmt.Sprintf("Error parsing formatting params: %v", err)
+		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: msg})
+		log.Ctx(r.Context()).Error().Err(err).Msg(msg)
+		return
 	}
+	formatted, config, err := formatter.Format(res, opts...)
+	if err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		msg := fmt.Sprintf("Error formatting data: %v", err)
+		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: msg})
+		log.Ctx(r.Context()).Error().Err(err).Msg(msg)
+		return
+	}
+
+	if config.Unwrap && len(res.Rows) > 1 {
+		rw.Header().Set("Content-Type", "application/jsonl+json")
+	}
+
+	rw.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(rw).Encode(formatted)
 }
 
 func (c *UserController) runReadRequest(
@@ -348,4 +272,57 @@ func (c *UserController) runReadRequest(
 		return nil, false
 	}
 	return res, true
+}
+
+func formatterOptions(r *http.Request) ([]formatter.FormatOption, error) {
+	var opts []formatter.FormatOption
+	params, err := getFormatterParams(r)
+	if err != nil {
+		return nil, err
+	}
+	if params.output != nil {
+		opts = append(opts, formatter.WithOutput(*params.output))
+	}
+	if params.extract != nil {
+		opts = append(opts, formatter.WithExtract(*params.extract))
+	}
+	if params.unwrap != nil {
+		opts = append(opts, formatter.WithUnwrap(*params.unwrap))
+	}
+	return opts, nil
+}
+
+type formatterParams struct {
+	output  *formatter.Output
+	extract *bool
+	unwrap  *bool
+}
+
+func getFormatterParams(r *http.Request) (formatterParams, error) {
+	c := formatterParams{}
+	output := r.URL.Query().Get("output")
+	extract := r.URL.Query().Get("extract")
+	unwrap := r.URL.Query().Get("unwrap")
+	if output != "" {
+		output, ok := formatter.OutputFromString(output)
+		if !ok {
+			return formatterParams{}, fmt.Errorf("bad output query parameter")
+		}
+		c.output = &output
+	}
+	if extract != "" {
+		extract, err := strconv.ParseBool(extract)
+		if err != nil {
+			return formatterParams{}, err
+		}
+		c.extract = &extract
+	}
+	if unwrap != "" {
+		unwrap, err := strconv.ParseBool(unwrap)
+		if err != nil {
+			return formatterParams{}, err
+		}
+		c.unwrap = &unwrap
+	}
+	return c, nil
 }
