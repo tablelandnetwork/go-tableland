@@ -236,12 +236,16 @@ func (c *UserController) GetTableQuery(rw http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	rw.WriteHeader(http.StatusOK)
+
 	if config.Unwrap && len(res.Rows) > 1 {
 		rw.Header().Set("Content-Type", "application/jsonl+json")
 	}
-
-	rw.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(rw).Encode(formatted)
+	if config.Unwrap {
+		_, _ = rw.Write(formatted.([]byte))
+	} else {
+		_ = json.NewEncoder(rw).Encode(formatted)
+	}
 }
 
 func (c *UserController) runReadRequest(
@@ -303,7 +307,6 @@ func getFormatterParams(r *http.Request) (formatterParams, error) {
 	output := r.URL.Query().Get("output")
 	extract := r.URL.Query().Get("extract")
 	unwrap := r.URL.Query().Get("unwrap")
-	mode := r.URL.Query().Get("mode")
 	if output != "" {
 		output, ok := formatter.OutputFromString(output)
 		if !ok {
@@ -327,6 +330,7 @@ func getFormatterParams(r *http.Request) (formatterParams, error) {
 	}
 
 	// Special handling for old mode param
+	mode := r.URL.Query().Get("mode")
 	if mode == "list" {
 		v := true
 		c.unwrap = &v
