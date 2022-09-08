@@ -63,8 +63,8 @@ func WithExtract(extract bool) FormatOption {
 	}
 }
 
-// Format transforms the user rows according to the provided configuration.
-func Format(userRows *tableland.UserRows, opts ...FormatOption) (interface{}, FormatConfig, error) {
+// Format transforms the user rows according to the provided configuration, retuning raw json or jsonl bytes.
+func Format(userRows *tableland.UserRows, opts ...FormatOption) ([]byte, FormatConfig, error) {
 	c := FormatConfig{
 		Output: Objects,
 	}
@@ -73,7 +73,11 @@ func Format(userRows *tableland.UserRows, opts ...FormatOption) (interface{}, Fo
 	}
 
 	if c.Output == Table {
-		return userRows, c, nil
+		b, err := json.Marshal(userRows)
+		if err != nil {
+			return nil, FormatConfig{}, fmt.Errorf("marshaling to json: %v", err)
+		}
+		return b, c, nil
 	}
 
 	objects := toObjects(userRows)
@@ -87,14 +91,17 @@ func Format(userRows *tableland.UserRows, opts ...FormatOption) (interface{}, Fo
 	}
 
 	if !c.Unwrap {
-		return objects, c, nil
+		b, err := json.Marshal(objects)
+		if err != nil {
+			return nil, FormatConfig{}, fmt.Errorf("marshaling to json: %v", err)
+		}
+		return b, c, nil
 	}
 
 	unwrapped, err := unwrap(objects)
 	if err != nil {
 		return nil, FormatConfig{}, fmt.Errorf("unwrapping values: %s", err)
 	}
-
 	return unwrapped, c, nil
 }
 

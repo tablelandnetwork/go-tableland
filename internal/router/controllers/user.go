@@ -154,7 +154,6 @@ func (c *UserController) GetTableRow(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var out interface{}
 	switch format {
 	case "erc721":
 		var mdc MetadataConfig
@@ -180,7 +179,8 @@ func (c *UserController) GetTableRow(rw http.ResponseWriter, r *http.Request) {
 				})
 			}
 		}
-		out = md
+		rw.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(rw).Encode(md)
 	default:
 		opts, err := formatterOptions(r)
 		if err != nil {
@@ -201,11 +201,9 @@ func (c *UserController) GetTableRow(rw http.ResponseWriter, r *http.Request) {
 		if config.Unwrap && len(res.Rows) > 1 {
 			rw.Header().Set("Content-Type", "application/jsonl+json")
 		}
-		out = formatted
+		rw.WriteHeader(http.StatusOK)
+		_, _ = rw.Write(formatted)
 	}
-
-	rw.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(rw).Encode(out)
 }
 
 // GetTableQuery handles the GET /query?s=[statement] call.
@@ -241,11 +239,7 @@ func (c *UserController) GetTableQuery(rw http.ResponseWriter, r *http.Request) 
 	if config.Unwrap && len(res.Rows) > 1 {
 		rw.Header().Set("Content-Type", "application/jsonl+json")
 	}
-	if config.Unwrap {
-		_, _ = rw.Write(formatted.([]byte))
-	} else {
-		_ = json.NewEncoder(rw).Encode(formatted)
-	}
+	_, _ = rw.Write(formatted)
 }
 
 func (c *UserController) runReadRequest(
