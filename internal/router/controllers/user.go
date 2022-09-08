@@ -303,6 +303,7 @@ func getFormatterParams(r *http.Request) (formatterParams, error) {
 	output := r.URL.Query().Get("output")
 	extract := r.URL.Query().Get("extract")
 	unwrap := r.URL.Query().Get("unwrap")
+	mode := r.URL.Query().Get("mode")
 	if output != "" {
 		output, ok := formatter.OutputFromString(output)
 		if !ok {
@@ -324,5 +325,15 @@ func getFormatterParams(r *http.Request) (formatterParams, error) {
 		}
 		c.unwrap = &unwrap
 	}
+
+	// Special handling for old mode param
+	if mode == "list" {
+		v := true
+		c.unwrap = &v
+	} else if mode == "json" {
+		v := formatter.Objects
+		c.output = &v
+	}
+
 	return c, nil
 }
