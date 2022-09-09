@@ -18,7 +18,7 @@ import (
 
 // SQLRunner defines the run SQL interface of Tableland.
 type SQLRunner interface {
-	RunReadQuery(ctx context.Context, stmt string) (*tableland.UserRows, error)
+	RunReadQuery(ctx context.Context, stmt string) (*tableland.TableData, error)
 }
 
 // UserController defines the HTTP handlers for interacting with user tables.
@@ -76,7 +76,7 @@ type Attribute struct {
 	Value       interface{} `json:"value"`
 }
 
-func metadataConfigToMetadata(row map[string]*tableland.ColValue, config MetadataConfig) Metadata {
+func metadataConfigToMetadata(row map[string]*tableland.ColumnValue, config MetadataConfig) Metadata {
 	var md Metadata
 	if v, ok := row[config.Image]; ok {
 		md.Image = v
@@ -115,8 +115,8 @@ func metadataConfigToMetadata(row map[string]*tableland.ColValue, config Metadat
 	return md
 }
 
-func userRowToMap(cols []tableland.UserColumn, row []*tableland.ColValue) map[string]*tableland.ColValue {
-	m := make(map[string]*tableland.ColValue)
+func userRowToMap(cols []tableland.Column, row []*tableland.ColumnValue) map[string]*tableland.ColumnValue {
+	m := make(map[string]*tableland.ColumnValue)
 	for i := range cols {
 		m[cols[i].Name] = row[i]
 	}
@@ -246,7 +246,7 @@ func (c *UserController) runReadRequest(
 	ctx context.Context,
 	stm string,
 	rw http.ResponseWriter,
-) (*tableland.UserRows, bool) {
+) (*tableland.TableData, bool) {
 	res, err := c.runner.RunReadQuery(ctx, stm)
 	if err != nil {
 		rw.WriteHeader(http.StatusBadRequest)

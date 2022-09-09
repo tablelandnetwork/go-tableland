@@ -64,7 +64,7 @@ func WithExtract(extract bool) FormatOption {
 }
 
 // Format transforms the user rows according to the provided configuration, retuning raw json or jsonl bytes.
-func Format(userRows *tableland.UserRows, opts ...FormatOption) ([]byte, FormatConfig, error) {
+func Format(userRows *tableland.TableData, opts ...FormatOption) ([]byte, FormatConfig, error) {
 	c := FormatConfig{
 		Output: Objects,
 	}
@@ -105,7 +105,7 @@ func Format(userRows *tableland.UserRows, opts ...FormatOption) ([]byte, FormatC
 	return unwrapped, c, nil
 }
 
-func toObjects(in *tableland.UserRows) []interface{} {
+func toObjects(in *tableland.TableData) []interface{} {
 	objects := make([]interface{}, len(in.Rows))
 	in.Rows[0][0].Value()
 	for i, row := range in.Rows {

@@ -40,7 +40,7 @@ func New(dbURI string) (*UserStore, error) {
 }
 
 // Read executes a read statement on the db.
-func (db *UserStore) Read(ctx context.Context, rq parsing.ReadStmt) (*tableland.UserRows, error) {
+func (db *UserStore) Read(ctx context.Context, rq parsing.ReadStmt) (*tableland.TableData, error) {
 	query, err := rq.GetQuery()
 	if err != nil {
 		return nil, fmt.Errorf("get query: %s", err)
@@ -60,7 +60,7 @@ func (db *UserStore) Close() error {
 	return nil
 }
 
-func execReadQuery(ctx context.Context, tx *sql.DB, q string) (*tableland.UserRows, error) {
+func execReadQuery(ctx context.Context, tx *sql.DB, q string) (*tableland.TableData, error) {
 	rows, err := tx.QueryContext(ctx, q)
 	if err != nil {
 		return nil, fmt.Errorf("executing query: %s", err)
@@ -70,5 +70,5 @@ func execReadQuery(ctx context.Context, tx *sql.DB, q string) (*tableland.UserRo
 			log.Warn().Err(err).Msg("closing rows")
 		}
 	}()
-	return rowsToJSON(rows)
+	return rowsToTableData(rows)
 }

@@ -9,6 +9,6 @@ import (
 
 // UserStore defines the methods for interacting with user data.
 type UserStore interface {
-	Read(context.Context, parsing.ReadStmt) (*tableland.UserRows, error)
+	Read(context.Context, parsing.ReadStmt) (*tableland.TableData, error)
 	Close() error
 }

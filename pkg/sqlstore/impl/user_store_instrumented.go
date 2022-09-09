@@ -40,7 +40,7 @@ func NewInstrumentedUserStore(store sqlstore.UserStore) (sqlstore.UserStore, err
 }
 
 // Read executes a read statement on the db.
-func (s *InstrumentedUserStore) Read(ctx context.Context, stmt parsing.ReadStmt) (*tableland.UserRows, error) {
+func (s *InstrumentedUserStore) Read(ctx context.Context, stmt parsing.ReadStmt) (*tableland.TableData, error) {
 	start := time.Now()
 	data, err := s.store.Read(ctx, stmt)
 	latency := time.Since(start).Milliseconds()

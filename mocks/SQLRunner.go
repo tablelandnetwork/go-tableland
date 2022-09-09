@@ -24,15 +24,15 @@ func (_m *SQLRunner) EXPECT() *SQLRunner_Expecter {
 }
 
 // RunReadQuery provides a mock function with given fields: ctx, stmt
-func (_m *SQLRunner) RunReadQuery(ctx context.Context, stmt string) (*tableland.UserRows, error) {
+func (_m *SQLRunner) RunReadQuery(ctx context.Context, stmt string) (*tableland.TableData, error) {
 	ret := _m.Called(ctx, stmt)
 
-	var r0 *tableland.UserRows
-	if rf, ok := ret.Get(0).(func(context.Context, string) *tableland.UserRows); ok {
+	var r0 *tableland.TableData
+	if rf, ok := ret.Get(0).(func(context.Context, string) *tableland.TableData); ok {
 		r0 = rf(ctx, stmt)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*tableland.UserRows)
+			r0 = ret.Get(0).(*tableland.TableData)
 		}
 	}
 
@@ -65,7 +65,7 @@ func (_c *SQLRunner_RunReadQuery_Call) Run(run func(ctx context.Context, stmt st
 	return _c
 }
 
-func (_c *SQLRunner_RunReadQuery_Call) Return(_a0 *tableland.UserRows, _a1 error) *SQLRunner_RunReadQuery_Call {
+func (_c *SQLRunner_RunReadQuery_Call) Return(_a0 *tableland.TableData, _a1 error) *SQLRunner_RunReadQuery_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }

@@ -13,25 +13,25 @@ import (
 	"github.com/textileio/go-tableland/pkg/tables"
 )
 
-// UserColumn defines a column in a row result.
-type UserColumn struct {
+// Column defines a column in table data.
+type Column struct {
 	Name string `json:"name"`
 }
 
-// UserRows defines a row result.
-type UserRows struct {
-	Columns []UserColumn  `json:"columns"`
-	Rows    [][]*ColValue `json:"rows"`
+// TableData defines a tabular representation of query results.
+type TableData struct {
+	Columns []Column         `json:"columns"`
+	Rows    [][]*ColumnValue `json:"rows"`
 }
 
-// ColValue wraps data from the db that may be raw json or any other value.
-type ColValue struct {
+// ColumnValue wraps data from the db that may be raw json or any other value.
+type ColumnValue struct {
 	jsonValue  json.RawMessage
 	otherValue interface{}
 }
 
 // Value returns the underlying value.
-func (cv *ColValue) Value() interface{} {
+func (cv *ColumnValue) Value() interface{} {
 	if cv.jsonValue != nil {
 		return cv.jsonValue
 	}
@@ -39,7 +39,7 @@ func (cv *ColValue) Value() interface{} {
 }
 
 // Scan implements Scan.
-func (cv *ColValue) Scan(src interface{}) error {
+func (cv *ColumnValue) Scan(src interface{}) error {
 	cv.jsonValue = nil
 	cv.otherValue = nil
 	switch src := src.(type) {
@@ -61,7 +61,7 @@ func (cv *ColValue) Scan(src interface{}) error {
 }
 
 // MarshalJSON implements MarshalJSON.
-func (cv *ColValue) MarshalJSON() ([]byte, error) {
+func (cv *ColumnValue) MarshalJSON() ([]byte, error) {
 	if cv.jsonValue != nil {
 		return cv.jsonValue, nil
 	}
@@ -69,13 +69,13 @@ func (cv *ColValue) MarshalJSON() ([]byte, error) {
 }
 
 // JSONColValue creates a UserValue with the provided json.
-func JSONColValue(v json.RawMessage) *ColValue {
-	return &ColValue{jsonValue: v}
+func JSONColValue(v json.RawMessage) *ColumnValue {
+	return &ColumnValue{jsonValue: v}
 }
 
 // OtherColValue creates a UserValue with the provided other value.
-func OtherColValue(v interface{}) *ColValue {
-	return &ColValue{otherValue: v}
+func OtherColValue(v interface{}) *ColumnValue {
+	return &ColumnValue{otherValue: v}
 }
 
 // TxnReceipt is a Tableland event processing receipt.
@@ -91,7 +91,7 @@ type TxnReceipt struct {
 
 // Tableland defines the interface of Tableland.
 type Tableland interface {
-	RunReadQuery(ctx context.Context, stmt string) (*UserRows, error)
+	RunReadQuery(ctx context.Context, stmt string) (*TableData, error)
 	ValidateCreateTable(ctx context.Context, chainID ChainID, stmt string) (string, error)
 	ValidateWriteQuery(ctx context.Context, chainID ChainID, stmt string) (tables.TableID, error)
 	RelayWriteQuery(

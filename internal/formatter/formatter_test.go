@@ -10,33 +10,33 @@ import (
 
 var rawJSON = []byte("{\"city\":\"dallas\"}")
 
-var input = &tableland.UserRows{
-	Columns: []tableland.UserColumn{
+var input = &tableland.TableData{
+	Columns: []tableland.Column{
 		{Name: "name"},
 		{Name: "age"},
 		{Name: "location"},
 	},
-	Rows: [][]*tableland.ColValue{
+	Rows: [][]*tableland.ColumnValue{
 		{tableland.OtherColValue("bob"), tableland.OtherColValue(40), tableland.JSONColValue(rawJSON)},
 		{tableland.OtherColValue("jane"), tableland.OtherColValue(30), tableland.JSONColValue(rawJSON)},
 	},
 }
 
-var inputExtractable = &tableland.UserRows{
-	Columns: []tableland.UserColumn{
+var inputExtractable = &tableland.TableData{
+	Columns: []tableland.Column{
 		{Name: "name"},
 	},
-	Rows: [][]*tableland.ColValue{
+	Rows: [][]*tableland.ColumnValue{
 		{tableland.OtherColValue("bob")},
 		{tableland.OtherColValue("jane")},
 	},
 }
 
-var inputExtractable2 = &tableland.UserRows{
-	Columns: []tableland.UserColumn{
+var inputExtractable2 = &tableland.TableData{
+	Columns: []tableland.Column{
 		{Name: "location"},
 	},
-	Rows: [][]*tableland.ColValue{
+	Rows: [][]*tableland.ColumnValue{
 		{tableland.JSONColValue(rawJSON)},
 		{tableland.JSONColValue(rawJSON)},
 	},
@@ -44,7 +44,7 @@ var inputExtractable2 = &tableland.UserRows{
 
 func TestFormat(t *testing.T) {
 	type args struct {
-		userRows *tableland.UserRows
+		userRows *tableland.TableData
 		output   Output
 		unwrap   bool
 		extract  bool

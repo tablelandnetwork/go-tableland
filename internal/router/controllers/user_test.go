@@ -1,9 +1,10 @@
 package controllers
 
 import (
-	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gorilla/mux"
@@ -19,7 +20,7 @@ func TestUserController(t *testing.T) {
 	req, err := http.NewRequest("GET", "/chain/69/tables/100/id/1", nil)
 	require.NoError(t, err)
 
-	userController := NewUserController(&runnerMock{})
+	userController := NewUserController(newTableRowRunnerMock(t))
 
 	router := mux.NewRouter()
 	router.HandleFunc("/chain/{chainID}/tables/{id}/{key}/{value}", userController.GetTableRow)
@@ -28,7 +29,7 @@ func TestUserController(t *testing.T) {
 	router.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
 
-	expJSON := `{"columns":[{"name":"id"},{"name":"description"},{"name":"image"},{"name":"external_url"},{"name":"base"},{"name":"eyes"},{"name":"mouth"},{"name":"level"},{"name":"stamina"},{"name":"personality"},{"name":"aqua_power"},{"name":"stamina_increase"},{"name":"generation"}],"rows":[[1,"Friendly OpenSea Creature that enjoys long swims in the ocean.","https://storage.googleapis.com/opensea-prod.appspot.com/creature/3.png","https://example.com/?token_id=3","Starfish","Big","Surprised",5,1.4,"Sad",40,10,2]]}` // nolint
+	expJSON := `[{"id":1,"description":"Friendly OpenSea Creature that enjoys long swims in the ocean.","image":"https://storage.googleapis.com/opensea-prod.appspot.com/creature/3.png","external_url":"https://example.com/?token_id=3","base":"Starfish","eyes":"Big","mouth":"Surprised","level":5,"stamina":1.4,"personality":"Sad","aqua_power":40,"stamina_increase":10,"generation":2}]` // nolint
 	require.JSONEq(t, expJSON, rr.Body.String())
 }
 
@@ -38,7 +39,7 @@ func TestUserControllerERC721Metadata(t *testing.T) {
 	req, err := http.NewRequest("GET", "/chain/69/tables/100/id/1?format=erc721&name=id&image=image&description=description&external_url=external_url&attributes[0][column]=base&attributes[0][trait_type]=Base&attributes[1][column]=eyes&attributes[1][trait_type]=Eyes&attributes[2][column]=mouth&attributes[2][trait_type]=Mouth&attributes[3][column]=level&attributes[3][trait_type]=Level&attributes[4][column]=stamina&attributes[4][trait_type]=Stamina&attributes[5][column]=personality&attributes[5][trait_type]=Personality&attributes[6][column]=aqua_power&attributes[6][display_type]=boost_number&attributes[6][trait_type]=Aqua%20Power&attributes[7][column]=stamina_increase&attributes[7][display_type]=boost_percentage&attributes[7][trait_type]=Stamina%20Increase&attributes[8][column]=generation&attributes[8][display_type]=number&attributes[8][trait_type]=Generation", nil) // nolint
 	require.NoError(t, err)
 
-	userController := NewUserController(&runnerMock{})
+	userController := NewUserController(newTableRowRunnerMock(t))
 
 	router := mux.NewRouter()
 	router.HandleFunc("/chain/{chainID}/tables/{id}/{key}/{value}", userController.GetTableRow)
@@ -51,13 +52,16 @@ func TestUserControllerERC721Metadata(t *testing.T) {
 	require.JSONEq(t, expJSON, rr.Body.String())
 }
 
-func TestUserControllerInvalidColumn(t *testing.T) {
+func TestUserControllerBadQuery(t *testing.T) {
 	t.Parallel()
+
+	r := mocks.NewSQLRunner(t)
+	r.EXPECT().RunReadQuery(mock.Anything, mock.Anything).Return(nil, errors.New("bad query error message"))
 
 	req, err := http.NewRequest("GET", "/chain/69/tables/100/invalid_column/0", nil)
 	require.NoError(t, err)
 
-	userController := NewUserController(&badRequestRunnerMock{})
+	userController := NewUserController(r)
 
 	router := mux.NewRouter()
 	router.HandleFunc("/chain/{chainID}/tables/{id}/{key}/{value}", userController.GetTableRow)
@@ -67,17 +71,40 @@ func TestUserControllerInvalidColumn(t *testing.T) {
 
 	require.Equal(t, http.StatusBadRequest, rr.Code)
 
-	expJSON := `{"message": "Bad query result"}`
+	expJSON := `{"message": "bad query error message"}`
 	require.JSONEq(t, expJSON, rr.Body.String())
 }
 
 func TestUserControllerRowNotFound(t *testing.T) {
 	t.Parallel()
 
+	r := mocks.NewSQLRunner(t)
+	r.EXPECT().RunReadQuery(mock.Anything, mock.Anything).Return(
+		&tableland.TableData{
+			Columns: []tableland.Column{
+				{Name: "id"},
+				{Name: "description"},
+				{Name: "image"},
+				{Name: "external_url"},
+				{Name: "base"},
+				{Name: "eyes"},
+				{Name: "mouth"},
+				{Name: "level"},
+				{Name: "stamina"},
+				{Name: "personality"},
+				{Name: "aqua_power"},
+				{Name: "stamina_increase"},
+				{Name: "generation"},
+			},
+			Rows: [][]*tableland.ColumnValue{},
+		},
+		nil,
+	)
+
 	req, err := http.NewRequest("GET", "/chain/69/tables/100/id/1", nil)
 	require.NoError(t, err)
 
-	userController := NewUserController(&notFoundRunnerMock{})
+	userController := NewUserController(r)
 
 	router := mux.NewRouter()
 	router.HandleFunc("/chain/{chainID}/tables/{id}/{key}/{value}", userController.GetTableRow)
@@ -91,16 +118,16 @@ func TestUserControllerRowNotFound(t *testing.T) {
 	require.JSONEq(t, expJSON, rr.Body.String())
 }
 
-func TestUserControllerTableQuery(t *testing.T) {
+func TestUserControllerQuery(t *testing.T) {
 	r := mocks.NewSQLRunner(t)
 	r.EXPECT().RunReadQuery(mock.Anything, mock.AnythingOfType("string")).Return(
-		&tableland.UserRows{
-			Columns: []tableland.UserColumn{
+		&tableland.TableData{
+			Columns: []tableland.Column{
 				{Name: "id"},
 				{Name: "eyes"},
 				{Name: "mouth"},
 			},
-			Rows: [][]*tableland.ColValue{
+			Rows: [][]*tableland.ColumnValue{
 				{
 					tableland.OtherColValue(1),
 					tableland.OtherColValue("Big"),
@@ -120,13 +147,13 @@ func TestUserControllerTableQuery(t *testing.T) {
 		},
 		nil,
 	)
+
 	userController := NewUserController(r)
 
 	router := mux.NewRouter()
 	router.HandleFunc("/query", userController.GetTableQuery)
 
 	// Table output
-
 	req, err := http.NewRequest("GET", "/query?s=select%20*%20from%20foo%3B&output=table", nil)
 	require.NoError(t, err)
 	rr := httptest.NewRecorder()
@@ -143,121 +170,140 @@ func TestUserControllerTableQuery(t *testing.T) {
 	require.Equal(t, http.StatusOK, rr.Code)
 	exp = `[{"eyes":"Big","id":1,"mouth":"Surprised"},{"eyes":"Medium","id":2,"mouth":"Sad"},{"eyes":"Small","id":3,"mouth":"Happy"}]` // nolint
 	require.JSONEq(t, exp, rr.Body.String())
-}
 
-type runnerMock struct {
-	counter int
-}
-
-func (rm *runnerMock) RunReadQuery(
-	_ context.Context,
-	_ string,
-) (*tableland.UserRows, error) {
-	if rm.counter == 0 {
-		rm.counter++
-		return &tableland.UserRows{
-			Rows: [][]*tableland.ColValue{{tableland.OtherColValue("foo")}},
-		}, nil
+	// Unwrapped object output
+	req, err = http.NewRequest("GET", "/query?s=select%20*%20from%20foo%3B&output=objects&unwrap=true", nil)
+	require.NoError(t, err)
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+	exp = "{\"eyes\":\"Big\",\"id\":1,\"mouth\":\"Surprised\"}\n{\"eyes\":\"Medium\",\"id\":2,\"mouth\":\"Sad\"}\n{\"eyes\":\"Small\",\"id\":3,\"mouth\":\"Happy\"}\n" // nolint
+	wantStrings := parseJSONLString(exp)
+	gotStrings := parseJSONLString(rr.Body.String())
+	require.Equal(t, len(wantStrings), len(gotStrings))
+	for i, wantString := range wantStrings {
+		require.JSONEq(t, wantString, gotStrings[i])
 	}
-	return &tableland.UserRows{
-		Columns: []tableland.UserColumn{
-			{Name: "id"},
-			{Name: "description"},
-			{Name: "image"},
-			{Name: "external_url"},
-			{Name: "base"},
-			{Name: "eyes"},
-			{Name: "mouth"},
-			{Name: "level"},
-			{Name: "stamina"},
-			{Name: "personality"},
-			{Name: "aqua_power"},
-			{Name: "stamina_increase"},
-			{Name: "generation"},
-		},
-		Rows: [][]*tableland.ColValue{
-			{
-				tableland.OtherColValue(1),
-				tableland.OtherColValue("Friendly OpenSea Creature that enjoys long swims in the ocean."),
-				tableland.OtherColValue("https://storage.googleapis.com/opensea-prod.appspot.com/creature/3.png"),
-				tableland.OtherColValue("https://example.com/?token_id=3"),
-				tableland.OtherColValue("Starfish"),
-				tableland.OtherColValue("Big"),
-				tableland.OtherColValue("Surprised"),
-				tableland.OtherColValue(5),
-				tableland.OtherColValue(1.4),
-				tableland.OtherColValue("Sad"),
-				tableland.OtherColValue(40),
-				tableland.OtherColValue(10),
-				tableland.OtherColValue(2),
-			},
-		},
-	}, nil
+
+	// Legacy 'mode' support
+
+	// Mode = json
+	req, err = http.NewRequest("GET", "/query?s=select%20*%20from%20foo%3B&mode=json", nil)
+	require.NoError(t, err)
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+	exp = `[{"eyes":"Big","id":1,"mouth":"Surprised"},{"eyes":"Medium","id":2,"mouth":"Sad"},{"eyes":"Small","id":3,"mouth":"Happy"}]` // nolint
+	require.JSONEq(t, exp, rr.Body.String())
+
+	// Mode = list
+	req, err = http.NewRequest("GET", "/query?s=select%20*%20from%20foo%3B&mode=list", nil)
+	require.NoError(t, err)
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+	exp = "{\"eyes\":\"Big\",\"id\":1,\"mouth\":\"Surprised\"}\n{\"eyes\":\"Medium\",\"id\":2,\"mouth\":\"Sad\"}\n{\"eyes\":\"Small\",\"id\":3,\"mouth\":\"Happy\"}\n" // nolint
+	wantStrings = parseJSONLString(exp)
+	gotStrings = parseJSONLString(rr.Body.String())
+	require.Equal(t, len(wantStrings), len(gotStrings))
+	for i, wantString := range wantStrings {
+		require.JSONEq(t, wantString, gotStrings[i])
+	}
 }
 
-type badRequestRunnerMock struct{}
+func TestUserControllerQueryExtracted(t *testing.T) {
+	r := mocks.NewSQLRunner(t)
+	r.EXPECT().RunReadQuery(mock.Anything, mock.AnythingOfType("string")).Return(
+		&tableland.TableData{
+			Columns: []tableland.Column{{Name: "name"}},
+			Rows: [][]*tableland.ColumnValue{
+				{tableland.OtherColValue("bob")},
+				{tableland.OtherColValue("jane")},
+				{tableland.OtherColValue("alex")},
+			},
+		},
+		nil,
+	)
 
-func (*badRequestRunnerMock) RunReadQuery(
-	_ context.Context,
-	_ string,
-) (*tableland.UserRows, error) {
-	return nil, nil
+	userController := NewUserController(r)
+
+	router := mux.NewRouter()
+	router.HandleFunc("/query", userController.GetTableQuery)
+
+	// Extracted object output
+	req, err := http.NewRequest("GET", "/query?s=select%20*%20from%20foo%3B&output=objects&extract=true", nil)
+	require.NoError(t, err)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+	exp := `["bob","jane","alex"]`
+	require.JSONEq(t, exp, rr.Body.String())
+
+	// Extracted unwrapped object output
+	req, err = http.NewRequest("GET", "/query?s=select%20*%20from%20foo%3B&output=objects&unwrap=true&extract=true", nil)
+	require.NoError(t, err)
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+	exp = "\"bob\"\n\"jane\"\n\"alex\"\n"
+	wantStrings := parseJSONLString(exp)
+	gotStrings := parseJSONLString(rr.Body.String())
+	require.Equal(t, len(wantStrings), len(gotStrings))
+	for i, wantString := range wantStrings {
+		require.JSONEq(t, wantString, gotStrings[i])
+	}
 }
 
-type notFoundRunnerMock struct{}
-
-func (*notFoundRunnerMock) RunReadQuery(
-	_ context.Context,
-	_ string,
-) (*tableland.UserRows, error) {
-	return &tableland.UserRows{
-		Columns: []tableland.UserColumn{
-			{Name: "id"},
-			{Name: "description"},
-			{Name: "image"},
-			{Name: "external_url"},
-			{Name: "base"},
-			{Name: "eyes"},
-			{Name: "mouth"},
-			{Name: "level"},
-			{Name: "stamina"},
-			{Name: "personality"},
-			{Name: "aqua_power"},
-			{Name: "stamina_increase"},
-			{Name: "generation"},
+func newTableRowRunnerMock(t *testing.T) SQLRunner {
+	r := mocks.NewSQLRunner(t)
+	r.EXPECT().RunReadQuery(mock.Anything, mock.Anything).Return(
+		&tableland.TableData{
+			Columns: []tableland.Column{{Name: "prefix"}},
+			Rows:    [][]*tableland.ColumnValue{{tableland.OtherColValue("foo")}},
 		},
-		Rows: [][]*tableland.ColValue{},
-	}, nil
+		nil,
+	).Once()
+	r.EXPECT().RunReadQuery(mock.Anything, mock.Anything).Return(
+		&tableland.TableData{
+			Columns: []tableland.Column{
+				{Name: "id"},
+				{Name: "description"},
+				{Name: "image"},
+				{Name: "external_url"},
+				{Name: "base"},
+				{Name: "eyes"},
+				{Name: "mouth"},
+				{Name: "level"},
+				{Name: "stamina"},
+				{Name: "personality"},
+				{Name: "aqua_power"},
+				{Name: "stamina_increase"},
+				{Name: "generation"},
+			},
+			Rows: [][]*tableland.ColumnValue{
+				{
+					tableland.OtherColValue(1),
+					tableland.OtherColValue("Friendly OpenSea Creature that enjoys long swims in the ocean."),
+					tableland.OtherColValue("https://storage.googleapis.com/opensea-prod.appspot.com/creature/3.png"),
+					tableland.OtherColValue("https://example.com/?token_id=3"),
+					tableland.OtherColValue("Starfish"),
+					tableland.OtherColValue("Big"),
+					tableland.OtherColValue("Surprised"),
+					tableland.OtherColValue(5),
+					tableland.OtherColValue(1.4),
+					tableland.OtherColValue("Sad"),
+					tableland.OtherColValue(40),
+					tableland.OtherColValue(10),
+					tableland.OtherColValue(2),
+				},
+			},
+		},
+		nil,
+	).Once()
+	return r
 }
 
-type queryRunnerMock struct{}
-
-func (rm *queryRunnerMock) RunReadQuery(
-	_ context.Context,
-	_ string,
-) (*tableland.UserRows, error) {
-	return &tableland.UserRows{
-		Columns: []tableland.UserColumn{
-			{Name: "id"},
-			{Name: "eyes"},
-			{Name: "mouth"},
-		},
-		Rows: [][]*tableland.ColValue{
-			{
-				tableland.OtherColValue(1),
-				tableland.OtherColValue("Big"),
-				tableland.OtherColValue("Surprised"),
-			},
-			{
-				tableland.OtherColValue(2),
-				tableland.OtherColValue("Medium"),
-				tableland.OtherColValue("Sad"),
-			},
-			{
-				tableland.OtherColValue(3),
-				tableland.OtherColValue("Small"),
-				tableland.OtherColValue("Happy"),
-			},
-		},
-	}, nil
+func parseJSONLString(val string) []string {
+	s := strings.TrimRight(val, "\n")
+	return strings.Split(s, "\n")
 }

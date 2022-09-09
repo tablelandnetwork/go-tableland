@@ -10,7 +10,7 @@ import (
 )
 
 func TestUserValue(t *testing.T) {
-	uv := &tableland.ColValue{}
+	uv := &tableland.ColumnValue{}
 
 	var in0 int64 = 100
 	require.NoError(t, uv.Scan(in0))
