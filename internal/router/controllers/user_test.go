@@ -7,8 +7,10 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/mocks"
 )
 
 func TestUserController(t *testing.T) {
@@ -90,13 +92,42 @@ func TestUserControllerRowNotFound(t *testing.T) {
 }
 
 func TestUserControllerTableQuery(t *testing.T) {
-	userController := NewUserController(&queryRunnerMock{})
+	r := mocks.NewSQLRunner(t)
+	r.EXPECT().RunReadQuery(mock.Anything, mock.AnythingOfType("string")).Return(
+		&tableland.UserRows{
+			Columns: []tableland.UserColumn{
+				{Name: "id"},
+				{Name: "eyes"},
+				{Name: "mouth"},
+			},
+			Rows: [][]*tableland.ColValue{
+				{
+					tableland.OtherColValue(1),
+					tableland.OtherColValue("Big"),
+					tableland.OtherColValue("Surprised"),
+				},
+				{
+					tableland.OtherColValue(2),
+					tableland.OtherColValue("Medium"),
+					tableland.OtherColValue("Sad"),
+				},
+				{
+					tableland.OtherColValue(3),
+					tableland.OtherColValue("Small"),
+					tableland.OtherColValue("Happy"),
+				},
+			},
+		},
+		nil,
+	)
+	userController := NewUserController(r)
 
 	router := mux.NewRouter()
 	router.HandleFunc("/query", userController.GetTableQuery)
 
-	// Columns mode
-	req, err := http.NewRequest("GET", "/query?s=select%20*%20from%20foo%3B", nil)
+	// Table output
+
+	req, err := http.NewRequest("GET", "/query?s=select%20*%20from%20foo%3B&output=table", nil)
 	require.NoError(t, err)
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
@@ -104,48 +135,14 @@ func TestUserControllerTableQuery(t *testing.T) {
 	exp := `{"columns":[{"name":"id"},{"name":"eyes"},{"name":"mouth"}],"rows":[[1,"Big","Surprised"],[2,"Medium","Sad"],[3,"Small","Happy"]]}` // nolint
 	require.JSONEq(t, exp, rr.Body.String())
 
-	// Rows mode
-	req, err = http.NewRequest("GET", "/query?s=select%20*%20from%20foo%3B&mode=rows", nil)
-	require.NoError(t, err)
-	rr = httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
-	require.Equal(t, http.StatusOK, rr.Code)
-	exp = `[[1,"Big","Surprised"],[2,"Medium","Sad"],[3,"Small","Happy"]]`
-	require.JSONEq(t, exp, rr.Body.String())
-
-	// JSON mode
-	req, err = http.NewRequest("GET", "/query?s=select%20*%20from%20foo%3B&mode=json", nil)
+	// Object output
+	req, err = http.NewRequest("GET", "/query?s=select%20*%20from%20foo%3B&output=objects", nil)
 	require.NoError(t, err)
 	rr = httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
 	exp = `[{"eyes":"Big","id":1,"mouth":"Surprised"},{"eyes":"Medium","id":2,"mouth":"Sad"},{"eyes":"Small","id":3,"mouth":"Happy"}]` // nolint
 	require.JSONEq(t, exp, rr.Body.String())
-
-	// CSV mode
-	req, err = http.NewRequest("GET", "/query?s=select%20*%20from%20foo%3B&mode=csv", nil)
-	require.NoError(t, err)
-	rr = httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
-	require.Equal(t, http.StatusOK, rr.Code)
-	exp = `id,eyes,mouth
-1,"Big","Surprised"
-2,"Medium","Sad"
-3,"Small","Happy"
-`
-	require.Equal(t, exp, rr.Body.String())
-
-	// List mode
-	req, err = http.NewRequest("GET", "/query?s=select%20*%20from%20foo%3B&mode=list", nil)
-	require.NoError(t, err)
-	rr = httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
-	require.Equal(t, http.StatusOK, rr.Code)
-	exp = `1|"Big"|"Surprised"
-2|"Medium"|"Sad"
-3|"Small"|"Happy"
-`
-	require.Equal(t, exp, rr.Body.String())
 }
 
 type runnerMock struct {

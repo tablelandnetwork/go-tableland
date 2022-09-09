@@ -34,6 +34,14 @@ system-sql-assets:
 	cd pkg/sqlstore/impl/system && $(GO_BINDATA) -pkg migrations -prefix migrations/ -o migrations/migrations.go -ignore=migrations.go migrations
 .PHONY: system-sql-assets
 
+mocks:
+	go run github.com/vektra/mockery/v2@v2.14.0 --name=SQLRunner --recursive --with-expecter
+.PHONY: mocks
+
+clean-mocks:
+	rm -rf mocks
+.PHONY: clean-mocks
+
 
 # Build 
 
