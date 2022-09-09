@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/textileio/go-tableland/internal/formatter"
 	"github.com/textileio/go-tableland/internal/router/middlewares"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/tables"
@@ -25,7 +26,10 @@ type RelayWriteQueryResponse struct {
 
 // RunReadQueryRequest is a user RunReadQuery request.
 type RunReadQueryRequest struct {
-	Statement string `json:"statement"`
+	Statement string  `json:"statement"`
+	Output    *string `json:"output"`
+	Unwrap    *bool   `json:"unwrap"`
+	Extract   *bool   `json:"extract"`
 }
 
 // RunReadQueryResponse is a RunReadQuery response.
@@ -168,7 +172,31 @@ func (rs *RPCService) RunReadQuery(
 	if err != nil {
 		return RunReadQueryResponse{}, fmt.Errorf("calling RunReadQuery: %v", err)
 	}
-	return RunReadQueryResponse{Result: res}, nil
+	var opts []formatter.FormatOption
+	if req.Output != nil {
+		output, ok := formatter.OutputFromString(*req.Output)
+		if !ok {
+			return RunReadQueryResponse{}, fmt.Errorf("%s is not a valid output", *req.Output)
+		}
+		opts = append(opts, formatter.WithOutput(output))
+	}
+	if req.Extract != nil {
+		opts = append(opts, formatter.WithExtract(*req.Extract))
+	}
+	if req.Unwrap != nil {
+		opts = append(opts, formatter.WithUnwrap(*req.Unwrap))
+	}
+
+	formatted, config, err := formatter.Format(res, opts...)
+	if err != nil {
+		return RunReadQueryResponse{}, fmt.Errorf("formatting result: %v", err)
+	}
+
+	if config.Unwrap && len(res.Rows) > 1 {
+		return RunReadQueryResponse{}, errors.New("unwrapped results with more than one row aren't supported in JSON RPC API")
+	}
+
+	return RunReadQueryResponse{Result: formatted}, nil
 }
 
 // GetReceipt returns the receipt of a processed event by txn hash.
