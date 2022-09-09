@@ -2,6 +2,7 @@ package rpcservice
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -196,7 +197,7 @@ func (rs *RPCService) RunReadQuery(
 		return RunReadQueryResponse{}, errors.New("unwrapped results with more than one row aren't supported in JSON RPC API")
 	}
 
-	return RunReadQueryResponse{Result: formatted}, nil
+	return RunReadQueryResponse{Result: json.RawMessage(formatted)}, nil
 }
 
 // GetReceipt returns the receipt of a processed event by txn hash.
