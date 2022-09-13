@@ -72,13 +72,19 @@ func TestRead(t *testing.T) {
 	_, table := requireCreate(t, calls)
 	hash := requireWrite(t, calls, table)
 	requireReceipt(t, calls, hash, WaitFor(time.Second*10))
+
 	type result struct {
 		Bar string `json:"bar"`
 	}
-	res := []result{}
-	calls.read(fmt.Sprintf("select * from %s", table), &res)
-	require.Len(t, res, 1)
-	require.Equal(t, "baz", res[0].Bar)
+
+	res0 := []result{}
+	calls.read(fmt.Sprintf("select * from %s", table), &res0)
+	require.Len(t, res0, 1)
+	require.Equal(t, "baz", res0[0].Bar)
+
+	res1 := map[string]interface{}{}
+	calls.read(fmt.Sprintf("select * from %s", table), &res1, ReadOutput(Table))
+	require.Len(t, res1, 2)
 
 	res2 := result{}
 	calls.read(fmt.Sprintf("select * from %s", table), &res2, ReadUnwrap())
