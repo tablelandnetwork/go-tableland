@@ -279,22 +279,58 @@ func (c *Client) Create(ctx context.Context, schema string, opts ...CreateOption
 	return TableID(*tableID), fmt.Sprintf("%s_%d_%s", conf.prefix, c.chain.ID, *r.TableID), nil
 }
 
-// Read runs a read query and returns the results.
-func (c *Client) Read(ctx context.Context, query string) (string, error) {
+// Output is used to control the output format of a Read using the ReadOutput option.
+type Output string
+
+const (
+	// Table returns the query results as a JSON object with columns and rows properties.
+	Table Output = "table"
+	// Objects returns the query results as a JSON array of JSON objects. This is the default.
+	Objects Output = "objects"
+)
+
+// ReadOption controls the behavior of Read.
+type ReadOption func(*rpcservice.RunReadQueryRequest)
+
+// ReadOutput sets the output format. Default is Objects.
+func ReadOutput(output Output) ReadOption {
+	return func(rrqr *rpcservice.RunReadQueryRequest) {
+		rrqr.Output = (*string)(&output)
+	}
+}
+
+// ReadExtract specifies whether or not to extract the JSON object
+// from the single property of the surrounding JSON object.
+// Default is false.
+func ReadExtract() ReadOption {
+	return func(rrqr *rpcservice.RunReadQueryRequest) {
+		v := true
+		rrqr.Extract = &v
+	}
+}
+
+// ReadUnwrap specifies whether or not to unwrap the returned JSON objects from their surrounding array.
+// Default is false.
+func ReadUnwrap() ReadOption {
+	return func(rrqr *rpcservice.RunReadQueryRequest) {
+		v := true
+		rrqr.Unwrap = &v
+	}
+}
+
+// Read runs a read query with the provided opts and unmarshals the results into target.
+func (c *Client) Read(ctx context.Context, query string, target interface{}, opts ...ReadOption) error {
 	req := &rpcservice.RunReadQueryRequest{Statement: query}
-	var res rpcservice.RunReadQueryResponse
-
+	for _, opt := range opts {
+		opt(req)
+	}
+	res := &rpcservice.RunReadQueryResponse{
+		Result: target,
+	}
 	if err := c.tblRPC.CallContext(ctx, &res, "tableland_runReadQuery", req); err != nil {
-		return "", fmt.Errorf("calling rpc runReadQuery: %v", err)
+		return fmt.Errorf("calling rpc runReadQuery: %v", err)
 	}
-
-	b, err := json.Marshal(res.Result)
-	if err != nil {
-		return "", fmt.Errorf("marshaling read result: %v", err)
-	}
-
-	// TODO: Make this do something better than returning a json string.
-	return string(b), nil
+	return nil
 }
 
 type writeConfig struct {

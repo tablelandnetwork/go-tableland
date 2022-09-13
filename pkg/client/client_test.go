@@ -72,8 +72,26 @@ func TestRead(t *testing.T) {
 	_, table := requireCreate(t, calls)
 	hash := requireWrite(t, calls, table)
 	requireReceipt(t, calls, hash, WaitFor(time.Second*10))
-	res := calls.read(fmt.Sprintf("select * from %s", table))
-	require.NotEmpty(t, res)
+	type result struct {
+		Bar string `json:"bar"`
+	}
+	res := []result{}
+	calls.read(fmt.Sprintf("select * from %s", table), &res)
+	require.Len(t, res, 1)
+	require.Equal(t, "baz", res[0].Bar)
+
+	res2 := result{}
+	calls.read(fmt.Sprintf("select * from %s", table), &res2, ReadUnwrap())
+	require.Equal(t, "baz", res2.Bar)
+
+	res3 := []string{}
+	calls.read(fmt.Sprintf("select * from %s", table), &res3, ReadExtract())
+	require.Len(t, res3, 1)
+	require.Equal(t, "baz", res3[0])
+
+	res4 := ""
+	calls.read(fmt.Sprintf("select * from %s", table), &res4, ReadUnwrap(), ReadExtract())
+	require.Equal(t, "baz", res4)
 }
 
 func TestHash(t *testing.T) {
@@ -146,7 +164,7 @@ func (acl *aclHalfMock) IsOwner(_ context.Context, _ common.Address, _ tables.Ta
 type clientCalls struct {
 	list          func() []TableInfo
 	create        func(schema string, opts ...CreateOption) (TableID, string)
-	read          func(query string) string
+	read          func(query string, target interface{}, opts ...ReadOption)
 	write         func(query string, opts ...WriteOption) string
 	hash          func(statement string) string
 	validate      func(statement string) TableID
@@ -248,10 +266,9 @@ func setup(t *testing.T) clientCalls {
 			require.NoError(t, err)
 			return id, table
 		},
-		read: func(query string) string {
-			res, err := client.Read(ctx, query)
+		read: func(query string, target interface{}, opts ...ReadOption) {
+			err := client.Read(ctx, query, target, opts...)
 			require.NoError(t, err)
-			return res
 		},
 		write: func(query string, opts ...WriteOption) string {
 			hash, err := client.Write(ctx, query, opts...)
