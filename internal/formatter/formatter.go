@@ -107,7 +107,6 @@ func Format(userRows *tableland.TableData, opts ...FormatOption) ([]byte, Format
 
 func toObjects(in *tableland.TableData) []interface{} {
 	objects := make([]interface{}, len(in.Rows))
-	in.Rows[0][0].Value()
 	for i, row := range in.Rows {
 		object := make(map[string]interface{}, len(row))
 		for j, val := range row {
