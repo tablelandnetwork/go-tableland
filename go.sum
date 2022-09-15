@@ -468,8 +468,8 @@ github.com/envoyproxy/go-control-plane v0.10.2-0.20220325020618-49ff273808a1/go.
 github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7+kN2VEUnK/pcBlmesArF7c=
 github.com/envoyproxy/protoc-gen-validate v0.6.2/go.mod h1:2t7qjJNvHPx8IjnBOzl9E9/baC+qXE/TeeyBRzgJDws=
 github.com/ethereum/go-ethereum v1.10.18/go.mod h1:RD3NhcSBjZpj3k+SnQq24wBrmnmie78P5R/P62iNBD8=
-github.com/ethereum/go-ethereum v1.10.23 h1:Xk8XAT4/UuqcjMLIMF+7imjkg32kfVFKoeyQDaO2yWM=
-github.com/ethereum/go-ethereum v1.10.23/go.mod h1:EYFyF19u3ezGLD4RqOkLq+ZCXzYbLoNDdZlMt7kyKFg=
+github.com/ethereum/go-ethereum v1.10.24 h1:16KV6vdc4T4VHn6UgGlTFs0S71YpbUpZd6BmGcxFXag=
+github.com/ethereum/go-ethereum v1.10.24/go.mod h1:EYFyF19u3ezGLD4RqOkLq+ZCXzYbLoNDdZlMt7kyKFg=
 github.com/evanphx/json-patch v4.9.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=
 github.com/evanphx/json-patch v4.11.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=
 github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5KwzbycvMj4=
