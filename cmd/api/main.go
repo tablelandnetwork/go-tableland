@@ -35,6 +35,8 @@ import (
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
+	"github.com/textileio/go-tableland/pkg/telemetry"
+	"github.com/textileio/go-tableland/pkg/telemetry/storage"
 	"github.com/textileio/go-tableland/pkg/wallet"
 )
 
@@ -96,17 +98,17 @@ func main() {
 		log.Fatal().Err(err).Msg("creating user store")
 	}
 
-	// metricsDatabaseURL := fmt.Sprintf(
-	// 	"file://%s?_busy_timeout=5000&_foreign_keys=on&_journal_mode=WAL",
-	// 	path.Join(dirPath, "metrics.db"),
-	// )
+	metricsDatabaseURL := fmt.Sprintf(
+		"file://%s?_busy_timeout=5000&_foreign_keys=on&_journal_mode=WAL",
+		path.Join(dirPath, "metrics.db"),
+	)
 
-	// metricsStore, err := storage.New(metricsDatabaseURL)
-	// if err != nil {
-	// 	log.Fatal().Err(err).Msg("creating metrics store")
-	// }
+	metricsStore, err := storage.New(metricsDatabaseURL)
+	if err != nil {
+		log.Fatal().Err(err).Msg("creating metrics store")
+	}
 
-	// telemetry.SetMetricStore(metricsStore)
+	telemetry.SetMetricStore(metricsStore)
 
 	rateLimInterval, err := time.ParseDuration(config.HTTP.RateLimInterval)
 	if err != nil {
@@ -235,6 +237,10 @@ func main() {
 		if err := userStore.Close(); err != nil {
 			log.Error().Err(err).Msg("closing user store")
 		}
+
+		if err := metricsStore.Close(); err != nil {
+			log.Error().Err(err).Msg("closing metrics store")
+		}
 	})
 }
 
@@ -356,7 +362,6 @@ func createChainIDStack(
 			ep.Stop()
 			tracker.Close()
 			conn.Close()
-			// metricsStore.Close()
 			if err := systemStore.Close(); err != nil {
 				log.Error().Int64("chain_id", int64(config.ChainID)).Err(err).Msg("closing system store")
 			}
