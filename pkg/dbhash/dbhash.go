@@ -9,7 +9,7 @@ import (
 	"io"
 )
 
-// DatabaseStateHash calculates the hash of some state of the database acorrding to options passed.
+// DatabaseStateHash calculates the hash of some state of the database according to the options passed.
 func DatabaseStateHash(ctx context.Context, tx *sql.Tx, opts ...Option) (string, error) {
 	config := DefaultConfig()
 	for _, o := range opts {
