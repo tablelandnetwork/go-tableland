@@ -5,7 +5,7 @@ go 1.17
 require (
 	cloud.google.com/go/logging v1.5.0
 	github.com/XSAM/otelsql v0.16.0
-	github.com/ethereum/go-ethereum v1.10.23
+	github.com/ethereum/go-ethereum v1.10.25
 	github.com/golang-migrate/migrate/v4 v4.15.2
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
