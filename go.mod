@@ -11,7 +11,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/hetiansu5/urlquery v1.2.7
 	github.com/json-iterator/go v1.1.12
-	github.com/klauspost/compress v1.15.9
+	github.com/klauspost/compress v1.15.10
 	github.com/mattn/go-sqlite3 v1.14.15
 	github.com/omeid/uconfig v1.2.0
 	github.com/pkg/errors v0.9.1
