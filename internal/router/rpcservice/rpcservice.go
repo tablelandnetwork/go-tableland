@@ -33,6 +33,25 @@ type RunReadQueryRequest struct {
 	Extract   *bool   `json:"extract"`
 }
 
+// FormatOpts extracts formatter options from a request.
+func (rrqr *RunReadQueryRequest) FormatOpts() ([]formatter.FormatOption, error) {
+	var opts []formatter.FormatOption
+	if rrqr.Output != nil {
+		output, ok := formatter.OutputFromString(*rrqr.Output)
+		if !ok {
+			return nil, fmt.Errorf("%s is not a valid output", *rrqr.Output)
+		}
+		opts = append(opts, formatter.WithOutput(output))
+	}
+	if rrqr.Extract != nil {
+		opts = append(opts, formatter.WithExtract(*rrqr.Extract))
+	}
+	if rrqr.Unwrap != nil {
+		opts = append(opts, formatter.WithUnwrap(*rrqr.Unwrap))
+	}
+	return opts, nil
+}
+
 // RunReadQueryResponse is a RunReadQuery response.
 type RunReadQueryResponse struct {
 	Result interface{} `json:"data"`
@@ -173,19 +192,10 @@ func (rs *RPCService) RunReadQuery(
 	if err != nil {
 		return RunReadQueryResponse{}, fmt.Errorf("calling RunReadQuery: %v", err)
 	}
-	var opts []formatter.FormatOption
-	if req.Output != nil {
-		output, ok := formatter.OutputFromString(*req.Output)
-		if !ok {
-			return RunReadQueryResponse{}, fmt.Errorf("%s is not a valid output", *req.Output)
-		}
-		opts = append(opts, formatter.WithOutput(output))
-	}
-	if req.Extract != nil {
-		opts = append(opts, formatter.WithExtract(*req.Extract))
-	}
-	if req.Unwrap != nil {
-		opts = append(opts, formatter.WithUnwrap(*req.Unwrap))
+
+	opts, err := req.FormatOpts()
+	if err != nil {
+		return RunReadQueryResponse{}, fmt.Errorf("getting format opts from request: %v", err)
 	}
 
 	formatted, config, err := formatter.Format(res, opts...)
