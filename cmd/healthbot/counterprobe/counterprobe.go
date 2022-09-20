@@ -177,8 +177,10 @@ func (cp *CounterProbe) increaseCounterValue(ctx context.Context) error {
 }
 
 func (cp *CounterProbe) getCurrentCounterValue(ctx context.Context) (int64, error) {
+	output := "table"
 	getCounterReq := rpcservice.RunReadQueryRequest{
 		Statement: fmt.Sprintf("select * from %s", cp.tableName),
+		Output:    &output,
 	}
 
 	type data struct {
