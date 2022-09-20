@@ -4,17 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
 	"sync"
 	"time"
 
 	"github.com/rs/zerolog"
 	logger "github.com/rs/zerolog/log"
-	"github.com/textileio/go-tableland/internal/router/rpcservice"
+	"github.com/textileio/go-tableland/pkg/client"
+	"github.com/textileio/go-tableland/pkg/wallet"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
-
-	"github.com/ethereum/go-ethereum/rpc"
 )
 
 const (
@@ -30,7 +28,7 @@ type CounterProbe struct {
 	receiptTimeout time.Duration
 	tableName      string
 
-	rpcClient *rpc.Client
+	client *client.Client
 
 	lock                 sync.RWMutex
 	mLastCounterValue    int64
@@ -42,9 +40,9 @@ type CounterProbe struct {
 
 // New returns a *CounterProbe.
 func New(
+	ctx context.Context,
 	chainName string,
-	endpoint string,
-	siwe string,
+	wallet *wallet.Wallet,
 	tableName string,
 	checkInterval time.Duration,
 	receiptTimeout time.Duration,
@@ -54,25 +52,25 @@ func New(
 		Str("chain_name", chainName).
 		Logger()
 
+	if wallet == nil {
+		return nil, errors.New("wallet can't be nil")
+	}
 	if receiptTimeout == 0 {
-		return nil, fmt.Errorf("receipt timeout can't be zero")
+		return nil, errors.New("receipt timeout can't be zero")
 	}
 	if len(tableName) == 0 {
 		return nil, errors.New("tablename is empty")
 	}
-	if _, err := url.ParseQuery(endpoint); err != nil {
-		return nil, fmt.Errorf("invalid endpoint target: %s", err)
-	}
-	rpcClient, err := rpc.Dial(endpoint)
+
+	client, err := client.NewClient(ctx, wallet)
 	if err != nil {
-		return nil, fmt.Errorf("creating jsonrpc client: %s", err)
+		return nil, fmt.Errorf("creating tbl client: %v", err)
 	}
-	rpcClient.SetHeader("Authorization", "Bearer "+siwe)
 
 	cp := &CounterProbe{
 		log:            log,
 		checkInterval:  checkInterval,
-		rpcClient:      rpcClient,
+		client:         client,
 		tableName:      tableName,
 		receiptTimeout: receiptTimeout,
 	}
@@ -144,57 +142,39 @@ func (cp *CounterProbe) healthCheck(ctx context.Context) (int64, error) {
 }
 
 func (cp *CounterProbe) increaseCounterValue(ctx context.Context) error {
-	updateCounterReq := rpcservice.RelayWriteQueryRequest{
-		Statement: fmt.Sprintf("update %s set counter=counter+1", cp.tableName),
+	hash, err := cp.client.Write(
+		ctx,
+		fmt.Sprintf("update %s set counter=counter+1", cp.tableName),
+		client.WriteRelay(true),
+	)
+	if err != nil {
+		return fmt.Errorf("calling client write: %s", err)
 	}
-	var updateCounterRes rpcservice.RelayWriteQueryResponse
-	if err := cp.rpcClient.CallContext(ctx, &updateCounterRes, "tableland_relayWriteQuery", updateCounterReq); err != nil {
-		return fmt.Errorf("calling tableland_runReadQuery: %s", err)
-	}
-
-	getReceiptRequest := rpcservice.GetReceiptRequest{
-		TxnHash: updateCounterRes.Transaction.Hash,
-	}
-
 	start := time.Now()
-	deadline := time.Now().Add(cp.receiptTimeout)
-	for time.Now().Before(deadline) {
-		var getReceiptResponse rpcservice.GetReceiptResponse
-		if err := cp.rpcClient.CallContext(ctx, &getReceiptResponse, "tableland_getReceipt", getReceiptRequest); err != nil {
-			return fmt.Errorf("calling tableland_getReceipt: %s", err)
-		}
-		if getReceiptResponse.Ok {
-			if getReceiptResponse.Receipt.Error != "" {
-				return fmt.Errorf("receipt found but has an error %s", getReceiptResponse.Receipt.Error)
-			}
-			cp.log.Info().Int64("duration", time.Since(start).Milliseconds()).Msg("receipt confirmed")
-			return nil
-		}
-		time.Sleep(time.Second * 5)
+	receipt, ok, err := cp.client.Receipt(ctx, hash, client.WaitFor(cp.receiptTimeout))
+	if err != nil {
+		return fmt.Errorf("getting receipt: %s", err)
 	}
-
-	return fmt.Errorf("timed out waiting for receipt %s", getReceiptRequest.TxnHash)
+	if !ok {
+		return errors.New("receipt not found before timeout")
+	}
+	if receipt.Error != "" {
+		return fmt.Errorf("receipt found but has an error %s", receipt.Error)
+	}
+	cp.log.Info().Int64("duration", time.Since(start).Milliseconds()).Msg("receipt confirmed")
+	return nil
 }
 
 func (cp *CounterProbe) getCurrentCounterValue(ctx context.Context) (int64, error) {
-	output := "table"
-	getCounterReq := rpcservice.RunReadQueryRequest{
-		Statement: fmt.Sprintf("select * from %s", cp.tableName),
-		Output:    &output,
+	var counter int64
+	if err := cp.client.Read(
+		ctx,
+		fmt.Sprintf("select counter from %s", cp.tableName),
+		&counter,
+		client.ReadExtract(),
+		client.ReadUnwrap(),
+	); err != nil {
+		return 0, fmt.Errorf("calling client read: %s", err)
 	}
-
-	type data struct {
-		Rows [][]int64 `json:"rows"`
-	}
-	var getCounterRes struct {
-		Result data `json:"data"`
-	}
-	if err := cp.rpcClient.CallContext(ctx, &getCounterRes, "tableland_runReadQuery", getCounterReq); err != nil {
-		return 0, fmt.Errorf("calling tableland_runSQL: %s", err)
-	}
-	if len(getCounterRes.Result.Rows) != 1 || len(getCounterRes.Result.Rows[0]) != 1 {
-		return 0, fmt.Errorf("unexpected response format")
-	}
-
-	return getCounterRes.Result.Rows[0][0], nil
+	return counter, nil
 }

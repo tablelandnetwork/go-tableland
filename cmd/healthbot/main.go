@@ -13,6 +13,7 @@ import (
 	"github.com/textileio/go-tableland/cmd/healthbot/counterprobe"
 	"github.com/textileio/go-tableland/pkg/logging"
 	"github.com/textileio/go-tableland/pkg/metrics"
+	"github.com/textileio/go-tableland/pkg/wallet"
 )
 
 func main() {
@@ -35,11 +36,15 @@ func main() {
 		if err != nil {
 			log.Fatal().Err(err).Msgf("receipt timeout has invalid format: %s", chainCfg.Probe.ReceiptTimeout)
 		}
+		wallet, err := wallet.NewWallet(chainCfg.Signer.PrivateKey)
+		if err != nil {
+			log.Fatal().Err(err).Msg("unable to create wallet from private key string")
+		}
 
 		cp, err := counterprobe.New(
+			ctx,
 			chainCfg.Name,
-			cfg.Target,
-			chainCfg.Probe.SIWE,
+			wallet,
 			chainCfg.Probe.Tablename,
 			checkInterval,
 			receiptTimeout)

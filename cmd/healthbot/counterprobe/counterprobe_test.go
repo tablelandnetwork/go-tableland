@@ -6,15 +6,17 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/textileio/go-tableland/pkg/wallet"
 )
 
 func TestProduction(t *testing.T) {
 	t.SkipNow()
-	siwe := "fillme"
-	endpoint := "https://testnet.tableland.network/rpc"
+	pk := "fillme"
+	wallet, err := wallet.NewWallet(pk)
+	require.NoError(t, err)
 	tblname := "Runbook_24"
 
-	cp, err := New("optimism-mainnet", endpoint, siwe, tblname, time.Second, time.Second*10)
+	cp, err := New(context.Background(), "optimism-mainnet", wallet, tblname, time.Second, time.Second*10)
 	require.NoError(t, err)
 
 	value, err := cp.healthCheck(context.Background())

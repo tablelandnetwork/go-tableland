@@ -22,17 +22,18 @@ type config struct {
 		Human bool `default:"false"`
 		Debug bool `default:"false"`
 	}
-	Target string `default:""`
 	Chains []ChainConfig
 }
 
 // ChainConfig contains probe configuration for a particular chain.
 type ChainConfig struct {
-	Name  string
+	Name   string
+	Signer struct {
+		PrivateKey string `default:""`
+	}
 	Probe struct {
 		CheckInterval  string `default:"15s"`
 		ReceiptTimeout string `default:"20s"`
-		SIWE           string `default:""`
 		Tablename      string `default:""`
 	}
 }
