@@ -2,6 +2,7 @@ package tableland
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -11,6 +12,71 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/textileio/go-tableland/pkg/tables"
 )
+
+// Column defines a column in table data.
+type Column struct {
+	Name string `json:"name"`
+}
+
+// TableData defines a tabular representation of query results.
+type TableData struct {
+	Columns []Column         `json:"columns"`
+	Rows    [][]*ColumnValue `json:"rows"`
+}
+
+// ColumnValue wraps data from the db that may be raw json or any other value.
+type ColumnValue struct {
+	jsonValue  json.RawMessage
+	otherValue interface{}
+}
+
+// Value returns the underlying value.
+func (cv *ColumnValue) Value() interface{} {
+	if cv.jsonValue != nil {
+		return cv.jsonValue
+	}
+	return cv.otherValue
+}
+
+// Scan implements Scan.
+func (cv *ColumnValue) Scan(src interface{}) error {
+	cv.jsonValue = nil
+	cv.otherValue = nil
+	switch src := src.(type) {
+	case string:
+		trimmed := strings.TrimLeft(src, " ")
+		if (strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "[")) && json.Valid([]byte(src)) {
+			cv.jsonValue = []byte(src)
+		} else {
+			cv.otherValue = src
+		}
+	case []byte:
+		tmp := make([]byte, len(src))
+		copy(tmp, src)
+		cv.otherValue = tmp
+	default:
+		cv.otherValue = src
+	}
+	return nil
+}
+
+// MarshalJSON implements MarshalJSON.
+func (cv *ColumnValue) MarshalJSON() ([]byte, error) {
+	if cv.jsonValue != nil {
+		return cv.jsonValue, nil
+	}
+	return json.Marshal(cv.otherValue)
+}
+
+// JSONColValue creates a UserValue with the provided json.
+func JSONColValue(v json.RawMessage) *ColumnValue {
+	return &ColumnValue{jsonValue: v}
+}
+
+// OtherColValue creates a UserValue with the provided other value.
+func OtherColValue(v interface{}) *ColumnValue {
+	return &ColumnValue{otherValue: v}
+}
 
 // TxnReceipt is a Tableland event processing receipt.
 type TxnReceipt struct {
@@ -25,7 +91,7 @@ type TxnReceipt struct {
 
 // Tableland defines the interface of Tableland.
 type Tableland interface {
-	RunReadQuery(ctx context.Context, stmt string) (interface{}, error)
+	RunReadQuery(ctx context.Context, stmt string) (*TableData, error)
 	ValidateCreateTable(ctx context.Context, chainID ChainID, stmt string) (string, error)
 	ValidateWriteQuery(ctx context.Context, chainID ChainID, stmt string) (tables.TableID, error)
 	RelayWriteQuery(

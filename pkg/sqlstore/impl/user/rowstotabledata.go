@@ -4,10 +4,10 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/textileio/go-tableland/pkg/sqlstore"
+	"github.com/textileio/go-tableland/internal/tableland"
 )
 
-func rowsToJSON(rows *sql.Rows) (*sqlstore.UserRows, error) {
+func rowsToTableData(rows *sql.Rows) (*tableland.TableData, error) {
 	columns, err := getColumnsData(rows)
 	if err != nil {
 		return nil, fmt.Errorf("get columns from rows: %s", err)
@@ -17,30 +17,30 @@ func rowsToJSON(rows *sql.Rows) (*sqlstore.UserRows, error) {
 		return nil, err
 	}
 
-	return &sqlstore.UserRows{
+	return &tableland.TableData{
 		Columns: columns,
 		Rows:    rowsData,
 	}, nil
 }
 
-func getColumnsData(rows *sql.Rows) ([]sqlstore.UserColumn, error) {
+func getColumnsData(rows *sql.Rows) ([]tableland.Column, error) {
 	cols, err := rows.Columns()
 	if err != nil {
 		return nil, fmt.Errorf("get columns from sql.Rows: %s", err)
 	}
-	columns := make([]sqlstore.UserColumn, len(cols))
+	columns := make([]tableland.Column, len(cols))
 	for i := range cols {
-		columns[i] = sqlstore.UserColumn{Name: cols[i]}
+		columns[i] = tableland.Column{Name: cols[i]}
 	}
 	return columns, nil
 }
 
-func getRowsData(rows *sql.Rows, numColumns int) ([][]*sqlstore.ColValue, error) {
-	rowsData := make([][]*sqlstore.ColValue, 0)
+func getRowsData(rows *sql.Rows, numColumns int) ([][]*tableland.ColumnValue, error) {
+	rowsData := make([][]*tableland.ColumnValue, 0)
 	for rows.Next() {
-		vals := make([]*sqlstore.ColValue, numColumns)
+		vals := make([]*tableland.ColumnValue, numColumns)
 		for i := range vals {
-			val := &sqlstore.ColValue{}
+			val := &tableland.ColumnValue{}
 			vals[i] = val
 		}
 		scanArgs := make([]interface{}, len(vals))

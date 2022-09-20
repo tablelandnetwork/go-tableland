@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"go.opentelemetry.io/otel/attribute"
@@ -39,7 +40,7 @@ func NewInstrumentedUserStore(store sqlstore.UserStore) (sqlstore.UserStore, err
 }
 
 // Read executes a read statement on the db.
-func (s *InstrumentedUserStore) Read(ctx context.Context, stmt parsing.ReadStmt) (interface{}, error) {
+func (s *InstrumentedUserStore) Read(ctx context.Context, stmt parsing.ReadStmt) (*tableland.TableData, error) {
 	start := time.Now()
 	data, err := s.store.Read(ctx, stmt)
 	latency := time.Since(start).Milliseconds()

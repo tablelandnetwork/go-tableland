@@ -6,10 +6,11 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/textileio/go-tableland/internal/tableland"
 )
 
 func TestUserValue(t *testing.T) {
-	uv := &ColValue{}
+	uv := &tableland.ColumnValue{}
 
 	var in0 int64 = 100
 	require.NoError(t, uv.Scan(in0))

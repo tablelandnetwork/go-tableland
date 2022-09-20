@@ -111,7 +111,7 @@ func (t *TablelandMesa) RelayWriteQuery(
 }
 
 // RunReadQuery allows the user to run SQL.
-func (t *TablelandMesa) RunReadQuery(ctx context.Context, statement string) (interface{}, error) {
+func (t *TablelandMesa) RunReadQuery(ctx context.Context, statement string) (*tableland.TableData, error) {
 	readStmt, err := t.parser.ValidateReadQuery(statement)
 	if err != nil {
 		return nil, fmt.Errorf("validating query: %s", err)
@@ -198,7 +198,7 @@ func (t *TablelandMesa) SetController(
 func (t *TablelandMesa) runSelect(
 	ctx context.Context,
 	stmt parsing.ReadStmt,
-) (interface{}, error) {
+) (*tableland.TableData, error) {
 	queryResult, err := t.userStore.Read(ctx, stmt)
 	if err != nil {
 		return nil, fmt.Errorf("executing read-query: %s", err)

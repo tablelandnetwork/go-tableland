@@ -17,7 +17,6 @@ import (
 	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
 	executor "github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor/impl"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
-	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
 	"github.com/textileio/go-tableland/pkg/tables"
@@ -375,10 +374,9 @@ func setup(t *testing.T) (
 		res, err := userStore.Read(ctx, rq)
 		require.NoError(t, err)
 
-		queryRes := res.(*sqlstore.UserRows)
-		ret := make([]int64, len(queryRes.Rows))
-		for i := range queryRes.Rows {
-			ret[i] = queryRes.Rows[i][0].Value().(int64)
+		ret := make([]int64, len(res.Rows))
+		for i := range res.Rows {
+			ret[i] = res.Rows[i][0].Value().(int64)
 		}
 		return ret
 	}
