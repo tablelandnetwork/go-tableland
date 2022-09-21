@@ -17,6 +17,7 @@ const (
 
 // Metric defines a metric.
 type Metric struct {
+	Version   int
 	Timestamp time.Time
 	Type      MetricType
 	Payload   interface{}
@@ -41,6 +42,7 @@ type StateHash interface {
 
 // StateHashMetric defines a state hash metric.
 type StateHashMetric struct {
+	Version     int64  `json:"version"`
 	ChainID     int64  `json:"chain_id"`
 	BlockNumber int64  `json:"block_number"`
 	Hash        string `json:"hash"`

@@ -20,11 +20,11 @@ func TestCollectSqliteStore(t *testing.T) {
 		err = telemetry.Collect(context.Background(), stateHash{})
 		require.NoError(t, err)
 
-		var timestamp, published int
+		var version, timestamp, published int
 		var payload string
 		var typ telemetry.MetricType
 		row := s.sqlDB.QueryRowContext(context.Background(), "SELECT * FROM system_metrics LIMIT 1")
-		require.NoError(t, row.Scan(&timestamp, &typ, &payload, &published))
+		require.NoError(t, row.Scan(&version, &timestamp, &typ, &payload, &published))
 
 		require.Equal(t, 0, published)
 		require.Equal(t, telemetry.StateHashType, typ)

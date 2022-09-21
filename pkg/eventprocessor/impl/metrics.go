@@ -23,10 +23,17 @@ func (ep *EventProcessor) initMetrics(chainID tableland.ChainID) error {
 	if err != nil {
 		return fmt.Errorf("creating last processed height gauge: %s", err)
 	}
-	err = meter.RegisterCallback([]instrument.Asynchronous{mExecutionRound, mLastProcessedHeight},
+	mHashCalculationElapsedTime, err := meter.AsyncInt64().Gauge("tableland.eventprocessor.hash.calculation.elapsed.time")
+	if err != nil {
+		return fmt.Errorf("creating hash calculation elapsed time gauge: %s", err)
+	}
+	err = meter.RegisterCallback([]instrument.Asynchronous{
+		mExecutionRound, mLastProcessedHeight, mHashCalculationElapsedTime,
+	},
 		func(ctx context.Context) {
 			mExecutionRound.Observe(ctx, ep.mExecutionRound.Load(), ep.mBaseLabels...)
 			mLastProcessedHeight.Observe(ctx, ep.mLastProcessedHeight.Load(), ep.mBaseLabels...)
+			mHashCalculationElapsedTime.Observe(ctx, ep.mHashCalculationElapsedTime.Load(), ep.mBaseLabels...)
 		})
 	if err != nil {
 		return fmt.Errorf("registering async metric callback: %s", err)

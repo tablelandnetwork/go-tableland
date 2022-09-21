@@ -46,12 +46,13 @@ type EventProcessor struct {
 	daemonCanceled chan struct{}
 
 	// Metrics
-	mBaseLabels            []attribute.KeyValue
-	mExecutionRound        atomic.Int64
-	mLastProcessedHeight   atomic.Int64
-	mBlockExecutionLatency syncint64.Histogram
-	mEventExecutionCounter syncint64.Counter
-	mTxnExecutionLatency   syncint64.Histogram
+	mBaseLabels                 []attribute.KeyValue
+	mExecutionRound             atomic.Int64
+	mLastProcessedHeight        atomic.Int64
+	mBlockExecutionLatency      syncint64.Histogram
+	mEventExecutionCounter      syncint64.Counter
+	mTxnExecutionLatency        syncint64.Histogram
+	mHashCalculationElapsedTime atomic.Int64
 }
 
 // New returns a new EventProcessor.
@@ -298,6 +299,8 @@ func (ep *EventProcessor) calculateHash(ctx context.Context, bs executor.BlockSc
 		Int64("chain_id", stateHash.ChainID()).
 		Int64("elapsed_time", elapsedTime).
 		Msg("state hash")
+
+	ep.mHashCalculationElapsedTime.Store(elapsedTime)
 
 	if err := telemetry.Collect(ctx, stateHash); err != nil {
 		return fmt.Errorf("calculating hash for current block: %s", err)

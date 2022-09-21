@@ -95,6 +95,7 @@ type ChainConfig struct {
 		StuckInterval string `default:"10m"`
 		MinBlockDepth int    `default:"5"`
 	}
+	HashCalculationStep int64 `default:"1000"`
 }
 
 func setupConfig() (*config, string) {

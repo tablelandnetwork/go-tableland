@@ -106,8 +106,12 @@ func (ex *Executor) NewBlockScope(ctx context.Context, newBlockNum int64) (execu
 		return nil, fmt.Errorf("latest executed block %d isn't smaller than new block %d", lastBlockNum, newBlockNum)
 	}
 
-	scopeVars := scopeVars{ChainID: ex.chainID, MaxTableRowCount: ex.maxTableRowCount}
-	bs := newBlockScope(txn, scopeVars, ex.parser, ex.acl, newBlockNum, func() { ex.chBlockScope <- struct{}{} })
+	scopeVars := scopeVars{
+		ChainID:          ex.chainID,
+		MaxTableRowCount: ex.maxTableRowCount,
+		BlockNumber:      newBlockNum,
+	}
+	bs := newBlockScope(txn, scopeVars, ex.parser, ex.acl, func() { ex.chBlockScope <- struct{}{} })
 
 	return bs, nil
 }

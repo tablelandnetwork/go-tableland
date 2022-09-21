@@ -18,11 +18,10 @@ import (
 )
 
 type blockScope struct {
-	txn         *sql.Tx
-	log         zerolog.Logger
-	parser      parsing.SQLValidator
-	acl         tableland.ACL
-	blockNumber int64
+	txn    *sql.Tx
+	log    zerolog.Logger
+	parser parsing.SQLValidator
+	acl    tableland.ACL
 
 	scopeVars scopeVars
 
@@ -32,6 +31,7 @@ type blockScope struct {
 type scopeVars struct {
 	ChainID          tableland.ChainID
 	MaxTableRowCount int
+	BlockNumber      int64
 }
 
 func newBlockScope(
@@ -39,23 +39,21 @@ func newBlockScope(
 	scopeVars scopeVars,
 	parser parsing.SQLValidator,
 	acl tableland.ACL,
-	blockNum int64,
 	closed func(),
 ) *blockScope {
 	log := logger.With().
 		Str("component", "blockscope").
 		Int64("chain_id", int64(scopeVars.ChainID)).
-		Int64("block_number", blockNum).
+		Int64("block_number", scopeVars.BlockNumber).
 		Logger()
 
 	return &blockScope{
-		txn:         txn,
-		log:         log,
-		parser:      parser,
-		acl:         acl,
-		blockNumber: blockNum,
-		scopeVars:   scopeVars,
-		closed:      closed,
+		txn:       txn,
+		log:       log,
+		parser:    parser,
+		acl:       acl,
+		scopeVars: scopeVars,
+		closed:    closed,
 	}
 }
 
@@ -177,7 +175,7 @@ func (bs *blockScope) StateHash(ctx context.Context, chainID tableland.ChainID) 
 				SELECT tbl_name, sql 
 				FROM sqlite_schema
 				WHERE name in ('registry', 'system_acl', 'system_controller', 'system_txn_receipts')
-				ORDER BY tbl_name COLLATE nocase;`, chainID),
+				ORDER BY tbl_name;`, chainID),
 		),
 		dbhash.WithPerTableQueryFn(func(tableName string) string {
 			switch tableName {
@@ -202,7 +200,7 @@ func (bs *blockScope) StateHash(ctx context.Context, chainID tableland.ChainID) 
 							WHERE chain_id = %d 
 							ORDER BY table_id, block_number, index_in_block`, chainID)
 			default:
-				return fmt.Sprintf("SELECT * FROM %s", tableName)
+				return fmt.Sprintf("SELECT * FROM %s ORDER BY rowid", tableName)
 			}
 		}),
 	}...)
@@ -210,7 +208,7 @@ func (bs *blockScope) StateHash(ctx context.Context, chainID tableland.ChainID) 
 		return executor.StateHash{}, fmt.Errorf("database state hash: %s", err)
 	}
 
-	return executor.NewStateHash(chainID, bs.blockNumber, hash), nil
+	return executor.NewStateHash(chainID, bs.scopeVars.BlockNumber, hash), nil
 }
 
 // Close closes gracefully the block scope.

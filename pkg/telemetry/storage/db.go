@@ -63,8 +63,8 @@ func (db *TelemetryDatabase) StoreMetric(ctx context.Context, metric telemetry.M
 	}
 
 	_, err = db.sqlDB.ExecContext(ctx,
-		`INSERT INTO system_metrics ("timestamp", "type", "payload", "published") VALUES (?1, ?2, ?3, ?4)`,
-		metric.Timestamp.UnixMilli(), metric.Type, payloadJSON, 0,
+		`INSERT INTO system_metrics ("version", "timestamp", "type", "payload", "published") VALUES (?1, ?2, ?3, ?4, ?5)`,
+		metric.Version, metric.Timestamp.UnixMilli(), metric.Type, payloadJSON, 0,
 	)
 	if err != nil {
 		return fmt.Errorf("insert into system_metrics: %s", err)

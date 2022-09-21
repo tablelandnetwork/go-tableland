@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -11,7 +12,6 @@ import (
 )
 
 var (
-	c           *collector
 	metricStore MetricStore
 	log         zerolog.Logger
 
@@ -32,7 +32,7 @@ type MetricStore interface {
 }
 
 // SetMetricStore sets the store implementation.
-// Can only be called once, and should be called before Collect.
+// Only the first call will have an effect. If Collect is called without setting a MetricStore, it will be a noop.
 func SetMetricStore(s MetricStore) {
 	once.Do(func() {
 		metricStore = s
@@ -49,36 +49,23 @@ func Collect(ctx context.Context, metric interface{}) error {
 		return nil
 	}
 
-	if c == nil {
-		c = &collector{
-			s: metricStore,
-		}
-	}
-
 	switch v := metric.(type) {
 	case StateHash:
-		return c.collect(ctx, Metric{
+		if err := metricStore.StoreMetric(ctx, Metric{
+			Version:   1,
 			Timestamp: time.Now().UTC(),
 			Type:      StateHashType,
 			Payload: StateHashMetric{
+				Version:     1,
 				ChainID:     v.ChainID(),
 				BlockNumber: v.BlockNumber(),
 				Hash:        v.Hash(),
 			},
-		})
+		}); err != nil {
+			return errors.Errorf("store metric: %s", err)
+		}
+		return nil
 	default:
-		return errors.New("unknown metric")
+		return fmt.Errorf("unknown metric type %T", v)
 	}
-}
-
-type collector struct {
-	s MetricStore
-}
-
-func (c *collector) collect(ctx context.Context, metric Metric) error {
-	if err := c.s.StoreMetric(ctx, metric); err != nil {
-		return errors.Errorf("store metric: %s", err)
-	}
-
-	return nil
 }
