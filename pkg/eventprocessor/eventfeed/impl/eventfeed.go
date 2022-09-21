@@ -2,6 +2,7 @@ package impl
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -393,7 +394,7 @@ func (ef *EventFeed) persistEvents(ctx context.Context, events []types.Log, pars
 		return fmt.Errorf("opening db tx: %s", err)
 	}
 	defer func() {
-		if err := tx.Rollback(); err != nil {
+		if err := tx.Rollback(); err != nil && err != sql.ErrTxDone {
 			ef.log.Error().Err(err).Msg("persist events rollback txn")
 		}
 	}()
