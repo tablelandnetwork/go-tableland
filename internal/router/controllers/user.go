@@ -261,11 +261,6 @@ func (c *UserController) runReadRequest(
 	}
 	if len(res.Rows) == 0 {
 		rw.WriteHeader(http.StatusNotFound)
-		log.Ctx(ctx).
-			Error().
-			Err(err).
-			Msg("row not found")
-
 		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Row not found"})
 		return nil, false
 	}
