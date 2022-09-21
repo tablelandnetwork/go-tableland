@@ -323,6 +323,7 @@ func getFormatterParams(r *http.Request) (formatterParams, error) {
 	if mode == "list" {
 		v := true
 		c.unwrap = &v
+		c.extract = &v
 	} else if mode == "json" {
 		v := formatter.Objects
 		c.output = &v
