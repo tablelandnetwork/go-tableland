@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	"github.com/textileio/go-tableland/pkg/tables"
@@ -41,6 +42,9 @@ type BlockScope interface {
 	// TxnReceiptExists return true if the provided transaction hash was already processed, and false otherwise.
 	TxnReceiptExists(ctx context.Context, txnHash common.Hash) (bool, error)
 
+	// StateHash calculates the hash of some state of the database.
+	StateHash(ctx context.Context, chainID tableland.ChainID) (StateHash, error)
+
 	// Commit commits all the changes that happened in  previously successful ExecuteTxnEvents(...) calls.
 	Commit() error
 
@@ -55,4 +59,35 @@ type TxnExecutionResult struct {
 
 	Error         *string
 	ErrorEventIdx *int
+}
+
+// StateHash represents the state of the database at given block number for a particular chain id.
+type StateHash struct {
+	chainID     tableland.ChainID
+	blockNumber int64
+	hash        string
+}
+
+// NewStateHash creates a new state hash.
+func NewStateHash(chainID tableland.ChainID, blockNumber int64, hash string) StateHash {
+	return StateHash{
+		chainID:     chainID,
+		blockNumber: blockNumber,
+		hash:        hash,
+	}
+}
+
+// ChainID returns chain id.
+func (h StateHash) ChainID() int64 {
+	return int64(h.chainID)
+}
+
+// BlockNumber returns the block number.
+func (h StateHash) BlockNumber() int64 {
+	return h.blockNumber
+}
+
+// Hash returns the hash.
+func (h StateHash) Hash() string {
+	return h.hash
 }

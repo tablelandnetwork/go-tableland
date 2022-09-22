@@ -14,6 +14,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor"
 	"github.com/textileio/go-tableland/pkg/parsing"
+	"github.com/textileio/go-tableland/pkg/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
 	"go.uber.org/atomic"
@@ -37,18 +38,21 @@ type EventProcessor struct {
 	config   *eventprocessor.Config
 	chainID  tableland.ChainID
 
+	nextHashCalcBlockNumber int64
+
 	lock           sync.Mutex
 	daemonCtx      context.Context
 	daemonCancel   context.CancelFunc
 	daemonCanceled chan struct{}
 
 	// Metrics
-	mBaseLabels            []attribute.KeyValue
-	mExecutionRound        atomic.Int64
-	mLastProcessedHeight   atomic.Int64
-	mBlockExecutionLatency syncint64.Histogram
-	mEventExecutionCounter syncint64.Counter
-	mTxnExecutionLatency   syncint64.Histogram
+	mBaseLabels                 []attribute.KeyValue
+	mExecutionRound             atomic.Int64
+	mLastProcessedHeight        atomic.Int64
+	mBlockExecutionLatency      syncint64.Histogram
+	mEventExecutionCounter      syncint64.Counter
+	mTxnExecutionLatency        syncint64.Histogram
+	mHashCalculationElapsedTime atomic.Int64
 }
 
 // New returns a new EventProcessor.
@@ -139,6 +143,7 @@ func (ep *EventProcessor) startDaemon() error {
 		return fmt.Errorf("get last executed block number: %s", err)
 	}
 	ep.mLastProcessedHeight.Store(fromHeight)
+	ep.nextHashCalcBlockNumber = nextMultipleOf(fromHeight, ep.config.HashCalcStep)
 
 	// We fire an EventFeed asking for new events from the last processing height.
 	// Notice that if the client calls StopSync(...) it will cancel fp.daemonCtx
@@ -206,6 +211,13 @@ func (ep *EventProcessor) executeBlock(ctx context.Context, block eventfeed.Bloc
 		}
 	}()
 
+	if block.BlockNumber >= ep.nextHashCalcBlockNumber {
+		if err := ep.calculateHash(ctx, bs); err != nil {
+			return fmt.Errorf("calculate hash: %s", err)
+		}
+		ep.nextHashCalcBlockNumber = nextMultipleOf(block.BlockNumber, ep.config.HashCalcStep)
+	}
+
 	receipts := make([]eventprocessor.Receipt, 0, len(block.Txns))
 	for idxInBlock, txnEvents := range block.Txns {
 		if ep.config.DedupExecutedTxns {
@@ -272,4 +284,31 @@ func (ep *EventProcessor) executeBlock(ctx context.Context, block eventfeed.Bloc
 	ep.mBlockExecutionLatency.Record(ctx, time.Since(start).Milliseconds(), ep.mBaseLabels...)
 
 	return nil
+}
+
+func (ep *EventProcessor) calculateHash(ctx context.Context, bs executor.BlockScope) error {
+	startTime := time.Now()
+	stateHash, err := bs.StateHash(ctx, ep.chainID)
+	if err != nil {
+		return fmt.Errorf("calculating hash for current block: %s", err)
+	}
+	elapsedTime := time.Since(startTime).Milliseconds()
+	ep.log.Info().
+		Str("hash", stateHash.Hash()).
+		Int64("block_number", stateHash.BlockNumber()).
+		Int64("chain_id", stateHash.ChainID()).
+		Int64("elapsed_time", elapsedTime).
+		Msg("state hash")
+
+	ep.mHashCalculationElapsedTime.Store(elapsedTime)
+
+	if err := telemetry.Collect(ctx, stateHash); err != nil {
+		return fmt.Errorf("calculating hash for current block: %s", err)
+	}
+
+	return nil
+}
+
+func nextMultipleOf(x, y int64) int64 {
+	return y * ((x + y) / y)
 }

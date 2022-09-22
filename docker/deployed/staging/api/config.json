@@ -67,7 +67,8 @@
         "CheckInterval": "10s",
         "StuckInterval": "10m",
         "MinBlockDepth": 0
-      }
+      },
+      "HashCalculationStep": 100
     },
     {
       "Name": "Optimism Goerli",
@@ -94,7 +95,8 @@
         "CheckInterval": "10s",
         "StuckInterval": "10m",
         "MinBlockDepth": 0
-      }
+      },
+      "HashCalculationStep": 100
     }
   ]
 }

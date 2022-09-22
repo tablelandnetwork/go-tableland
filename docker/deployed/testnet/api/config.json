@@ -68,7 +68,8 @@
                 "CheckInterval": "10s",
                 "StuckInterval": "5m",
                 "MinBlockDepth": 0
-            }
+            },
+            "HashCalculationStep": 1800
         },
         {
             "Name": "Ethereum Goerli",
@@ -95,7 +96,8 @@
                 "CheckInterval": "15s",
                 "StuckInterval": "10m",
                 "MinBlockDepth": 1
-            }
+            },
+            "HashCalculationStep": 150
         },
         {
             "Name": "Polygon Mumbai",
@@ -122,7 +124,8 @@
                 "CheckInterval": "15s",
                 "StuckInterval": "5m",
                 "MinBlockDepth": 1
-            }
+            },
+            "HashCalculationStep": 360
         },
         {
             "Name": "Ethereum Mainnet",
@@ -149,7 +152,8 @@
                 "CheckInterval": "20s",
                 "StuckInterval": "10m",
                 "MinBlockDepth": 1
-            }
+            },
+            "HashCalculationStep": 150
         },
         {
             "Name": "Polygon Mainnet",
@@ -176,7 +180,8 @@
                 "CheckInterval": "15s",
                 "StuckInterval": "10m",
                 "MinBlockDepth": 1
-            }
+            },
+            "HashCalculationStep": 360
         },
         {
             "Name": "Optimism Mainnet",
@@ -203,7 +208,8 @@
                 "CheckInterval": "15s",
                 "StuckInterval": "10m",
                 "MinBlockDepth": 0
-            }
+            },
+            "HashCalculationStep": 1800
         },
         {
             "Name": "Arbitrum Goerli",
@@ -230,7 +236,8 @@
                 "CheckInterval": "15s",
                 "StuckInterval": "10m",
                 "MinBlockDepth": 0
-            }
+            },
+            "HashCalculationStep": 360
         },
         {
             "Name": "Optimism Goerli",
@@ -257,7 +264,8 @@
                 "CheckInterval": "10s",
                 "StuckInterval": "5m",
                 "MinBlockDepth": 0
-            }
+            },
+            "HashCalculationStep": 1800
         }
     ]
 }

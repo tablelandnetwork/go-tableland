@@ -12,6 +12,7 @@ import (
 type Config struct {
 	BlockFailedExecutionBackoff time.Duration
 	DedupExecutedTxns           bool
+	HashCalcStep                int64
 }
 
 // DefaultConfig returns the default configuration.
@@ -19,6 +20,7 @@ func DefaultConfig() *Config {
 	return &Config{
 		BlockFailedExecutionBackoff: time.Second * 10,
 		DedupExecutedTxns:           false,
+		HashCalcStep:                100,
 	}
 }
 
@@ -46,6 +48,18 @@ func WithBlockFailedExecutionBackoff(backoff time.Duration) Option {
 func WithDedupExecutedTxns(dedupExecutedTxns bool) Option {
 	return func(c *Config) error {
 		c.DedupExecutedTxns = dedupExecutedTxns
+		return nil
+	}
+}
+
+// WithHashCalcStep determines the pace of state hash calculations.
+// The hash will be calculated for every block equal or greater to the next multiple of the step.
+func WithHashCalcStep(step int64) Option {
+	return func(c *Config) error {
+		if step < 1 {
+			return fmt.Errorf("step cannot be less than 1")
+		}
+		c.HashCalcStep = step
 		return nil
 	}
 }
