@@ -30,7 +30,13 @@ func TestRunSQLEvents(t *testing.T) {
 	require.NoError(t, err)
 
 	backend, addr, sc, authOpts, _ := testutil.Setup(t)
-	ef, err := New(systemStore, 1337, backend, addr, eventfeed.WithNewHeadPollFreq(time.Millisecond), eventfeed.WithMinBlockDepth(0))
+	ef, err := New(
+		systemStore,
+		1337,
+		backend,
+		addr,
+		eventfeed.WithNewHeadPollFreq(time.Millisecond),
+		eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
 
 	// Create the table
@@ -290,7 +296,13 @@ func TestInfura(t *testing.T) {
 	dbURI := tests.Sqlite3URI()
 	systemStore, err := system.New(dbURI, tableland.ChainID(1337))
 	require.NoError(t, err)
-	ef, err := New(systemStore, 1337, conn, rinkebyContractAddr, eventfeed.WithNewHeadPollFreq(time.Second), eventfeed.WithMinBlockDepth(0))
+	ef, err := New(
+		systemStore,
+		1337,
+		conn,
+		rinkebyContractAddr,
+		eventfeed.WithNewHeadPollFreq(time.Second),
+		eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
 
 	ctx, cls := context.WithCancel(context.Background())

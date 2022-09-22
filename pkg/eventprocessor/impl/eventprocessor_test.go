@@ -322,7 +322,13 @@ func setup(t *testing.T) (
 
 	systemStore, err := system.New(dbURI, tableland.ChainID(chainID))
 	require.NoError(t, err)
-	ef, err := efimpl.New(systemStore, chainID, backend, addr, eventfeed.WithNewHeadPollFreq(time.Millisecond), eventfeed.WithMinBlockDepth(0))
+	ef, err := efimpl.New(
+		systemStore,
+		chainID,
+		backend,
+		addr,
+		eventfeed.WithNewHeadPollFreq(time.Millisecond),
+		eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
 
 	// Create EventProcessor for our test.
