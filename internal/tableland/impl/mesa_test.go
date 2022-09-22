@@ -959,7 +959,7 @@ func (b *tablelandSetupBuilder) build(t *testing.T) *tablelandSetup {
 
 	// Spin up dependencies needed for the EventProcessor.
 	// i.e: Executor, Parser, and EventFeed (connected to the EVM chain)
-	ef, err := efimpl.New(store, 1337, backend, addr, eventfeed.WithMinBlockDepth(0))
+	ef, err := efimpl.New(store, 1337, backend, addr, eventfeed.WithNewHeadPollFreq(time.Millisecond), eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
 
 	// Create EventProcessor for our test.

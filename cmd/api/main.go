@@ -321,14 +321,14 @@ func createChainIDStack(
 	if err != nil {
 		return chains.ChainStack{}, fmt.Errorf("parsing chain api backoff duration: %s", err)
 	}
-	newBlockTimeout, err := time.ParseDuration(config.EventFeed.NewBlockTimeout)
+	newBlockPollFreq, err := time.ParseDuration(config.EventFeed.NewBlockPollFreq)
 	if err != nil {
 		return chains.ChainStack{}, fmt.Errorf("parsing chain api backoff duration: %s", err)
 	}
 	efOpts := []eventfeed.Option{
 		eventfeed.WithChainAPIBackoff(chainAPIBackoff),
 		eventfeed.WithMinBlockDepth(config.EventFeed.MinBlockDepth),
-		eventfeed.WithNewBlockTimeout(newBlockTimeout),
+		eventfeed.WithNewHeadPollFreq(newBlockPollFreq),
 		eventfeed.WithEventPersistence(config.EventFeed.PersistEvents),
 		eventfeed.WithFetchExtraBlockInformation(fetchExtraBlockInfo),
 	}

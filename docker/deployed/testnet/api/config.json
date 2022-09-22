@@ -31,17 +31,17 @@
     "Analytics": {
         "FetchExtraBlockInfo": true
     },
-    "Backup" : {
-		"Enabled": true, 
-		"Dir": "backups",               
-		"Frequency": 240,  
-		"EnableVacuum": true,      
-		"EnableCompression": true,
-        "Pruning" : {
+    "Backup": {
+        "Enabled": true,
+        "Dir": "backups",
+        "Frequency": 240,
+        "EnableVacuum": true,
+        "EnableCompression": true,
+        "Pruning": {
             "Enabled": true,
             "KeepFiles": 5
         }
-	},
+    },
     "Chains": [
         {
             "Name": "Optimism Kovan",
@@ -56,7 +56,7 @@
             },
             "EventFeed": {
                 "ChainAPIBackoff": "15s",
-                "NewBlockTimeout": "30s",
+                "NewBlockPollFreq": "5s",
                 "MinBlockDepth": 0,
                 "PersistEvents": true
             },
@@ -84,7 +84,7 @@
             },
             "EventFeed": {
                 "ChainAPIBackoff": "15s",
-                "NewBlockTimeout": "45s",
+                "NewBlockPollFreq": "10s",
                 "MinBlockDepth": 1,
                 "PersistEvents": true
             },
@@ -112,7 +112,7 @@
             },
             "EventFeed": {
                 "ChainAPIBackoff": "15s",
-                "NewBlockTimeout": "30s",
+                "NewBlockPollFreq": "5s",
                 "MinBlockDepth": 1,
                 "PersistEvents": true
             },
@@ -140,7 +140,7 @@
             },
             "EventFeed": {
                 "ChainAPIBackoff": "15s",
-                "NewBlockTimeout": "60s",
+                "NewBlockPollFreq": "10s",
                 "MinBlockDepth": 1,
                 "PersistEvents": true
             },
@@ -168,7 +168,7 @@
             },
             "EventFeed": {
                 "ChainAPIBackoff": "15s",
-                "NewBlockTimeout": "60s",
+                "NewBlockPollFreq": "5s",
                 "MinBlockDepth": 1,
                 "PersistEvents": true
             },
@@ -196,7 +196,7 @@
             },
             "EventFeed": {
                 "ChainAPIBackoff": "15s",
-                "NewBlockTimeout": "60s",
+                "NewBlockPollFreq": "5s",
                 "MinBlockDepth": 0,
                 "PersistEvents": true
             },
@@ -224,7 +224,7 @@
             },
             "EventFeed": {
                 "ChainAPIBackoff": "15s",
-                "NewBlockTimeout": "60s",
+                "NewBlockPollFreq": "5s",
                 "MinBlockDepth": 0,
                 "PersistEvents": true
             },
@@ -252,7 +252,7 @@
             },
             "EventFeed": {
                 "ChainAPIBackoff": "15s",
-                "NewBlockTimeout": "30s",
+                "NewBlockPollFreq": "5s",
                 "MinBlockDepth": 0,
                 "PersistEvents": true
             },

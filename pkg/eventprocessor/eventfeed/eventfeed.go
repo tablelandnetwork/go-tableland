@@ -70,7 +70,7 @@ var SupportedEvents = map[EventType]reflect.Type{
 type Config struct {
 	MinBlockChainDepth  int
 	ChainAPIBackoff     time.Duration
-	NewBlockTimeout     time.Duration
+	NewHeadPollFreq     time.Duration
 	PersistEvents       bool
 	FetchExtraBlockInfo bool
 }
@@ -80,7 +80,7 @@ func DefaultConfig() *Config {
 	return &Config{
 		MinBlockChainDepth:  5,
 		ChainAPIBackoff:     time.Second * 15,
-		NewBlockTimeout:     time.Second * 30,
+		NewHeadPollFreq:     time.Second * 10,
 		PersistEvents:       false,
 		FetchExtraBlockInfo: false,
 	}
@@ -113,16 +113,23 @@ func WithChainAPIBackoff(backoff time.Duration) Option {
 	}
 }
 
-// WithNewBlockTimeout is the maximum duration to wait for a new expected block.
-// If we don't receive a new block from the chain after this time, the underlying
-// system will repair the faulty subscription. An arbitrary safe value would be
-// ~5*avg_block_time of the underlying chain.
-func WithNewBlockTimeout(timeout time.Duration) Option {
+// WithNewHeadPollFreq is the rate at which we poll the chain to detect new blocks.
+// This should be configured close to the expected block time of the chain.
+//
+// If set to lower, the validator is more reactive to new blocks as soon as they get miner paying an efficiency cost.
+// For example, Ethereum has an expected block time of 12s. If we set this value to 6s, on average half of the polls
+// will detect a new block.
+//
+// If set to greater, the validator will have some delay to execute new events on new blocks. But, it would be more
+// efficient in Ethereum node APIs usage, since the next detected block might be N (N>1) blocks further than the last
+// detected one, making the `eth_getLogs(...)` query block range wider. This means that with less Ethereum node APIs
+// we would detect more events on average (again, paying the cost of having a bit more delay on event execution).
+//
+// Tunning this setting has a direct impact on potential Ethereum node API as a service cost, since bigger values
+// have a direct impact in total API calls per day. Operators can also use this configuration to adjust to their budget.
+func WithNewHeadPollFreq(pollFreq time.Duration) Option {
 	return func(c *Config) error {
-		if timeout < time.Second {
-			return fmt.Errorf("new head timeout is too low (<1s)")
-		}
-		c.NewBlockTimeout = timeout
+		c.NewHeadPollFreq = pollFreq
 		return nil
 	}
 }
