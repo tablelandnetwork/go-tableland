@@ -338,7 +338,6 @@ func (s *InstrumentedSystemStore) GetBlocksMissingExtraInfo(
 	ctx context.Context,
 	fromHeight *int64,
 ) ([]int64, error) {
-	log.Debug().Msg("call GetBlocksMissingExtraInfo")
 	start := time.Now()
 	blockNumbers, err := s.store.GetBlocksMissingExtraInfo(ctx, fromHeight)
 	latency := time.Since(start).Milliseconds()
@@ -379,7 +378,6 @@ func (s *InstrumentedSystemStore) GetBlockExtraInfo(
 
 // InsertBlockExtraInfo implements sqlstore.SystemStore.
 func (s *InstrumentedSystemStore) InsertBlockExtraInfo(ctx context.Context, blockNumber int64, timestamp uint64) error {
-	log.Debug().Int64("block_number", blockNumber).Msg("call InsertBlockExtraInfo")
 	start := time.Now()
 	err := s.store.InsertBlockExtraInfo(ctx, blockNumber, timestamp)
 	latency := time.Since(start).Milliseconds()
