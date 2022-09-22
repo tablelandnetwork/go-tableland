@@ -163,6 +163,7 @@ func (ef *EventFeed) Start(
 				// in the next head. Probably the API can have transient unavailability.
 				ef.log.Warn().Err(err).Msgf("filter logs from %d to %d", fromHeight, toHeight)
 				if strings.Contains(err.Error(), "read limit exceeded") ||
+					strings.Contains(err.Error(), "Log response size exceeded") ||
 					strings.Contains(err.Error(), "is greater than the limit") {
 					ef.maxBlocksFetchSize = ef.maxBlocksFetchSize * 80 / 100
 				} else {
@@ -319,61 +320,33 @@ func (ef *EventFeed) getTopicsForEventTypes(ets []eventfeed.EventType) ([]common
 // When this happens the provided channel will be closed.
 func (ef *EventFeed) notifyNewBlocks(ctx context.Context, clientCh chan *types.Header) error {
 	// Always push as fast as possible the latest block.
-	hbnCtx, hbnCls := context.WithTimeout(ctx, time.Second*10)
-	defer hbnCls()
-	h, err := ef.ethClient.HeaderByNumber(hbnCtx, nil)
+	ctx2, cls := context.WithTimeout(ctx, time.Second*10)
+	defer cls()
+	h, err := ef.ethClient.HeaderByNumber(ctx2, nil)
 	if err != nil {
 		return fmt.Errorf("get current block: %s", err)
 	}
 	clientCh <- h
 
-	ch := make(chan *types.Header, 1)
-	notifierSignaler := make(chan struct{}, 1)
-	notifierSignaler <- struct{}{}
-	// Fire a goroutine that relays new detected blocks to the client, while also inspecting
-	// the healthiness of the subscription. If the subscription is faulty, it notifies
-	// that the subscription should be regenerated.
 	go func() {
 		defer close(clientCh)
-		defer close(notifierSignaler)
 
 		for {
 			select {
 			case <-ctx.Done():
-				ef.log.Info().Msg("gracefully closing new blocks subscription")
+				ef.log.Info().Msg("gracefully closing new blocks polling")
 				return
-			case h := <-ch:
-				select {
-				case clientCh <- h:
-				default:
-					ef.log.Warn().Int("height", int(h.Number.Int64())).Msg("dropping new height")
+			case <-time.After(ef.config.NewHeadPollFreq):
+				ctx, cls := context.WithTimeout(ctx, time.Second*10)
+				h, err := ef.ethClient.HeaderByNumber(ctx, nil)
+				if err != nil {
+					ef.log.Error().Err(err).Msg("get latest block")
+				} else {
+					clientCh <- h
 				}
-			case <-time.After(ef.config.NewBlockTimeout):
-				ef.log.Warn().Dur("timeout", ef.config.NewBlockTimeout).Msgf("new blocks subscription is quiet, rebuilding")
-				notifierSignaler <- struct{}{}
+				cls()
 			}
 		}
-	}()
-
-	// This goroutine is responsible to always having a **single** subscription. It can receive a signal from
-	// the above goroutine to re-generate the current subscription since it was detected faulty.
-	go func() {
-		var sub ethereum.Subscription
-		for range notifierSignaler {
-			if sub != nil {
-				sub.Unsubscribe()
-			}
-			sub, err = ef.ethClient.SubscribeNewHead(ctx, ch)
-			if err != nil {
-				sub = nil
-				ef.log.Error().Err(err).Msg("subscribing to blocks")
-				continue
-			}
-		}
-		if sub != nil {
-			sub.Unsubscribe()
-		}
-		ef.log.Info().Msg("gracefully closing notifier")
 	}()
 
 	return nil
