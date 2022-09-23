@@ -51,7 +51,7 @@ func TestRead(t *testing.T) {
 	calls := setup(t)
 	_, table := requireCreate(t, calls)
 	hash := requireWrite(t, calls, table)
-	requireReceipt(t, calls, hash, client.WaitFor(time.Second*10))
+	requireReceipt(t, calls, hash, client.WaitFor(time.Second*20))
 
 	type result struct {
 		Bar string `json:"bar"`
@@ -110,7 +110,7 @@ func TestSetController(t *testing.T) {
 }
 
 func requireCreate(t *testing.T, calls clientCalls) (client.TableID, string) {
-	id, table := calls.create("(bar text)", client.WithPrefix("foo"), client.WithReceiptTimeout(time.Second*10))
+	id, table := calls.create("(bar text)", client.WithPrefix("foo"), client.WithReceiptTimeout(time.Second*20))
 	require.Equal(t, "foo_1337_1", table)
 	return id, table
 }
