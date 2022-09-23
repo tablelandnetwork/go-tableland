@@ -347,10 +347,10 @@ func createChainIDStack(
 	}
 	ep, err := epimpl.New(parser, ex, ef, config.ChainID, epOpts...)
 	if err != nil {
-		return chains.ChainStack{}, fmt.Errorf("creating event processor")
+		return chains.ChainStack{}, fmt.Errorf("creating event processor: %s", err)
 	}
 	if err := ep.Start(); err != nil {
-		return chains.ChainStack{}, fmt.Errorf("starting event processor")
+		return chains.ChainStack{}, fmt.Errorf("starting event processor: %s", err)
 	}
 	return chains.ChainStack{
 		Store:                 systemStore,

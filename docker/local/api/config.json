@@ -31,7 +31,8 @@
         "CheckInterval": "10s",
         "StuckInterval": "10m",
         "MinBlockDepth": 1
-      }
+      },
+      "HashCalculationStep": 100
     }
   ]
 }
