@@ -21,7 +21,7 @@
       },
       "EventFeed": {
         "ChainAPIBackoff": "15s",
-        "NewBlockTimeout": "30s",
+        "NewBlockPollFreq": "1s",
         "MinBlockDepth": 1
       },
       "EventProcessor": {
@@ -31,7 +31,8 @@
         "CheckInterval": "10s",
         "StuckInterval": "10m",
         "MinBlockDepth": 1
-      }
+      },
+      "HashCalculationStep": 100
     }
   ]
 }

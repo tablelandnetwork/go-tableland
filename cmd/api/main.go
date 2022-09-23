@@ -36,6 +36,8 @@ import (
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
+	"github.com/textileio/go-tableland/pkg/telemetry"
+	"github.com/textileio/go-tableland/pkg/telemetry/storage"
 	"github.com/textileio/go-tableland/pkg/wallet"
 )
 
@@ -96,6 +98,18 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("creating user store")
 	}
+
+	metricsDatabaseURL := fmt.Sprintf(
+		"file://%s?_busy_timeout=5000&_foreign_keys=on&_journal_mode=WAL",
+		path.Join(dirPath, "metrics.db"),
+	)
+
+	metricsStore, err := storage.New(metricsDatabaseURL)
+	if err != nil {
+		log.Fatal().Err(err).Msg("creating metrics store")
+	}
+
+	telemetry.SetMetricStore(metricsStore)
 
 	rateLimInterval, err := time.ParseDuration(config.HTTP.RateLimInterval)
 	if err != nil {
@@ -244,6 +258,10 @@ func main() {
 		if err := userStore.Close(); err != nil {
 			log.Error().Err(err).Msg("closing user store")
 		}
+
+		if err := metricsStore.Close(); err != nil {
+			log.Error().Err(err).Msg("closing metrics store")
+		}
 	})
 }
 
@@ -324,14 +342,14 @@ func createChainIDStack(
 	if err != nil {
 		return chains.ChainStack{}, fmt.Errorf("parsing chain api backoff duration: %s", err)
 	}
-	newBlockTimeout, err := time.ParseDuration(config.EventFeed.NewBlockTimeout)
+	newBlockPollFreq, err := time.ParseDuration(config.EventFeed.NewBlockPollFreq)
 	if err != nil {
 		return chains.ChainStack{}, fmt.Errorf("parsing chain api backoff duration: %s", err)
 	}
 	efOpts := []eventfeed.Option{
 		eventfeed.WithChainAPIBackoff(chainAPIBackoff),
 		eventfeed.WithMinBlockDepth(config.EventFeed.MinBlockDepth),
-		eventfeed.WithNewBlockTimeout(newBlockTimeout),
+		eventfeed.WithNewHeadPollFreq(newBlockPollFreq),
 		eventfeed.WithEventPersistence(config.EventFeed.PersistEvents),
 		eventfeed.WithFetchExtraBlockInformation(fetchExtraBlockInfo),
 	}
@@ -346,13 +364,14 @@ func createChainIDStack(
 	epOpts := []eventprocessor.Option{
 		eventprocessor.WithBlockFailedExecutionBackoff(blockFailedExecutionBackoff),
 		eventprocessor.WithDedupExecutedTxns(config.EventProcessor.DedupExecutedTxns),
+		eventprocessor.WithHashCalcStep(config.HashCalculationStep),
 	}
 	ep, err := epimpl.New(parser, ex, ef, config.ChainID, epOpts...)
 	if err != nil {
-		return chains.ChainStack{}, fmt.Errorf("creating event processor")
+		return chains.ChainStack{}, fmt.Errorf("creating event processor: %s", err)
 	}
 	if err := ep.Start(); err != nil {
-		return chains.ChainStack{}, fmt.Errorf("starting event processor")
+		return chains.ChainStack{}, fmt.Errorf("starting event processor: %s", err)
 	}
 	return chains.ChainStack{
 		Store:                 systemStore,

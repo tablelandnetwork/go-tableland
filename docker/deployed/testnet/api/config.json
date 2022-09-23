@@ -31,17 +31,17 @@
     "Analytics": {
         "FetchExtraBlockInfo": true
     },
-    "Backup" : {
-		"Enabled": true, 
-		"Dir": "backups",               
-		"Frequency": 240,  
-		"EnableVacuum": true,      
-		"EnableCompression": true,
-        "Pruning" : {
+    "Backup": {
+        "Enabled": true,
+        "Dir": "backups",
+        "Frequency": 240,
+        "EnableVacuum": true,
+        "EnableCompression": true,
+        "Pruning": {
             "Enabled": true,
             "KeepFiles": 5
         }
-	},
+    },
     "Chains": [
         {
             "Name": "Optimism Kovan",
@@ -56,7 +56,7 @@
             },
             "EventFeed": {
                 "ChainAPIBackoff": "15s",
-                "NewBlockTimeout": "30s",
+                "NewBlockPollFreq": "5s",
                 "MinBlockDepth": 0,
                 "PersistEvents": true
             },
@@ -68,7 +68,8 @@
                 "CheckInterval": "10s",
                 "StuckInterval": "5m",
                 "MinBlockDepth": 0
-            }
+            },
+            "HashCalculationStep": 1800
         },
         {
             "Name": "Ethereum Goerli",
@@ -83,7 +84,7 @@
             },
             "EventFeed": {
                 "ChainAPIBackoff": "15s",
-                "NewBlockTimeout": "45s",
+                "NewBlockPollFreq": "10s",
                 "MinBlockDepth": 1,
                 "PersistEvents": true
             },
@@ -95,7 +96,8 @@
                 "CheckInterval": "15s",
                 "StuckInterval": "10m",
                 "MinBlockDepth": 1
-            }
+            },
+            "HashCalculationStep": 150
         },
         {
             "Name": "Polygon Mumbai",
@@ -110,7 +112,7 @@
             },
             "EventFeed": {
                 "ChainAPIBackoff": "15s",
-                "NewBlockTimeout": "30s",
+                "NewBlockPollFreq": "5s",
                 "MinBlockDepth": 1,
                 "PersistEvents": true
             },
@@ -122,7 +124,8 @@
                 "CheckInterval": "15s",
                 "StuckInterval": "5m",
                 "MinBlockDepth": 1
-            }
+            },
+            "HashCalculationStep": 360
         },
         {
             "Name": "Ethereum Mainnet",
@@ -137,7 +140,7 @@
             },
             "EventFeed": {
                 "ChainAPIBackoff": "15s",
-                "NewBlockTimeout": "60s",
+                "NewBlockPollFreq": "10s",
                 "MinBlockDepth": 1,
                 "PersistEvents": true
             },
@@ -149,7 +152,8 @@
                 "CheckInterval": "20s",
                 "StuckInterval": "10m",
                 "MinBlockDepth": 1
-            }
+            },
+            "HashCalculationStep": 150
         },
         {
             "Name": "Polygon Mainnet",
@@ -164,7 +168,7 @@
             },
             "EventFeed": {
                 "ChainAPIBackoff": "15s",
-                "NewBlockTimeout": "60s",
+                "NewBlockPollFreq": "5s",
                 "MinBlockDepth": 1,
                 "PersistEvents": true
             },
@@ -176,7 +180,8 @@
                 "CheckInterval": "15s",
                 "StuckInterval": "10m",
                 "MinBlockDepth": 1
-            }
+            },
+            "HashCalculationStep": 360
         },
         {
             "Name": "Optimism Mainnet",
@@ -191,7 +196,7 @@
             },
             "EventFeed": {
                 "ChainAPIBackoff": "15s",
-                "NewBlockTimeout": "60s",
+                "NewBlockPollFreq": "5s",
                 "MinBlockDepth": 0,
                 "PersistEvents": true
             },
@@ -203,7 +208,8 @@
                 "CheckInterval": "15s",
                 "StuckInterval": "10m",
                 "MinBlockDepth": 0
-            }
+            },
+            "HashCalculationStep": 1800
         },
         {
             "Name": "Arbitrum Goerli",
@@ -218,7 +224,7 @@
             },
             "EventFeed": {
                 "ChainAPIBackoff": "15s",
-                "NewBlockTimeout": "60s",
+                "NewBlockPollFreq": "5s",
                 "MinBlockDepth": 0,
                 "PersistEvents": true
             },
@@ -230,7 +236,8 @@
                 "CheckInterval": "15s",
                 "StuckInterval": "10m",
                 "MinBlockDepth": 0
-            }
+            },
+            "HashCalculationStep": 360
         },
         {
             "Name": "Optimism Goerli",
@@ -245,7 +252,7 @@
             },
             "EventFeed": {
                 "ChainAPIBackoff": "15s",
-                "NewBlockTimeout": "30s",
+                "NewBlockPollFreq": "5s",
                 "MinBlockDepth": 0,
                 "PersistEvents": true
             },
@@ -257,7 +264,8 @@
                 "CheckInterval": "10s",
                 "StuckInterval": "5m",
                 "MinBlockDepth": 0
-            }
+            },
+            "HashCalculationStep": 1800
         }
     ]
 }

@@ -30,17 +30,17 @@
   "Analytics": {
     "FetchExtraBlockInfo": false
   },
-  "Backup" : {
-		"Enabled": true,
-		"Dir": "backups",               
-		"Frequency": 120,
-		"EnableVacuum": true,      
-		"EnableCompression": true,
-    "Pruning" : {
-        "Enabled": true,
-        "KeepFiles": 5
+  "Backup": {
+    "Enabled": true,
+    "Dir": "backups",
+    "Frequency": 120,
+    "EnableVacuum": true,
+    "EnableCompression": true,
+    "Pruning": {
+      "Enabled": true,
+      "KeepFiles": 5
     }
-	},
+  },
   "Chains": [
     {
       "Name": "Optimism Kovan",
@@ -55,7 +55,7 @@
       },
       "EventFeed": {
         "ChainAPIBackoff": "15s",
-        "NewBlockTimeout": "30s",
+        "NewBlockPollFreq": "10s",
         "MinBlockDepth": 0,
         "PersistEvents": false
       },
@@ -67,7 +67,8 @@
         "CheckInterval": "10s",
         "StuckInterval": "10m",
         "MinBlockDepth": 0
-      }
+      },
+      "HashCalculationStep": 100
     },
     {
       "Name": "Optimism Goerli",
@@ -82,7 +83,7 @@
       },
       "EventFeed": {
         "ChainAPIBackoff": "15s",
-        "NewBlockTimeout": "30s",
+        "NewBlockPollFreq": "10s",
         "MinBlockDepth": 0,
         "PersistEvents": false
       },
@@ -94,7 +95,8 @@
         "CheckInterval": "10s",
         "StuckInterval": "10m",
         "MinBlockDepth": 0
-      }
+      },
+      "HashCalculationStep": 100
     }
   ]
 }

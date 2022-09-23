@@ -5,13 +5,13 @@ go 1.17
 require (
 	cloud.google.com/go/logging v1.5.0
 	github.com/XSAM/otelsql v0.16.0
-	github.com/ethereum/go-ethereum v1.10.23
+	github.com/ethereum/go-ethereum v1.10.25
 	github.com/golang-migrate/migrate/v4 v4.15.2
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/hetiansu5/urlquery v1.2.7
 	github.com/json-iterator/go v1.1.12
-	github.com/klauspost/compress v1.15.9
+	github.com/klauspost/compress v1.15.10
 	github.com/mattn/go-sqlite3 v1.14.15
 	github.com/omeid/uconfig v1.2.0
 	github.com/pkg/errors v0.9.1
@@ -20,13 +20,13 @@ require (
 	github.com/spf13/cobra v1.5.0
 	github.com/spruceid/siwe-go v0.2.1-0.20220711143404-817846826282
 	github.com/stretchr/testify v1.8.0
-	github.com/tablelandnetwork/sqlparser v0.0.0-20220830151425-aec4df78e4c8
+	github.com/tablelandnetwork/sqlparser v0.0.0-20220923130758-1b39431a2fea
 	github.com/textileio/cli v1.0.2
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.32.0
-	go.opentelemetry.io/contrib/instrumentation/runtime v0.34.0
-	go.opentelemetry.io/otel v1.9.0
+	go.opentelemetry.io/contrib/instrumentation/runtime v0.36.0
+	go.opentelemetry.io/otel v1.10.0
 	go.opentelemetry.io/otel/exporters/prometheus v0.31.0
-	go.opentelemetry.io/otel/metric v0.31.0
+	go.opentelemetry.io/otel/metric v0.32.0
 	go.opentelemetry.io/otel/sdk/metric v0.31.0
 	go.uber.org/atomic v1.10.0
 	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f
@@ -97,7 +97,7 @@ require (
 	github.com/tklauser/numcpus v0.2.2 // indirect
 	go.opencensus.io v0.23.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.9.0 // indirect
-	go.opentelemetry.io/otel/trace v1.9.0 // indirect
+	go.opentelemetry.io/otel/trace v1.10.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.19.0 // indirect
 	golang.org/x/crypto v0.0.0-20211215165025-cf75a172585e // indirect

@@ -81,10 +81,10 @@ type ChainConfig struct {
 		PrivateKey string `default:""`
 	}
 	EventFeed struct {
-		ChainAPIBackoff string `default:"15s"`
-		MinBlockDepth   int    `default:"5"`
-		NewBlockTimeout string `default:"30s"`
-		PersistEvents   bool   `default:"true"`
+		ChainAPIBackoff  string `default:"15s"`
+		MinBlockDepth    int    `default:"5"`
+		NewBlockPollFreq string `default:"10s"`
+		PersistEvents    bool   `default:"true"`
 	}
 	EventProcessor struct {
 		BlockFailedExecutionBackoff string `default:"10s"`
@@ -95,6 +95,7 @@ type ChainConfig struct {
 		StuckInterval string `default:"10m"`
 		MinBlockDepth int    `default:"5"`
 	}
+	HashCalculationStep int64 `default:"1000"`
 }
 
 func setupConfig() (*config, string) {

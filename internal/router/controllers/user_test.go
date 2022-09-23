@@ -184,16 +184,42 @@ func TestUserControllerQuery(t *testing.T) {
 	for i, wantString := range wantStrings {
 		require.JSONEq(t, wantString, gotStrings[i])
 	}
+}
 
-	// Legacy 'mode' support
+func TestUserControllerLegacyQuery(t *testing.T) {
+	r := mocks.NewSQLRunner(t)
+	r.EXPECT().RunReadQuery(mock.Anything, mock.AnythingOfType("string")).Return(
+		&tableland.TableData{
+			Columns: []tableland.Column{
+				{Name: "name"},
+			},
+			Rows: [][]*tableland.ColumnValue{
+				{
+					tableland.OtherColValue("Bob"),
+				},
+				{
+					tableland.OtherColValue("John"),
+				},
+				{
+					tableland.OtherColValue("Jane"),
+				},
+			},
+		},
+		nil,
+	)
+
+	userController := NewUserController(r)
+
+	router := mux.NewRouter()
+	router.HandleFunc("/query", userController.GetTableQuery)
 
 	// Mode = json
-	req, err = http.NewRequest("GET", "/query?s=select%20*%20from%20foo%3B&mode=json", nil)
+	req, err := http.NewRequest("GET", "/query?s=select%20*%20from%20foo%3B&mode=json", nil)
 	require.NoError(t, err)
-	rr = httptest.NewRecorder()
+	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
-	exp = `[{"eyes":"Big","id":1,"mouth":"Surprised"},{"eyes":"Medium","id":2,"mouth":"Sad"},{"eyes":"Small","id":3,"mouth":"Happy"}]` // nolint
+	exp := `[{"name":"Bob"},{"name":"John"},{"name":"Jane"}]`
 	require.JSONEq(t, exp, rr.Body.String())
 
 	// Mode = list
@@ -202,9 +228,9 @@ func TestUserControllerQuery(t *testing.T) {
 	rr = httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
-	exp = "{\"eyes\":\"Big\",\"id\":1,\"mouth\":\"Surprised\"}\n{\"eyes\":\"Medium\",\"id\":2,\"mouth\":\"Sad\"}\n{\"eyes\":\"Small\",\"id\":3,\"mouth\":\"Happy\"}\n" // nolint
-	wantStrings = parseJSONLString(exp)
-	gotStrings = parseJSONLString(rr.Body.String())
+	exp = "\"Bob\"\n\"John\"\n\"Jane\"\n"
+	wantStrings := parseJSONLString(exp)
+	gotStrings := parseJSONLString(rr.Body.String())
 	require.Equal(t, len(wantStrings), len(gotStrings))
 	for i, wantString := range wantStrings {
 		require.JSONEq(t, wantString, gotStrings[i])

@@ -356,7 +356,7 @@
             "uid": "P1809F7CD0C75ACF3"
           },
           "exemplar": true,
-          "expr": "sum by (chain_id) (tableland_wallettracker_balance_wei{service_name=\"tableland:api\"})/1000000000000000000",
+          "expr": "sum by (chain_id) (tableland_wallettracker_balance_wei{service_name=\"tableland:api\"})/1000000000",
           "format": "time_series",
           "instant": false,
           "interval": "",
@@ -595,6 +595,73 @@
         }
       ],
       "title": "Last backup",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P1809F7CD0C75ACF3"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "dark-red",
+                "value": 18000
+              }
+            ]
+          },
+          "unit": "dtdurations"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 4,
+        "y": 15
+      },
+      "id": 83,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {},
+        "textMode": "auto"
+      },
+      "pluginVersion": "9.0.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P1809F7CD0C75ACF3"
+          },
+          "editorMode": "code",
+          "expr": "tableland_eventprocessor_hash_calculation_elapsed_time / 1000",
+          "legendFormat": "Chain ID: {{chain_id}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Last Hash Calculation Elapsed Time",
       "type": "stat"
     },
     {
@@ -2753,6 +2820,6 @@
   "timezone": "",
   "title": "Validator",
   "uid": "2Le7qt_7z",
-  "version": 4,
+  "version": 13,
   "weekStart": ""
 }
