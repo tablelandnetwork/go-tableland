@@ -39,12 +39,8 @@ import (
 	"github.com/textileio/go-tableland/tests"
 )
 
-var (
-	// DbURI is the test database URI.
-	DbURI = tests.Sqlite3URI()
-	// ChainID is the test chain id.
-	ChainID = tableland.ChainID(1337)
-)
+// ChainID is the test chain id.
+var ChainID = tableland.ChainID(1337)
 
 // FullStack holds all potentially useful components of the Tableland test stack.
 type FullStack struct {
@@ -60,6 +56,7 @@ type FullStack struct {
 
 // Deps holds possile dependencies that can optionally be provided to spin up the full stack.
 type Deps struct {
+	DBURI         string
 	Parser        parsing.SQLValidator
 	SystemStore   sqlstore.SystemStore
 	UserStore     sqlstore.UserStore
@@ -81,15 +78,20 @@ func CreateFullStack(t *testing.T, deps Deps) FullStack {
 		require.NoError(t, err)
 	}
 
+	dbURI := deps.DBURI
+	if dbURI == "" {
+		dbURI = tests.Sqlite3URI()
+	}
+
 	systemStore := deps.SystemStore
 	if systemStore == nil {
-		systemStore, err = sqlstoreimplsystem.New(DbURI, ChainID)
+		systemStore, err = sqlstoreimplsystem.New(dbURI, ChainID)
 		require.NoError(t, err)
 	}
 
 	userStore := deps.UserStore
 	if userStore == nil {
-		userStore, err = sqlstoreimpluser.New(DbURI)
+		userStore, err = sqlstoreimpluser.New(dbURI)
 		require.NoError(t, err)
 		userStore, err = sqlstoreimpl.NewInstrumentedUserStore(userStore)
 		require.NoError(t, err)
@@ -146,7 +148,7 @@ func CreateFullStack(t *testing.T, deps Deps) FullStack {
 		acl = &aclHalfMock{systemStore}
 	}
 
-	ex, err := executor.NewExecutor(ChainID, DbURI, parser, 0, acl)
+	ex, err := executor.NewExecutor(ChainID, dbURI, parser, 0, acl)
 	require.NoError(t, err)
 
 	router := router.ConfiguredRouter(tbl, systemService, 10, time.Second)
