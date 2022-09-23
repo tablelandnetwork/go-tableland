@@ -15,7 +15,6 @@ import (
 
 // ChainClient provides basic apis for an EventFeed.
 type ChainClient interface {
-	SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error)
 	FilterLogs(ctx context.Context, query ethereum.FilterQuery) ([]types.Log, error)
 	HeaderByNumber(ctx context.Context, block *big.Int) (*types.Header, error)
 }
