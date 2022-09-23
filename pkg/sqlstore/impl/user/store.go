@@ -10,6 +10,7 @@ import (
 	logger "github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
+	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -21,7 +22,7 @@ type UserStore struct {
 }
 
 // New creates a new UserStore.
-func New(dbURI string) (*UserStore, error) {
+func New(dbURI string) (sqlstore.UserStore, error) {
 	db, err := otelsql.Open("sqlite3", dbURI, otelsql.WithAttributes(
 		attribute.String("name", "userstore"),
 	))

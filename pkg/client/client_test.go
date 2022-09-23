@@ -1,36 +1,21 @@
-package client
+package client_test
 
 import (
 	"context"
 	"database/sql"
-	"encoding/hex"
 	"fmt"
-	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/go-tableland/internal/chains"
-	"github.com/textileio/go-tableland/internal/router"
 	"github.com/textileio/go-tableland/internal/tableland"
 	tblimpl "github.com/textileio/go-tableland/internal/tableland/impl"
-	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
-	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
-	epimpl "github.com/textileio/go-tableland/pkg/eventprocessor/impl"
-	"github.com/textileio/go-tableland/pkg/nonce/impl"
-	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
+	"github.com/textileio/go-tableland/pkg/client"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
-	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
-	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
 	"github.com/textileio/go-tableland/pkg/tables"
-	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
-	"github.com/textileio/go-tableland/pkg/tables/impl/testutil"
-	"github.com/textileio/go-tableland/pkg/wallet"
-	"github.com/textileio/go-tableland/tests"
-
-	executor "github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor/impl"
+	"github.com/textileio/go-tableland/pkg/testutils"
 )
 
 func TestCreate(t *testing.T) {
@@ -54,7 +39,7 @@ func TestRelayWrite(t *testing.T) {
 
 	calls := setup(t)
 	_, table := requireCreate(t, calls)
-	requireWrite(t, calls, table, WriteRelay(true))
+	requireWrite(t, calls, table, client.WriteRelay(true))
 }
 
 func TestDirectWrite(t *testing.T) {
@@ -62,7 +47,7 @@ func TestDirectWrite(t *testing.T) {
 
 	calls := setup(t)
 	_, table := requireCreate(t, calls)
-	requireWrite(t, calls, table, WriteRelay(false))
+	requireWrite(t, calls, table, client.WriteRelay(false))
 }
 
 func TestRead(t *testing.T) {
@@ -71,7 +56,7 @@ func TestRead(t *testing.T) {
 	calls := setup(t)
 	_, table := requireCreate(t, calls)
 	hash := requireWrite(t, calls, table)
-	requireReceipt(t, calls, hash, WaitFor(time.Second*10))
+	requireReceipt(t, calls, hash, client.WaitFor(time.Second*10))
 
 	type result struct {
 		Bar string `json:"bar"`
@@ -83,20 +68,20 @@ func TestRead(t *testing.T) {
 	require.Equal(t, "baz", res0[0].Bar)
 
 	res1 := map[string]interface{}{}
-	calls.read(fmt.Sprintf("select * from %s", table), &res1, ReadOutput(Table))
+	calls.read(fmt.Sprintf("select * from %s", table), &res1, client.ReadOutput(client.Table))
 	require.Len(t, res1, 2)
 
 	res2 := result{}
-	calls.read(fmt.Sprintf("select * from %s", table), &res2, ReadUnwrap())
+	calls.read(fmt.Sprintf("select * from %s", table), &res2, client.ReadUnwrap())
 	require.Equal(t, "baz", res2.Bar)
 
 	res3 := []string{}
-	calls.read(fmt.Sprintf("select * from %s", table), &res3, ReadExtract())
+	calls.read(fmt.Sprintf("select * from %s", table), &res3, client.ReadExtract())
 	require.Len(t, res3, 1)
 	require.Equal(t, "baz", res3[0])
 
 	res4 := ""
-	calls.read(fmt.Sprintf("select * from %s", table), &res4, ReadUnwrap(), ReadExtract())
+	calls.read(fmt.Sprintf("select * from %s", table), &res4, client.ReadUnwrap(), client.ReadExtract())
 	require.Equal(t, "baz", res4)
 }
 
@@ -129,19 +114,19 @@ func TestSetController(t *testing.T) {
 	require.NotEmpty(t, hash)
 }
 
-func requireCreate(t *testing.T, calls clientCalls) (TableID, string) {
-	id, table := calls.create("(bar text)", WithPrefix("foo"), WithReceiptTimeout(time.Second*10))
+func requireCreate(t *testing.T, calls clientCalls) (client.TableID, string) {
+	id, table := calls.create("(bar text)", client.WithPrefix("foo"), client.WithReceiptTimeout(time.Second*10))
 	require.Equal(t, "foo_1337_1", table)
 	return id, table
 }
 
-func requireWrite(t *testing.T, calls clientCalls, table string, opts ...WriteOption) string {
+func requireWrite(t *testing.T, calls clientCalls, table string, opts ...client.WriteOption) string {
 	hash := calls.write(fmt.Sprintf("insert into %s (bar) values('baz')", table), opts...)
 	require.NotEmpty(t, hash)
 	return hash
 }
 
-func requireReceipt(t *testing.T, calls clientCalls, hash string, opts ...ReceiptOption) *TxnReceipt {
+func requireReceipt(t *testing.T, calls clientCalls, hash string, opts ...client.ReceiptOption) *client.TxnReceipt {
 	res, found := calls.receipt(hash, opts...)
 	require.True(t, found)
 	require.NotNil(t, res)
@@ -168,14 +153,14 @@ func (acl *aclHalfMock) IsOwner(_ context.Context, _ common.Address, _ tables.Ta
 }
 
 type clientCalls struct {
-	list          func() []TableInfo
-	create        func(schema string, opts ...CreateOption) (TableID, string)
-	read          func(query string, target interface{}, opts ...ReadOption)
-	write         func(query string, opts ...WriteOption) string
+	list          func() []client.TableInfo
+	create        func(schema string, opts ...client.CreateOption) (client.TableID, string)
+	read          func(query string, target interface{}, opts ...client.ReadOption)
+	write         func(query string, opts ...client.WriteOption) string
 	hash          func(statement string) string
-	validate      func(statement string) TableID
-	receipt       func(txnHash string, options ...ReceiptOption) (*TxnReceipt, bool)
-	setController func(controller common.Address, tableID TableID) string
+	validate      func(statement string) client.TableID
+	receipt       func(txnHash string, options ...client.ReceiptOption) (*client.TxnReceipt, bool)
+	setController func(controller common.Address, tableID client.TableID) string
 }
 
 func setup(t *testing.T) clientCalls {
@@ -183,124 +168,52 @@ func setup(t *testing.T) clientCalls {
 
 	ctx := context.Background()
 
-	dbURI := tests.Sqlite3URI()
-
-	store, err := system.New(dbURI, tableland.ChainID(1337))
-	require.NoError(t, err)
-
-	parser, err := parserimpl.New([]string{"system_", "registry", "sqlite_"})
-	require.NoError(t, err)
-
-	ex, err := executor.NewExecutor(1337, dbURI, parser, 0, &aclHalfMock{store})
-	require.NoError(t, err)
-
-	backend, addr, _, _, sk := testutil.Setup(t)
-
-	wallet, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(sk)))
-	require.NoError(t, err)
-
-	registry, err := ethereum.NewClient(
-		backend,
-		1337,
-		addr,
-		wallet,
-		impl.NewSimpleTracker(wallet, backend),
-	)
-	require.NoError(t, err)
-
-	userStore, err := user.New(dbURI)
-	require.NoError(t, err)
-
-	chainStack := map[tableland.ChainID]chains.ChainStack{
-		1337: {
-			Store:                 store,
-			Registry:              registry,
-			AllowTransactionRelay: true,
-		},
-	}
-
-	router := router.ConfiguredRouter(
-		"https://testnet.tableland.network",
-		"https://render.tableland.xyz",
-		10,
-		time.Second,
-		parser,
-		userStore,
-		chainStack,
-	)
-
-	server := httptest.NewServer(router.Handler())
-
-	c := Chain{
-		Endpoint:     server.URL,
-		ID:           ChainID(1337),
-		ContractAddr: addr,
-	}
-
-	client, err := NewClient(ctx, wallet, NewClientChain(c), NewClientContractBackend(backend))
-	require.NoError(t, err)
-
-	// Spin up dependencies needed for the EventProcessor.
-	// i.e: Executor, Parser, and EventFeed (connected to the EVM chain)
-	ef, err := efimpl.New(store, 1337, backend, addr, eventfeed.WithMinBlockDepth(0))
-	require.NoError(t, err)
-
-	// Create EventProcessor for our test.
-	ep, err := epimpl.New(parser, ex, ef, 1337)
-	require.NoError(t, err)
-
-	err = ep.Start()
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		ep.Stop()
-		client.Close()
-		server.Close()
-	})
+	stack := testutils.CreateFullStack(t, testutils.Deps{})
 
 	return clientCalls{
-		list: func() []TableInfo {
-			res, err := client.List(ctx)
+		list: func() []client.TableInfo {
+			res, err := stack.Client.List(ctx)
 			require.NoError(t, err)
 			return res
 		},
-		create: func(schema string, opts ...CreateOption) (TableID, string) {
+		create: func(schema string, opts ...client.CreateOption) (client.TableID, string) {
 			go func() {
 				time.Sleep(time.Second * 1)
-				backend.Commit()
+				stack.Backend.Commit()
 			}()
-			id, table, err := client.Create(ctx, schema, opts...)
+			id, table, err := stack.Client.Create(ctx, schema, opts...)
 			require.NoError(t, err)
 			return id, table
 		},
-		read: func(query string, target interface{}, opts ...ReadOption) {
-			err := client.Read(ctx, query, target, opts...)
+		read: func(query string, target interface{}, opts ...client.ReadOption) {
+			err := stack.Client.Read(ctx, query, target, opts...)
 			require.NoError(t, err)
 		},
-		write: func(query string, opts ...WriteOption) string {
-			hash, err := client.Write(ctx, query, opts...)
+		write: func(query string, opts ...client.WriteOption) string {
+			hash, err := stack.Client.Write(ctx, query, opts...)
 			require.NoError(t, err)
-			backend.Commit()
+			stack.Backend.Commit()
 			return hash
 		},
 		hash: func(statement string) string {
-			hash, err := client.Hash(ctx, statement)
+			hash, err := stack.Client.Hash(ctx, statement)
 			require.NoError(t, err)
 			return hash
 		},
-		validate: func(statement string) TableID {
-			tableID, err := client.Validate(ctx, statement)
+		validate: func(statement string) client.TableID {
+			tableID, err := stack.Client.Validate(ctx, statement)
 			require.NoError(t, err)
 			return tableID
 		},
-		receipt: func(txnHash string, options ...ReceiptOption) (*TxnReceipt, bool) {
-			receipt, found, err := client.Receipt(ctx, txnHash, options...)
+		receipt: func(txnHash string, options ...client.ReceiptOption) (*client.TxnReceipt, bool) {
+			receipt, found, err := stack.Client.Receipt(ctx, txnHash, options...)
 			require.NoError(t, err)
 			return receipt, found
 		},
-		setController: func(controller common.Address, tableID TableID) string {
-			hash, err := client.SetController(ctx, controller, tableID)
+		setController: func(controller common.Address, tableID client.TableID) string {
+			hash, err := stack.Client.SetController(ctx, controller, tableID)
 			require.NoError(t, err)
-			backend.Commit()
+			stack.Backend.Commit()
 			return hash
 		},
 	}

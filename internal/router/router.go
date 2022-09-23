@@ -7,41 +7,22 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog/log"
-	"github.com/textileio/go-tableland/internal/chains"
 	"github.com/textileio/go-tableland/internal/router/controllers"
 	"github.com/textileio/go-tableland/internal/router/middlewares"
 	"github.com/textileio/go-tableland/internal/router/rpcservice"
-	systemimpl "github.com/textileio/go-tableland/internal/system/impl"
+	"github.com/textileio/go-tableland/internal/system"
 	"github.com/textileio/go-tableland/internal/tableland"
-	"github.com/textileio/go-tableland/internal/tableland/impl"
-	"github.com/textileio/go-tableland/pkg/parsing"
-	"github.com/textileio/go-tableland/pkg/sqlstore"
-	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
-	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
 )
 
 // ConfiguredRouter returns a fully configured Router that can be used as an http handler.
 func ConfiguredRouter(
-	extURLPrefix string,
-	metadataRendererURI string,
+	tableland tableland.Tableland,
+	systemService system.SystemService,
 	maxRPI uint64,
 	rateLimInterval time.Duration,
-	parser parsing.SQLValidator,
-	userStore *user.UserStore,
-	chainStacks map[tableland.ChainID]chains.ChainStack,
 ) *Router {
-	instrUserStore, err := sqlstoreimpl.NewInstrumentedUserStore(userStore)
-	if err != nil {
-		log.Fatal().Err(err).Msg("creating instrumented user store")
-	}
-
-	mesaService := impl.NewTablelandMesa(parser, instrUserStore, chainStacks)
-	mesaService, err = impl.NewInstrumentedTablelandMesa(mesaService)
-	if err != nil {
-		log.Fatal().Err(err).Msg("instrumenting mesa")
-	}
-	rpcService := rpcservice.NewRPCService(mesaService)
-	userController := controllers.NewUserController(mesaService)
+	rpcService := rpcservice.NewRPCService(tableland)
+	userController := controllers.NewUserController(tableland)
 
 	server := rpc.NewServer()
 	if err := server.RegisterName("tableland", rpcService); err != nil {
@@ -49,18 +30,6 @@ func ConfiguredRouter(
 	}
 	infraController := controllers.NewInfraController()
 
-	stores := make(map[tableland.ChainID]sqlstore.SystemStore, len(chainStacks))
-	for chainID, stack := range chainStacks {
-		stores[chainID] = stack.Store
-	}
-	sysStore, err := systemimpl.NewSystemSQLStoreService(stores, extURLPrefix, metadataRendererURI)
-	if err != nil {
-		log.Fatal().Err(err).Msg("creating system store")
-	}
-	systemService, err := systemimpl.NewInstrumentedSystemSQLStoreService(sysStore)
-	if err != nil {
-		log.Fatal().Err(err).Msg("instrumenting system sql store")
-	}
 	systemController := controllers.NewSystemController(systemService)
 
 	// General router configuration.

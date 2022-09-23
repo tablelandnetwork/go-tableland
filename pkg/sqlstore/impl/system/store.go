@@ -39,7 +39,7 @@ type SystemStore struct {
 }
 
 // New returns a new SystemStore backed by database/sql.
-func New(dbURI string, chainID tableland.ChainID) (*SystemStore, error) {
+func New(dbURI string, chainID tableland.ChainID) (sqlstore.SystemStore, error) {
 	dbc, err := otelsql.Open("sqlite3", dbURI, otelsql.WithAttributes(
 		attribute.String("name", "systemstore"),
 		attribute.Int64("chain_id", int64(chainID)),

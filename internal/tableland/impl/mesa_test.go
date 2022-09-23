@@ -1017,8 +1017,8 @@ type tablelandSetup struct {
 
 	// common dependencies among tableland clients
 	parser      parsing.SQLValidator
-	userStore   *user.UserStore
-	systemStore *system.SystemStore
+	userStore   sqlstore.UserStore
+	systemStore sqlstore.SystemStore
 
 	// configs
 	allowTransactionRelay bool

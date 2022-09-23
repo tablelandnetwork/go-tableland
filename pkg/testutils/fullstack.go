@@ -1,11 +1,10 @@
-package tests
+package testutils
 
 import (
 	"context"
 	"crypto/ecdsa"
 	"database/sql"
 	"encoding/hex"
-	"fmt"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -21,60 +20,80 @@ import (
 	systemimpl "github.com/textileio/go-tableland/internal/system/impl"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/internal/tableland/impl"
-	tblimpl "github.com/textileio/go-tableland/internal/tableland/impl"
 	"github.com/textileio/go-tableland/pkg/client"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
 	epimpl "github.com/textileio/go-tableland/pkg/eventprocessor/impl"
+	executor "github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor/impl"
 	nonceimpl "github.com/textileio/go-tableland/pkg/nonce/impl"
+	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
-	sqlstoresystemimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
-	sqlstoreuserimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
+	sqlstoreimplsystem "github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
+	sqlstoreimpluser "github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
 	"github.com/textileio/go-tableland/pkg/tables"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/tables/impl/testutil"
 	"github.com/textileio/go-tableland/pkg/wallet"
-
-	executor "github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor/impl"
+	"github.com/textileio/go-tableland/tests"
 )
 
+var (
+	// DbURI is the test database URI.
+	DbURI = tests.Sqlite3URI()
+	// ChainID is the test chain id.
+	ChainID = tableland.ChainID(1337)
+)
+
+// FullStack holds all potentially useful components of the Tableland test stack.
 type FullStack struct {
-	Backand      *backends.SimulatedBackend
-	Address      common.Address
-	Contract     *ethereum.Contract
-	TransactOpts *bind.TransactOpts
-	Sk           *ecdsa.PrivateKey
-	Wallet       *wallet.Wallet
-	EthClient    *ethereum.Client
-	Client       *client.Client
+	Backend           *backends.SimulatedBackend
+	Address           common.Address
+	Contract          *ethereum.Contract
+	TransactOpts      *bind.TransactOpts
+	Sk                *ecdsa.PrivateKey
+	Wallet            *wallet.Wallet
+	TblContractClient *ethereum.Client
+	Client            *client.Client
 }
 
-type config struct {
-	systemStore sqlstore.SystemStore
-	acl         tableland.ACL
-
-	userStore     sqlstore.UserStore
-	tableland     tableland.Tableland
-	systemService system.SystemService
+// Deps holds possile dependencies that can optionally be provided to spin up the full stack.
+type Deps struct {
+	Parser        parsing.SQLValidator
+	SystemStore   sqlstore.SystemStore
+	UserStore     sqlstore.UserStore
+	ACL           tableland.ACL
+	Tableland     tableland.Tableland
+	SystemService system.SystemService
 }
 
-func CreateFullStack(t *testing.T) FullStack {
+// CreateFullStack creates the full stack, returning possibly useful things.
+func CreateFullStack(t *testing.T, deps Deps) FullStack {
 	t.Helper()
 
 	ctx := context.Background()
+	var err error
 
-	dbURI := Sqlite3URI()
+	parser := deps.Parser
+	if parser == nil {
+		parser, err = parserimpl.New([]string{"system_", "registry", "sqlite_"})
+		require.NoError(t, err)
+	}
 
-	store, err := sqlstoresystemimpl.New(dbURI, tableland.ChainID(1337))
-	require.NoError(t, err)
+	systemStore := deps.SystemStore
+	if systemStore == nil {
+		systemStore, err = sqlstoreimplsystem.New(DbURI, ChainID)
+		require.NoError(t, err)
+	}
 
-	parser, err := parserimpl.New([]string{"system_", "registry", "sqlite_"})
-	require.NoError(t, err)
-
-	ex, err := executor.NewExecutor(1337, dbURI, parser, 0, &aclHalfMock{store})
-	require.NoError(t, err)
+	userStore := deps.UserStore
+	if userStore == nil {
+		userStore, err = sqlstoreimpluser.New(DbURI)
+		require.NoError(t, err)
+		userStore, err = sqlstoreimpl.NewInstrumentedUserStore(userStore)
+		require.NoError(t, err)
+	}
 
 	backend, addr, contract, transactOpts, sk := testutil.Setup(t)
 
@@ -83,54 +102,60 @@ func CreateFullStack(t *testing.T) FullStack {
 
 	registry, err := ethereum.NewClient(
 		backend,
-		1337,
+		ChainID,
 		addr,
 		wallet,
 		nonceimpl.NewSimpleTracker(wallet, backend),
 	)
 	require.NoError(t, err)
 
-	userStore, err := sqlstoreuserimpl.New(dbURI)
-	require.NoError(t, err)
-
 	chainStacks := map[tableland.ChainID]chains.ChainStack{
-		1337: {
-			Store:                 store,
+		ChainID: {
+			Store:                 systemStore,
 			Registry:              registry,
 			AllowTransactionRelay: true,
 		},
 	}
 
-	instrUserStore, err := sqlstoreimpl.NewInstrumentedUserStore(userStore)
-	require.NoError(t, err)
-
-	mesaService := impl.NewTablelandMesa(parser, instrUserStore, chainStacks)
-	mesaService, err = impl.NewInstrumentedTablelandMesa(mesaService)
-	require.NoError(t, err)
+	tbl := deps.Tableland
+	if tbl == nil {
+		tbl = impl.NewTablelandMesa(parser, userStore, chainStacks)
+		tbl, err = impl.NewInstrumentedTablelandMesa(tbl)
+		require.NoError(t, err)
+	}
 
 	stores := make(map[tableland.ChainID]sqlstore.SystemStore, len(chainStacks))
 	for chainID, stack := range chainStacks {
 		stores[chainID] = stack.Store
 	}
-	sysStore, err := systemimpl.NewSystemSQLStoreService(
-		stores,
-		"https://testnet.tableland.network",
-		"https://render.tableland.xyz",
-	)
+
+	systemService := deps.SystemService
+	if systemService == nil {
+		systemService, err = systemimpl.NewSystemSQLStoreService(
+			stores,
+			"https://testnet.tableland.network",
+			"https://render.tableland.xyz",
+		)
+		require.NoError(t, err)
+		systemService, err = systemimpl.NewInstrumentedSystemSQLStoreService(systemService)
+		require.NoError(t, err)
+	}
+
+	acl := deps.ACL
+	if acl == nil {
+		acl = &aclHalfMock{systemStore}
+	}
+
+	ex, err := executor.NewExecutor(ChainID, DbURI, parser, 0, acl)
 	require.NoError(t, err)
 
-	systemService, err := systemimpl.NewInstrumentedSystemSQLStoreService(sysStore)
-	require.NoError(t, err)
-	fmt.Println(systemService)
-
-	// router := router.ConfiguredRouter(mesaService, systemService, 10, time.Second)
-	router := router.ConfiguredRouter("", "", 0, time.Second, nil, nil, nil)
+	router := router.ConfiguredRouter(tbl, systemService, 10, time.Second)
 
 	server := httptest.NewServer(router.Handler())
 
 	c := client.Chain{
 		Endpoint:     server.URL,
-		ID:           client.ChainID(1337),
+		ID:           client.ChainID(ChainID),
 		ContractAddr: addr,
 	}
 
@@ -139,11 +164,11 @@ func CreateFullStack(t *testing.T) FullStack {
 
 	// Spin up dependencies needed for the EventProcessor.
 	// i.e: Executor, Parser, and EventFeed (connected to the EVM chain)
-	ef, err := efimpl.New(store, 1337, backend, addr, eventfeed.WithMinBlockDepth(0))
+	ef, err := efimpl.New(systemStore, ChainID, backend, addr, eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
 
 	// Create EventProcessor for our test.
-	ep, err := epimpl.New(parser, ex, ef, 1337)
+	ep, err := epimpl.New(parser, ex, ef, ChainID)
 	require.NoError(t, err)
 
 	err = ep.Start()
@@ -155,14 +180,14 @@ func CreateFullStack(t *testing.T) FullStack {
 	})
 
 	return FullStack{
-		Backand:      backend,
-		Address:      addr,
-		Contract:     contract,
-		TransactOpts: transactOpts,
-		Sk:           sk,
-		Wallet:       wallet,
-		EthClient:    registry,
-		Client:       client,
+		Backend:           backend,
+		Address:           addr,
+		Contract:          contract,
+		TransactOpts:      transactOpts,
+		Sk:                sk,
+		Wallet:            wallet,
+		TblContractClient: registry,
+		Client:            client,
 	}
 }
 
@@ -177,7 +202,7 @@ func (acl *aclHalfMock) CheckPrivileges(
 	id tables.TableID,
 	op tableland.Operation,
 ) (bool, error) {
-	aclImpl := tblimpl.NewACL(acl.sqlStore, nil)
+	aclImpl := impl.NewACL(acl.sqlStore, nil)
 	return aclImpl.CheckPrivileges(ctx, tx, controller, id, op)
 }
 

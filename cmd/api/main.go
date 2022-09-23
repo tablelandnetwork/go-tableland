@@ -31,6 +31,7 @@ import (
 	nonceimpl "github.com/textileio/go-tableland/pkg/nonce/impl"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
+	"github.com/textileio/go-tableland/pkg/sqlstore"
 	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
@@ -101,15 +102,35 @@ func main() {
 		log.Fatal().Err(err).Msg("parsing http rate lim interval")
 	}
 
-	router := router.ConfiguredRouter(
+	instrUserStore, err := sqlstoreimpl.NewInstrumentedUserStore(userStore)
+	if err != nil {
+		log.Fatal().Err(err).Msg("creating instrumented user store")
+	}
+
+	mesaService := impl.NewTablelandMesa(parser, instrUserStore, chainStacks)
+	mesaService, err = impl.NewInstrumentedTablelandMesa(mesaService)
+	if err != nil {
+		log.Fatal().Err(err).Msg("instrumenting mesa")
+	}
+
+	stores := make(map[tableland.ChainID]sqlstore.SystemStore, len(chainStacks))
+	for chainID, stack := range chainStacks {
+		stores[chainID] = stack.Store
+	}
+	systemService, err := systemimpl.NewSystemSQLStoreService(
+		stores,
 		config.Gateway.ExternalURIPrefix,
 		config.Gateway.MetadataRendererURI,
-		config.HTTP.MaxRequestPerInterval,
-		rateLimInterval,
-		parser,
-		userStore,
-		chainStacks,
 	)
+	if err != nil {
+		log.Fatal().Err(err).Msg("creating system store")
+	}
+	systemService, err = systemimpl.NewInstrumentedSystemSQLStoreService(systemService)
+	if err != nil {
+		log.Fatal().Err(err).Msg("instrumenting system sql store")
+	}
+
+	router := router.ConfiguredRouter(mesaService, systemService, config.HTTP.MaxRequestPerInterval, rateLimInterval)
 
 	server := &http.Server{
 		Addr:         ":" + config.HTTP.Port,
@@ -233,12 +254,12 @@ func createChainIDStack(
 	tableConstraints TableConstraints,
 	fetchExtraBlockInfo bool,
 ) (chains.ChainStack, error) {
-	store, err := system.New(dbURI, config.ChainID)
+	systemStore, err := system.New(dbURI, config.ChainID)
 	if err != nil {
 		return chains.ChainStack{}, fmt.Errorf("failed initialize sqlstore: %s", err)
 	}
 
-	systemStore, err := sqlstoreimpl.NewInstrumentedSystemStore(config.ChainID, store)
+	systemStore, err = sqlstoreimpl.NewInstrumentedSystemStore(config.ChainID, systemStore)
 	if err != nil {
 		return chains.ChainStack{}, fmt.Errorf("instrumenting system store: %s", err)
 	}
