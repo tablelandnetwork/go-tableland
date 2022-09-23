@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -373,8 +374,15 @@ func (t *LocalTracker) checkBalance() error {
 
 		return fmt.Errorf("get balance: %s", err)
 	}
+
+	s := weiBalance.String()
+	gWeiBalance, err := strconv.ParseInt(s[:len(s)-9], 10, 64)
+	if err != nil {
+		return fmt.Errorf("converting wei to gwei: %s", err)
+	}
+
 	t.mu.Lock()
-	t.currWeiBalance = weiBalance.Int64()
+	t.currWeiBalance = gWeiBalance
 	t.ethClientUnhealthy = 0
 	t.mu.Unlock()
 

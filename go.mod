@@ -20,7 +20,7 @@ require (
 	github.com/spf13/cobra v1.5.0
 	github.com/spruceid/siwe-go v0.2.1-0.20220711143404-817846826282
 	github.com/stretchr/testify v1.8.0
-	github.com/tablelandnetwork/sqlparser v0.0.0-20220830151425-aec4df78e4c8
+	github.com/tablelandnetwork/sqlparser v0.0.0-20220923130758-1b39431a2fea
 	github.com/textileio/cli v1.0.2
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.32.0
 	go.opentelemetry.io/contrib/instrumentation/runtime v0.36.0

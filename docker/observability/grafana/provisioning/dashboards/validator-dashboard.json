@@ -356,7 +356,7 @@
             "uid": "P1809F7CD0C75ACF3"
           },
           "exemplar": true,
-          "expr": "sum by (chain_id) (tableland_wallettracker_balance_wei{service_name=\"tableland:api\"})/1000000000000000000",
+          "expr": "sum by (chain_id) (tableland_wallettracker_balance_wei{service_name=\"tableland:api\"})/1000000000",
           "format": "time_series",
           "instant": false,
           "interval": "",
@@ -2813,7 +2813,7 @@
     "list": []
   },
   "time": {
-    "from": "now-5m",
+    "from": "now-6h",
     "to": "now"
   },
   "timepicker": {},
