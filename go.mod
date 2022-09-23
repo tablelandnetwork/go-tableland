@@ -25,9 +25,8 @@ require (
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.32.0
 	go.opentelemetry.io/contrib/instrumentation/runtime v0.36.0
 	go.opentelemetry.io/otel v1.10.0
-	go.opentelemetry.io/otel/exporters/prometheus v0.31.0
-	go.opentelemetry.io/otel/metric v0.32.0
-	go.opentelemetry.io/otel/sdk/metric v0.31.0
+	go.opentelemetry.io/otel/exporters/prometheus v0.32.1
+	go.opentelemetry.io/otel/metric v0.32.1
 	go.uber.org/atomic v1.10.0
 	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f
 )
@@ -76,10 +75,10 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
 	github.com/pelletier/go-toml v1.9.3 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/prometheus/client_golang v1.12.2 // indirect
+	github.com/prometheus/client_golang v1.13.0 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
-	github.com/prometheus/common v0.32.1 // indirect
-	github.com/prometheus/procfs v0.7.3 // indirect
+	github.com/prometheus/common v0.37.0 // indirect
+	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/prometheus/tsdb v0.7.1 // indirect
 	github.com/relvacode/iso8601 v1.1.0 // indirect
 	github.com/rjeczalik/notify v0.9.1 // indirect
@@ -96,7 +95,8 @@ require (
 	github.com/tklauser/go-sysconf v0.3.5 // indirect
 	github.com/tklauser/numcpus v0.2.2 // indirect
 	go.opencensus.io v0.23.0 // indirect
-	go.opentelemetry.io/otel/sdk v1.9.0 // indirect
+	go.opentelemetry.io/otel/sdk v1.10.0 // indirect
+	go.opentelemetry.io/otel/sdk/metric v0.32.1 // indirect
 	go.opentelemetry.io/otel/trace v1.10.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.19.0 // indirect
@@ -109,7 +109,7 @@ require (
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20220617124728-180714bec0ad // indirect
 	google.golang.org/grpc v1.47.0 // indirect
-	google.golang.org/protobuf v1.28.0 // indirect
+	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/ini.v1 v1.62.0 // indirect
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
