@@ -49,7 +49,7 @@ func TestProbe(t *testing.T) {
 
 	stack := testutils.CreateFullStack(t, testutils.Deps{Tableland: tbl})
 
-	cp, err := New("optimism-mainnet", stack.Client, "Runbook_24", time.Second, time.Second*10)
+	cp, err := New("optimism", stack.Client, "Runbook_24", time.Second, time.Second*10)
 	require.NoError(t, err)
 
 	value, err := cp.healthCheck(context.Background())

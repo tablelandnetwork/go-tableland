@@ -358,11 +358,6 @@ func WriteRelay(relay bool) WriteOption {
 
 // Write initiates a write query, returning the txn hash.
 func (c *Client) Write(ctx context.Context, query string, opts ...WriteOption) (string, error) {
-	if c.tblContract == nil {
-		return "", errors.New(
-			"clinet created with no provider, must provide an Infura API key, Alchemy API key, or an ETH backend",
-		)
-	}
 	conf := writeConfig{relay: c.relayWrites}
 	for _, opt := range opts {
 		opt(&conf)
@@ -374,6 +369,11 @@ func (c *Client) Write(ctx context.Context, query string, opts ...WriteOption) (
 			return "", fmt.Errorf("calling rpc relayWriteQuery: %v", err)
 		}
 		return res.Transaction.Hash, nil
+	}
+	if c.tblContract == nil {
+		return "", errors.New(
+			"clinet created with no provider, must provide an Infura API key, Alchemy API key, or an ETH backend",
+		)
 	}
 	tableID, err := c.Validate(ctx, query)
 	if err != nil {

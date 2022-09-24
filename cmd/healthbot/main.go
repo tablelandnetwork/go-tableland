@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"sync"
@@ -42,9 +43,12 @@ func main() {
 			log.Fatal().Err(err).Msg("unable to create wallet from private key string")
 		}
 
-		chain := client.Chain{Endpoint: cfg.Target}
+		chain, err := getChain(chainCfg.Name)
+		if err != nil {
+			log.Fatal().Err(err).Msg("unable to get chain")
+		}
 
-		client, err := client.NewClient(ctx, wallet, client.NewClientChain(chain), client.NewClientRelayWrites(true))
+		client, err := client.NewClient(ctx, wallet, client.NewClientChain(chain))
 		if err != nil {
 			log.Fatal().Err(err).Msg("error creating tbl client")
 		}
@@ -67,4 +71,29 @@ func main() {
 	}
 	wg.Wait()
 	log.Info().Msg("daemon closed")
+}
+
+func getChain(chain string) (client.Chain, error) {
+	switch chain {
+	case "ethereum":
+		return client.Chains.Ethereum, nil
+	case "optimism":
+		return client.Chains.Optimism, nil
+	case "polygon":
+		return client.Chains.Polygon, nil
+	case "ethereum-goerli":
+		return client.Chains.EthereumGoerli, nil
+	case "optimism-kovan":
+		return client.Chains.OptimismKovan, nil
+	case "optimism-goerli":
+		return client.Chains.OptimismGoerli, nil
+	case "arbitrum-goerli":
+		return client.Chains.ArbitrumGoerli, nil
+	case "polygon-mumbai":
+		return client.Chains.PolygonMumbai, nil
+	case "local":
+		return client.Chains.Local, nil
+	default:
+		return client.Chain{}, fmt.Errorf("%s is not a valid chain", chain)
+	}
 }
