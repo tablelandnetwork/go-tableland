@@ -10,7 +10,6 @@ import (
 	"github.com/rs/zerolog"
 	logger "github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/pkg/client"
-	"github.com/textileio/go-tableland/pkg/wallet"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
 )
@@ -40,9 +39,8 @@ type CounterProbe struct {
 
 // New returns a *CounterProbe.
 func New(
-	ctx context.Context,
 	chainName string,
-	wallet *wallet.Wallet,
+	client *client.Client,
 	tableName string,
 	checkInterval time.Duration,
 	receiptTimeout time.Duration,
@@ -52,19 +50,11 @@ func New(
 		Str("chain_name", chainName).
 		Logger()
 
-	if wallet == nil {
-		return nil, errors.New("wallet can't be nil")
-	}
 	if receiptTimeout == 0 {
 		return nil, errors.New("receipt timeout can't be zero")
 	}
 	if len(tableName) == 0 {
 		return nil, errors.New("tablename is empty")
-	}
-
-	client, err := client.NewClient(ctx, wallet)
-	if err != nil {
-		return nil, fmt.Errorf("creating tbl client: %v", err)
 	}
 
 	cp := &CounterProbe{

@@ -35,7 +35,7 @@ system-sql-assets:
 .PHONY: system-sql-assets
 
 mocks: clean-mocks
-	go run github.com/vektra/mockery/v2@v2.14.0 --name='\b(?:SQLRunner|Tableland)\b' --recursive --with-expecter
+	go run github.com/vektra/mockery/v2@v2.14.0 --name='\b(?:SQLRunner|Tableland|Transaction)\b' --recursive --with-expecter
 .PHONY: mocks
 
 clean-mocks:

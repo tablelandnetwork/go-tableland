@@ -11,6 +11,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/buildinfo"
 	"github.com/textileio/go-tableland/cmd/healthbot/counterprobe"
+	"github.com/textileio/go-tableland/pkg/client"
 	"github.com/textileio/go-tableland/pkg/logging"
 	"github.com/textileio/go-tableland/pkg/metrics"
 	"github.com/textileio/go-tableland/pkg/wallet"
@@ -41,10 +42,16 @@ func main() {
 			log.Fatal().Err(err).Msg("unable to create wallet from private key string")
 		}
 
+		chain := client.Chain{Endpoint: cfg.Target}
+
+		client, err := client.NewClient(ctx, wallet, client.NewClientChain(chain), client.NewClientRelayWrites(true))
+		if err != nil {
+			log.Fatal().Err(err).Msg("error creating tbl client")
+		}
+
 		cp, err := counterprobe.New(
-			ctx,
 			chainCfg.Name,
-			wallet,
+			client,
 			chainCfg.Probe.Tablename,
 			checkInterval,
 			receiptTimeout)

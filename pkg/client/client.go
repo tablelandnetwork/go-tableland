@@ -156,15 +156,18 @@ func NewClient(ctx context.Context, wallet *wallet.Wallet, opts ...NewClientOpti
 		return nil, fmt.Errorf("getting contract backend: %v", err)
 	}
 
-	tblContract, err := ethereum.NewClient(
-		contractBackend,
-		tableland.ChainID(config.chain.ID),
-		config.chain.ContractAddr,
-		wallet,
-		impl.NewSimpleTracker(wallet, contractBackend),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("creating contract client: %v", err)
+	var tblContract *ethereum.Client
+	if contractBackend != nil {
+		tblContract, err = ethereum.NewClient(
+			contractBackend,
+			tableland.ChainID(config.chain.ID),
+			config.chain.ContractAddr,
+			wallet,
+			impl.NewSimpleTracker(wallet, contractBackend),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("creating contract client: %v", err)
+		}
 	}
 
 	siwe, err := siwe.EncodedSIWEMsg(tableland.ChainID(config.chain.ID), wallet, time.Hour*24*365)
@@ -244,6 +247,11 @@ func WithReceiptTimeout(timeout time.Duration) CreateOption {
 
 // Create creates a new table on the Tableland.
 func (c *Client) Create(ctx context.Context, schema string, opts ...CreateOption) (TableID, string, error) {
+	if c.tblContract == nil {
+		return TableID{}, "", errors.New(
+			"clinet created with no provider, must provide an Infura API key, Alchemy API key, or an ETH backend",
+		)
+	}
 	defaultTimeout := time.Minute * 10
 	conf := createConfig{receiptTimeout: &defaultTimeout}
 	for _, opt := range opts {
@@ -350,6 +358,11 @@ func WriteRelay(relay bool) WriteOption {
 
 // Write initiates a write query, returning the txn hash.
 func (c *Client) Write(ctx context.Context, query string, opts ...WriteOption) (string, error) {
+	if c.tblContract == nil {
+		return "", errors.New(
+			"clinet created with no provider, must provide an Infura API key, Alchemy API key, or an ETH backend",
+		)
+	}
 	conf := writeConfig{relay: c.relayWrites}
 	for _, opt := range opts {
 		opt(&conf)
@@ -515,5 +528,5 @@ func getContractBackend(ctx context.Context, config config) (bind.ContractBacken
 		}
 		return ethclient.DialContext(ctx, url)
 	}
-	return nil, errors.New("no provider specified, must provide an Infura API key, Alchemy API key, or an ETH backend")
+	return nil, nil
 }

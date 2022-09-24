@@ -22,6 +22,7 @@ type config struct {
 		Human bool `default:"false"`
 		Debug bool `default:"false"`
 	}
+	Target string `default:""`
 	Chains []ChainConfig
 }
 
