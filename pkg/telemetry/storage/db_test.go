@@ -2,7 +2,6 @@ package storage
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -10,7 +9,7 @@ import (
 	"github.com/textileio/go-tableland/tests"
 )
 
-func TestCollectSqliteStore(t *testing.T) {
+func TestCollectAndFetch(t *testing.T) {
 	t.Run("state hash", func(t *testing.T) {
 		dbURI := tests.Sqlite3URI()
 		s, err := New(dbURI)
@@ -20,20 +19,13 @@ func TestCollectSqliteStore(t *testing.T) {
 		err = telemetry.Collect(context.Background(), stateHash{})
 		require.NoError(t, err)
 
-		var version, timestamp, published int
-		var payload string
-		var typ telemetry.MetricType
-		row := s.sqlDB.QueryRowContext(context.Background(), "SELECT * FROM system_metrics LIMIT 1")
-		require.NoError(t, row.Scan(&version, &timestamp, &typ, &payload, &published))
+		metrics, err := s.FetchUnpublishedMetrics(context.Background(), 1)
+		require.NoError(t, err)
 
-		require.Equal(t, 0, published)
-		require.Equal(t, telemetry.StateHashType, typ)
-
-		var stateHashMetric telemetry.StateHashMetric
-		require.NoError(t, json.Unmarshal([]byte(payload), &stateHashMetric))
-		require.Equal(t, stateHash{}.ChainID(), stateHashMetric.ChainID)
-		require.Equal(t, stateHash{}.BlockNumber(), stateHashMetric.BlockNumber)
-		require.Equal(t, stateHash{}.Hash(), stateHashMetric.Hash)
+		require.Equal(t, telemetry.StateHashType, metrics[0].Type)
+		require.Equal(t, stateHash{}.ChainID(), metrics[0].Payload.(*telemetry.StateHashMetric).ChainID)
+		require.Equal(t, stateHash{}.BlockNumber(), metrics[0].Payload.(*telemetry.StateHashMetric).BlockNumber)
+		require.Equal(t, stateHash{}.Hash(), metrics[0].Payload.(*telemetry.StateHashMetric).Hash)
 	})
 }
 

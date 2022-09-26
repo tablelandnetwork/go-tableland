@@ -3,7 +3,9 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/XSAM/otelsql"
 	"github.com/golang-migrate/migrate/v4"
@@ -71,6 +73,53 @@ func (db *TelemetryDatabase) StoreMetric(ctx context.Context, metric telemetry.M
 	}
 
 	return nil
+}
+
+// FetchUnpublishedMetrics fetches unplished metrics.
+func (db *TelemetryDatabase) FetchUnpublishedMetrics(ctx context.Context, amount int) ([]telemetry.Metric, error) {
+	rows, err := db.sqlDB.QueryContext(ctx,
+		`SELECT timestamp, type, payload, published FROM system_metrics 
+		WHERE published is false 
+		ORDER BY timestamp
+		LIMIT ?1`,
+		amount,
+	)
+	if err != nil {
+		return []telemetry.Metric{}, fmt.Errorf("query system metrics: %s", err)
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	var metrics []telemetry.Metric
+	for rows.Next() {
+		var timestamp, typ, published int64
+		var payload []byte
+		if err := rows.Scan(&timestamp, &typ, &payload, &published); err != nil {
+			return []telemetry.Metric{}, fmt.Errorf("scan rows of system metrics: %s", err)
+		}
+
+		var mPayload interface{}
+		var mType telemetry.MetricType
+		switch telemetry.MetricType(typ) {
+		case telemetry.StateHashType:
+			mPayload = new(telemetry.StateHashMetric)
+			if err := json.Unmarshal(payload, mPayload); err != nil {
+				return []telemetry.Metric{}, fmt.Errorf("scan rows of system metrics: %s", err)
+			}
+			mType = telemetry.StateHashType
+		default:
+			return []telemetry.Metric{}, fmt.Errorf("unknown metric type: %d", typ)
+		}
+
+		metrics = append(metrics, telemetry.Metric{
+			Timestamp: time.UnixMilli(timestamp),
+			Type:      mType,
+			Payload:   mPayload,
+		})
+	}
+
+	return metrics, nil
 }
 
 // Close closes the database.
