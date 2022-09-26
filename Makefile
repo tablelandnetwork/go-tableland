@@ -42,6 +42,14 @@ clean-mocks:
 	rm -rf mocks
 .PHONY: clean-mocks
 
+EVM_EVENTS_ORIGIN:="docker/deployed/testnet/api/backup_database.db"
+EVM_EVENTS_TARGET:="pkg/eventprocessor/impl/testdata/evm_history.db"
+generate-history-db:
+	rm -f ${EVM_EVENTS_TARGET}
+	sqlite3 ${EVM_EVENTS_ORIGIN} '.schema system_evm_events' '.mode insert system_evm_events' | sqlite3 ${EVM_EVENTS_TARGET}
+	sqlite3 ${EVM_EVENTS_ORIGIN} -csv 'select * from system_evm_events' > data.csv 
+	sqlite3 ${EVM_EVENTS_TARGET} '.separator ,' '.import data.csv system_evm_events'
+	rm data.csv
 
 # Build 
 
