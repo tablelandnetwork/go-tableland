@@ -46,7 +46,9 @@ func New(dbURI string, chainID tableland.ChainID) (*SQLiteChainClient, error) {
 
 func (scc *SQLiteChainClient) FilterLogs(ctx context.Context, filter ethereum.FilterQuery) ([]types.Log, error) {
 	// TODO(jsign): full support of 'filter' fields?
-	query := "select * from system_evm_events where chain_id=?1 and block_number between ?2 and ?3"
+	query := `select address, topics, data, block_number, tx_hash, tx_index, block_hash, event_index
+	          from system_evm_events where chain_id=?1 and block_number between ?2 and ?3
+			  order by block_number asc`
 
 	rows, err := scc.db.QueryContext(ctx, query, scc.chainID, filter.FromBlock.Int64(), filter.ToBlock.Int64())
 	if err != nil {
@@ -59,12 +61,11 @@ func (scc *SQLiteChainClient) FilterLogs(ctx context.Context, filter ethereum.Fi
 		if rows.Err() != nil {
 			return nil, fmt.Errorf("get row: %s", rows.Err())
 		}
-		// address, topics, data, block_number, tx_hash, tx_index, block_hash, event_index
 		var address, txHash, blockHash string
 		var topicsJSON []byte
 		var blockNumber uint64
 		var txIndex, eventIndex uint
-		var data []byte
+		var data string
 		if err := rows.Scan(
 			&address,
 			&topicsJSON,
@@ -89,7 +90,7 @@ func (scc *SQLiteChainClient) FilterLogs(ctx context.Context, filter ethereum.Fi
 		logs = append(logs, types.Log{
 			Address:     common.HexToAddress(address),
 			Topics:      topics,
-			Data:        data,
+			Data:        []byte(data),
 			BlockNumber: blockNumber,
 			TxHash:      common.HexToHash(txHash),
 			TxIndex:     txIndex,
