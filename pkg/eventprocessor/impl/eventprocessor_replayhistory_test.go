@@ -85,7 +85,7 @@ func launchValidatorForAllChainsBackedByEVMHistory(t *testing.T, historyDBURI st
 	chains := getChains(t, historyDBURI)
 	eps := make([]*EventProcessor, len(chains))
 	for i, chain := range chains {
-		eps[i] = spinValidatorStackForChainID(t, dbURI, historyDBURI, parser, chain.chainID, db)
+		eps[i] = spinValidatorStackForChainID(t, dbURI, historyDBURI, parser, chain.chainID, chain.scAddress, db)
 	}
 
 	waitForSynced := func() {
@@ -114,6 +114,7 @@ func spinValidatorStackForChainID(
 	historyDBURI string,
 	parser parsing.SQLValidator,
 	chainID tableland.ChainID,
+	scAddress common.Address,
 	db *sql.DB,
 ) *EventProcessor {
 	ex, err := executor.NewExecutor(chainID, db, parser, 0, &aclMock{})
@@ -129,7 +130,7 @@ func spinValidatorStackForChainID(
 		systemStore,
 		chainID,
 		eventBasedBackend,
-		common.HexToAddress("ignored"),
+		scAddress,
 		eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
 
@@ -148,6 +149,7 @@ func spinValidatorStackForChainID(
 
 type chainIDWithTip struct {
 	chainID        tableland.ChainID
+	scAddress      common.Address
 	tipBlockNumber int64
 }
 
@@ -155,7 +157,10 @@ func getChains(t *testing.T, historyDBURI string) []chainIDWithTip {
 	db, err := sql.Open("sqlite3", historyDBURI)
 	require.NoError(t, err)
 
-	rows, err := db.Query("select chain_id, max(block_number) from system_evm_events group by chain_id")
+	rows, err := db.Query(`select chain_id, address, max(block_number) 
+	                       from system_evm_events 
+						   group by chain_id, address
+						   order by chain_id, block_number`)
 	require.NoError(t, err)
 	defer rows.Close()
 
@@ -163,9 +168,11 @@ func getChains(t *testing.T, historyDBURI string) []chainIDWithTip {
 	for rows.Next() {
 		require.NoError(t, rows.Err())
 		var chainID, blockNumber int64
-		require.NoError(t, rows.Scan(&chainID, &blockNumber))
+		var scAddress string
+		require.NoError(t, rows.Scan(&chainID, &scAddress, &blockNumber))
 		chains = append(chains, chainIDWithTip{
 			chainID:        tableland.ChainID(chainID),
+			scAddress:      common.HexToAddress(scAddress),
 			tipBlockNumber: blockNumber,
 		})
 	}
