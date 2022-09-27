@@ -28,7 +28,7 @@ type SQLiteChainClient struct {
 
 func New(dbURI string, chainID tableland.ChainID) (*SQLiteChainClient, error) {
 	log := logger.With().
-		Str("component", "eventprocessor").
+		Str("component", "sqlitechainclient").
 		Int64("chain_id", int64(chainID)).
 		Logger()
 
