@@ -26,10 +26,18 @@ func TestReplayProductionHistory(t *testing.T) {
 	if testing.Short() {
 		t.Skipf("skipping history replay execution because running -short tests")
 	}
+	expectedStateHashes := map[tableland.ChainID]string{
+		1:      "87b02f2755e043a7d7f544bb9bf79765115f9b58",
+		5:      "b6f5f703af0e92d8f28773a024ed45119cef8c61",
+		10:     "57555e08de5b37270ddad6c2cad2c1ae7ca6901e",
+		69:     "f17f7c999790277cc91351a798eea2d08abe4285",
+		137:    "241425c72e622bb8574f7fe15ccf251ddc5c6367",
+		420:    "923d03c96ca0c3fa848b651697cf925bcdee5eff",
+		80001:  "7b15ca5f14bc4e7475d48fface3ac1a7022e3a27",
+		421613: "df1fe80afc8d9fc0ae31057b82766dd82d81ad63",
+	}
 
 	historyDBURI := "file:testdata/evm_history.db?"
-
-	lastCalcChainStateHash := map[tableland.ChainID]string{}
 	for i := 0; i < 5; i++ {
 		// Launch the validator syncing all chains.
 		eps, waitFullSync := launchValidatorForAllChainsBackedByEVMHistory(t, historyDBURI)
@@ -47,11 +55,8 @@ func TestReplayProductionHistory(t *testing.T) {
 			hash, err := ep.calculateHash(ctx, bs)
 			require.NoError(t, err)
 
-			if lastCalcHash, ok := lastCalcChainStateHash[ep.chainID]; ok {
-				require.Equal(t, lastCalcHash, hash, "ChainID %d is not deterministic", ep.chainID)
-			} else {
-				lastCalcChainStateHash[ep.chainID] = hash
-			}
+			require.Equal(t, expectedStateHashes[ep.chainID], hash,
+				"ChainID %d hash %s doesn't match %s", ep.chainID, hash, expectedStateHashes[ep.chainID])
 			require.NoError(t, bs.Close())
 		}
 
