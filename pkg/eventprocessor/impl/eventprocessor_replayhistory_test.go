@@ -3,11 +3,15 @@ package impl
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/klauspost/compress/zstd"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/tableland"
@@ -26,6 +30,7 @@ func TestReplayProductionHistory(t *testing.T) {
 	if testing.Short() {
 		t.Skipf("skipping history replay execution because running -short tests")
 	}
+
 	expectedStateHashes := map[tableland.ChainID]string{
 		1:      "87b02f2755e043a7d7f544bb9bf79765115f9b58",
 		5:      "b6f5f703af0e92d8f28773a024ed45119cef8c61",
@@ -37,8 +42,8 @@ func TestReplayProductionHistory(t *testing.T) {
 		421613: "df1fe80afc8d9fc0ae31057b82766dd82d81ad63",
 	}
 
-	historyDBURI := "file:testdata/evm_history.db?"
-	for i := 0; i < 5; i++ {
+	historyDBURI := getHistoryDBURI(t)
+	for i := 0; i < 1; i++ {
 		// Launch the validator syncing all chains.
 		eps, waitFullSync := launchValidatorForAllChainsBackedByEVMHistory(t, historyDBURI)
 
@@ -166,4 +171,25 @@ func getChains(t *testing.T, historyDBURI string) []chainIDWithTip {
 	}
 
 	return chains
+}
+
+func getHistoryDBURI(t *testing.T) string {
+	zstdDB, err := os.Open("testdata/evm_history.db.zst")
+	require.NoError(t, err)
+
+	decoder, err := zstd.NewReader(zstdDB)
+	require.NoError(t, err)
+
+	// Create target database to decompress
+	historyDBFilePath := filepath.Join(t.TempDir(), "evm_history.db")
+	historyDB, err := os.OpenFile(historyDBFilePath, os.O_WRONLY|os.O_CREATE, 0o755)
+	require.NoError(t, err)
+
+	// Decompress
+	_, err = decoder.WriteTo(historyDB)
+	require.NoError(t, err)
+	require.NoError(t, historyDB.Close())
+
+	// Return full path of prepared database.
+	return fmt.Sprintf("file:%s?", historyDBFilePath)
 }
