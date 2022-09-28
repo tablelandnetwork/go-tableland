@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"database/sql"
 	"encoding/base64"
 	"fmt"
 	"net/http"
@@ -10,8 +11,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/XSAM/otelsql"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/rs/zerolog/log"
 	"github.com/textileio/cli"
 	"github.com/textileio/go-tableland/buildinfo"
@@ -39,6 +42,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/telemetry/publisher"
 	"github.com/textileio/go-tableland/pkg/telemetry/storage"
 	"github.com/textileio/go-tableland/pkg/wallet"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 func main() {
@@ -77,6 +81,16 @@ func main() {
 		log.Fatal().Err(err).Msg("instrumenting sql validator")
 	}
 
+	executorsDB, err := otelsql.Open("sqlite3", databaseURL)
+	if err != nil {
+		log.Fatal().Err(err).Msg("creating executors db")
+	}
+	executorsDB.SetMaxIdleConns(0)
+	executorsDB.SetMaxOpenConns(1)
+	if err := otelsql.RegisterDBStatsMetrics(executorsDB, otelsql.WithAttributes(attribute.String("name", "executors"))); err != nil {
+		log.Fatal().Err(err).Msg("registering executors db stats")
+	}
+
 	chainStacks := map[tableland.ChainID]chains.ChainStack{}
 	for _, chainCfg := range config.Chains {
 		if _, ok := chainStacks[chainCfg.ChainID]; ok {
@@ -85,6 +99,7 @@ func main() {
 		chainStack, err := createChainIDStack(
 			chainCfg,
 			databaseURL,
+			executorsDB,
 			parser,
 			config.TableConstraints,
 			config.Analytics.FetchExtraBlockInfo)
@@ -270,12 +285,16 @@ func main() {
 		if config.TelemetryPublisher.Enabled {
 			metricsPublisher.Close()
 		}
+		if err := executorsDB.Close(); err != nil {
+			log.Error().Err(err).Msg("closing executors db")
+		}
 	})
 }
 
 func createChainIDStack(
 	config ChainConfig,
 	dbURI string,
+	executorsDB *sql.DB,
 	parser parsing.SQLValidator,
 	tableConstraints TableConstraints,
 	fetchExtraBlockInfo bool,
@@ -342,7 +361,7 @@ func createChainIDStack(
 
 	acl := impl.NewACL(systemStore, registry)
 
-	ex, err := executor.NewExecutor(config.ChainID, dbURI, parser, tableConstraints.MaxRowCount, acl)
+	ex, err := executor.NewExecutor(config.ChainID, executorsDB, parser, tableConstraints.MaxRowCount, acl)
 	if err != nil {
 		return chains.ChainStack{}, fmt.Errorf("creating txn processor: %s", err)
 	}

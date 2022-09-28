@@ -317,7 +317,11 @@ func setup(t *testing.T) (
 	dbURI := tests.Sqlite3URI()
 	parser, err := parserimpl.New([]string{"system_", "registry", "sqlite_"})
 	require.NoError(t, err)
-	ex, err := executor.NewExecutor(chainID, dbURI, parser, 0, &aclMock{})
+
+	db, err := sql.Open("sqlite3", dbURI)
+	require.NoError(t, err)
+	db.SetMaxOpenConns(1)
+	ex, err := executor.NewExecutor(chainID, db, parser, 0, &aclMock{})
 	require.NoError(t, err)
 
 	systemStore, err := system.New(dbURI, tableland.ChainID(chainID))
