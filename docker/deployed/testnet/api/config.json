@@ -42,6 +42,9 @@
             "KeepFiles": 5
         }
     },
+    "Telemetry": {
+        "MetricsHubURL": "https://metricshub-testnet-mrgr43cf5q-uw.a.run.app"
+    },
     "Chains": [
         {
             "Name": "Optimism Kovan",

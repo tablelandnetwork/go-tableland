@@ -55,6 +55,10 @@ type config struct {
 			KeepFiles int  `default:"5"` // number of files to keep
 		}
 	}
+	Telemetry struct {
+		MetricsHubURL      string `default:""`
+		PublishingInterval string `default:"10s"`
+	}
 }
 
 // TableConstraints describes contraints to be enforced for Tableland tables.

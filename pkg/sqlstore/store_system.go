@@ -35,6 +35,8 @@ type SystemStore interface {
 	InsertBlockExtraInfo(context.Context, int64, uint64) error
 	GetBlockExtraInfo(context.Context, int64) (tableland.EVMBlockInfo, error)
 
+	GetID(context.Context) (string, error)
+
 	Begin(context.Context) (*sql.Tx, error)
 	WithTx(tx *sql.Tx) SystemStore
 	Close() error

@@ -1,0 +1,4 @@
+CREATE TABLE IF NOT EXISTS system_id (
+    id TEXT NOT NULL,
+    PRIMARY KEY(id)
+);

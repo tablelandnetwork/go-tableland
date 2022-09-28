@@ -7,6 +7,9 @@
     "ExternalURIPrefix": "http://localhost:8080",
     "MetadataRendererURI": ""
   },
+  "Telemetry": {
+    "MetricsHubURL": "https://metricshub-staging-mrgr43cf5q-uw.a.run.app"
+  },
   "Chains": [
     {
       "Name": "Local Hardhat",

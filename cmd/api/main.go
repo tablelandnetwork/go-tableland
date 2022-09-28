@@ -36,6 +36,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/telemetry"
+	"github.com/textileio/go-tableland/pkg/telemetry/publisher"
 	"github.com/textileio/go-tableland/pkg/telemetry/storage"
 	"github.com/textileio/go-tableland/pkg/wallet"
 )
@@ -208,6 +209,21 @@ func main() {
 		go backupScheduler.Run()
 	}
 
+	nodeID, err := chainStacks[config.Chains[0].ChainID].Store.GetID(context.Background())
+	if err != nil {
+		log.Fatal().Err(err).Msg("getting node id")
+	}
+	exporter, err := publisher.NewHTTPExporter(config.Telemetry.MetricsHubURL)
+	if err != nil {
+		log.Fatal().Err(err).Msg("creating metrics http exporter")
+	}
+	publishingInterval, err := time.ParseDuration(config.Telemetry.PublishingInterval)
+	if err != nil {
+		log.Fatal().Err(err).Msg("parsing publising interval")
+	}
+	metricsPublisher := publisher.NewPublisher(metricsStore, exporter, nodeID, publishingInterval)
+	metricsPublisher.Start()
+
 	cli.HandleInterrupt(func() {
 		var wg sync.WaitGroup
 		wg.Add(len(chainStacks))
@@ -241,6 +257,8 @@ func main() {
 		if err := metricsStore.Close(); err != nil {
 			log.Error().Err(err).Msg("closing metrics store")
 		}
+
+		metricsPublisher.Close()
 	})
 }
 

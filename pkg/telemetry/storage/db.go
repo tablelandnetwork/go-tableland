@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/XSAM/otelsql"
@@ -78,7 +80,7 @@ func (db *TelemetryDatabase) StoreMetric(ctx context.Context, metric telemetry.M
 // FetchUnpublishedMetrics fetches unplished metrics.
 func (db *TelemetryDatabase) FetchUnpublishedMetrics(ctx context.Context, amount int) ([]telemetry.Metric, error) {
 	rows, err := db.sqlDB.QueryContext(ctx,
-		`SELECT timestamp, type, payload, published FROM system_metrics 
+		`SELECT rowid, timestamp, type, payload, published FROM system_metrics 
 		WHERE published is false 
 		ORDER BY timestamp
 		LIMIT ?1`,
@@ -93,9 +95,9 @@ func (db *TelemetryDatabase) FetchUnpublishedMetrics(ctx context.Context, amount
 
 	var metrics []telemetry.Metric
 	for rows.Next() {
-		var timestamp, typ, published int64
+		var rowid, timestamp, typ, published int64
 		var payload []byte
-		if err := rows.Scan(&timestamp, &typ, &payload, &published); err != nil {
+		if err := rows.Scan(&rowid, &timestamp, &typ, &payload, &published); err != nil {
 			return []telemetry.Metric{}, fmt.Errorf("scan rows of system metrics: %s", err)
 		}
 
@@ -113,6 +115,7 @@ func (db *TelemetryDatabase) FetchUnpublishedMetrics(ctx context.Context, amount
 		}
 
 		metrics = append(metrics, telemetry.Metric{
+			RowID:     rowid,
 			Timestamp: time.UnixMilli(timestamp),
 			Type:      mType,
 			Payload:   mPayload,
@@ -120,6 +123,37 @@ func (db *TelemetryDatabase) FetchUnpublishedMetrics(ctx context.Context, amount
 	}
 
 	return metrics, nil
+}
+
+// MarkAsPublished marks metrics as published.
+func (db *TelemetryDatabase) MarkAsPublished(ctx context.Context, rowids []int64) error {
+	if len(rowids) == 0 {
+		return errors.New("rowids cannot be empty")
+	}
+
+	args := make([]interface{}, len(rowids))
+	for i, v := range rowids {
+		args[i] = v
+	}
+
+	result, err := db.sqlDB.ExecContext(ctx,
+		"UPDATE system_metrics SET published = 1 WHERE rowid IN (?"+strings.Repeat(",?", len(rowids)-1)+")",
+		args...,
+	)
+	if err != nil {
+		return fmt.Errorf("exec: %s", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("rows affected: %s", err)
+	}
+
+	if rowsAffected != int64(len(rowids)) {
+		return fmt.Errorf("rows affected %d, differs from rowids length %d", rowsAffected, int64(len(rowids)))
+	}
+
+	return nil
 }
 
 // Close closes the database.

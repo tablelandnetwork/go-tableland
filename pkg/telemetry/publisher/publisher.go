@@ -12,9 +12,10 @@ import (
 
 // Publisher is responsible for fetching unpublished metrics and exporting them.
 type Publisher struct {
-	fetcher  MetricsFetcher
+	store    MetricsStore
 	exporter MetricsExporter
 
+	nodeID      string
 	interval    time.Duration
 	fetchAmount int
 
@@ -23,13 +24,15 @@ type Publisher struct {
 }
 
 // NewPublisher creates a new publisher.
-func NewPublisher(f MetricsFetcher, e MetricsExporter, interval time.Duration) *Publisher {
+func NewPublisher(s MetricsStore, e MetricsExporter, nodeID string, interval time.Duration) *Publisher {
 	return &Publisher{
-		fetcher:  f,
+		store:    s,
 		exporter: e,
 
-		interval: interval,
-		quit:     make(chan struct{}),
+		nodeID:      nodeID,
+		interval:    interval,
+		fetchAmount: 100,
+		quit:        make(chan struct{}),
 	}
 }
 
@@ -58,8 +61,8 @@ func (p *Publisher) Start() {
 	}()
 }
 
-// Stop stops the published goroutine.
-func (p *Publisher) Stop() {
+// Close closes the published goroutine.
+func (p *Publisher) Close() {
 	p.quitOnce.Do(func() {
 		p.quit <- struct{}{}
 		close(p.quit)
@@ -67,24 +70,38 @@ func (p *Publisher) Stop() {
 }
 
 func (p *Publisher) publish(ctx context.Context) error {
-	metrics, err := p.fetcher.FetchUnpublishedMetrics(ctx, p.fetchAmount)
+	metrics, err := p.store.FetchUnpublishedMetrics(ctx, p.fetchAmount)
 	if err != nil {
 		return fmt.Errorf("fetch unpublished metrics: %s", err)
 	}
 
-	if err := p.exporter.Export(ctx, metrics); err != nil {
+	if len(metrics) == 0 {
+		return nil
+	}
+
+	if err := p.exporter.Export(ctx, metrics, p.nodeID); err != nil {
 		return fmt.Errorf("export metrics: %s", err)
+	}
+
+	rowsIds := make([]int64, len(metrics))
+	for i, m := range metrics {
+		rowsIds[i] = m.RowID
+	}
+
+	if err := p.store.MarkAsPublished(ctx, rowsIds); err != nil {
+		return fmt.Errorf("mark as published: %s", err)
 	}
 
 	return nil
 }
 
-// MetricsFetcher defines the API for fetching stored metrics.
-type MetricsFetcher interface {
+// MetricsStore defines the API for fetching metrics and marking them as published.
+type MetricsStore interface {
 	FetchUnpublishedMetrics(context.Context, int) ([]telemetry.Metric, error)
+	MarkAsPublished(context.Context, []int64) error
 }
 
 // MetricsExporter defines the API for exporting metrics.
 type MetricsExporter interface {
-	Export(context.Context, []telemetry.Metric) error
+	Export(context.Context, []telemetry.Metric, string) error
 }

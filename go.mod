@@ -3,6 +3,7 @@ module github.com/textileio/go-tableland
 go 1.17
 
 require (
+	cloud.google.com/go/bigquery v1.8.0
 	cloud.google.com/go/logging v1.5.0
 	github.com/XSAM/otelsql v0.16.0
 	github.com/ethereum/go-ethereum v1.10.25
@@ -105,6 +106,7 @@ require (
 	golang.org/x/oauth2 v0.0.0-20220608161450-d0670ef3b1eb // indirect
 	golang.org/x/sys v0.0.0-20220610221304-9f5ed59c137d // indirect
 	golang.org/x/text v0.3.7 // indirect
+	golang.org/x/xerrors v0.0.0-20220609144429-65e65417b02f // indirect
 	google.golang.org/api v0.84.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20220617124728-180714bec0ad // indirect

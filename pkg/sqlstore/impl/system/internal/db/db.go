@@ -41,6 +41,12 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getTablesByStructureStmt, err = db.PrepareContext(ctx, getTablesByStructure); err != nil {
 		return nil, fmt.Errorf("error preparing query GetTablesByStructure: %w", err)
 	}
+	if q.getIdStmt, err = db.PrepareContext(ctx, getId); err != nil {
+		return nil, fmt.Errorf("error preparing query GetId: %w", err)
+	}
+	if q.insertIdStmt, err = db.PrepareContext(ctx, insertId); err != nil {
+		return nil, fmt.Errorf("error preparing query InsertId: %w", err)
+	}
 	if q.insertPendingTxStmt, err = db.PrepareContext(ctx, insertPendingTx); err != nil {
 		return nil, fmt.Errorf("error preparing query InsertPendingTx: %w", err)
 	}
@@ -199,6 +205,8 @@ type Queries struct {
 	insertBlockExtraInfoStmt       *sql.Stmt
 	listPendingTxStmt              *sql.Stmt
 	getTablesByStructureStmt       *sql.Stmt
+	getIdStmt                      *sql.Stmt
+	insertIdStmt                   *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
@@ -219,5 +227,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		insertBlockExtraInfoStmt:       q.insertBlockExtraInfoStmt,
 		listPendingTxStmt:              q.listPendingTxStmt,
 		getTablesByStructureStmt:       q.getTablesByStructureStmt,
+		getIdStmt:                      q.getIdStmt,
+		insertIdStmt:                   q.insertIdStmt,
 	}
 }
