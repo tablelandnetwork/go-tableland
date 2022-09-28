@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/klauspost/compress/zstd"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
@@ -61,7 +62,7 @@ func TestReplayProductionHistory(t *testing.T) {
 		hash, err := ep.calculateHash(ctx, bs)
 		require.NoError(t, err)
 
-		require.Equal(t, expectedStateHashes[ep.chainID], hash,
+		assert.Equal(t, expectedStateHashes[ep.chainID], hash,
 			"ChainID %d hash %s doesn't match %s", ep.chainID, hash, expectedStateHashes[ep.chainID])
 		require.NoError(t, bs.Close())
 	}
