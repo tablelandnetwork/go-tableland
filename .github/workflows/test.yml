@@ -16,6 +16,10 @@ jobs:
       matrix:
         go-version: [1.18.x, 1.19.x]
         os: [ubuntu-latest]
+        make-cmd: [test, test-replayhistory]
+        exclude:
+          - go-version: 1.18.x
+            make-cmd: test-replayhistory
     runs-on: ${{ matrix.os }}
     steps:
       - name: Install Go
@@ -35,4 +39,4 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
       - name: Test
-        run: for i in 1 2 3; do make test && break || (if [ $i = 3 ]; then exit -1; else sleep 1; fi ); done
+        run: for i in 1 2 3; do make ${{ matrix.make-cmd }} && break || (if [ $i = 3 ]; then exit -1; else sleep 1; fi ); done

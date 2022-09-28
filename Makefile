@@ -71,8 +71,11 @@ image:
 # Test
 
 test: 
-	go test ./... -race
+	go test ./... -short -race
 .PHONY: test
+
+test-replayhistory:
+	go test ./pkg/eventprocessor/impl -run=TestReplayProductionHistory -race
 
 # Lint
 
