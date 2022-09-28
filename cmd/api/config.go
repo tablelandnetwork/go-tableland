@@ -55,7 +55,8 @@ type config struct {
 			KeepFiles int  `default:"5"` // number of files to keep
 		}
 	}
-	Telemetry struct {
+	TelemetryPublisher struct {
+		Enabled            bool   `default:"false"`
 		MetricsHubURL      string `default:""`
 		PublishingInterval string `default:"10s"`
 	}

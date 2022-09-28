@@ -209,20 +209,23 @@ func main() {
 		go backupScheduler.Run()
 	}
 
-	nodeID, err := chainStacks[config.Chains[0].ChainID].Store.GetID(context.Background())
-	if err != nil {
-		log.Fatal().Err(err).Msg("getting node id")
+	var metricsPublisher *publisher.Publisher
+	if config.TelemetryPublisher.Enabled {
+		nodeID, err := chainStacks[config.Chains[0].ChainID].Store.GetID(context.Background())
+		if err != nil {
+			log.Fatal().Err(err).Msg("getting node id")
+		}
+		exporter, err := publisher.NewHTTPExporter(config.TelemetryPublisher.MetricsHubURL)
+		if err != nil {
+			log.Fatal().Err(err).Msg("creating metrics http exporter")
+		}
+		publishingInterval, err := time.ParseDuration(config.TelemetryPublisher.PublishingInterval)
+		if err != nil {
+			log.Fatal().Err(err).Msg("parsing publising interval")
+		}
+		metricsPublisher = publisher.NewPublisher(metricsStore, exporter, nodeID, publishingInterval)
+		metricsPublisher.Start()
 	}
-	exporter, err := publisher.NewHTTPExporter(config.Telemetry.MetricsHubURL)
-	if err != nil {
-		log.Fatal().Err(err).Msg("creating metrics http exporter")
-	}
-	publishingInterval, err := time.ParseDuration(config.Telemetry.PublishingInterval)
-	if err != nil {
-		log.Fatal().Err(err).Msg("parsing publising interval")
-	}
-	metricsPublisher := publisher.NewPublisher(metricsStore, exporter, nodeID, publishingInterval)
-	metricsPublisher.Start()
 
 	cli.HandleInterrupt(func() {
 		var wg sync.WaitGroup
@@ -258,7 +261,9 @@ func main() {
 			log.Error().Err(err).Msg("closing metrics store")
 		}
 
-		metricsPublisher.Close()
+		if config.TelemetryPublisher.Enabled {
+			metricsPublisher.Close()
+		}
 	})
 }
 
