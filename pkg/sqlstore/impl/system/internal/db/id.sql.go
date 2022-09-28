@@ -19,6 +19,6 @@ func (q *Queries) GetId(ctx context.Context) (string, error) {
 }
 
 func (q *Queries) InsertId(ctx context.Context, id string) error {
-	_, err := q.exec(ctx, q.insertEVMEventStmt, insertId, id)
+	_, err := q.exec(ctx, q.insertIdStmt, insertId, id)
 	return err
 }
