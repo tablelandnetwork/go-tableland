@@ -280,7 +280,7 @@ func (ep *EventProcessor) executeBlock(ctx context.Context, block eventfeed.Bloc
 	}
 	ep.log.Debug().
 		Int64("height", block.BlockNumber).
-		Int64("exec_ms", int64(time.Since(start).Milliseconds())).
+		Int64("exec_ms", time.Since(start).Milliseconds()).
 		Msg("new last processed height")
 
 	ep.mLastProcessedHeight.Store(block.BlockNumber)
