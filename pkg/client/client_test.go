@@ -191,7 +191,11 @@ func setup(t *testing.T) clientCalls {
 	parser, err := parserimpl.New([]string{"system_", "registry", "sqlite_"})
 	require.NoError(t, err)
 
-	ex, err := executor.NewExecutor(1337, dbURI, parser, 0, &aclHalfMock{store})
+	db, err := sql.Open("sqlite3", dbURI)
+	require.NoError(t, err)
+	db.SetMaxOpenConns(1)
+
+	ex, err := executor.NewExecutor(1337, db, parser, 0, &aclHalfMock{store})
 	require.NoError(t, err)
 
 	backend, addr, _, _, sk := testutil.Setup(t)
