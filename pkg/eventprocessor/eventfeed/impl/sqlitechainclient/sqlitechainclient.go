@@ -94,7 +94,6 @@ func (scc *SQLiteChainClient) FilterLogs(ctx context.Context, filter ethereum.Fi
 		for i, topicHex := range topicsHex {
 			topics[i] = common.HexToHash(topicHex)
 		}
-		// TODO(jsign): move to separate store?
 		logs = append(logs, types.Log{
 			Address:     common.HexToAddress(address),
 			Topics:      topics,

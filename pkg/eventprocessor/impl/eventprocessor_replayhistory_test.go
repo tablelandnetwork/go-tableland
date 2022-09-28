@@ -27,6 +27,8 @@ import (
 )
 
 func TestReplayProductionHistory(t *testing.T) {
+	t.Parallel()
+
 	if testing.Short() {
 		t.Skipf("skipping history replay execution because running -short tests")
 	}
@@ -43,32 +45,30 @@ func TestReplayProductionHistory(t *testing.T) {
 	}
 
 	historyDBURI := getHistoryDBURI(t)
-	for i := 0; i < 1; i++ {
-		// Launch the validator syncing all chains.
-		eps, waitFullSync := launchValidatorForAllChainsBackedByEVMHistory(t, historyDBURI)
+	// Launch the validator syncing all chains.
+	eps, waitFullSync := launchValidatorForAllChainsBackedByEVMHistory(t, historyDBURI)
 
-		// Wait for all of them to finish syncing.
-		waitFullSync()
+	// Wait for all of them to finish syncing.
+	waitFullSync()
 
-		// We compare the chain hash after full sync with the previous iteration calcualted hash.
-		// These should always match. If that isn't the case, it means that the chain execution is non-deterministic.
-		ctx := context.Background()
-		for _, ep := range eps {
-			bs, err := ep.executor.NewBlockScope(ctx, ep.mLastProcessedHeight.Load()+1)
-			require.NoError(t, err)
+	// We compare the chain hash after full sync with the previous iteration calcualted hash.
+	// These should always match. If that isn't the case, it means that the chain execution is non-deterministic.
+	ctx := context.Background()
+	for _, ep := range eps {
+		bs, err := ep.executor.NewBlockScope(ctx, ep.mLastProcessedHeight.Load()+1)
+		require.NoError(t, err)
 
-			hash, err := ep.calculateHash(ctx, bs)
-			require.NoError(t, err)
+		hash, err := ep.calculateHash(ctx, bs)
+		require.NoError(t, err)
 
-			require.Equal(t, expectedStateHashes[ep.chainID], hash,
-				"ChainID %d hash %s doesn't match %s", ep.chainID, hash, expectedStateHashes[ep.chainID])
-			require.NoError(t, bs.Close())
-		}
+		require.Equal(t, expectedStateHashes[ep.chainID], hash,
+			"ChainID %d hash %s doesn't match %s", ep.chainID, hash, expectedStateHashes[ep.chainID])
+		require.NoError(t, bs.Close())
+	}
 
-		// Do a graceful close, to double check closing works correctly without any blocking or delays.
-		for _, ep := range eps {
-			ep.Stop()
-		}
+	// Do a graceful close, to double check closing works correctly without any blocking or delays.
+	for _, ep := range eps {
+		ep.Stop()
 	}
 }
 
