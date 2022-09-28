@@ -51,7 +51,7 @@ func TestReplayProductionHistory(t *testing.T) {
 	// Wait for all of them to finish syncing.
 	waitFullSync()
 
-	// We compare the chain hash after full sync with the previous iteration calcualted hash.
+	// We compare the chain hash after full sync with the previous iteration calculated hash.
 	// These should always match. If that isn't the case, it means that the chain execution is non-deterministic.
 	ctx := context.Background()
 	for _, ep := range eps {
@@ -120,7 +120,7 @@ func spinValidatorStackForChainID(
 	ex, err := executor.NewExecutor(chainID, db, parser, 0, &aclMock{})
 	require.NoError(t, err)
 
-	systemStore, err := system.New(dbURI, tableland.ChainID(chainID))
+	systemStore, err := system.New(dbURI, chainID)
 	require.NoError(t, err)
 
 	eventBasedBackend, err := sqlitechainclient.New(historyDBURI, chainID)
@@ -162,7 +162,9 @@ func getChains(t *testing.T, historyDBURI string) []chainIDWithTip {
 						   group by chain_id, address
 						   order by chain_id, block_number`)
 	require.NoError(t, err)
-	defer rows.Close()
+	defer func() {
+		require.NoError(t, rows.Close())
+	}()
 
 	var chains []chainIDWithTip
 	for rows.Next() {

@@ -87,7 +87,9 @@ func main() {
 	}
 	executorsDB.SetMaxIdleConns(0)
 	executorsDB.SetMaxOpenConns(1)
-	if err := otelsql.RegisterDBStatsMetrics(executorsDB, otelsql.WithAttributes(attribute.String("name", "executors"))); err != nil {
+	if err := otelsql.RegisterDBStatsMetrics(
+		executorsDB,
+		otelsql.WithAttributes(attribute.String("name", "executors"))); err != nil {
 		log.Fatal().Err(err).Msg("registering executors db stats")
 	}
 

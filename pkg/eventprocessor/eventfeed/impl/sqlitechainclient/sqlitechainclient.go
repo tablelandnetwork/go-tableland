@@ -17,6 +17,8 @@ import (
 	"github.com/textileio/go-tableland/internal/tableland"
 )
 
+// SQLiteChainClient is an eventfeed.ChainClient backed by a persisted history of EVM events in a SQLite database.
+// An EventFeed can be plugged to this backend instead of Alchemy/Infura.
 type SQLiteChainClient struct {
 	log     zerolog.Logger
 	db      *sql.DB
@@ -26,6 +28,7 @@ type SQLiteChainClient struct {
 	chainTipBlockNumber int64
 }
 
+// New returns a new *SQLiteChainClient.
 func New(dbURI string, chainID tableland.ChainID) (*SQLiteChainClient, error) {
 	log := logger.With().
 		Str("component", "sqlitechainclient").
@@ -44,6 +47,7 @@ func New(dbURI string, chainID tableland.ChainID) (*SQLiteChainClient, error) {
 	}, nil
 }
 
+// FilterLogs returns the logs matching a particular filter.
 func (scc *SQLiteChainClient) FilterLogs(ctx context.Context, filter ethereum.FilterQuery) ([]types.Log, error) {
 	if len(filter.Addresses) != 1 {
 		return nil, fmt.Errorf("the query filter must have a single contract address filter")
@@ -58,11 +62,18 @@ func (scc *SQLiteChainClient) FilterLogs(ctx context.Context, filter ethereum.Fi
 			        block_number between ?2 and ?3 and
 					address=?4
 			  order by block_number asc`
-	rows, err := scc.db.QueryContext(ctx, query, scc.chainID, filter.FromBlock.Int64(), filter.ToBlock.Int64(), filter.Addresses[0].Hex())
+	rows, err := scc.db.QueryContext(
+		ctx,
+		query,
+		scc.chainID, filter.FromBlock.Int64(), filter.ToBlock.Int64(), filter.Addresses[0].Hex())
 	if err != nil {
 		return nil, fmt.Errorf("get filters in range: %s", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			scc.log.Error().Err(err).Msg("closing query")
+		}
+	}()
 
 	var logs []types.Log
 	for rows.Next() {
@@ -70,10 +81,9 @@ func (scc *SQLiteChainClient) FilterLogs(ctx context.Context, filter ethereum.Fi
 			return nil, fmt.Errorf("get row: %s", rows.Err())
 		}
 		var address, txHash, blockHash string
-		var topicsJSON []byte
+		var data, topicsJSON []byte
 		var blockNumber uint64
 		var txIndex, eventIndex uint
-		var data string
 		if err := rows.Scan(
 			&address,
 			&topicsJSON,
@@ -87,7 +97,7 @@ func (scc *SQLiteChainClient) FilterLogs(ctx context.Context, filter ethereum.Fi
 		}
 
 		var topicsHex []string
-		if json.Unmarshal(topicsJSON, &topicsHex); err != nil {
+		if err := json.Unmarshal(topicsJSON, &topicsHex); err != nil {
 			return nil, fmt.Errorf("unmarshal json topics: %s", err)
 		}
 		topics := make([]common.Hash, len(topicsHex))
@@ -97,18 +107,21 @@ func (scc *SQLiteChainClient) FilterLogs(ctx context.Context, filter ethereum.Fi
 		logs = append(logs, types.Log{
 			Address:     common.HexToAddress(address),
 			Topics:      topics,
-			Data:        []byte(data),
+			Data:        data,
 			BlockNumber: blockNumber,
 			TxHash:      common.HexToHash(txHash),
 			TxIndex:     txIndex,
 			BlockHash:   common.HexToHash(blockHash),
-			Index:       uint(eventIndex),
+			Index:       eventIndex,
 		})
 	}
 
 	return logs, nil
 }
 
+// HeaderByNumber returns the block header of the chain.
+// Note that it can only be called with block==nil (i.e: last known block) since the underlying SQLite database isn't
+// a full replication of the underlying chain.
 func (scc *SQLiteChainClient) HeaderByNumber(ctx context.Context, block *big.Int) (*types.Header, error) {
 	if block != nil {
 		return nil, errors.New("the current implementation only allows returning the latest block number")
