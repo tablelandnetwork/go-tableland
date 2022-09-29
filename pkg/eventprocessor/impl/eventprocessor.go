@@ -256,6 +256,12 @@ func (ep *EventProcessor) executeBlock(ctx context.Context, block eventfeed.Bloc
 			ep.log.Info().Str("fail_cause", *receipt.Error).Msg("event execution failed")
 		}
 
+		hash, err := bs.StateHash(ctx, ep.chainID)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("TRACEHASH: hash=%s, txn_hash=%s\n", hash.Hash(), receipt.TxnHash)
+
 		for _, e := range txnEvents.Events {
 			attrs := append([]attribute.KeyValue{
 				attribute.String("eventtype", reflect.TypeOf(e).String()),

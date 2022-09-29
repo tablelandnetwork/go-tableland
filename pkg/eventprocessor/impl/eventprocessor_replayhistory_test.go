@@ -160,6 +160,7 @@ func getChains(t *testing.T, historyDBURI string) []chainIDWithTip {
 
 	rows, err := db.Query(`select chain_id, address, max(block_number) 
                            from system_evm_events 
+						   where chain_id=80001
                            group by chain_id, address
                            order by chain_id, block_number`)
 	require.NoError(t, err)
