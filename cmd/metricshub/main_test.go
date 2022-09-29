@@ -28,9 +28,13 @@ func TestServer(t *testing.T) {
 	}`)
 
 	req := httptest.NewRequest("POST", "/", body)
+	req.Header.Add("Api-Key", "KEY")
 
 	m := &mock{}
-	makeHandler(m)(rec, req)
+	c := &config{
+		apiKeys: []string{"KEY"},
+	}
+	makeHandler(m, c)(rec, req)
 	if rec.Code != 200 && !m.called {
 		t.Fail()
 	}

@@ -32,11 +32,13 @@ func TestCollectAndFetchAndPublish(t *testing.T) {
 		require.Len(t, metrics, 2)
 
 		require.Equal(t, telemetry.StateHashType, metrics[0].Type)
+		require.Equal(t, 1, metrics[0].Version)
 		require.Equal(t, stateHash{}.ChainID(), metrics[0].Payload.(*telemetry.StateHashMetric).ChainID)
 		require.Equal(t, stateHash{}.BlockNumber(), metrics[0].Payload.(*telemetry.StateHashMetric).BlockNumber)
 		require.Equal(t, stateHash{}.Hash(), metrics[0].Payload.(*telemetry.StateHashMetric).Hash)
 
 		require.Equal(t, telemetry.StateHashType, metrics[1].Type)
+		require.Equal(t, 1, metrics[0].Version)
 		require.Equal(t, stateHash{}.ChainID(), metrics[1].Payload.(*telemetry.StateHashMetric).ChainID)
 		require.Equal(t, stateHash{}.BlockNumber(), metrics[1].Payload.(*telemetry.StateHashMetric).BlockNumber)
 		require.Equal(t, stateHash{}.Hash(), metrics[1].Payload.(*telemetry.StateHashMetric).Hash)
@@ -46,7 +48,7 @@ func TestCollectAndFetchAndPublish(t *testing.T) {
 		}))
 		defer ts.Close()
 
-		exporter, err := publisher.NewHTTPExporter(ts.URL)
+		exporter, err := publisher.NewHTTPExporter(ts.URL, "")
 		require.NoError(t, err)
 		nodeID := strings.Replace(uuid.NewString(), "-", "", -1)
 		p := publisher.NewPublisher(s, exporter, nodeID, time.Second)

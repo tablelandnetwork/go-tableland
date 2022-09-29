@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"os"
+	"strings"
 )
 
 type config struct {
@@ -10,6 +11,7 @@ type config struct {
 	project string
 	dataset string
 	table   string
+	apiKeys []string
 }
 
 func initConfig() (*config, error) {
@@ -33,10 +35,16 @@ func initConfig() (*config, error) {
 		return nil, errors.New("empty BIGQUERY_TABLE env")
 	}
 
+	apiKey := os.Getenv("API_KEY")
+	if apiKey == "" {
+		return nil, errors.New("empty API_KEY env")
+	}
+
 	return &config{
 		port:    port,
 		project: project,
 		dataset: dataset,
 		table:   table,
+		apiKeys: strings.Split(apiKey, ","),
 	}, nil
 }

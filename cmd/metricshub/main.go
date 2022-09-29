@@ -25,7 +25,7 @@ func main() {
 	logging.SetupLogger(buildinfo.GitCommit, false, false)
 
 	bq := newBigQueryStore(config.project, config.dataset, config.table)
-	http.HandleFunc("/", makeHandler(bq))
+	http.HandleFunc("/", makeHandler(bq, config))
 
 	log.Info().Str("port", config.port).Msg("listening...")
 	if err := http.ListenAndServe(":"+config.port, nil); err != nil {
@@ -56,8 +56,23 @@ type store interface {
 	insert(context.Context, request) error
 }
 
-func makeHandler(store store) http.HandlerFunc {
+func isAuthorized(headerKey string, allowedKeys []string) bool {
+	for _, key := range allowedKeys {
+		if headerKey == key {
+			return true
+		}
+	}
+	return false
+}
+
+func makeHandler(store store, c *config) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
+		apiKey := r.Header.Get("Api-Key")
+		if !isAuthorized(apiKey, c.apiKeys) {
+			rw.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
 		if r.Method != "POST" {
 			log.Error().Msg("request is not POST")
 			rw.WriteHeader(http.StatusBadRequest)

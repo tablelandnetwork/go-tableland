@@ -80,7 +80,7 @@ func (db *TelemetryDatabase) StoreMetric(ctx context.Context, metric telemetry.M
 // FetchUnpublishedMetrics fetches unplished metrics.
 func (db *TelemetryDatabase) FetchUnpublishedMetrics(ctx context.Context, amount int) ([]telemetry.Metric, error) {
 	rows, err := db.sqlDB.QueryContext(ctx,
-		`SELECT rowid, timestamp, type, payload, published FROM system_metrics 
+		`SELECT rowid, version, timestamp, type, payload, published FROM system_metrics 
 		WHERE published is false 
 		ORDER BY timestamp
 		LIMIT ?1`,
@@ -97,7 +97,8 @@ func (db *TelemetryDatabase) FetchUnpublishedMetrics(ctx context.Context, amount
 	for rows.Next() {
 		var rowid, timestamp, typ, published int64
 		var payload []byte
-		if err := rows.Scan(&rowid, &timestamp, &typ, &payload, &published); err != nil {
+		var version int
+		if err := rows.Scan(&rowid, &version, &timestamp, &typ, &payload, &published); err != nil {
 			return []telemetry.Metric{}, fmt.Errorf("scan rows of system metrics: %s", err)
 		}
 
@@ -116,6 +117,7 @@ func (db *TelemetryDatabase) FetchUnpublishedMetrics(ctx context.Context, amount
 
 		metrics = append(metrics, telemetry.Metric{
 			RowID:     rowid,
+			Version:   version,
 			Timestamp: time.UnixMilli(timestamp),
 			Type:      mType,
 			Payload:   mPayload,

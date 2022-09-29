@@ -58,6 +58,7 @@ type config struct {
 	TelemetryPublisher struct {
 		Enabled            bool   `default:"false"`
 		MetricsHubURL      string `default:""`
+		MetricsHubAPIKey   string `default:""`
 		PublishingInterval string `default:"10s"`
 	}
 }

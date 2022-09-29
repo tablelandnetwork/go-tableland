@@ -44,7 +44,9 @@
     },
     "TelemetryPublisher": {
         "Enabled": true,
-        "MetricsHubURL": "https://metricshub-testnet-mrgr43cf5q-uw.a.run.app"
+        "MetricsHubURL": "https://metricshub-testnet-mrgr43cf5q-uw.a.run.app",
+        "MetricsHubApiKey" : "${METRICS_HUB_API_KEY}",
+        "PublishingInterval": "10s"
     },
     "Chains": [
         {

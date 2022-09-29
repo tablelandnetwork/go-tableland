@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"cloud.google.com/go/bigquery"
-	"github.com/google/uuid"
 )
 
 // bigQueryStore implements the Store interface for inserting metrics into BigQuery.
@@ -56,7 +55,6 @@ func (s *bigQueryStore) toBigQueryRows(req request) ([]*row, error) {
 			return []*row{}, fmt.Errorf("serialize: %s", err)
 		}
 		rows[i] = &row{
-			ID:        strings.Replace(uuid.NewString(), "-", "", -1),
 			Version:   m.Version,
 			Timestamp: strings.TrimSuffix(m.Timestamp.Format("2006-01-02T15:04:05.000Z07:00"), "Z"), // RFC3339 mili without Z
 			Type:      int(m.Type),
@@ -69,7 +67,6 @@ func (s *bigQueryStore) toBigQueryRows(req request) ([]*row, error) {
 
 // row represents a row in BigQuery.
 type row struct {
-	ID        string // item unique identifier to help with dedup
 	Version   int
 	Timestamp string
 	Type      int
@@ -80,7 +77,6 @@ type row struct {
 // Save implements the ValueSaver interface.
 func (r *row) Save() (map[string]bigquery.Value, string, error) { // nolint
 	return map[string]bigquery.Value{
-		"id":        r.ID,
 		"version":   r.Version,
 		"timestamp": r.Timestamp,
 		"type":      r.Type,

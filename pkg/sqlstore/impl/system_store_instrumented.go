@@ -403,7 +403,6 @@ func (s *InstrumentedSystemStore) GetID(ctx context.Context) (string, error) {
 	attributes := []attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("Id")},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
-		{Key: "chainID", Value: attribute.Int64Value(int64(s.chainID))},
 	}
 
 	s.callCount.Add(ctx, 1, attributes...)

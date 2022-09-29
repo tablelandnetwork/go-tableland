@@ -14,11 +14,11 @@ import (
 
 // HTTPExporter exports metrics by making an HTTP request.
 type HTTPExporter struct {
-	url string
+	url, apiKey string
 }
 
 // NewHTTPExporter creates an HTTPExporter.
-func NewHTTPExporter(endpoint string) (*HTTPExporter, error) {
+func NewHTTPExporter(endpoint, apiKey string) (*HTTPExporter, error) {
 	if endpoint == "" {
 		return nil, errors.New("empty url")
 	}
@@ -28,7 +28,8 @@ func NewHTTPExporter(endpoint string) (*HTTPExporter, error) {
 	}
 
 	return &HTTPExporter{
-		url: endpoint,
+		url:    endpoint,
+		apiKey: apiKey,
 	}, nil
 }
 
@@ -43,6 +44,7 @@ func (e *HTTPExporter) Export(ctx context.Context, metrics []telemetry.Metric, n
 	if err != nil {
 		return fmt.Errorf("creating request: %s", err)
 	}
+	req.Header.Add("Api-Key", e.apiKey)
 
 	client := http.DefaultClient
 	resp, err := client.Do(req)

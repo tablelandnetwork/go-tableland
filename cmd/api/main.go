@@ -209,13 +209,19 @@ func main() {
 		go backupScheduler.Run()
 	}
 
+	nodeID, err := chainStacks[config.Chains[0].ChainID].Store.GetID(context.Background())
+	if err != nil {
+		log.Fatal().Err(err).Msg("getting node id")
+	}
+
+	log.Info().Str("node_id", nodeID).Msg("node info")
+
 	var metricsPublisher *publisher.Publisher
 	if config.TelemetryPublisher.Enabled {
-		nodeID, err := chainStacks[config.Chains[0].ChainID].Store.GetID(context.Background())
-		if err != nil {
-			log.Fatal().Err(err).Msg("getting node id")
-		}
-		exporter, err := publisher.NewHTTPExporter(config.TelemetryPublisher.MetricsHubURL)
+		exporter, err := publisher.NewHTTPExporter(
+			config.TelemetryPublisher.MetricsHubURL,
+			config.TelemetryPublisher.MetricsHubAPIKey,
+		)
 		if err != nil {
 			log.Fatal().Err(err).Msg("creating metrics http exporter")
 		}

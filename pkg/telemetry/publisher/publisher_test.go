@@ -20,7 +20,7 @@ func TestPublisher(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	exporter, err := NewHTTPExporter(ts.URL)
+	exporter, err := NewHTTPExporter(ts.URL, "")
 	require.NoError(t, err)
 	store := newStore()
 
