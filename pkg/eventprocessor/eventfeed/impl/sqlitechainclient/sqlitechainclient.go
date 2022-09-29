@@ -61,7 +61,7 @@ func (scc *SQLiteChainClient) FilterLogs(ctx context.Context, filter ethereum.Fi
 			  where chain_id=?1 and 
 			        block_number between ?2 and ?3 and
 					address=?4
-			  order by block_number asc`
+			  order by block_number asc, event_index asc`
 	rows, err := scc.db.QueryContext(
 		ctx,
 		query,
