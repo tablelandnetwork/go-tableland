@@ -10,9 +10,11 @@ import (
 
 	"github.com/XSAM/otelsql"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 	logger "github.com/rs/zerolog/log"
 	"github.com/tablelandnetwork/sqlparser"
+
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -278,6 +280,22 @@ func (s *SystemStore) GetSchemaByTableName(ctx context.Context, name string) (sq
 		Columns:          columns,
 		TableConstraints: tableConstraints,
 	}, nil
+}
+
+// GetID returns node identifier.
+func (s *SystemStore) GetID(ctx context.Context) (string, error) {
+	id, err := s.dbWithTx.queries().GetId(ctx)
+	if err == sql.ErrNoRows {
+		id = strings.Replace(uuid.NewString(), "-", "", -1)
+		if err := s.dbWithTx.queries().InsertId(ctx, id); err != nil {
+			return "", fmt.Errorf("failed to insert id: %s", err)
+		}
+	}
+	if err != nil {
+		return "", fmt.Errorf("failed to get id: %s", err)
+	}
+
+	return id, err
 }
 
 // WithTx returns a copy of the current SystemStore with a tx attached.

@@ -3,7 +3,11 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/XSAM/otelsql"
 	"github.com/golang-migrate/migrate/v4"
@@ -68,6 +72,87 @@ func (db *TelemetryDatabase) StoreMetric(ctx context.Context, metric telemetry.M
 	)
 	if err != nil {
 		return fmt.Errorf("insert into system_metrics: %s", err)
+	}
+
+	return nil
+}
+
+// FetchUnpublishedMetrics fetches unplished metrics.
+func (db *TelemetryDatabase) FetchUnpublishedMetrics(ctx context.Context, amount int) ([]telemetry.Metric, error) {
+	rows, err := db.sqlDB.QueryContext(ctx,
+		`SELECT rowid, version, timestamp, type, payload, published FROM system_metrics 
+		WHERE published is false 
+		ORDER BY timestamp
+		LIMIT ?1`,
+		amount,
+	)
+	if err != nil {
+		return []telemetry.Metric{}, fmt.Errorf("query system metrics: %s", err)
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	var metrics []telemetry.Metric
+	for rows.Next() {
+		var rowid, timestamp, typ, published int64
+		var payload []byte
+		var version int
+		if err := rows.Scan(&rowid, &version, &timestamp, &typ, &payload, &published); err != nil {
+			return []telemetry.Metric{}, fmt.Errorf("scan rows of system metrics: %s", err)
+		}
+
+		var mPayload interface{}
+		var mType telemetry.MetricType
+		switch telemetry.MetricType(typ) {
+		case telemetry.StateHashType:
+			mPayload = new(telemetry.StateHashMetric)
+			if err := json.Unmarshal(payload, mPayload); err != nil {
+				return []telemetry.Metric{}, fmt.Errorf("scan rows of system metrics: %s", err)
+			}
+			mType = telemetry.StateHashType
+		default:
+			return []telemetry.Metric{}, fmt.Errorf("unknown metric type: %d", typ)
+		}
+
+		metrics = append(metrics, telemetry.Metric{
+			RowID:     rowid,
+			Version:   version,
+			Timestamp: time.UnixMilli(timestamp),
+			Type:      mType,
+			Payload:   mPayload,
+		})
+	}
+
+	return metrics, nil
+}
+
+// MarkAsPublished marks metrics as published.
+func (db *TelemetryDatabase) MarkAsPublished(ctx context.Context, rowids []int64) error {
+	if len(rowids) == 0 {
+		return errors.New("rowids cannot be empty")
+	}
+
+	args := make([]interface{}, len(rowids))
+	for i, v := range rowids {
+		args[i] = v
+	}
+
+	result, err := db.sqlDB.ExecContext(ctx,
+		"UPDATE system_metrics SET published = 1 WHERE rowid IN (?"+strings.Repeat(",?", len(rowids)-1)+")",
+		args...,
+	)
+	if err != nil {
+		return fmt.Errorf("exec: %s", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("rows affected: %s", err)
+	}
+
+	if rowsAffected != int64(len(rowids)) {
+		return fmt.Errorf("rows affected %d, differs from rowids length %d", rowsAffected, int64(len(rowids)))
 	}
 
 	return nil

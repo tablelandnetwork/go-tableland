@@ -17,10 +17,11 @@ const (
 
 // Metric defines a metric.
 type Metric struct {
-	Version   int
-	Timestamp time.Time
-	Type      MetricType
-	Payload   interface{}
+	RowID     int64       `json:"-"`
+	Version   int         `json:"version"`
+	Timestamp time.Time   `json:"timestamp"`
+	Type      MetricType  `json:"type"`
+	Payload   interface{} `json:"payload"`
 }
 
 // Serialize serializes the metric.

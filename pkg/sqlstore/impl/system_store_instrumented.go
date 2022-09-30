@@ -393,3 +393,20 @@ func (s *InstrumentedSystemStore) InsertBlockExtraInfo(ctx context.Context, bloc
 
 	return err
 }
+
+// GetID returns node identifier.
+func (s *InstrumentedSystemStore) GetID(ctx context.Context) (string, error) {
+	start := time.Now()
+	id, err := s.store.GetID(ctx)
+	latency := time.Since(start).Milliseconds()
+
+	attributes := []attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("Id")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return id, err
+}
