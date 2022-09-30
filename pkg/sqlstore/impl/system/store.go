@@ -290,6 +290,7 @@ func (s *SystemStore) GetID(ctx context.Context) (string, error) {
 		if err := s.dbWithTx.queries().InsertId(ctx, id); err != nil {
 			return "", fmt.Errorf("failed to insert id: %s", err)
 		}
+		return id, nil
 	}
 	if err != nil {
 		return "", fmt.Errorf("failed to get id: %s", err)
