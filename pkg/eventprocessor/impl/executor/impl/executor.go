@@ -91,18 +91,22 @@ func (ex *Executor) NewBlockScope(ctx context.Context, newBlockNum int64) (execu
 	default:
 		panic("parallel block scope detected, this must never happen")
 	}
+	releaseBlockScope := func() { ex.chBlockScope <- struct{}{} }
 
 	txn, err := ex.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable, ReadOnly: false})
 	if err != nil {
+		releaseBlockScope()
 		return nil, fmt.Errorf("opening db transaction: %s", err)
 	}
 
 	// Check that the last processed height is strictly lower.
 	lastBlockNum, err := ex.getLastExecutedBlockNumber(ctx, txn)
 	if err != nil {
+		releaseBlockScope()
 		return nil, fmt.Errorf("get last processed height: %s", err)
 	}
 	if lastBlockNum >= newBlockNum {
+		releaseBlockScope()
 		return nil, fmt.Errorf("latest executed block %d isn't smaller than new block %d", lastBlockNum, newBlockNum)
 	}
 
@@ -111,7 +115,7 @@ func (ex *Executor) NewBlockScope(ctx context.Context, newBlockNum int64) (execu
 		MaxTableRowCount: ex.maxTableRowCount,
 		BlockNumber:      newBlockNum,
 	}
-	bs := newBlockScope(txn, scopeVars, ex.parser, ex.acl, func() { ex.chBlockScope <- struct{}{} })
+	bs := newBlockScope(txn, scopeVars, ex.parser, ex.acl, releaseBlockScope)
 
 	return bs, nil
 }
