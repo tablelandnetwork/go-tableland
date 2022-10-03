@@ -47,6 +47,8 @@ EVM_EVENTS_TARGET:="pkg/eventprocessor/impl/testdata/evm_history.db"
 generate-history-db:
 	rm -f ${EVM_EVENTS_TARGET}
 	sqlite3 ${EVM_EVENTS_ORIGIN} 'ATTACH DATABASE ${EVM_EVENTS_TARGET} as target' 'CREATE TABLE target.system_evm_events as select * from system_evm_events'
+	zstd -f ${EVM_EVENTS_TARGET}
+	rm ${EVM_EVENTS_TARGET}
 
 # Build 
 
