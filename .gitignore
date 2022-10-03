@@ -18,6 +18,7 @@
 docker/**/*.db*
 docker/deployed/**/prometheus
 docker/deployed/**/grafana/data
+evm_history.db
 
 # Project
 .env*
