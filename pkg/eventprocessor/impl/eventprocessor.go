@@ -212,7 +212,7 @@ func (ep *EventProcessor) executeBlock(ctx context.Context, block eventfeed.Bloc
 	}()
 
 	if block.BlockNumber >= ep.nextHashCalcBlockNumber {
-		if err := ep.calculateHash(ctx, bs); err != nil {
+		if _, err := ep.calculateHash(ctx, bs); err != nil {
 			return fmt.Errorf("calculate hash: %s", err)
 		}
 		ep.nextHashCalcBlockNumber = nextMultipleOf(block.BlockNumber, ep.config.HashCalcStep)
@@ -289,11 +289,11 @@ func (ep *EventProcessor) executeBlock(ctx context.Context, block eventfeed.Bloc
 	return nil
 }
 
-func (ep *EventProcessor) calculateHash(ctx context.Context, bs executor.BlockScope) error {
+func (ep *EventProcessor) calculateHash(ctx context.Context, bs executor.BlockScope) (string, error) {
 	startTime := time.Now()
 	stateHash, err := bs.StateHash(ctx, ep.chainID)
 	if err != nil {
-		return fmt.Errorf("calculating hash for current block: %s", err)
+		return "", fmt.Errorf("calculating hash for current block: %s", err)
 	}
 	elapsedTime := time.Since(startTime).Milliseconds()
 	ep.log.Info().
@@ -306,10 +306,10 @@ func (ep *EventProcessor) calculateHash(ctx context.Context, bs executor.BlockSc
 	ep.mHashCalculationElapsedTime.Store(elapsedTime)
 
 	if err := telemetry.Collect(ctx, stateHash); err != nil {
-		return fmt.Errorf("calculating hash for current block: %s", err)
+		return "", fmt.Errorf("calculating hash for current block: %s", err)
 	}
 
-	return nil
+	return stateHash.Hash(), nil
 }
 
 func nextMultipleOf(x, y int64) int64 {
