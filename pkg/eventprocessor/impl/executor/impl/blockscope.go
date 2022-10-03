@@ -212,7 +212,7 @@ func (bs *blockScope) StateHash(ctx context.Context, chainID tableland.ChainID) 
 }
 
 // Close closes gracefully the block scope.
-// Clients should *always* `defer Close()` when opening batches.
+// Clients should *always* `defer Close()` when opening block scopes.
 func (bs *blockScope) Close() error {
 	defer bs.closed()
 
