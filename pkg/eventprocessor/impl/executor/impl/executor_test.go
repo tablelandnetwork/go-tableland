@@ -193,7 +193,10 @@ func newExecutor(t *testing.T, rowsLimit int) (*Executor, string) {
 	dbURI := tests.Sqlite3URI()
 
 	parser := newParser(t, []string{})
-	exec, err := NewExecutor(1337, dbURI, parser, rowsLimit, &aclMock{})
+	db, err := sql.Open("sqlite3", dbURI)
+	require.NoError(t, err)
+	db.SetMaxOpenConns(1)
+	exec, err := NewExecutor(1337, db, parser, rowsLimit, &aclMock{})
 	require.NoError(t, err)
 
 	// Boostrap system store to run the db migrations.

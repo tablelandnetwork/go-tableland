@@ -278,7 +278,10 @@ func (ep *EventProcessor) executeBlock(ctx context.Context, block eventfeed.Bloc
 	if err := bs.Commit(); err != nil {
 		return fmt.Errorf("committing changes: %s", err)
 	}
-	ep.log.Debug().Int64("height", block.BlockNumber).Msg("new last processed height")
+	ep.log.Debug().
+		Int64("height", block.BlockNumber).
+		Int64("exec_ms", time.Since(start).Milliseconds()).
+		Msg("new last processed height")
 
 	ep.mLastProcessedHeight.Store(block.BlockNumber)
 	ep.mBlockExecutionLatency.Record(ctx, time.Since(start).Milliseconds(), ep.mBaseLabels...)

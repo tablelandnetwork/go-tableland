@@ -2,6 +2,7 @@ package impl
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"math/big"
 	"testing"
@@ -34,8 +35,13 @@ func TestSystemSQLStoreService(t *testing.T) {
 
 	parser, err := parserimpl.New([]string{"system_", "registry"})
 	require.NoError(t, err)
+
+	db, err := sql.Open("sqlite3", dbURI)
+	require.NoError(t, err)
+	db.SetMaxOpenConns(1)
+
 	// populate the registry with a table
-	ex, err := executor.NewExecutor(1337, dbURI, parser, 0, nil)
+	ex, err := executor.NewExecutor(1337, db, parser, 0, nil)
 	require.NoError(t, err)
 	bs, err := ex.NewBlockScope(ctx, 0)
 	require.NoError(t, err)
@@ -105,8 +111,12 @@ func TestGetSchemaByTableName(t *testing.T) {
 	parser, err := parserimpl.New([]string{"system_", "registry"})
 	require.NoError(t, err)
 
+	db, err := sql.Open("sqlite3", dbURI)
+	require.NoError(t, err)
+	db.SetMaxOpenConns(1)
+
 	// populate the registry with a table
-	ex, err := executor.NewExecutor(1337, dbURI, parser, 0, nil)
+	ex, err := executor.NewExecutor(1337, db, parser, 0, nil)
 	require.NoError(t, err)
 	bs, err := ex.NewBlockScope(ctx, 0)
 	require.NoError(t, err)
@@ -162,8 +172,13 @@ func TestGetMetadata(t *testing.T) {
 
 	parser, err := parserimpl.New([]string{"system_", "registry"})
 	require.NoError(t, err)
+
+	db, err := sql.Open("sqlite3", dbURI)
+	require.NoError(t, err)
+	db.SetMaxOpenConns(1)
+
 	// populate the registry with a table
-	ex, err := executor.NewExecutor(1337, dbURI, parser, 0, nil)
+	ex, err := executor.NewExecutor(1337, db, parser, 0, nil)
 	require.NoError(t, err)
 	bs, err := ex.NewBlockScope(ctx, 0)
 	require.NoError(t, err)

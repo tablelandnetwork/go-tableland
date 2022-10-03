@@ -7,14 +7,12 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/XSAM/otelsql"
 	"github.com/mattn/go-sqlite3"
 	"github.com/rs/zerolog"
 	logger "github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor"
 	"github.com/textileio/go-tableland/pkg/parsing"
-	"go.opentelemetry.io/otel/attribute"
 )
 
 // Executor executes chain events.
@@ -37,26 +35,12 @@ var _ executor.Executor = (*Executor)(nil)
 // NewExecutor returns a new Executor.
 func NewExecutor(
 	chainID tableland.ChainID,
-	dbURI string,
+	// dbURI string,
+	db *sql.DB,
 	parser parsing.SQLValidator,
 	maxTableRowCount int,
 	acl tableland.ACL,
 ) (*Executor, error) {
-	db, err := otelsql.Open("sqlite3", dbURI, otelsql.WithAttributes(
-		attribute.String("name", "processor"),
-		attribute.Int64("chain_id", int64(chainID)),
-	))
-	if err != nil {
-		return nil, fmt.Errorf("connecting to db: %s", err)
-	}
-	db.SetMaxIdleConns(0)
-	db.SetMaxOpenConns(1)
-	if err := otelsql.RegisterDBStatsMetrics(db, otelsql.WithAttributes(
-		attribute.String("name", "processor"),
-		attribute.Int64("chain_id", int64(chainID)),
-	)); err != nil {
-		return nil, fmt.Errorf("registering dbstats: %s", err)
-	}
 	if maxTableRowCount < 0 {
 		return nil, fmt.Errorf("maximum table row count is negative")
 	}
@@ -91,18 +75,22 @@ func (ex *Executor) NewBlockScope(ctx context.Context, newBlockNum int64) (execu
 	default:
 		panic("parallel block scope detected, this must never happen")
 	}
+	releaseBlockScope := func() { ex.chBlockScope <- struct{}{} }
 
 	txn, err := ex.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable, ReadOnly: false})
 	if err != nil {
+		releaseBlockScope()
 		return nil, fmt.Errorf("opening db transaction: %s", err)
 	}
 
 	// Check that the last processed height is strictly lower.
 	lastBlockNum, err := ex.getLastExecutedBlockNumber(ctx, txn)
 	if err != nil {
+		releaseBlockScope()
 		return nil, fmt.Errorf("get last processed height: %s", err)
 	}
 	if lastBlockNum >= newBlockNum {
+		releaseBlockScope()
 		return nil, fmt.Errorf("latest executed block %d isn't smaller than new block %d", lastBlockNum, newBlockNum)
 	}
 
@@ -111,7 +99,7 @@ func (ex *Executor) NewBlockScope(ctx context.Context, newBlockNum int64) (execu
 		MaxTableRowCount: ex.maxTableRowCount,
 		BlockNumber:      newBlockNum,
 	}
-	bs := newBlockScope(txn, scopeVars, ex.parser, ex.acl, func() { ex.chBlockScope <- struct{}{} })
+	bs := newBlockScope(txn, scopeVars, ex.parser, ex.acl, releaseBlockScope)
 
 	return bs, nil
 }
@@ -153,14 +141,8 @@ func (ex *Executor) Close(ctx context.Context) error {
 	ex.closeOnce.Do(func() { close(ex.closed) })
 	select {
 	case <-ctx.Done():
-		if err := ex.db.Close(); err != nil {
-			ex.log.Error().Err(err).Msg("forced close of database connection")
-		}
-		return errors.New("closing ctx done")
+		return errors.New("executor was force closed due to timeout")
 	case <-ex.chBlockScope:
-		if err := ex.db.Close(); err != nil {
-			ex.log.Error().Err(err).Msg("closing database connection")
-		}
 		ex.log.Info().Msg("executor closed gracefully")
 		return nil
 	}
