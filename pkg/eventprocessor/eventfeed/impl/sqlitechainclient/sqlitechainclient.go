@@ -45,12 +45,20 @@ func New(dbURI string, chainID tableland.ChainID) (*SQLiteChainClient, error) {
 }
 
 func (scc *SQLiteChainClient) FilterLogs(ctx context.Context, filter ethereum.FilterQuery) ([]types.Log, error) {
-	// TODO(jsign): full support of 'filter' fields?
-	query := `select address, topics, data, block_number, tx_hash, tx_index, block_hash, event_index
-	          from system_evm_events where chain_id=?1 and block_number between ?2 and ?3
-			  order by block_number asc`
+	if len(filter.Addresses) != 1 {
+		return nil, fmt.Errorf("the query filter must have a single contract address filter")
+	}
+	if filter.BlockHash != nil {
+		return nil, fmt.Errorf("block_hash filter isn't supported")
+	}
 
-	rows, err := scc.db.QueryContext(ctx, query, scc.chainID, filter.FromBlock.Int64(), filter.ToBlock.Int64())
+	query := `select address, topics, data, block_number, tx_hash, tx_index, block_hash, event_index
+	          from system_evm_events 
+			  where chain_id=?1 and 
+			        block_number between ?2 and ?3 and
+					address=?4
+			  order by block_number asc`
+	rows, err := scc.db.QueryContext(ctx, query, scc.chainID, filter.FromBlock.Int64(), filter.ToBlock.Int64(), filter.Addresses[0].Hex())
 	if err != nil {
 		return nil, fmt.Errorf("get filters in range: %s", err)
 	}
@@ -103,7 +111,6 @@ func (scc *SQLiteChainClient) FilterLogs(ctx context.Context, filter ethereum.Fi
 }
 
 func (scc *SQLiteChainClient) HeaderByNumber(ctx context.Context, block *big.Int) (*types.Header, error) {
-	// TODO(jsign): impl full support?
 	if block != nil {
 		return nil, errors.New("the current implementation only allows returning the latest block number")
 	}
