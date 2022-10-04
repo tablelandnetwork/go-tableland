@@ -44,38 +44,10 @@
   "TelemetryPublisher": {
     "Enabled": true,
     "MetricsHubURL": "https://metricshub-staging-mrgr43cf5q-uw.a.run.app",
-    "MetricsHubApiKey" : "${METRICS_HUB_API_KEY}",
+    "MetricsHubApiKey": "${METRICS_HUB_API_KEY}",
     "PublishingInterval": "10s"
   },
   "Chains": [
-    {
-      "Name": "Optimism Kovan",
-      "AllowTransactionRelay": true,
-      "ChainID": 69,
-      "Registry": {
-        "EthEndpoint": "wss://opt-kovan.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_OPTIMISM_KOVAN_API_KEY}",
-        "ContractAddress": "0x2b51D72F210A96B6aB8EfB02dF8802363dcC83Dd"
-      },
-      "Signer": {
-        "PrivateKey": "${VALIDATOR_OPTIMISM_KOVAN_SIGNER_PRIVATE_KEY}"
-      },
-      "EventFeed": {
-        "ChainAPIBackoff": "15s",
-        "NewBlockPollFreq": "10s",
-        "MinBlockDepth": 0,
-        "PersistEvents": false
-      },
-      "EventProcessor": {
-        "BlockFailedExecutionBackoff": "10s",
-        "DedupExecutedTxns": true
-      },
-      "NonceTracker": {
-        "CheckInterval": "10s",
-        "StuckInterval": "10m",
-        "MinBlockDepth": 0
-      },
-      "HashCalculationStep": 100
-    },
     {
       "Name": "Optimism Goerli",
       "AllowTransactionRelay": true,

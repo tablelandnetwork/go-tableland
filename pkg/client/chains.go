@@ -18,7 +18,6 @@ var ChainIDs = struct {
 	Optimism       ChainID
 	Polygon        ChainID
 	EthereumGoerli ChainID
-	OptimismKovan  ChainID
 	OptimismGoerli ChainID
 	ArbitrumGoerli ChainID
 	PolygonMumbai  ChainID
@@ -28,7 +27,6 @@ var ChainIDs = struct {
 	Optimism:       10,
 	Polygon:        137,
 	EthereumGoerli: 5,
-	OptimismKovan:  69,
 	OptimismGoerli: 420,
 	ArbitrumGoerli: 421613,
 	PolygonMumbai:  80001,
@@ -48,7 +46,6 @@ var Chains = struct {
 	Optimism       Chain
 	Polygon        Chain
 	EthereumGoerli Chain
-	OptimismKovan  Chain
 	OptimismGoerli Chain
 	ArbitrumGoerli Chain
 	PolygonMumbai  Chain
@@ -73,11 +70,6 @@ var Chains = struct {
 		Endpoint:     testnetURL,
 		ID:           ChainIDs.EthereumGoerli,
 		ContractAddr: common.HexToAddress("0xDA8EA22d092307874f30A1F277D1388dca0BA97a"),
-	},
-	OptimismKovan: Chain{
-		Endpoint:     testnetURL,
-		ID:           ChainIDs.OptimismKovan,
-		ContractAddr: common.HexToAddress("0xf2C9Fc73884A9c6e6Db58778176Ab67989139D06"),
 	},
 	OptimismGoerli: Chain{
 		Endpoint:     testnetURL,
@@ -109,7 +101,6 @@ func (c Chain) CanRelayWrites() bool {
 var infuraURLs = map[ChainID]string{
 	ChainIDs.EthereumGoerli: "https://goerli.infura.io/v3/%s",
 	ChainIDs.Ethereum:       "https://mainnet.infura.io/v3/%s",
-	ChainIDs.OptimismKovan:  "https://optimism-kovan.infura.io/v3/%s",
 	ChainIDs.OptimismGoerli: "https://optimism-goerli.infura.io/v3/%s",
 	ChainIDs.Optimism:       "https://optimism-mainnet.infura.io/v3/%s",
 	ChainIDs.ArbitrumGoerli: "https://arbitrim-goerli.infura.io/v3/%s", // TODO: Check this, requires upgrade.
@@ -120,7 +111,6 @@ var infuraURLs = map[ChainID]string{
 var alchemyURLs = map[ChainID]string{
 	ChainIDs.EthereumGoerli: "https://eth-goerli.g.alchemy.com/v2/%s",
 	ChainIDs.Ethereum:       "https://eth-mainnet.g.alchemy.com/v2/%s",
-	ChainIDs.OptimismKovan:  "https://opt-kovan.g.alchemy.com/v2/%s",
 	ChainIDs.OptimismGoerli: "https://opt-goerli.g.alchemy.com/v2/%s",
 	ChainIDs.Optimism:       "https://opt-mainnet.g.alchemy.com/v2/%s",
 	ChainIDs.ArbitrumGoerli: "https://arb-goerli.g.alchemy.com/v2/%s",
