@@ -1,0 +1,38 @@
+package restorer
+
+import (
+	"database/sql"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
+
+func TestRestorer(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		f, err := os.Open("testdata/database.db.zst")
+		require.NoError(t, err)
+		data, err := io.ReadAll(f)
+		require.NoError(t, err)
+		_, _ = w.Write(data)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	dir := os.TempDir()
+	br := NewBackupRestorer(ts.URL, dir)
+	err := br.Restore()
+	require.NoError(t, err)
+
+	db, err := sql.Open("sqlite3", fmt.Sprintf("%s/database.db", dir))
+	require.NoError(t, err)
+
+	var a int
+	err = db.QueryRow("SELECT a FROM a LIMIT 1").Scan(&a)
+	require.NoError(t, err)
+	require.Equal(t, 1, a)
+}

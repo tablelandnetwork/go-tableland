@@ -24,6 +24,7 @@ import (
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/internal/tableland/impl"
 	"github.com/textileio/go-tableland/pkg/backup"
+	"github.com/textileio/go-tableland/pkg/backup/restorer"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
@@ -58,6 +59,22 @@ func main() {
 			Err(err).
 			Str("port", config.Metrics.Port).
 			Msg("could not setup instrumentation")
+	}
+
+	if config.FromBackup {
+		restorer := restorer.NewBackupRestorer(
+			config.Backup.URL,
+			dirPath,
+		)
+
+		log.Info().Msg("starting backup restore")
+		elapsedTime := time.Now()
+		if err := restorer.Restore(); err != nil {
+			log.Fatal().
+				Err(err).
+				Msg("backup restoration failed")
+		}
+		log.Info().Float64("elapsed_time", time.Since(elapsedTime).Seconds()).Msg("backup restore finished")
 	}
 
 	databaseURL := fmt.Sprintf(

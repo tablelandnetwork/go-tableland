@@ -54,8 +54,10 @@ type config struct {
 			Enabled   bool `default:"true"`
 			KeepFiles int  `default:"5"` // number of files to keep
 		}
+		URL string `default:""`
 	}
 	TelemetryPublisher TelemetryPublisherConfig
+	FromBackup         bool `default:"false" env:"FROM_BACKUP"`
 }
 
 // TelemetryPublisherConfig contains configuration attributes for the telemetry module.
