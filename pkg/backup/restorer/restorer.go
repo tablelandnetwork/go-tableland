@@ -1,6 +1,7 @@
 package restorer
 
 import (
+	"database/sql"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,7 +16,7 @@ type BackupRestorer struct {
 }
 
 // NewBackupRestorer creates a new BackupRestorer.
-func NewBackupRestorer(url, dst string) *BackupRestorer {
+func NewBackupRestorer(url string, dst string) *BackupRestorer {
 	return &BackupRestorer{
 		url: url,
 		dst: dst,
@@ -98,6 +99,15 @@ func (br *BackupRestorer) load() error {
 }
 
 func (br *BackupRestorer) cleanUp() error {
+	db, err := sql.Open("sqlite3", fmt.Sprintf("%s/database.db", br.dst))
+	if err != nil {
+		return fmt.Errorf("removing file: %s", err)
+	}
+
+	if _, err := db.Exec("DELETE FROM system_pending_tx;"); err != nil {
+		return fmt.Errorf("deleting rows from system_pending_tx file: %s", err)
+	}
+
 	if err := os.Remove(fmt.Sprintf("%s/backup.db.zst", br.dst)); err != nil {
 		return fmt.Errorf("removing file: %s", err)
 	}
