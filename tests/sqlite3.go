@@ -17,8 +17,8 @@ func Sqlite3URI(t *testing.T) string {
 	conn, err := db.Conn(context.Background())
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		conn.Close()
-		db.Close()
+		_ = conn.Close()
+		_ = db.Close()
 	})
 
 	return dbURI
