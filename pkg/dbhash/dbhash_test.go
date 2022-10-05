@@ -23,7 +23,7 @@ func TestDatabaseHash(t *testing.T) {
 
 	for i, tc := range testCases {
 		t.Run(fmt.Sprint(i), func(t *testing.T) {
-			dbURI := tests.Sqlite3URI()
+			dbURI := tests.Sqlite3URI(t)
 
 			db, err := sql.Open("sqlite3", dbURI)
 			require.NoError(t, err)

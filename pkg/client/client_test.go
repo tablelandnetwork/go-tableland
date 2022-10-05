@@ -183,7 +183,7 @@ func setup(t *testing.T) clientCalls {
 
 	ctx := context.Background()
 
-	dbURI := tests.Sqlite3URI()
+	dbURI := tests.Sqlite3URI(t)
 
 	store, err := system.New(dbURI, tableland.ChainID(1337))
 	require.NoError(t, err)

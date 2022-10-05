@@ -25,7 +25,7 @@ var emptyHash = common.HexToHash("0x0")
 func TestRunSQLEvents(t *testing.T) {
 	t.Parallel()
 
-	dbURI := tests.Sqlite3URI()
+	dbURI := tests.Sqlite3URI(t)
 	systemStore, err := system.New(dbURI, tableland.ChainID(1337))
 	require.NoError(t, err)
 
@@ -105,7 +105,7 @@ func TestRunSQLEvents(t *testing.T) {
 func TestAllEvents(t *testing.T) {
 	t.Parallel()
 
-	dbURI := tests.Sqlite3URI()
+	dbURI := tests.Sqlite3URI(t)
 	systemStore, err := system.New(dbURI, tableland.ChainID(1337))
 	require.NoError(t, err)
 
@@ -293,7 +293,7 @@ func TestInfura(t *testing.T) {
 	require.NoError(t, err)
 	rinkebyContractAddr := common.HexToAddress("0x847645b7dAA32eFda757d3c10f1c82BFbB7b41D0")
 
-	dbURI := tests.Sqlite3URI()
+	dbURI := tests.Sqlite3URI(t)
 	systemStore, err := system.New(dbURI, tableland.ChainID(1337))
 	require.NoError(t, err)
 	ef, err := New(

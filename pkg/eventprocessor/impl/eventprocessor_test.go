@@ -314,7 +314,7 @@ func setup(t *testing.T) (
 
 	// Spin up dependencies needed for the EventProcessor.
 	// i.e: Executor, Parser, and EventFeed (connected to the EVM chain)
-	dbURI := tests.Sqlite3URI()
+	dbURI := tests.Sqlite3URI(t)
 	parser, err := parserimpl.New([]string{"system_", "registry", "sqlite_"})
 	require.NoError(t, err)
 

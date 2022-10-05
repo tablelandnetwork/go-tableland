@@ -27,7 +27,7 @@ var chainID = tableland.ChainID(1337)
 func TestSystemSQLStoreService(t *testing.T) {
 	t.Parallel()
 
-	dbURI := tests.Sqlite3URI()
+	dbURI := tests.Sqlite3URI(t)
 
 	ctx := context.WithValue(context.Background(), middlewares.ContextKeyChainID, tableland.ChainID(1337))
 	store, err := system.New(dbURI, chainID)
@@ -102,7 +102,7 @@ func TestSystemSQLStoreService(t *testing.T) {
 func TestGetSchemaByTableName(t *testing.T) {
 	t.Parallel()
 
-	dbURI := tests.Sqlite3URI()
+	dbURI := tests.Sqlite3URI(t)
 
 	ctx := context.WithValue(context.Background(), middlewares.ContextKeyChainID, tableland.ChainID(1337))
 	store, err := system.New(dbURI, chainID)
@@ -164,7 +164,7 @@ func TestGetSchemaByTableName(t *testing.T) {
 func TestGetMetadata(t *testing.T) {
 	t.Parallel()
 
-	dbURI := tests.Sqlite3URI()
+	dbURI := tests.Sqlite3URI(t)
 
 	ctx := context.WithValue(context.Background(), middlewares.ContextKeyChainID, tableland.ChainID(1337))
 	store, err := system.New(dbURI, chainID)
@@ -290,7 +290,7 @@ func TestEVMEventPersistence(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	dbURI := tests.Sqlite3URI()
+	dbURI := tests.Sqlite3URI(t)
 
 	store, err := system.New(dbURI, chainID)
 	require.NoError(t, err)

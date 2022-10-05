@@ -18,7 +18,7 @@ import (
 
 func TestCollectAndFetchAndPublish(t *testing.T) {
 	t.Run("state hash", func(t *testing.T) {
-		dbURI := tests.Sqlite3URI()
+		dbURI := tests.Sqlite3URI(t)
 		s, err := New(dbURI)
 		require.NoError(t, err)
 		telemetry.SetMetricStore(s)
