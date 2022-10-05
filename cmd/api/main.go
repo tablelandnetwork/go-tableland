@@ -74,7 +74,7 @@ func main() {
 				Err(err).
 				Msg("backup restoration failed")
 		}
-		log.Info().Float64("elapsed_time", time.Since(elapsedTime).Seconds()).Msg("backup restore finished")
+		log.Info().Float64("elapsed_time_seconds", time.Since(elapsedTime).Seconds()).Msg("backup restore finished")
 	}
 
 	databaseURL := fmt.Sprintf(
