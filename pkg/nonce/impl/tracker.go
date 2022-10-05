@@ -376,9 +376,12 @@ func (t *LocalTracker) checkBalance() error {
 	}
 
 	s := weiBalance.String()
-	gWeiBalance, err := strconv.ParseInt(s[:len(s)-9], 10, 64)
-	if err != nil {
-		return fmt.Errorf("converting wei to gwei: %s", err)
+	var gWeiBalance int64
+	if len(s) > 9 {
+		gWeiBalance, err = strconv.ParseInt(s[:len(s)-9], 10, 64)
+		if err != nil {
+			return fmt.Errorf("converting wei to gwei: %s", err)
+		}
 	}
 
 	t.mu.Lock()
