@@ -49,7 +49,6 @@ func New(dbURI string, chainID tableland.ChainID) (*SystemStore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("connecting to db: %s", err)
 	}
-	dbc.SetMaxIdleConns(0)
 	if err := otelsql.RegisterDBStatsMetrics(dbc, otelsql.WithAttributes(
 		attribute.String("name", "systemstore"),
 		attribute.Int64("chain_id", int64(chainID)),
@@ -500,6 +499,11 @@ func (s *SystemStore) executeMigration(dbURI string, as *bindata.AssetSource) er
 	if err != nil {
 		return fmt.Errorf("creating migration: %s", err)
 	}
+	defer func() {
+		if _, err := m.Close(); err != nil {
+			s.log.Error().Err(err).Msg("closing db migration")
+		}
+	}()
 	version, dirty, err := m.Version()
 	s.log.Info().
 		Uint("dbVersion", version).

@@ -76,13 +76,12 @@ func TestReplayProductionHistory(t *testing.T) {
 }
 
 func launchValidatorForAllChainsBackedByEVMHistory(t *testing.T, historyDBURI string) ([]*EventProcessor, func()) {
-	dbURI := tests.Sqlite3URI()
+	dbURI := tests.Sqlite3URI(t)
 	parser, err := parserimpl.New([]string{"system_", "registry", "sqlite_"})
 	require.NoError(t, err)
 
 	db, err := sql.Open("sqlite3", dbURI)
 	require.NoError(t, err)
-	db.SetMaxIdleConns(0)
 	db.SetMaxOpenConns(1)
 
 	chains := getChains(t, historyDBURI)

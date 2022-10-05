@@ -35,7 +35,6 @@ func New(dbURI string) (*TelemetryDatabase, error) {
 	if err != nil {
 		return nil, fmt.Errorf("connecting to db: %s", err)
 	}
-	sqlDB.SetMaxIdleConns(0)
 	if err := otelsql.RegisterDBStatsMetrics(sqlDB, otelsql.WithAttributes(
 		attribute.String("name", "telemetrydb"),
 	)); err != nil {
@@ -178,6 +177,11 @@ func (db *TelemetryDatabase) executeMigration(dbURI string, as *bindata.AssetSou
 	if err != nil {
 		return fmt.Errorf("creating migration: %s", err)
 	}
+	defer func() {
+		if _, err := m.Close(); err != nil {
+			db.log.Error().Err(err).Msg("closing db migration")
+		}
+	}()
 	version, dirty, err := m.Version()
 	db.log.Info().
 		Uint("dbVersion", version).

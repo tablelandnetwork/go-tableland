@@ -14,7 +14,7 @@ import (
 func TestReadGeneralTypeCorrectness(t *testing.T) {
 	t.Parallel()
 
-	db, err := sql.Open("sqlite3", tests.Sqlite3URI())
+	db, err := sql.Open("sqlite3", tests.Sqlite3URI(t))
 	require.NoError(t, err)
 
 	ctx := context.Background()

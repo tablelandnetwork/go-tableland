@@ -943,7 +943,7 @@ func (b *tablelandSetupBuilder) withParsingOpts(opts ...parsing.Option) *tablela
 
 func (b *tablelandSetupBuilder) build(t *testing.T) *tablelandSetup {
 	t.Helper()
-	dbURI := tests.Sqlite3URI()
+	dbURI := tests.Sqlite3URI(t)
 
 	ctx := context.Background()
 	store, err := system.New(dbURI, tableland.ChainID(1337))

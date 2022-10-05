@@ -190,7 +190,7 @@ func existsTableWithName(t *testing.T, dbURI string, tableName string) bool {
 func newExecutor(t *testing.T, rowsLimit int) (*Executor, string) {
 	t.Helper()
 
-	dbURI := tests.Sqlite3URI()
+	dbURI := tests.Sqlite3URI(t)
 
 	parser := newParser(t, []string{})
 	db, err := sql.Open("sqlite3", dbURI)
