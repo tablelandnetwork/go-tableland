@@ -49,7 +49,6 @@ func New(dbURI string, chainID tableland.ChainID) (*SystemStore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("connecting to db: %s", err)
 	}
-	dbc.SetMaxIdleConns(0)
 	if err := otelsql.RegisterDBStatsMetrics(dbc, otelsql.WithAttributes(
 		attribute.String("name", "systemstore"),
 		attribute.Int64("chain_id", int64(chainID)),

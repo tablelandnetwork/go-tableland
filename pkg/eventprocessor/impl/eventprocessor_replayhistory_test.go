@@ -82,7 +82,6 @@ func launchValidatorForAllChainsBackedByEVMHistory(t *testing.T, historyDBURI st
 
 	db, err := sql.Open("sqlite3", dbURI)
 	require.NoError(t, err)
-	db.SetMaxIdleConns(0)
 	db.SetMaxOpenConns(1)
 
 	chains := getChains(t, historyDBURI)

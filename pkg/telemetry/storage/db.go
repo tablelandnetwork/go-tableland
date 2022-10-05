@@ -35,7 +35,6 @@ func New(dbURI string) (*TelemetryDatabase, error) {
 	if err != nil {
 		return nil, fmt.Errorf("connecting to db: %s", err)
 	}
-	sqlDB.SetMaxIdleConns(0)
 	if err := otelsql.RegisterDBStatsMetrics(sqlDB, otelsql.WithAttributes(
 		attribute.String("name", "telemetrydb"),
 	)); err != nil {

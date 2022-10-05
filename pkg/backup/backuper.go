@@ -247,7 +247,6 @@ func open(uri string) (DB, error) {
 	if err != nil {
 		return nil, errors.Errorf("opening db: %s", err)
 	}
-	db.SetMaxIdleConns(0)
 	db.SetMaxOpenConns(1)
 
 	if err := db.Ping(); err != nil {
@@ -287,7 +286,6 @@ type BackupResult struct {
 type DB interface {
 	Close() error
 	Ping() error
-	SetMaxIdleConns(n int)
 	SetMaxOpenConns(n int)
 	Conn(context.Context) (*sql.Conn, error)
 	Exec(query string, args ...interface{}) (sql.Result, error)

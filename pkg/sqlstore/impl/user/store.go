@@ -28,7 +28,6 @@ func New(dbURI string) (*UserStore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("connecting to db: %s", err)
 	}
-	db.SetMaxIdleConns(0)
 	if err := otelsql.RegisterDBStatsMetrics(db, otelsql.WithAttributes(
 		attribute.String("name", "userstore"),
 	)); err != nil {
