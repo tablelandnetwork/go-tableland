@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -26,12 +27,17 @@ func TestRestorer(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	dir := os.TempDir()
-	br := NewBackupRestorer(ts.URL, dir)
-	err := br.Restore()
+	dirPath := os.TempDir()
+	databaseURL := fmt.Sprintf(
+		"file://%s?_busy_timeout=5000&_foreign_keys=on&_journal_mode=WAL",
+		path.Join(dirPath, "database.db"),
+	)
+	br, err := NewBackupRestorer(ts.URL, databaseURL)
+	require.NoError(t, err)
+	err = br.Restore()
 	require.NoError(t, err)
 
-	db, err := sql.Open("sqlite3", fmt.Sprintf("%s/database.db", dir))
+	db, err := sql.Open("sqlite3", databaseURL)
 	require.NoError(t, err)
 
 	var a int

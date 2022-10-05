@@ -61,11 +61,18 @@ func main() {
 			Msg("could not setup instrumentation")
 	}
 
+	databaseURL := fmt.Sprintf(
+		"file://%s?_busy_timeout=5000&_foreign_keys=on&_journal_mode=WAL",
+		path.Join(dirPath, "database.db"),
+	)
+
 	if config.FromBackup {
-		restorer := restorer.NewBackupRestorer(
-			config.Backup.URL,
-			dirPath,
-		)
+		restorer, err := restorer.NewBackupRestorer(config.Backup.URL, databaseURL)
+		if err != nil {
+			log.Fatal().
+				Err(err).
+				Msg("creating restorer")
+		}
 
 		log.Info().Msg("starting backup restore")
 		elapsedTime := time.Now()
@@ -76,11 +83,6 @@ func main() {
 		}
 		log.Info().Float64("elapsed_time_seconds", time.Since(elapsedTime).Seconds()).Msg("backup restore finished")
 	}
-
-	databaseURL := fmt.Sprintf(
-		"file://%s?_busy_timeout=5000&_foreign_keys=on&_journal_mode=WAL",
-		path.Join(dirPath, "database.db"),
-	)
 
 	parserOpts := []parsing.Option{
 		parsing.WithMaxReadQuerySize(config.QueryConstraints.MaxReadQuerySize),

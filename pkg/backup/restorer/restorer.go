@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
+	"path/filepath"
 
 	logger "github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/pkg/backup"
@@ -15,15 +17,21 @@ var log = logger.With().Str("component", "backuprestorer").Logger()
 
 // BackupRestorer is responsible for restoring a database from a backup file.
 type BackupRestorer struct {
-	url, dst string
+	backupURL string
+	dbPath    string
 }
 
 // NewBackupRestorer creates a new BackupRestorer.
-func NewBackupRestorer(url string, dst string) *BackupRestorer {
-	return &BackupRestorer{
-		url: url,
-		dst: dst,
+func NewBackupRestorer(backupURL string, databaseURL string) (*BackupRestorer, error) {
+	url, err := url.Parse(databaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("parsing database url: %s", err)
 	}
+
+	return &BackupRestorer{
+		backupURL: backupURL,
+		dbPath:    url.Path,
+	}, nil
 }
 
 // Restore restores a database from a backup file URL.
@@ -33,11 +41,11 @@ func (br *BackupRestorer) Restore() error {
 			log.Error().Err(err).Msg("cleaning up")
 		}
 	}()
-	if err := br.downloadBackupFile(br.url, br.dst); err != nil {
+	if err := br.downloadBackupFile(br.backupURL, filepath.Dir(br.dbPath)); err != nil {
 		return fmt.Errorf("download backup file: %s", err)
 	}
 
-	_, err := backup.Decompress(fmt.Sprintf("%s/backup.db.zst", br.dst))
+	_, err := backup.Decompress(fmt.Sprintf("%s/backup.db.zst", filepath.Dir(br.dbPath)))
 	if err != nil {
 		return fmt.Errorf("decompress: %s", err)
 	}
@@ -83,7 +91,7 @@ func (br *BackupRestorer) downloadBackupFile(url, dst string) error {
 }
 
 func (br *BackupRestorer) load() error {
-	in, err := os.Open(fmt.Sprintf("%s/backup.db", br.dst))
+	in, err := os.Open(fmt.Sprintf("%s/backup.db", filepath.Dir(br.dbPath)))
 	if err != nil {
 		return fmt.Errorf("opening file: %s", err)
 	}
@@ -93,7 +101,7 @@ func (br *BackupRestorer) load() error {
 		}
 	}()
 
-	out, err := os.Create(fmt.Sprintf("%s/database.db", br.dst))
+	out, err := os.Create(fmt.Sprintf("%s/%s", filepath.Dir(br.dbPath), filepath.Base(br.dbPath)))
 	if err != nil {
 		return fmt.Errorf("creating file: %s", err)
 	}
@@ -108,10 +116,15 @@ func (br *BackupRestorer) load() error {
 		return fmt.Errorf("copying file: %s", err)
 	}
 
-	db, err := sql.Open("sqlite3", fmt.Sprintf("%s/database.db", br.dst))
+	db, err := sql.Open("sqlite3", fmt.Sprintf("%s/%s", filepath.Dir(br.dbPath), filepath.Base(br.dbPath)))
 	if err != nil {
 		return fmt.Errorf("opening database: %s", err)
 	}
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Error().Err(err).Msg("closing db")
+		}
+	}()
 
 	if _, err := db.Exec("DELETE FROM system_pending_tx;"); err != nil {
 		return fmt.Errorf("deleting rows from system_pending_tx file: %s", err)
@@ -120,11 +133,11 @@ func (br *BackupRestorer) load() error {
 }
 
 func (br *BackupRestorer) cleanUp() error {
-	if err := os.Remove(fmt.Sprintf("%s/backup.db.zst", br.dst)); err != nil {
+	if err := os.Remove(fmt.Sprintf("%s/backup.db.zst", filepath.Dir(br.dbPath))); err != nil {
 		return fmt.Errorf("removing file: %s", err)
 	}
 
-	if err := os.Remove(fmt.Sprintf("%s/backup.db", br.dst)); err != nil {
+	if err := os.Remove(fmt.Sprintf("%s/backup.db", filepath.Dir(br.dbPath))); err != nil {
 		return fmt.Errorf("removing file: %s", err)
 	}
 
