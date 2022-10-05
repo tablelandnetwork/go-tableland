@@ -54,10 +54,9 @@ type config struct {
 			Enabled   bool `default:"true"`
 			KeepFiles int  `default:"5"` // number of files to keep
 		}
-		URL string `default:""`
 	}
 	TelemetryPublisher TelemetryPublisherConfig
-	FromBackup         bool `default:"false" env:"FROM_BACKUP"`
+	BootstrapBackupURL string `default:"" env:"BOOTSTRAP_BACKUP_URL"`
 }
 
 // TelemetryPublisherConfig contains configuration attributes for the telemetry module.
@@ -68,6 +67,12 @@ type TelemetryPublisherConfig struct {
 	PublishingInterval string `default:"10s"`
 
 	ChainStackCollectFrequency string `default:"15m"`
+	TelemetryPublisher         struct {
+		Enabled            bool   `default:"false"`
+		MetricsHubURL      string `default:""`
+		MetricsHubAPIKey   string `default:""`
+		PublishingInterval string `default:"10s"`
+	}
 }
 
 // TableConstraints describes contraints to be enforced for Tableland tables.

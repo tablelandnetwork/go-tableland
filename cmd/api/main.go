@@ -66,8 +66,8 @@ func main() {
 		path.Join(dirPath, "database.db"),
 	)
 
-	if config.FromBackup {
-		restorer, err := restorer.NewBackupRestorer(config.Backup.URL, databaseURL)
+	if config.BootstrapBackupURL != "" {
+		restorer, err := restorer.NewBackupRestorer(config.BootstrapBackupURL, databaseURL)
 		if err != nil {
 			log.Fatal().
 				Err(err).

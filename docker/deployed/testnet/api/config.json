@@ -40,8 +40,7 @@
         "Pruning": {
             "Enabled": true,
             "KeepFiles": 5
-        },
-        "URL" : "https://storage.googleapis.com/tableland-testnet/backups/tbl_backup_latest.db.zst"
+        }
     },
     "TelemetryPublisher": {
         "Enabled": true,
