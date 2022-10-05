@@ -178,6 +178,11 @@ func (db *TelemetryDatabase) executeMigration(dbURI string, as *bindata.AssetSou
 	if err != nil {
 		return fmt.Errorf("creating migration: %s", err)
 	}
+	defer func() {
+		if _, err := m.Close(); err != nil {
+			db.log.Error().Err(err).Msg("closing db migration")
+		}
+	}()
 	version, dirty, err := m.Version()
 	db.log.Info().
 		Uint("dbVersion", version).

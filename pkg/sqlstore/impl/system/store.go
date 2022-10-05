@@ -500,6 +500,11 @@ func (s *SystemStore) executeMigration(dbURI string, as *bindata.AssetSource) er
 	if err != nil {
 		return fmt.Errorf("creating migration: %s", err)
 	}
+	defer func() {
+		if _, err := m.Close(); err != nil {
+			s.log.Error().Err(err).Msg("closing db migration")
+		}
+	}()
 	version, dirty, err := m.Version()
 	s.log.Info().
 		Uint("dbVersion", version).
