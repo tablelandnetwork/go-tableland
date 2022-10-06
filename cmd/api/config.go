@@ -21,9 +21,8 @@ type config struct {
 	Dir                string // This will default to "", NOT the default dir value set via the flag package
 	BootstrapBackupURL string `default:"" env:"BOOTSTRAP_BACKUP_URL"`
 
-	HTTP    HTTPConfig
-	Gateway GatewayConfig
-
+	HTTP             HTTPConfig
+	Gateway          GatewayConfig
 	TableConstraints TableConstraints
 	QueryConstraints QueryConstraints
 
@@ -56,8 +55,9 @@ type HTTPConfig struct {
 
 // GatewayConfig contains configuration for the Gateway.
 type GatewayConfig struct {
-	ExternalURIPrefix   string `default:"https://testnet.tableland.network"`
-	MetadataRendererURI string `default:""`
+	ExternalURIPrefix    string `default:"https://testnet.tableland.network"`
+	MetadataRendererURI  string `default:""`
+	AnimationRendererURI string `default:""`
 }
 
 // BackupConfig contains configuration for automatic database backups.

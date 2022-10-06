@@ -38,11 +38,12 @@ type ColumnSchema struct {
 
 // TableMetadata represents table metadata (OpenSea standard).
 type TableMetadata struct {
-	Name        string                   `json:"name,omitempty"`
-	ExternalURL string                   `json:"external_url"`
-	Image       string                   `json:"image"`
-	Message     string                   `json:"message,omitempty"`
-	Attributes  []TableMetadataAttribute `json:"attributes,omitempty"`
+	Name         string                   `json:"name,omitempty"`
+	ExternalURL  string                   `json:"external_url"`
+	Image        string                   `json:"image"`
+	Message      string                   `json:"message,omitempty"`
+	AnimationURL string                   `json:"animation_url,omitempty"`
+	Attributes   []TableMetadataAttribute `json:"attributes,omitempty"`
 }
 
 // TableMetadataAttribute represents the table metadata attribute.

@@ -30,13 +30,17 @@ const (
 
 	// DefaultMetadataImage is the default image for table's metadata.
 	DefaultMetadataImage = "https://bafkreifhuhrjhzbj4onqgbrmhpysk2mop2jimvdvfut6taiyzt2yqzt43a.ipfs.dweb.link"
+
+	// DefaultAnimationURL is an empty string. It means that the attribute will not appear in the JSON metadata.
+	DefaultAnimationURL = ""
 )
 
 // SystemSQLStoreService implements the SystemService interface using SQLStore.
 type SystemSQLStoreService struct {
-	extURLPrefix        string
-	metadataRendererURI string
-	stores              map[tableland.ChainID]sqlstore.SystemStore
+	extURLPrefix         string
+	metadataRendererURI  string
+	animationRendererURI string
+	stores               map[tableland.ChainID]sqlstore.SystemStore
 }
 
 // NewSystemSQLStoreService creates a new SystemSQLStoreService.
@@ -44,14 +48,16 @@ func NewSystemSQLStoreService(
 	stores map[tableland.ChainID]sqlstore.SystemStore,
 	extURLPrefix string,
 	metadataRendererURI string,
+	animationRendererURI string,
 ) (system.SystemService, error) {
 	if _, err := url.ParseRequestURI(extURLPrefix); err != nil {
 		return nil, fmt.Errorf("invalid external url prefix: %s", err)
 	}
 	return &SystemSQLStoreService{
-		extURLPrefix:        extURLPrefix,
-		metadataRendererURI: metadataRendererURI,
-		stores:              stores,
+		extURLPrefix:         extURLPrefix,
+		metadataRendererURI:  metadataRendererURI,
+		animationRendererURI: animationRendererURI,
+		stores:               stores,
 	}, nil
 }
 
@@ -92,9 +98,10 @@ func (s *SystemSQLStoreService) GetTableMetadata(
 	}
 
 	return sqlstore.TableMetadata{
-		Name:        fmt.Sprintf("%s_%d_%s", table.Prefix, table.ChainID, table.ID),
-		ExternalURL: fmt.Sprintf("%s/chain/%d/tables/%s", s.extURLPrefix, table.ChainID, table.ID),
-		Image:       s.getMetadataImage(table.ChainID, table.ID),
+		Name:         fmt.Sprintf("%s_%d_%s", table.Prefix, table.ChainID, table.ID),
+		ExternalURL:  fmt.Sprintf("%s/chain/%d/tables/%s", s.extURLPrefix, table.ChainID, table.ID),
+		Image:        s.getMetadataImage(table.ChainID, table.ID),
+		AnimationURL: s.getAnimationURL(table.ChainID, table.ID),
 		Attributes: []sqlstore.TableMetadataAttribute{
 			{
 				DisplayType: "date",
@@ -178,6 +185,20 @@ func (s *SystemSQLStoreService) getMetadataImage(chainID tableland.ChainID, tabl
 	}
 
 	return fmt.Sprintf("%s/%d/%s", uri, chainID, tableID)
+}
+
+func (s *SystemSQLStoreService) getAnimationURL(chainID tableland.ChainID, tableID tables.TableID) string {
+	if s.animationRendererURI == "" {
+		return DefaultAnimationURL
+	}
+
+	uri := strings.TrimRight(s.animationRendererURI, "/")
+	if _, err := url.ParseRequestURI(uri); err != nil {
+		log.Warn().Str("uri", uri).Msg("metadata renderer uri could not be parsed")
+		return DefaultAnimationURL
+	}
+
+	return fmt.Sprintf("%s/?chain=%d&id=%s", uri, chainID, tableID)
 }
 
 func (s *SystemSQLStoreService) emptyMetadataImage() string {
