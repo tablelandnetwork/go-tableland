@@ -86,10 +86,12 @@ func (db *TelemetryDatabase) FetchUnpublishedMetrics(ctx context.Context, amount
 		amount,
 	)
 	if err != nil {
-		return []telemetry.Metric{}, fmt.Errorf("query system metrics: %s", err)
+		return nil, fmt.Errorf("query system metrics: %s", err)
 	}
 	defer func() {
-		_ = rows.Close()
+		if err = rows.Close(); err != nil {
+			db.log.Error().Err(err).Msg("closing query rows")
+		}
 	}()
 
 	var metrics []telemetry.Metric
@@ -98,7 +100,7 @@ func (db *TelemetryDatabase) FetchUnpublishedMetrics(ctx context.Context, amount
 		var payload []byte
 		var version int
 		if err := rows.Scan(&rowid, &version, &timestamp, &typ, &payload, &published); err != nil {
-			return []telemetry.Metric{}, fmt.Errorf("scan rows of system metrics: %s", err)
+			return nil, fmt.Errorf("scan rows of system metrics: %s", err)
 		}
 
 		var mPayload interface{}
@@ -107,11 +109,17 @@ func (db *TelemetryDatabase) FetchUnpublishedMetrics(ctx context.Context, amount
 		case telemetry.StateHashType:
 			mPayload = new(telemetry.StateHashMetric)
 			if err := json.Unmarshal(payload, mPayload); err != nil {
-				return []telemetry.Metric{}, fmt.Errorf("scan rows of system metrics: %s", err)
+				return nil, fmt.Errorf("scan rows of system metrics: %s", err)
 			}
 			mType = telemetry.StateHashType
+		case telemetry.GitSummaryType:
+			mPayload = new(telemetry.GitSummaryMetric)
+			if err := json.Unmarshal(payload, mPayload); err != nil {
+				return nil, fmt.Errorf("scan rows of system metrics: %s", err)
+			}
+			mType = telemetry.GitSummaryType
 		default:
-			return []telemetry.Metric{}, fmt.Errorf("unknown metric type: %d", typ)
+			return nil, fmt.Errorf("unknown metric type: %d", typ)
 		}
 
 		metrics = append(metrics, telemetry.Metric{
@@ -121,6 +129,7 @@ func (db *TelemetryDatabase) FetchUnpublishedMetrics(ctx context.Context, amount
 			Type:      mType,
 			Payload:   mPayload,
 		})
+
 	}
 
 	return metrics, nil

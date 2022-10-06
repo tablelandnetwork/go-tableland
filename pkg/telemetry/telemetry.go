@@ -62,7 +62,25 @@ func Collect(ctx context.Context, metric interface{}) error {
 				Hash:        v.Hash(),
 			},
 		}); err != nil {
-			return errors.Errorf("store metric: %s", err)
+			return errors.Errorf("store state hash metric: %s", err)
+		}
+		return nil
+	case GitSummary:
+		if err := metricStore.StoreMetric(ctx, Metric{
+			Version:   1,
+			Timestamp: time.Now().UTC(),
+			Type:      GitSummaryType,
+			Payload: GitSummaryMetric{
+				Version:       1,
+				GitCommit:     v.GetGitCommit(),
+				GitBranch:     v.GetGitBranch(),
+				GitState:      v.GetGitState(),
+				GitSummary:    v.GetGitSummary(),
+				BuildDate:     v.GetBuildDate(),
+				BinaryVersion: v.GetBinaryVersion(),
+			},
+		}); err != nil {
+			return errors.Errorf("store git summary metric: %s", err)
 		}
 		return nil
 	default:
