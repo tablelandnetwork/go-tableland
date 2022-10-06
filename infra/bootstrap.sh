@@ -67,8 +67,12 @@ sudo service google-cloud-ops-agent restart
 sudo su - validator -c 'git clone https://github.com/tablelandnetwork/go-tableland.git /home/validator/go-tableland'
 sudo su - validator -c 'cat /tmp/.env_validator > /home/validator/go-tableland/docker/deployed/testnet/api/.env_validator'
 sudo su - validator -c 'cat /tmp/.env_grafana > /home/validator/go-tableland/docker/deployed/testnet/grafana/.env_grafana'
+sudo su - validator -c 'cat /tmp/.env_healthbot > /home/validator/go-tableland/docker/deployed/testnet/healthbot/.env_healthbot'
+sudo su - validator -c 'cat /tmp/grafana.db > /home/validator/go-tableland/docker/deployed/testnet/grafana/data/grafana.db'
 
-sudo su - validator -c 'cd ~/go-tableland/docker && make testnet-up'
+#sudo su - validator -c 'cd ~/go-tableland/docker && make testnet-up'
 
 sudo rm /tmp/.env_grafana
 sudo rm /tmp/.env_validator
+sudo rm /tmp/.env_healthbot
+sudo rm /tmp/grafana.db
