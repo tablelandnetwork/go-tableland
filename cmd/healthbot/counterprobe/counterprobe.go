@@ -91,14 +91,19 @@ func (cp *CounterProbe) Run(ctx context.Context) {
 	if err := cp.execProbe(ctx); err != nil {
 		cp.log.Error().Err(err).Msg("health check failed")
 	}
+
+	checkInterval := cp.checkInterval
 	for {
 		select {
 		case <-ctx.Done():
 			cp.log.Info().Msg("closing gracefully...")
 			return
-		case <-time.After(cp.checkInterval):
+		case <-time.After(checkInterval):
 			if err := cp.execProbe(ctx); err != nil {
 				cp.log.Error().Err(err).Msg("health check failed")
+				checkInterval = time.Minute
+			} else {
+				checkInterval = cp.checkInterval
 			}
 		}
 	}
