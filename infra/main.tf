@@ -11,6 +11,22 @@ variable "vm_name" {
     type = string
 }
 
+variable "machine_type" {
+    type = string
+}
+
+variable "gcp_project" {
+    type = string
+}
+
+variable "gcp_region" {
+    type = string
+}
+
+variable "gcp_zone" {
+    type = string
+}
+
 variable "user" {
     type = string
 }
@@ -22,16 +38,16 @@ variable "credentials_file" {
 provider "google" {
     credentials = file("${var.credentials_file}")
 
-    project = "textile-310716"
-    region  = "us-west1"
-    zone    = "us-west1-b"
+    project = "${var.gcp_project}"
+    region  = "${var.gcp_region}"
+    zone    = "${var.gcp_zone}"
 }
 
 resource "google_compute_instance" "validator" {
     name         = "${var.vm_name}"
-    machine_type = "e2-standard-2"
-    tags         = ["https-server", "grafana", "ssh-vm"]
-    deletion_protection = false
+    machine_type = "${var.machine_type}"
+    tags         = ["https-server", "grafana", "ssh-vm", "allow-retool-postgres"]
+    deletion_protection = true
 
     boot_disk {
         initialize_params {
@@ -77,8 +93,34 @@ resource "google_compute_instance" "validator" {
     }
 
     provisioner "file" {
+        source      = ".env_healthbot"
+        destination = "/tmp/.env_healthbot"
+
+        connection {
+            type        = "ssh"
+            user        = "${var.user}"
+            timeout     = "500s"
+            private_key = "${file("~/.ssh/google_compute_engine")}"
+            host        = self.network_interface[0].access_config[0].nat_ip
+        }
+    }
+
+    provisioner "file" {
         source      = ".env_grafana"
         destination = "/tmp/.env_grafana"
+
+        connection {
+            type        = "ssh"
+            user        = "${var.user}"
+            timeout     = "500s"
+            private_key = "${file("~/.ssh/google_compute_engine")}"
+            host        = self.network_interface[0].access_config[0].nat_ip
+        }
+    }
+
+    provisioner "file" {
+        source      = "grafana.db"
+        destination = "/tmp/grafana.db"
 
         connection {
             type        = "ssh"
