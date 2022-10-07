@@ -136,7 +136,7 @@
         },
         {
             "Name": "Arbitrum Mainnet",
-            "ChainID": 1,
+            "ChainID": 42161,
             "AllowTransactionRelay": false,
             "Registry": {
                 "EthEndpoint": "https://arb-mainnet.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_ARBITRUM_MAINNET_API_KEY}",
