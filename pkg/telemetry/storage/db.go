@@ -118,6 +118,13 @@ func (db *TelemetryDatabase) FetchUnpublishedMetrics(ctx context.Context, amount
 				return nil, fmt.Errorf("scan rows of system metrics: %s", err)
 			}
 			mType = telemetry.GitSummaryType
+		case telemetry.ChainStacksSummaryType:
+			mPayload = new(telemetry.ChainStacksMetric)
+			if err := json.Unmarshal(payload, mPayload); err != nil {
+				return nil, fmt.Errorf("scan rows of system metrics: %s", err)
+			}
+			mType = telemetry.ChainStacksSummaryType
+
 		default:
 			return nil, fmt.Errorf("unknown metric type: %d", typ)
 		}

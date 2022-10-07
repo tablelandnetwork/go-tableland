@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/textileio/go-tableland/internal/tableland"
 )
 
 // MetricType defines the metric type.
@@ -15,6 +16,8 @@ const (
 	StateHashType MetricType = iota
 	// GitSummaryType is the type for the GitSummaryMetric.
 	GitSummaryType
+	// ChainStacksSummaryType is the type for the ChainStacksMetric.
+	ChainStacksSummaryType
 )
 
 // Metric defines a metric.
@@ -72,4 +75,16 @@ type GitSummaryMetric struct {
 	GitSummary    string `json:"git_summary"`
 	BuildDate     string `json:"build_date"`
 	BinaryVersion string `json:"binary_version"`
+}
+
+// ChainStacksSummary defines how data is accessed to create a ChainStacksMetric.
+type ChainStacksSummary interface {
+	GetLastProcessedBlockNumber() map[tableland.ChainID]int64
+}
+
+// ChainStacksMetric contains information about each chain being synced.
+type ChainStacksMetric struct {
+	Version int `json:"version"`
+
+	LastProcessedBlockNumbers map[tableland.ChainID]int64 `json:"last_processed_block_number"`
 }

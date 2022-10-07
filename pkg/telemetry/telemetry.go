@@ -83,6 +83,19 @@ func Collect(ctx context.Context, metric interface{}) error {
 			return errors.Errorf("store git summary metric: %s", err)
 		}
 		return nil
+	case ChainStacksSummary:
+		if err := metricStore.StoreMetric(ctx, Metric{
+			Version:   1,
+			Timestamp: time.Now().UTC(),
+			Type:      ChainStacksSummaryType,
+			Payload: ChainStacksMetric{
+				Version:                   1,
+				LastProcessedBlockNumbers: v.GetLastProcessedBlockNumber(),
+			},
+		}); err != nil {
+			return errors.Errorf("store git summary metric: %s", err)
+		}
+		return nil
 	default:
 		return fmt.Errorf("unknown metric type %T", v)
 	}

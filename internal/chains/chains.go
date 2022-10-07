@@ -3,6 +3,7 @@ package chains
 import (
 	"context"
 
+	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/tables"
 )
@@ -11,6 +12,7 @@ import (
 type ChainStack struct {
 	Store                 sqlstore.SystemStore
 	Registry              tables.TablelandTables
+	EventProcessor        eventprocessor.EventProcessor
 	AllowTransactionRelay bool
 
 	// close gracefully closes all the chain stack components.

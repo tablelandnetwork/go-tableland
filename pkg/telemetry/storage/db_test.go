@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/telemetry"
 	"github.com/textileio/go-tableland/pkg/telemetry/publisher"
 
@@ -113,7 +114,52 @@ func TestCollectAndFetchAndPublish(t *testing.T) {
 
 		p.Close()
 	})
+	t.Run("chains stack summary", func(t *testing.T) {
+		// collect two mocked chainsStackSummary metrics
+		chainsStackSummaryMetrics := [2]chainsStackSummary{
+			map[tableland.ChainID]int64{1: 10, 2: 20},
+			map[tableland.ChainID]int64{1: 11, 2: 21},
+		}
+		require.NoError(t, telemetry.Collect(context.Background(), chainsStackSummaryMetrics[0]))
+		require.NoError(t, telemetry.Collect(context.Background(), chainsStackSummaryMetrics[1]))
+
+		metrics, err := s.FetchUnpublishedMetrics(context.Background(), 10)
+		require.NoError(t, err)
+		require.Len(t, metrics, 2)
+
+		for i, metric := range metrics {
+			require.Equal(t, telemetry.ChainStacksSummaryType, metric.Type)
+			require.Equal(t, 1, metric.Version)
+			require.False(t, metric.Timestamp.IsZero())
+
+			css := metric.Payload.(*telemetry.ChainStacksMetric)
+			require.Equal(t, chainsStackSummaryMetrics[i].GetLastProcessedBlockNumber(), css.LastProcessedBlockNumbers)
+		}
+
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer ts.Close()
+
+		exporter, err := publisher.NewHTTPExporter(ts.URL, "")
+		require.NoError(t, err)
+		nodeID := strings.Replace(uuid.NewString(), "-", "", -1)
+		p := publisher.NewPublisher(s, exporter, nodeID, time.Second)
+		p.Start()
+
+		require.Eventually(t, func() bool {
+			metrics, err = s.FetchUnpublishedMetrics(context.Background(), 2)
+			require.NoError(t, err)
+			return len(metrics) == 0
+		}, 5*time.Second, time.Second)
+
+		p.Close()
+	})
 }
+
+type chainsStackSummary map[tableland.ChainID]int64
+
+func (css chainsStackSummary) GetLastProcessedBlockNumber() map[tableland.ChainID]int64 { return css }
 
 type gitSummary struct{}
 

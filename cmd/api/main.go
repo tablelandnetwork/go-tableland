@@ -39,6 +39,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/telemetry"
+	"github.com/textileio/go-tableland/pkg/telemetry/chainscollector"
 	"github.com/textileio/go-tableland/pkg/telemetry/publisher"
 	"github.com/textileio/go-tableland/pkg/telemetry/storage"
 	"github.com/textileio/go-tableland/pkg/wallet"
@@ -222,7 +223,7 @@ func main() {
 
 	log.Info().Str("node_id", nodeID).Msg("node info")
 
-	closeTelemetryModule, err := configureTelemetry(nodeID, dirPath, config.TelemetryPublisher)
+	closeTelemetryModule, err := configureTelemetry(nodeID, dirPath, chainStacks, config.TelemetryPublisher)
 	if err != nil {
 		log.Fatal().Err(err).Msg("configuring telemetry")
 	}
@@ -379,6 +380,7 @@ func createChainIDStack(
 	return chains.ChainStack{
 		Store:                 systemStore,
 		Registry:              registry,
+		EventProcessor:        ep,
 		AllowTransactionRelay: config.AllowTransactionRelay,
 		Close: func(ctx context.Context) error {
 			log.Info().Int64("chain_id", int64(config.ChainID)).Msg("closing stack...")
@@ -395,7 +397,12 @@ func createChainIDStack(
 	}, nil
 }
 
-func configureTelemetry(nodeID string, dirPath string, config TelemetryPublisherConfig) (moduleClose, error) {
+func configureTelemetry(
+	nodeID string,
+	dirPath string,
+	chainStacks map[tableland.ChainID]chains.ChainStack,
+	config TelemetryPublisherConfig,
+) (moduleClose, error) {
 	// Wiring
 	metricsDatabaseURL := fmt.Sprintf(
 		"file://%s?_busy_timeout=5000&_foreign_keys=on&_journal_mode=WAL",
@@ -423,10 +430,36 @@ func configureTelemetry(nodeID string, dirPath string, config TelemetryPublisher
 		metricsPublisher = publisher.NewPublisher(metricsStore, exporter, nodeID, publishingInterval)
 		metricsPublisher.Start()
 	}
-
 	telemetry.SetMetricStore(metricsStore)
 
+	// Collect binary information.
+	ctx, cls := context.WithTimeout(context.Background(), time.Second)
+	defer cls()
+	if err := telemetry.Collect(ctx, buildinfo.GetSummary()); err != nil {
+		return nil, fmt.Errorf("collect git summary: %s", err)
+	}
+
+	collectFrequency, err := time.ParseDuration(config.ChainStackCollectFrequency)
+	if err != nil {
+		return nil, fmt.Errorf("invalid chain stack collect frequency configuration: %s", err)
+	}
+	ctxChainStackCollector, clsChainStackCollector := context.WithCancel(context.Background())
+	chainStackCollectorClosed := make(chan struct{})
+	cc, err := chainscollector.New(chainStacks, collectFrequency)
+	if err != nil {
+		clsChainStackCollector()
+		return nil, fmt.Errorf("configure chains collector: %s", err)
+	}
+	go func() {
+		cc.Start(ctxChainStackCollector)
+		close(chainStackCollectorClosed)
+	}()
+
+	// Module closing function
 	close := func(ctx context.Context) error {
+		clsChainStackCollector()
+		<-chainStackCollectorClosed
+
 		if err := metricsStore.Close(); err != nil {
 			return fmt.Errorf("closing metrics store: %s", err)
 		}
@@ -435,13 +468,6 @@ func configureTelemetry(nodeID string, dirPath string, config TelemetryPublisher
 		}
 
 		return nil
-	}
-
-	// Collect binary information.
-	ctx, cls := context.WithTimeout(context.Background(), time.Second)
-	defer cls()
-	if err := telemetry.Collect(ctx, buildinfo.GetSummary()); err != nil {
-		return nil, fmt.Errorf("collect git summary: %s", err)
 	}
 
 	return close, nil

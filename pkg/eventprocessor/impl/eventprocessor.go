@@ -112,6 +112,15 @@ func (ep *EventProcessor) Start() error {
 	return nil
 }
 
+func (ep *EventProcessor) GetLastExecutedBlockNumber(ctx context.Context) (int64, error) {
+	blockNumber, err := ep.executor.GetLastExecutedBlockNumber(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("get last executed block number: %s", err)
+	}
+
+	return blockNumber, nil
+}
+
 // Stop stops processing new events.
 func (ep *EventProcessor) Stop() {
 	ep.lock.Lock()
