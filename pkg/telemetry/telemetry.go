@@ -93,7 +93,7 @@ func Collect(ctx context.Context, metric interface{}) error {
 				LastProcessedBlockNumbers: v.GetLastProcessedBlockNumber(),
 			},
 		}); err != nil {
-			return errors.Errorf("store git summary metric: %s", err)
+			return errors.Errorf("store chains stacks summary metric: %s", err)
 		}
 		return nil
 	default:
