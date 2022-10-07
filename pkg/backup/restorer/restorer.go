@@ -101,6 +101,18 @@ func (br *BackupRestorer) load() error {
 		}
 	}()
 
+	if err := os.Remove(fmt.Sprintf("%s/%s", filepath.Dir(br.dbPath), filepath.Base(br.dbPath))); err != nil {
+		log.Warn().Err(err).Msg("removing database file")
+	}
+
+	if err := os.Remove(fmt.Sprintf("%s/%s-wal", filepath.Dir(br.dbPath), filepath.Base(br.dbPath))); err != nil {
+		log.Warn().Err(err).Msg("removing database wal file")
+	}
+
+	if err := os.Remove(fmt.Sprintf("%s/%s-shm", filepath.Dir(br.dbPath), filepath.Base(br.dbPath))); err != nil {
+		log.Warn().Err(err).Msg("removing database shm file")
+	}
+
 	out, err := os.Create(fmt.Sprintf("%s/%s", filepath.Dir(br.dbPath), filepath.Base(br.dbPath)))
 	if err != nil {
 		return fmt.Errorf("creating file: %s", err)
