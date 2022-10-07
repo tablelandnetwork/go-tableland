@@ -58,6 +58,7 @@ type config struct {
 	TelemetryPublisher TelemetryPublisherConfig
 }
 
+// TelemetryPublisherConfig contains configuration attributes for the telemetry module.
 type TelemetryPublisherConfig struct {
 	Enabled            bool   `default:"false"`
 	MetricsHubURL      string `default:""`

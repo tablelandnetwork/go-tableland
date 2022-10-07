@@ -456,7 +456,7 @@ func configureTelemetry(
 	}()
 
 	// Module closing function
-	close := func(ctx context.Context) error {
+	return func(ctx context.Context) error {
 		clsChainStackCollector()
 		<-chainStackCollectorClosed
 
@@ -468,7 +468,5 @@ func configureTelemetry(
 		}
 
 		return nil
-	}
-
-	return close, nil
+	}, nil
 }

@@ -38,9 +38,20 @@ func GetSummary() Summary {
 	return summary
 }
 
-func (s Summary) GetGitCommit() string     { return s.GitCommit }
-func (s Summary) GetGitBranch() string     { return s.GitBranch }
-func (s Summary) GetGitState() string      { return s.GitState }
-func (s Summary) GetGitSummary() string    { return s.GitSummary }
-func (s Summary) GetBuildDate() string     { return s.BuildDate }
+// GetGitCommit returns the GitCommit.
+func (s Summary) GetGitCommit() string { return s.GitCommit }
+
+// GetGitBranch returns the GitBranch.
+func (s Summary) GetGitBranch() string { return s.GitBranch }
+
+// GetGitState returns the GitState.
+func (s Summary) GetGitState() string { return s.GitState }
+
+// GetGitSummary returns the GitSummary.
+func (s Summary) GetGitSummary() string { return s.GitSummary }
+
+// GetBuildDate returns the build date.
+func (s Summary) GetBuildDate() string { return s.BuildDate }
+
+// GetBinaryVersion returns the binary version.
 func (s Summary) GetBinaryVersion() string { return s.Version }

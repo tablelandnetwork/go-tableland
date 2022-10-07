@@ -12,13 +12,18 @@ import (
 	"github.com/textileio/go-tableland/pkg/telemetry"
 )
 
+// ChainsCollector captures metrics from chains stacks with a defined frequency.
 type ChainsCollector struct {
 	log              zerolog.Logger
 	chainStacks      map[tableland.ChainID]chains.ChainStack
 	collectFrequency time.Duration
 }
 
-func New(chainStacks map[tableland.ChainID]chains.ChainStack, collectFrequency time.Duration) (*ChainsCollector, error) {
+// New returns a new *ChainsCollector.
+func New(
+	chainStacks map[tableland.ChainID]chains.ChainStack,
+	collectFrequency time.Duration,
+) (*ChainsCollector, error) {
 	if collectFrequency <= time.Second {
 		return nil, fmt.Errorf("collect frequency should be greater than one second")
 	}
@@ -29,6 +34,7 @@ func New(chainStacks map[tableland.ChainID]chains.ChainStack, collectFrequency t
 	}, nil
 }
 
+// Start starts collecting chains stack telemetry metrics until the context is canceled.
 func (cc *ChainsCollector) Start(ctx context.Context) {
 	for {
 		select {

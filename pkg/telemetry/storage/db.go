@@ -136,7 +136,6 @@ func (db *TelemetryDatabase) FetchUnpublishedMetrics(ctx context.Context, amount
 			Type:      mType,
 			Payload:   mPayload,
 		})
-
 	}
 
 	return metrics, nil

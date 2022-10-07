@@ -65,7 +65,7 @@ type GitSummary interface {
 	GetBinaryVersion() string
 }
 
-// GitSummary contains Git information of the binary.
+// GitSummaryMetric contains Git information of the binary.
 type GitSummaryMetric struct {
 	Version int `json:"version"`
 
