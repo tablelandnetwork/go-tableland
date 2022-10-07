@@ -67,12 +67,6 @@ type TelemetryPublisherConfig struct {
 	PublishingInterval string `default:"10s"`
 
 	ChainStackCollectFrequency string `default:"15m"`
-	TelemetryPublisher         struct {
-		Enabled            bool   `default:"false"`
-		MetricsHubURL      string `default:""`
-		MetricsHubAPIKey   string `default:""`
-		PublishingInterval string `default:"10s"`
-	}
 }
 
 // TableConstraints describes contraints to be enforced for Tableland tables.
