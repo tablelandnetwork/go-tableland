@@ -56,6 +56,7 @@ type config struct {
 		}
 	}
 	TelemetryPublisher TelemetryPublisherConfig
+	BootstrapBackupURL string `default:"" env:"BOOTSTRAP_BACKUP_URL"`
 }
 
 // TelemetryPublisherConfig contains configuration attributes for the telemetry module.

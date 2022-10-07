@@ -24,6 +24,7 @@ import (
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/internal/tableland/impl"
 	"github.com/textileio/go-tableland/pkg/backup"
+	"github.com/textileio/go-tableland/pkg/backup/restorer"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
@@ -64,6 +65,24 @@ func main() {
 		"file://%s?_busy_timeout=5000&_foreign_keys=on&_journal_mode=WAL",
 		path.Join(dirPath, "database.db"),
 	)
+
+	if config.BootstrapBackupURL != "" {
+		restorer, err := restorer.NewBackupRestorer(config.BootstrapBackupURL, databaseURL)
+		if err != nil {
+			log.Fatal().
+				Err(err).
+				Msg("creating restorer")
+		}
+
+		log.Info().Msg("starting backup restore")
+		elapsedTime := time.Now()
+		if err := restorer.Restore(); err != nil {
+			log.Fatal().
+				Err(err).
+				Msg("backup restoration failed")
+		}
+		log.Info().Float64("elapsed_time_seconds", time.Since(elapsedTime).Seconds()).Msg("backup restore finished")
+	}
 
 	parserOpts := []parsing.Option{
 		parsing.WithMaxReadQuerySize(config.QueryConstraints.MaxReadQuerySize),

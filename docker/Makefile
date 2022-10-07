@@ -16,6 +16,7 @@ staging-up:
 	USER=$(shell id -u) \
 	ENVIRONMENT=deployed/staging \
 	COMPOSE_DOCKER_CLI_BUILD=1 \
+	BOOTSTRAP_BACKUP_URL=${BOOTSTRAP_BACKUP_URL} \
 	docker compose -f docker-compose.yml -f deployed/docker-compose.observability.yml $(HEALTHBOT_OVERRIDE) up --build --remove-orphans --detach
 .PHONY: staging-up
 
@@ -31,6 +32,7 @@ testnet-up:
 	USER=$(shell id -u) \
 	ENVIRONMENT=deployed/testnet \
 	COMPOSE_DOCKER_CLI_BUILD=1 \
+	BOOTSTRAP_BACKUP_URL=${BOOTSTRAP_BACKUP_URL} \
 	docker compose -f docker-compose.yml -f deployed/docker-compose.observability.yml $(HEALTHBOT_OVERRIDE) up --build --remove-orphans --detach
 .PHONY: testnet-up
 
