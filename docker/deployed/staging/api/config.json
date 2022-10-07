@@ -45,7 +45,8 @@
     "Enabled": true,
     "MetricsHubURL": "https://metricshub-staging-mrgr43cf5q-uw.a.run.app",
     "MetricsHubApiKey": "${METRICS_HUB_API_KEY}",
-    "PublishingInterval": "10s"
+    "PublishingInterval": "10s",
+    "ChainStackCollectFrequency": "15m"
   },
   "Chains": [
     {

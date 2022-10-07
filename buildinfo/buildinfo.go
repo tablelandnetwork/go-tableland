@@ -25,7 +25,7 @@ type Summary struct {
 	Version    string
 }
 
-// GetSummary returns a JSON string with a summary of git information.
+// GetSummary returns a summary of git information.
 func GetSummary() Summary {
 	summary := Summary{
 		GitCommit:  GitCommit,
@@ -37,3 +37,21 @@ func GetSummary() Summary {
 	}
 	return summary
 }
+
+// GetGitCommit returns the GitCommit.
+func (s Summary) GetGitCommit() string { return s.GitCommit }
+
+// GetGitBranch returns the GitBranch.
+func (s Summary) GetGitBranch() string { return s.GitBranch }
+
+// GetGitState returns the GitState.
+func (s Summary) GetGitState() string { return s.GitState }
+
+// GetGitSummary returns the GitSummary.
+func (s Summary) GetGitSummary() string { return s.GitSummary }
+
+// GetBuildDate returns the build date.
+func (s Summary) GetBuildDate() string { return s.BuildDate }
+
+// GetBinaryVersion returns the binary version.
+func (s Summary) GetBinaryVersion() string { return s.Version }

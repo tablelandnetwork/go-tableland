@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/textileio/go-tableland/internal/tableland"
 )
 
 func TestCollectWithoutStore(t *testing.T) {
@@ -22,6 +23,25 @@ func TestCollectMockedtStore(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, s.called)
 	})
+	t.Run("git summary", func(t *testing.T) {
+		s := &store{}
+		metricStore = s
+
+		require.False(t, s.called)
+		err := Collect(context.Background(), gitSummary{})
+		require.NoError(t, err)
+		require.True(t, s.called)
+	})
+	t.Run("chains stack summary", func(t *testing.T) {
+		s := &store{}
+		metricStore = s
+
+		require.False(t, s.called)
+
+		err := Collect(context.Background(), chainsStackSummary(map[tableland.ChainID]int64{1: 10, 2: 20}))
+		require.NoError(t, err)
+		require.True(t, s.called)
+	})
 }
 
 func TestCollectUnknownMetric(t *testing.T) {
@@ -33,19 +53,24 @@ func TestCollectUnknownMetric(t *testing.T) {
 	require.ErrorContains(t, err, "unknown metric")
 }
 
+type chainsStackSummary map[tableland.ChainID]int64
+
+func (css chainsStackSummary) GetLastProcessedBlockNumber() map[tableland.ChainID]int64 { return css }
+
+type gitSummary struct{}
+
+func (gs gitSummary) GetGitCommit() string     { return "fakeGitCommit" }
+func (gs gitSummary) GetGitBranch() string     { return "fakeGitBranch" }
+func (gs gitSummary) GetGitState() string      { return "fakeGitState" }
+func (gs gitSummary) GetGitSummary() string    { return "fakeGitSummary" }
+func (gs gitSummary) GetBuildDate() string     { return "fakeGitDate" }
+func (gs gitSummary) GetBinaryVersion() string { return "fakeBinaryVersion" }
+
 type stateHash struct{}
 
-func (h stateHash) ChainID() int64 {
-	return 1
-}
-
-func (h stateHash) BlockNumber() int64 {
-	return 1
-}
-
-func (h stateHash) Hash() string {
-	return "abcdefgh"
-}
+func (h stateHash) ChainID() int64     { return 1 }
+func (h stateHash) BlockNumber() int64 { return 1 }
+func (h stateHash) Hash() string       { return "abcdefgh" }
 
 type store struct {
 	called bool
