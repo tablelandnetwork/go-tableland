@@ -135,6 +135,34 @@
             "HashCalculationStep": 150
         },
         {
+            "Name": "Arbitrum Mainnet",
+            "ChainID": 1,
+            "AllowTransactionRelay": false,
+            "Registry": {
+                "EthEndpoint": "https://arb-mainnet.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_ARBITRUM_MAINNET_API_KEY}",
+                "ContractAddress": "<TBD>"
+            },
+            "Signer": {
+                "PrivateKey": "${VALIDATOR_ARBITRUM_MAINNET_SIGNER_PRIVATE_KEY}"
+            },
+            "EventFeed": {
+                "ChainAPIBackoff": "15s",
+                "NewBlockPollFreq": "5s",
+                "MinBlockDepth": 0,
+                "PersistEvents": true
+            },
+            "EventProcessor": {
+                "BlockFailedExecutionBackoff": "10s",
+                "DedupExecutedTxns": true
+            },
+            "NonceTracker": {
+                "CheckInterval": "20s",
+                "StuckInterval": "10m",
+                "MinBlockDepth": 0
+            },
+            "HashCalculationStep": 450
+        },
+        {
             "Name": "Polygon Mainnet",
             "ChainID": 137,
             "AllowTransactionRelay": false,
