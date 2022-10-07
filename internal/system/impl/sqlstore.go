@@ -53,6 +53,21 @@ func NewSystemSQLStoreService(
 	if _, err := url.ParseRequestURI(extURLPrefix); err != nil {
 		return nil, fmt.Errorf("invalid external url prefix: %s", err)
 	}
+
+	metadataRendererURI = strings.TrimRight(metadataRendererURI, "/")
+	if metadataRendererURI != "" {
+		if _, err := url.ParseRequestURI(metadataRendererURI); err != nil {
+			return nil, fmt.Errorf("metadata renderer uri could not be parsed: %s", err)
+		}
+	}
+
+	animationRendererURI = strings.TrimRight(animationRendererURI, "/")
+	if animationRendererURI != "" {
+		if _, err := url.ParseRequestURI(animationRendererURI); err != nil {
+			return nil, fmt.Errorf("animation renderer uri could not be parsed: %s", err)
+		}
+	}
+
 	return &SystemSQLStoreService{
 		extURLPrefix:         extURLPrefix,
 		metadataRendererURI:  metadataRendererURI,
@@ -178,27 +193,14 @@ func (s *SystemSQLStoreService) getMetadataImage(chainID tableland.ChainID, tabl
 		return DefaultMetadataImage
 	}
 
-	uri := strings.TrimRight(s.metadataRendererURI, "/")
-	if _, err := url.ParseRequestURI(uri); err != nil {
-		log.Warn().Str("uri", uri).Msg("metadata renderer uri could not be parsed")
-		return DefaultMetadataImage
-	}
-
-	return fmt.Sprintf("%s/%d/%s", uri, chainID, tableID)
+	return fmt.Sprintf("%s/%d/%s", s.metadataRendererURI, chainID, tableID)
 }
 
 func (s *SystemSQLStoreService) getAnimationURL(chainID tableland.ChainID, tableID tables.TableID) string {
 	if s.animationRendererURI == "" {
 		return DefaultAnimationURL
 	}
-
-	uri := strings.TrimRight(s.animationRendererURI, "/")
-	if _, err := url.ParseRequestURI(uri); err != nil {
-		log.Warn().Str("uri", uri).Msg("metadata renderer uri could not be parsed")
-		return DefaultAnimationURL
-	}
-
-	return fmt.Sprintf("%s/?chain=%d&id=%s", uri, chainID, tableID)
+	return fmt.Sprintf("%s/?chain=%d&id=%s", s.animationRendererURI, chainID, tableID)
 }
 
 func (s *SystemSQLStoreService) emptyMetadataImage() string {

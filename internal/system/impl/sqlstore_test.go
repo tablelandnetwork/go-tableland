@@ -255,23 +255,15 @@ func TestGetMetadata(t *testing.T) {
 	t.Run("with wrong metadata uri", func(t *testing.T) {
 		t.Parallel()
 
-		svc, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables", "foo", "")
-		require.NoError(t, err)
-
-		metadata, err := svc.GetTableMetadata(ctx, id)
-		require.NoError(t, err)
-
-		require.Equal(t, "foo_1337_42", metadata.Name)
-		require.Equal(t, fmt.Sprintf("https://tableland.network/tables/chain/%d/tables/%s", 1337, id), metadata.ExternalURL)
-		require.Equal(t, DefaultMetadataImage, metadata.Image)
-		require.Equal(t, "date", metadata.Attributes[0].DisplayType)
-		require.Equal(t, "created", metadata.Attributes[0].TraitType)
+		_, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables", "foo", "")
+		require.Error(t, err)
+		require.ErrorContains(t, err, "metadata renderer uri could not be parsed")
 	})
 
 	t.Run("non existent table", func(t *testing.T) {
 		t.Parallel()
 
-		svc, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables", "foo", "")
+		svc, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables", "https://render.tableland.xyz", "")
 		require.NoError(t, err)
 
 		id, _ := tables.NewTableID("43")
