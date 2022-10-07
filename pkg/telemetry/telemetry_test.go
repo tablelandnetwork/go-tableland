@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/textileio/go-tableland/internal/tableland"
 )
 
 func TestCollectWithoutStore(t *testing.T) {
@@ -31,6 +32,16 @@ func TestCollectMockedtStore(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, s.called)
 	})
+	t.Run("chains stack summary", func(t *testing.T) {
+		s := &store{}
+		metricStore = s
+
+		require.False(t, s.called)
+
+		err := Collect(context.Background(), chainsStackSummary(map[tableland.ChainID]int64{1: 10, 2: 20}))
+		require.NoError(t, err)
+		require.True(t, s.called)
+	})
 }
 
 func TestCollectUnknownMetric(t *testing.T) {
@@ -41,6 +52,10 @@ func TestCollectUnknownMetric(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorContains(t, err, "unknown metric")
 }
+
+type chainsStackSummary map[tableland.ChainID]int64
+
+func (css chainsStackSummary) GetLastProcessedBlockNumber() map[tableland.ChainID]int64 { return css }
 
 type gitSummary struct{}
 
