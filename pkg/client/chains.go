@@ -87,7 +87,7 @@ var Chains = struct {
 	Arbitrum: Chain{
 		Endpoint:     testnetURL,
 		ID:           ChainIDs.Arbitrum,
-		ContractAddr: common.HexToAddress("TBD"),
+		ContractAddr: common.HexToAddress("0x9aBd75E8640871A5a20d3B4eE6330a04c962aFfd"),
 	},
 	PolygonMumbai: Chain{
 		Endpoint:     testnetURL,
