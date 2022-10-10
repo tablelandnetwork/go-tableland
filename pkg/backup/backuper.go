@@ -247,6 +247,7 @@ func open(uri string) (DB, error) {
 	if err != nil {
 		return nil, errors.Errorf("opening db: %s", err)
 	}
+	db.SetMaxIdleConns(0)
 	db.SetMaxOpenConns(1)
 
 	if err := db.Ping(); err != nil {
