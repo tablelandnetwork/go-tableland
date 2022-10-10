@@ -20,6 +20,7 @@ var ChainIDs = struct {
 	EthereumGoerli ChainID
 	OptimismGoerli ChainID
 	ArbitrumGoerli ChainID
+	Arbitrum       ChainID
 	PolygonMumbai  ChainID
 	Local          ChainID
 }{
@@ -29,6 +30,7 @@ var ChainIDs = struct {
 	EthereumGoerli: 5,
 	OptimismGoerli: 420,
 	ArbitrumGoerli: 421613,
+	Arbitrum:       42161,
 	PolygonMumbai:  80001,
 	Local:          31337,
 }
@@ -45,6 +47,7 @@ var Chains = struct {
 	Ethereum       Chain
 	Optimism       Chain
 	Polygon        Chain
+	Arbitrum       Chain
 	EthereumGoerli Chain
 	OptimismGoerli Chain
 	ArbitrumGoerli Chain
@@ -81,6 +84,11 @@ var Chains = struct {
 		ID:           ChainIDs.ArbitrumGoerli,
 		ContractAddr: common.HexToAddress("0x033f69e8d119205089Ab15D340F5b797732f646b"),
 	},
+	Arbitrum: Chain{
+		Endpoint:     testnetURL,
+		ID:           ChainIDs.Arbitrum,
+		ContractAddr: common.HexToAddress("0x9aBd75E8640871A5a20d3B4eE6330a04c962aFfd"),
+	},
 	PolygonMumbai: Chain{
 		Endpoint:     testnetURL,
 		ID:           ChainIDs.PolygonMumbai,
@@ -103,7 +111,8 @@ var infuraURLs = map[ChainID]string{
 	ChainIDs.Ethereum:       "https://mainnet.infura.io/v3/%s",
 	ChainIDs.OptimismGoerli: "https://optimism-goerli.infura.io/v3/%s",
 	ChainIDs.Optimism:       "https://optimism-mainnet.infura.io/v3/%s",
-	ChainIDs.ArbitrumGoerli: "https://arbitrim-goerli.infura.io/v3/%s", // TODO: Check this, requires upgrade.
+	ChainIDs.ArbitrumGoerli: "https://arbitrum-goerli.infura.io/v3/%s",
+	ChainIDs.Arbitrum:       "https://arbitrum-mainnet.infura.io/v3/%s",
 	ChainIDs.PolygonMumbai:  "https://polygon-mumbai.infura.io/v3/%s",
 	ChainIDs.Polygon:        "https://polygon-mainnet.infura.io/v3/%s",
 }
@@ -114,6 +123,7 @@ var alchemyURLs = map[ChainID]string{
 	ChainIDs.OptimismGoerli: "https://opt-goerli.g.alchemy.com/v2/%s",
 	ChainIDs.Optimism:       "https://opt-mainnet.g.alchemy.com/v2/%s",
 	ChainIDs.ArbitrumGoerli: "https://arb-goerli.g.alchemy.com/v2/%s",
+	ChainIDs.Arbitrum:       "https://arb-goerli.g.alchemy.com/v2/%s",
 	ChainIDs.PolygonMumbai:  "https://polygon-mumbai.g.alchemy.com/v2/%s",
 	ChainIDs.Polygon:        "https://polygon-mainnet.g.alchemy.com/v2/%s",
 }
