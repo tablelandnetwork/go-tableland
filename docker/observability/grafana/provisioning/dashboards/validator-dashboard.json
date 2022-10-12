@@ -690,7 +690,7 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 3,
+        "w": 4,
         "x": 10,
         "y": 15
       },
@@ -716,7 +716,10 @@
             "type": "prometheus",
             "uid": "P1809F7CD0C75ACF3"
           },
+          "editorMode": "code",
           "expr": "runtime_uptime",
+          "legendFormat": "{{job}}",
+          "range": true,
           "refId": "A"
         }
       ],
@@ -2574,9 +2577,9 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "process_runtime_go_mem_heap_inuse{job=\"validator\"}",
+          "expr": "process_runtime_go_mem_heap_inuse",
           "interval": "",
-          "legendFormat": "Heap in use",
+          "legendFormat": "{{job}}",
           "range": true,
           "refId": "A"
         }
@@ -2667,9 +2670,9 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "process_runtime_go_goroutines{job=\"validator\"}",
+          "expr": "process_runtime_go_goroutines",
           "interval": "",
-          "legendFormat": "goroutines",
+          "legendFormat": "{{job}}",
           "range": true,
           "refId": "A"
         }
@@ -2760,9 +2763,9 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "rate(process_runtime_go_gc_count{job=\"validator\"}[5m])",
+          "expr": "rate(process_runtime_go_gc_count[5m])",
           "interval": "",
-          "legendFormat": "gc/s",
+          "legendFormat": "{{job}}",
           "range": true,
           "refId": "A"
         }
@@ -2853,9 +2856,9 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "avg_over_time(process_runtime_go_mem_live_objects{job=\"validator\"}[5m])",
+          "expr": "avg_over_time(process_runtime_go_mem_live_objects[5m])",
           "interval": "",
-          "legendFormat": "objects",
+          "legendFormat": "{{job}}",
           "range": true,
           "refId": "A"
         }
@@ -2879,6 +2882,6 @@
   "timezone": "",
   "title": "Validator",
   "uid": "2Le7qt_7z",
-  "version": 14,
+  "version": 18,
   "weekStart": ""
 }
