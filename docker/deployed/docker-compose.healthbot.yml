@@ -4,8 +4,6 @@ services:
       context: ..
       dockerfile: ./cmd/healthbot/Dockerfile
     platform: linux/${PLATFORM}
-    environment:
-      - OTEL_SERVICE_NAME=tableland:healthbot # this is just to the unknown_service from the metrics label
     env_file:
       - ${PWD}/${ENVIRONMENT}/healthbot/.env_healthbot
     volumes:

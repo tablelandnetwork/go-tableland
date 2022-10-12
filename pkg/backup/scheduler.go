@@ -8,6 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 	logger "github.com/rs/zerolog/log"
+	"github.com/textileio/go-tableland/pkg/metrics"
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/metric/instrument"
 )
@@ -131,7 +132,7 @@ func (s *Scheduler) initMetrics() error {
 
 	if err := meter.RegisterCallback([]instrument.Asynchronous{mLastExecution}, func(ctx context.Context) {
 		if !s.mLastExecution.IsZero() {
-			mLastExecution.Observe(ctx, s.mLastExecution.Unix())
+			mLastExecution.Observe(ctx, s.mLastExecution.Unix(), metrics.BaseAttrs...)
 		}
 	}); err != nil {
 		return fmt.Errorf("registering callback on instruments: %s", err)

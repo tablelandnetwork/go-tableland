@@ -54,7 +54,7 @@ func main() {
 	logging.SetupLogger(buildinfo.GitCommit, config.Log.Debug, config.Log.Human)
 
 	// Validator instrumentation configuration.
-	if err := metrics.SetupInstrumentation(":" + config.Metrics.Port); err != nil {
+	if err := metrics.SetupInstrumentation(":"+config.Metrics.Port, "tableland:api"); err != nil {
 		log.Fatal().
 			Err(err).
 			Str("port", config.Metrics.Port).
@@ -108,9 +108,10 @@ func main() {
 		log.Fatal().Err(err).Msg("creating executors db")
 	}
 	executorsDB.SetMaxOpenConns(1)
+	attrs := append([]attribute.KeyValue{attribute.String("name", "executors")}, metrics.BaseAttrs...)
 	if err := otelsql.RegisterDBStatsMetrics(
 		executorsDB,
-		otelsql.WithAttributes(attribute.String("name", "executors"))); err != nil {
+		otelsql.WithAttributes(attrs...)); err != nil {
 		log.Fatal().Err(err).Msg("registering executors db stats")
 	}
 

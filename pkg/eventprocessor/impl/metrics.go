@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/metrics"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/metric/instrument"
@@ -12,7 +13,7 @@ import (
 
 func (ep *EventProcessor) initMetrics(chainID tableland.ChainID) error {
 	meter := global.MeterProvider().Meter("tableland")
-	ep.mBaseLabels = []attribute.KeyValue{attribute.Int64("chain_id", int64(chainID))}
+	ep.mBaseLabels = append([]attribute.KeyValue{attribute.Int64("chain_id", int64(chainID))}, metrics.BaseAttrs...)
 
 	// Async instruments.
 	mExecutionRound, err := meter.AsyncInt64().Gauge("tableland.eventprocessor.execution.round")

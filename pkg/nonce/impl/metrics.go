@@ -6,6 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/metrics"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/metric/instrument"
@@ -13,10 +14,10 @@ import (
 
 func (t *LocalTracker) initMetrics(chainID tableland.ChainID, addr common.Address) error {
 	meter := global.MeterProvider().Meter("tableland")
-	t.mBaseLabels = []attribute.KeyValue{
+	t.mBaseLabels = append([]attribute.KeyValue{
 		attribute.Int64("chain_id", int64(chainID)),
 		attribute.String("wallet_address", addr.String()),
-	}
+	}, metrics.BaseAttrs...)
 
 	mNonce, err := meter.AsyncInt64().Gauge("tableland.wallettracker.nonce")
 	if err != nil {
