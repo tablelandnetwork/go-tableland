@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/metrics"
 	"github.com/textileio/go-tableland/pkg/tables"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/global"
@@ -127,11 +128,11 @@ func (t *InstrumentedTablelandMesa) SetController(
 
 func (t *InstrumentedTablelandMesa) record(ctx context.Context, data recordData) {
 	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
-	attributes := []attribute.KeyValue{
+	attributes := append([]attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue(data.method)},
 		{Key: "table_id", Value: attribute.StringValue(data.tableID)},
 		{Key: "success", Value: attribute.BoolValue(data.success)},
-	}
+	}, metrics.BaseAttrs...)
 
 	t.callCount.Add(ctx, 1, attributes...)
 	t.latencyHistogram.Record(ctx, data.latency, attributes...)

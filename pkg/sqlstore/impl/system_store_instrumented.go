@@ -10,6 +10,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
+	"github.com/textileio/go-tableland/pkg/metrics"
 	"github.com/textileio/go-tableland/pkg/nonce"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/tables"
@@ -53,12 +54,12 @@ func (s *InstrumentedSystemStore) GetTable(ctx context.Context, id tables.TableI
 	latency := time.Since(start).Milliseconds()
 
 	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
-	attributes := []attribute.KeyValue{
+	attributes := append([]attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("GetTable")},
 		{Key: "id", Value: attribute.StringValue(id.String())},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
 		{Key: "chainID", Value: attribute.Int64Value(int64(s.chainID))},
-	}
+	}, metrics.BaseAttrs...)
 	s.callCount.Add(ctx, 1, attributes...)
 	s.latencyHistogram.Record(ctx, latency, attributes...)
 
@@ -75,12 +76,12 @@ func (s *InstrumentedSystemStore) GetTablesByController(
 	latency := time.Since(start).Milliseconds()
 
 	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
-	attributes := []attribute.KeyValue{
+	attributes := append([]attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("GetTablesByController")},
 		{Key: "controller", Value: attribute.StringValue(controller)},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
 		{Key: "chainID", Value: attribute.Int64Value(int64(s.chainID))},
-	}
+	}, metrics.BaseAttrs...)
 
 	s.callCount.Add(ctx, 1, attributes...)
 	s.latencyHistogram.Record(ctx, latency, attributes...)
@@ -98,12 +99,12 @@ func (s *InstrumentedSystemStore) GetTablesByStructure(
 	latency := time.Since(start).Milliseconds()
 
 	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
-	attributes := []attribute.KeyValue{
+	attributes := append([]attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("GetTablesByStructure")},
 		{Key: "structure", Value: attribute.StringValue(structure)},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
 		{Key: "chainID", Value: attribute.Int64Value(int64(s.chainID))},
-	}
+	}, metrics.BaseAttrs...)
 
 	s.callCount.Add(ctx, 1, attributes...)
 	s.latencyHistogram.Record(ctx, latency, attributes...)
@@ -118,12 +119,12 @@ func (s *InstrumentedSystemStore) GetSchemaByTableName(ctx context.Context, name
 	latency := time.Since(start).Milliseconds()
 
 	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
-	attributes := []attribute.KeyValue{
+	attributes := append([]attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("GetSchemaByTableName")},
 		{Key: "name", Value: attribute.StringValue(name)},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
 		{Key: "chainID", Value: attribute.Int64Value(int64(s.chainID))},
-	}
+	}, metrics.BaseAttrs...)
 
 	s.callCount.Add(ctx, 1, attributes...)
 	s.latencyHistogram.Record(ctx, latency, attributes...)
@@ -142,12 +143,12 @@ func (s *InstrumentedSystemStore) GetACLOnTableByController(
 	latency := time.Since(start).Milliseconds()
 
 	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
-	attributes := []attribute.KeyValue{
+	attributes := append([]attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("GetACLOnTableByController")},
 		{Key: "address", Value: attribute.StringValue(address)},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
 		{Key: "chainID", Value: attribute.Int64Value(int64(s.chainID))},
-	}
+	}, metrics.BaseAttrs...)
 
 	s.callCount.Add(ctx, 1, attributes...)
 	s.latencyHistogram.Record(ctx, latency, attributes...)
@@ -164,11 +165,11 @@ func (s *InstrumentedSystemStore) ListPendingTx(
 	data, err := s.store.ListPendingTx(ctx, addr)
 	latency := time.Since(start).Milliseconds()
 
-	attributes := []attribute.KeyValue{
+	attributes := append([]attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("ListPendingTx")},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
 		{Key: "chainID", Value: attribute.Int64Value(int64(s.chainID))},
-	}
+	}, metrics.BaseAttrs...)
 
 	s.callCount.Add(ctx, 1, attributes...)
 	s.latencyHistogram.Record(ctx, latency, attributes...)
@@ -187,11 +188,11 @@ func (s *InstrumentedSystemStore) InsertPendingTx(
 	err := s.store.InsertPendingTx(ctx, addr, nonce, hash)
 	latency := time.Since(start).Milliseconds()
 
-	attributes := []attribute.KeyValue{
+	attributes := append([]attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("InsertPendingTx")},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
 		{Key: "chainID", Value: attribute.Int64Value(int64(s.chainID))},
-	}
+	}, metrics.BaseAttrs...)
 
 	s.callCount.Add(ctx, 1, attributes...)
 	s.latencyHistogram.Record(ctx, latency, attributes...)
@@ -205,11 +206,11 @@ func (s *InstrumentedSystemStore) DeletePendingTxByHash(ctx context.Context, has
 	err := s.store.DeletePendingTxByHash(ctx, hash)
 	latency := time.Since(start).Milliseconds()
 
-	attributes := []attribute.KeyValue{
+	attributes := append([]attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("DeletePendingTxByHash")},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
 		{Key: "chainID", Value: attribute.Int64Value(int64(s.chainID))},
-	}
+	}, metrics.BaseAttrs...)
 
 	s.callCount.Add(ctx, 1, attributes...)
 	s.latencyHistogram.Record(ctx, latency, attributes...)
@@ -227,11 +228,11 @@ func (s *InstrumentedSystemStore) ReplacePendingTxByHash(
 	err := s.store.ReplacePendingTxByHash(ctx, oldHash, newHash)
 	latency := time.Since(start).Milliseconds()
 
-	attributes := []attribute.KeyValue{
+	attributes := append([]attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("ReplacePendingTxByHash")},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
 		{Key: "chainID", Value: attribute.Int64Value(int64(s.chainID))},
-	}
+	}, metrics.BaseAttrs...)
 
 	s.callCount.Add(ctx, 1, attributes...)
 	s.latencyHistogram.Record(ctx, latency, attributes...)
@@ -264,11 +265,11 @@ func (s *InstrumentedSystemStore) GetReceipt(
 	receipt, ok, err := s.store.GetReceipt(ctx, txnHash)
 	latency := time.Since(start).Milliseconds()
 
-	attributes := []attribute.KeyValue{
+	attributes := append([]attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("GetReceipt")},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
 		{Key: "chainID", Value: attribute.Int64Value(int64(s.chainID))},
-	}
+	}, metrics.BaseAttrs...)
 
 	s.callCount.Add(ctx, 1, attributes...)
 	s.latencyHistogram.Record(ctx, latency, attributes...)
@@ -283,11 +284,11 @@ func (s *InstrumentedSystemStore) AreEVMEventsPersisted(ctx context.Context, txn
 	ok, err := s.store.AreEVMEventsPersisted(ctx, txnHash)
 	latency := time.Since(start).Milliseconds()
 
-	attributes := []attribute.KeyValue{
+	attributes := append([]attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("AreEVMEventsPersisted")},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
 		{Key: "chainID", Value: attribute.Int64Value(int64(s.chainID))},
-	}
+	}, metrics.BaseAttrs...)
 
 	s.callCount.Add(ctx, 1, attributes...)
 	s.latencyHistogram.Record(ctx, latency, attributes...)
@@ -302,11 +303,11 @@ func (s *InstrumentedSystemStore) SaveEVMEvents(ctx context.Context, events []ta
 	err := s.store.SaveEVMEvents(ctx, events)
 	latency := time.Since(start).Milliseconds()
 
-	attributes := []attribute.KeyValue{
+	attributes := append([]attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("SaveEVMEvents")},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
 		{Key: "chainID", Value: attribute.Int64Value(int64(s.chainID))},
-	}
+	}, metrics.BaseAttrs...)
 
 	s.callCount.Add(ctx, 1, attributes...)
 	s.latencyHistogram.Record(ctx, latency, attributes...)
@@ -321,11 +322,11 @@ func (s *InstrumentedSystemStore) GetEVMEvents(ctx context.Context, txnHash comm
 	events, err := s.store.GetEVMEvents(ctx, txnHash)
 	latency := time.Since(start).Milliseconds()
 
-	attributes := []attribute.KeyValue{
+	attributes := append([]attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("GetEVMEvents")},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
 		{Key: "chainID", Value: attribute.Int64Value(int64(s.chainID))},
-	}
+	}, metrics.BaseAttrs...)
 
 	s.callCount.Add(ctx, 1, attributes...)
 	s.latencyHistogram.Record(ctx, latency, attributes...)
@@ -342,11 +343,11 @@ func (s *InstrumentedSystemStore) GetBlocksMissingExtraInfo(
 	blockNumbers, err := s.store.GetBlocksMissingExtraInfo(ctx, fromHeight)
 	latency := time.Since(start).Milliseconds()
 
-	attributes := []attribute.KeyValue{
+	attributes := append([]attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("GetBlocksMissingExtraInfo")},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
 		{Key: "chainID", Value: attribute.Int64Value(int64(s.chainID))},
-	}
+	}, metrics.BaseAttrs...)
 
 	s.callCount.Add(ctx, 1, attributes...)
 	s.latencyHistogram.Record(ctx, latency, attributes...)
@@ -364,11 +365,11 @@ func (s *InstrumentedSystemStore) GetBlockExtraInfo(
 	blockInfo, err := s.store.GetBlockExtraInfo(ctx, blockNumber)
 	latency := time.Since(start).Milliseconds()
 
-	attributes := []attribute.KeyValue{
+	attributes := append([]attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("GetBlockExtraInfo")},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
 		{Key: "chainID", Value: attribute.Int64Value(int64(s.chainID))},
-	}
+	}, metrics.BaseAttrs...)
 
 	s.callCount.Add(ctx, 1, attributes...)
 	s.latencyHistogram.Record(ctx, latency, attributes...)
@@ -382,11 +383,11 @@ func (s *InstrumentedSystemStore) InsertBlockExtraInfo(ctx context.Context, bloc
 	err := s.store.InsertBlockExtraInfo(ctx, blockNumber, timestamp)
 	latency := time.Since(start).Milliseconds()
 
-	attributes := []attribute.KeyValue{
+	attributes := append([]attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("InsertBlockExtraInfo")},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
 		{Key: "chainID", Value: attribute.Int64Value(int64(s.chainID))},
-	}
+	}, metrics.BaseAttrs...)
 
 	s.callCount.Add(ctx, 1, attributes...)
 	s.latencyHistogram.Record(ctx, latency, attributes...)
@@ -400,10 +401,10 @@ func (s *InstrumentedSystemStore) GetID(ctx context.Context) (string, error) {
 	id, err := s.store.GetID(ctx)
 	latency := time.Since(start).Milliseconds()
 
-	attributes := []attribute.KeyValue{
+	attributes := append([]attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("Id")},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
-	}
+	}, metrics.BaseAttrs...)
 
 	s.callCount.Add(ctx, 1, attributes...)
 	s.latencyHistogram.Record(ctx, latency, attributes...)

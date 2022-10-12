@@ -8,6 +8,7 @@ import (
 	"github.com/textileio/go-tableland/internal/router/middlewares"
 	"github.com/textileio/go-tableland/internal/system"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/metrics"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/tables"
 	"go.opentelemetry.io/otel/attribute"
@@ -48,12 +49,12 @@ func (s *InstrumentedSystemSQLStoreService) GetTableMetadata(
 	chainID, _ := ctx.Value(middlewares.ContextKeyChainID).(tableland.ChainID)
 
 	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
-	attributes := []attribute.KeyValue{
+	attributes := append([]attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("GetTableMetadata")},
 		{Key: "id", Value: attribute.StringValue(id.String())},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
 		{Key: "chainID", Value: attribute.Int64Value(int64(chainID))},
-	}
+	}, metrics.BaseAttrs...)
 
 	s.callCount.Add(ctx, 1, attributes...)
 	s.latencyHistogram.Record(ctx, latency, attributes...)
@@ -70,11 +71,11 @@ func (s *InstrumentedSystemSQLStoreService) GetTablesByController(ctx context.Co
 	latency := time.Since(start).Milliseconds()
 	chainID, _ := ctx.Value(middlewares.ContextKeyChainID).(tableland.ChainID)
 
-	attributes := []attribute.KeyValue{
+	attributes := append([]attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("GetTablesByController")},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
 		{Key: "chainID", Value: attribute.Int64Value(int64(chainID))},
-	}
+	}, metrics.BaseAttrs...)
 
 	s.callCount.Add(ctx, 1, attributes...)
 	s.latencyHistogram.Record(ctx, latency, attributes...)
@@ -92,11 +93,11 @@ func (s *InstrumentedSystemSQLStoreService) GetTablesByStructure(
 	latency := time.Since(start).Milliseconds()
 	chainID, _ := ctx.Value(middlewares.ContextKeyChainID).(tableland.ChainID)
 
-	attributes := []attribute.KeyValue{
+	attributes := append([]attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("GetTablesByStructure")},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
 		{Key: "chainID", Value: attribute.Int64Value(int64(chainID))},
-	}
+	}, metrics.BaseAttrs...)
 
 	s.callCount.Add(ctx, 1, attributes...)
 	s.latencyHistogram.Record(ctx, latency, attributes...)
@@ -113,10 +114,10 @@ func (s *InstrumentedSystemSQLStoreService) GetSchemaByTableName(
 	tables, err := s.system.GetSchemaByTableName(ctx, tableName)
 	latency := time.Since(start).Milliseconds()
 
-	attributes := []attribute.KeyValue{
+	attributes := append([]attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("GetSchemaByTableName")},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
-	}
+	}, metrics.BaseAttrs...)
 
 	s.callCount.Add(ctx, 1, attributes...)
 	s.latencyHistogram.Record(ctx, latency, attributes...)
