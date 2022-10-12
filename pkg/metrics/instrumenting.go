@@ -21,6 +21,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric/view"
 )
 
+// BaseAttrs contains attributes that should be added in all exported metrics.
 var BaseAttrs []attribute.KeyValue
 
 // SetupInstrumentation starts a metric endpoint.
