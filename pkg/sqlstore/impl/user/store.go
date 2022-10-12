@@ -9,6 +9,7 @@ import (
 	_ "github.com/mattn/go-sqlite3" // sqlite3 driver
 	logger "github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/metrics"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -22,15 +23,12 @@ type UserStore struct {
 
 // New creates a new UserStore.
 func New(dbURI string) (*UserStore, error) {
-	db, err := otelsql.Open("sqlite3", dbURI, otelsql.WithAttributes(
-		attribute.String("name", "userstore"),
-	))
+	attrs := append([]attribute.KeyValue{attribute.String("name", "userstore")}, metrics.BaseAttrs...)
+	db, err := otelsql.Open("sqlite3", dbURI, otelsql.WithAttributes(attrs...))
 	if err != nil {
 		return nil, fmt.Errorf("connecting to db: %s", err)
 	}
-	if err := otelsql.RegisterDBStatsMetrics(db, otelsql.WithAttributes(
-		attribute.String("name", "userstore"),
-	)); err != nil {
+	if err := otelsql.RegisterDBStatsMetrics(db, otelsql.WithAttributes(attrs...)); err != nil {
 		return nil, fmt.Errorf("registering dbstats: %s", err)
 	}
 	return &UserStore{

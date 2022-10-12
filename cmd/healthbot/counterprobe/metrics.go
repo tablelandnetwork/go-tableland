@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/textileio/go-tableland/pkg/metrics"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/metric/instrument"
@@ -11,7 +12,7 @@ import (
 
 func (cp *CounterProbe) initMetrics(chainName string) error {
 	meter := global.MeterProvider().Meter("tableland")
-	cp.mBaseLabels = []attribute.KeyValue{attribute.String("chain_name", chainName)}
+	cp.mBaseLabels = append([]attribute.KeyValue{attribute.String("chain_name", chainName)}, metrics.BaseAttrs...)
 
 	latencyHistogram, err := meter.SyncInt64().Histogram(metricPrefix + ".latency")
 	if err != nil {

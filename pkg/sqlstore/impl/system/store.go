@@ -22,6 +22,7 @@ import (
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
+	"github.com/textileio/go-tableland/pkg/metrics"
 	"github.com/textileio/go-tableland/pkg/nonce"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system/internal/db"
@@ -42,10 +43,12 @@ type SystemStore struct {
 
 // New returns a new SystemStore backed by database/sql.
 func New(dbURI string, chainID tableland.ChainID) (*SystemStore, error) {
-	dbc, err := otelsql.Open("sqlite3", dbURI, otelsql.WithAttributes(
+	attrs := append([]attribute.KeyValue{
 		attribute.String("name", "systemstore"),
 		attribute.Int64("chain_id", int64(chainID)),
-	))
+	},
+		metrics.BaseAttrs...)
+	dbc, err := otelsql.Open("sqlite3", dbURI, otelsql.WithAttributes(attrs...))
 	if err != nil {
 		return nil, fmt.Errorf("connecting to db: %s", err)
 	}

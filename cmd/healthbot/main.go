@@ -18,7 +18,7 @@ import (
 func main() {
 	cfg := setupConfig()
 	logging.SetupLogger(buildinfo.GitCommit, cfg.Log.Debug, cfg.Log.Human)
-	if err := metrics.SetupInstrumentation(":" + cfg.Metrics.Port); err != nil {
+	if err := metrics.SetupInstrumentation(":"+cfg.Metrics.Port, "tableland:healthbot"); err != nil {
 		log.Fatal().Err(err).Str("port", cfg.Metrics.Port).Msg("could not setup instrumentation")
 	}
 

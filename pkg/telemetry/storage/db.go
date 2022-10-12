@@ -16,6 +16,7 @@ import (
 
 	"github.com/rs/zerolog"
 	logger "github.com/rs/zerolog/log"
+	"github.com/textileio/go-tableland/pkg/metrics"
 	"github.com/textileio/go-tableland/pkg/telemetry"
 	"github.com/textileio/go-tableland/pkg/telemetry/storage/migrations"
 	"go.opentelemetry.io/otel/attribute"
@@ -29,9 +30,8 @@ type TelemetryDatabase struct {
 
 // New returns a new TelemetryDatabase backed by database/sql.
 func New(dbURI string) (*TelemetryDatabase, error) {
-	sqlDB, err := otelsql.Open("sqlite3", dbURI, otelsql.WithAttributes(
-		attribute.String("name", "telemetrydb"),
-	))
+	attrs := append([]attribute.KeyValue{attribute.String("name", "telemetrydb")}, metrics.BaseAttrs...)
+	sqlDB, err := otelsql.Open("sqlite3", dbURI, otelsql.WithAttributes(attrs...))
 	if err != nil {
 		return nil, fmt.Errorf("connecting to db: %s", err)
 	}

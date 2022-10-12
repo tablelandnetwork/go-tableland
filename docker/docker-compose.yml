@@ -6,7 +6,6 @@ services:
       dockerfile: ./cmd/api/Dockerfile
     platform: linux/${PLATFORM}
     environment:
-      - OTEL_SERVICE_NAME=tableland:api # this is just to the unknown_service from the metrics label
       - BOOTSTRAP_BACKUP_URL=${BOOTSTRAP_BACKUP_URL}
     env_file:
       - ${PWD}/${ENVIRONMENT}/api/.env_validator
