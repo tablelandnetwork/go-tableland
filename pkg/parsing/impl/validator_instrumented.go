@@ -7,6 +7,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/metrics"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/global"
@@ -50,10 +51,10 @@ func (ip *InstrumentedSQLValidator) ValidateCreateTable(
 	cs, err := ip.parser.ValidateCreateTable(query, chainID)
 	latency := time.Since(start).Milliseconds()
 
-	attributes := []attribute.KeyValue{
+	attributes := append([]attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("ValidateCreateTable")},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
-	}
+	}, metrics.BaseAttrs...)
 
 	ip.callCount.Add(context.Background(), 1, attributes...)
 	ip.latencyHistogram.Record(context.Background(), latency, attributes...)
@@ -71,10 +72,10 @@ func (ip *InstrumentedSQLValidator) ValidateMutatingQuery(
 	mutatingStmts, err := ip.parser.ValidateMutatingQuery(query, chainID)
 	latency := time.Since(start).Milliseconds()
 
-	attributes := []attribute.KeyValue{
+	attributes := append([]attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("ValidateMutatingQuery")},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
-	}
+	}, metrics.BaseAttrs...)
 
 	ip.callCount.Add(context.Background(), 1, attributes...)
 	ip.latencyHistogram.Record(context.Background(), latency, attributes...)
@@ -89,10 +90,10 @@ func (ip *InstrumentedSQLValidator) ValidateReadQuery(query string) (parsing.Rea
 	readStmt, err := ip.parser.ValidateReadQuery(query)
 	latency := time.Since(start).Milliseconds()
 
-	attributes := []attribute.KeyValue{
+	attributes := append([]attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("ValidateReadQuery")},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
-	}
+	}, metrics.BaseAttrs...)
 
 	ip.callCount.Add(context.Background(), 1, attributes...)
 	ip.latencyHistogram.Record(context.Background(), latency, attributes...)

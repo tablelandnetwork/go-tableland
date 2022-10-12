@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/metrics"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"go.opentelemetry.io/otel/attribute"
@@ -45,10 +46,10 @@ func (s *InstrumentedUserStore) Read(ctx context.Context, stmt parsing.ReadStmt)
 	data, err := s.store.Read(ctx, stmt)
 	latency := time.Since(start).Milliseconds()
 
-	attributes := []attribute.KeyValue{
+	attributes := append([]attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("Read")},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
-	}
+	}, metrics.BaseAttrs...)
 
 	s.callCount.Add(ctx, 1, attributes...)
 	s.latencyHistogram.Record(ctx, latency, attributes...)
