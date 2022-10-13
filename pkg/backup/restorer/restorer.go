@@ -139,8 +139,13 @@ func (br *BackupRestorer) load() error {
 	}()
 
 	if _, err := db.Exec("DELETE FROM system_pending_tx;"); err != nil {
-		return fmt.Errorf("deleting rows from system_pending_tx file: %s", err)
+		return fmt.Errorf("deleting rows from system_pending_tx table: %s", err)
 	}
+
+	if _, err := db.Exec("DELETE FROM system_id;"); err != nil {
+		return fmt.Errorf("deleting rows from system_id table: %s", err)
+	}
+
 	return nil
 }
 
