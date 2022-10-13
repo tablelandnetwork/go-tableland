@@ -17,7 +17,7 @@ func TestRestorer(t *testing.T) {
 	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// this is a test database that contains the following tables with one record each
-		// "a", "system_pending_tx"
+		// "a", "system_pending_tx", "system_id"
 		f, err := os.Open("testdata/database.db.zst")
 		require.NoError(t, err)
 		data, err := io.ReadAll(f)
@@ -47,6 +47,10 @@ func TestRestorer(t *testing.T) {
 
 	var c int
 	err = db.QueryRow("SELECT count(1) FROM system_pending_tx").Scan(&c)
+	require.NoError(t, err)
+	require.Equal(t, 0, c)
+
+	err = db.QueryRow("SELECT count(1) FROM system_id").Scan(&c)
 	require.NoError(t, err)
 	require.Equal(t, 0, c)
 }
