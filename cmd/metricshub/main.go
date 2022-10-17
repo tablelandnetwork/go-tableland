@@ -100,7 +100,7 @@ func makeHandler(store store, c *config) http.HandlerFunc {
 			log.Warn().Msg("could not get ip address")
 		}
 
-		log.Debug().Str("node_id", req.NodeID).Str("ip_address", ip).Msg("got metric from node")
+		log.Info().Str("node_id", req.NodeID).Str("ip_address", ip).Msg("got metric from node")
 
 		if err := store.insert(r.Context(), req); err != nil {
 			log.Error().Err(err).Msg("inserting")
