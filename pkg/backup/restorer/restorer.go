@@ -103,14 +103,14 @@ func (br *BackupRestorer) load() error {
 	}()
 
 	dbPath := fmt.Sprintf("%s/%s", filepath.Dir(br.dbPath), filepath.Base(br.dbPath))
-	tmpDbPath := dbPath + ".tmp"
+	previousDBPath := dbPath + ".tmp"
 
 	// If a database already exists we are going to rename it,
 	// so, later, we can get the node id information from the existing database.
 	dbExists := fileExists(dbPath)
 	if dbExists {
-		if err := os.Rename(dbPath, tmpDbPath); err != nil {
-			log.Warn().Err(err).Msg("renaming file")
+		if err := os.Rename(dbPath, previousDBPath); err != nil {
+			return fmt.Errorf("renaming file: %s", err)
 		}
 	}
 
@@ -147,8 +147,8 @@ func (br *BackupRestorer) load() error {
 		}
 
 		if dbExists {
-			if err := os.Remove(tmpDbPath); err != nil {
-				log.Error().Err(err).Msg("closing db")
+			if err := os.Remove(previousDBPath); err != nil {
+				log.Error().Err(err).Msg("removing previous db")
 			}
 		}
 	}()
@@ -164,7 +164,7 @@ func (br *BackupRestorer) load() error {
 			ATTACH DATABASE '%s' as tmp;
 			INSERT INTO system_id SELECT * FROM tmp.system_id;
 			INSERT INTO system_pending_tx SELECT * FROM tmp.system_pending_tx;
-		`, tmpDbPath)
+		`, previousDBPath)
 		if _, err := db.Exec(sql); err != nil {
 			return fmt.Errorf("copying information from existing database: %s", err)
 		}
@@ -194,6 +194,6 @@ func fileExists(name string) bool {
 		return false
 	}
 
-	log.Warn().Err(err).Msg("file exists")
+	log.Warn().Err(err).Str("file_name", name).Msg("file exists")
 	return false
 }
