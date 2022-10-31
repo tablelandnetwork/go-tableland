@@ -18,6 +18,7 @@ import (
 var configFilename = "config.json"
 
 type config struct {
+	Dir string
 	HTTP struct {
 		Port string `default:"8080"` // HTTP port (e.g. 8080)
 
