@@ -12,7 +12,7 @@ services:
     restart: unless-stopped
 
   grafana:
-    image: grafana/grafana:9.0.1
+    image: grafana/grafana:9.2.2
     container_name: grafana
     volumes:
       - ${PWD}/observability/grafana/provisioning:/etc/grafana/provisioning
