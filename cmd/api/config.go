@@ -18,46 +18,59 @@ import (
 var configFilename = "config.json"
 
 type config struct {
-	Dir  string // This will default to "", NOT the default dir value set via the flag package
-	HTTP struct {
-		Port string `default:"8080"` // HTTP port (e.g. 8080)
+	Dir                string // This will default to "", NOT the default dir value set via the flag package
+	BootstrapBackupURL string `default:"" env:"BOOTSTRAP_BACKUP_URL"`
 
-		TLSCert string `default:""`
-		TLSKey  string `default:""`
+	HTTP    HTTPConfig
+	Gateway GatewayConfig
 
-		RateLimInterval       string `default:"1s"`
-		MaxRequestPerInterval uint64 `default:"10"`
-	}
-	Gateway struct {
-		ExternalURIPrefix   string `default:"https://testnet.tableland.network"`
-		MetadataRendererURI string `default:""`
-	}
 	TableConstraints TableConstraints
 	QueryConstraints QueryConstraints
-	Metrics          struct {
+
+	Metrics struct {
 		Port string `default:"9090"`
 	}
 	Log struct {
 		Human bool `default:"false"`
 		Debug bool `default:"false"`
 	}
-	Chains    []ChainConfig
 	Analytics struct {
 		FetchExtraBlockInfo bool `default:"false"`
 	}
-	Backup struct {
-		Enabled           bool   `default:"true"`
-		Dir               string `default:"backups"` // relative to dir path config (e.g. ${HOME}/.tableland/backups )
-		Frequency         int    `default:"120"`     // in minutes
-		EnableVacuum      bool   `default:"true"`
-		EnableCompression bool   `default:"true"`
-		Pruning           struct {
-			Enabled   bool `default:"true"`
-			KeepFiles int  `default:"5"` // number of files to keep
-		}
-	}
+	Backup             BackupConfig
 	TelemetryPublisher TelemetryPublisherConfig
-	BootstrapBackupURL string `default:"" env:"BOOTSTRAP_BACKUP_URL"`
+
+	Chains []ChainConfig
+}
+
+// HTTPConfig contains configuration for the HTTP server serving APIs.
+type HTTPConfig struct {
+	Port string `default:"8080"` // HTTP port (e.g. 8080)
+
+	TLSCert string `default:""`
+	TLSKey  string `default:""`
+
+	RateLimInterval       string `default:"1s"`
+	MaxRequestPerInterval uint64 `default:"10"`
+}
+
+// GatewayConfig contains configuration for the Gateway.
+type GatewayConfig struct {
+	ExternalURIPrefix   string `default:"https://testnet.tableland.network"`
+	MetadataRendererURI string `default:""`
+}
+
+// BackupConfig contains configuration for automatic database backups.
+type BackupConfig struct {
+	Enabled           bool   `default:"true"`
+	Dir               string `default:"backups"` // relative to dir path config (e.g. ${HOME}/.tableland/backups )
+	Frequency         int    `default:"120"`     // in minutes
+	EnableVacuum      bool   `default:"true"`
+	EnableCompression bool   `default:"true"`
+	Pruning           struct {
+		Enabled   bool `default:"true"`
+		KeepFiles int  `default:"5"` // number of files to keep
+	}
 }
 
 // TelemetryPublisherConfig contains configuration attributes for the telemetry module.
