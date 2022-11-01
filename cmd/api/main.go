@@ -275,7 +275,7 @@ func createChainIDStack(
 			tracker.Close()
 			conn.Close()
 			if err := systemStore.Close(); err != nil {
-				log.Error().Int64("chain_id", int64(config.ChainID)).Err(err).Msg("closing system store")
+				return fmt.Errorf("closing system store for chain_id %d: %s", config.ChainID, err)
 			}
 			return nil
 		},
@@ -460,7 +460,7 @@ func createChainStacks(
 
 		// Close Executor DB.
 		if err := executorsDB.Close(); err != nil {
-			log.Error().Err(err).Msg("closing executors db")
+			return fmt.Errorf("closing executors db: %s", err)
 		}
 		return nil
 	}
@@ -547,7 +547,7 @@ func createHTTPServer(
 
 	close := func(ctx context.Context) error {
 		if err := server.Shutdown(ctx); err != nil {
-			log.Error().Err(err).Msg("closing HTTP server")
+			return fmt.Errorf("closing HTTP server")
 		}
 		return nil
 	}
