@@ -97,8 +97,8 @@ func (s *SystemStore) GetTablesByController(ctx context.Context, controller stri
 		return []sqlstore.Table{}, fmt.Errorf("sanitizing address: %s", err)
 	}
 	sqlcTables, err := s.dbWithTx.queries().GetTablesByController(ctx, db.GetTablesByControllerParams{
-		ChainID:    int64(s.chainID),
-		Controller: controller,
+		ChainID: int64(s.chainID),
+		UPPER:   controller,
 	})
 	if err != nil {
 		return []sqlstore.Table{}, fmt.Errorf("failed to get the table: %s", err)
@@ -122,9 +122,9 @@ func (s *SystemStore) GetACLOnTableByController(
 	controller string,
 ) (sqlstore.SystemACL, error) {
 	params := db.GetAclByTableAndControllerParams{
-		ChainID:    int64(s.chainID),
-		Controller: controller,
-		TableID:    id.ToBigInt().Int64(),
+		ChainID: int64(s.chainID),
+		UPPER:   controller,
+		TableID: id.ToBigInt().Int64(),
 	}
 
 	systemACL, err := s.dbWithTx.queries().GetAclByTableAndController(ctx, params)
@@ -161,8 +161,8 @@ func (s *SystemStore) ListPendingTx(ctx context.Context, addr common.Address) ([
 			Nonce:          r.Nonce,
 			Hash:           common.HexToHash(r.Hash),
 			ChainID:        r.ChainID,
-			BumpPriceCount: int(r.BumpPriceCount),
-			CreatedAt:      r.CreatedAt,
+			BumpPriceCount: r.BumpPriceCount,
+			CreatedAt:      time.Unix(r.CreatedAt, 0),
 		}
 
 		pendingTxs = append(pendingTxs, tx)
@@ -208,9 +208,9 @@ func (s *SystemStore) DeletePendingTxByHash(ctx context.Context, hash common.Has
 // ReplacePendingTxByHash replaces the txn hash of a pending txn and bumps the counter of how many times this happened.
 func (s *SystemStore) ReplacePendingTxByHash(ctx context.Context, oldHash common.Hash, newHash common.Hash) error {
 	err := s.dbWithTx.queries().ReplacePendingTxByHash(ctx, db.ReplacePendingTxByHashParams{
-		ChainID:      int64(s.chainID),
-		PreviousHash: oldHash.Hex(),
-		NewHash:      newHash.Hex(),
+		ChainID: int64(s.chainID),
+		Hash:    oldHash.Hex(),
+		Hash_2:  newHash.Hex(),
 	})
 	if err != nil {
 		return fmt.Errorf("replace pending tx: %s", err)
@@ -241,9 +241,7 @@ func (s *SystemStore) GetTablesByStructure(ctx context.Context, structure string
 
 // GetSchemaByTableName get the schema of a table by its name.
 func (s *SystemStore) GetSchemaByTableName(ctx context.Context, name string) (sqlstore.TableSchema, error) {
-	createStmt, err := s.dbWithTx.queries().GetSchemaByTableName(ctx, db.GetSchemaByTableNameParams{
-		TableName: name,
-	})
+	createStmt, err := s.dbWithTx.queries().GetSchemaByTableName(ctx, name)
 	if err != nil {
 		return sqlstore.TableSchema{}, fmt.Errorf("failed to get the table: %s", err)
 	}
@@ -361,15 +359,18 @@ func (s *SystemStore) GetReceipt(
 
 // AreEVMEventsPersisted returns true if there're events persisted for the provided txn hash, and false otherwise.
 func (s *SystemStore) AreEVMEventsPersisted(ctx context.Context, txnHash common.Hash) (bool, error) {
-	params := db.AreEVMTxnEventsPersistedParams{
-		ChainID: uint64(s.chainID),
+	params := db.AreEVMEventsPersistedParams{
+		ChainID: int64(s.chainID),
 		TxHash:  txnHash.Hex(),
 	}
-	ok, err := s.dbWithTx.queries().AreEVMEventsPersisted(ctx, params)
+	_, err := s.dbWithTx.queries().AreEVMEventsPersisted(ctx, params)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
 	if err != nil {
 		return false, fmt.Errorf("evm txn events lookup: %s", err)
 	}
-	return ok, nil
+	return true, nil
 }
 
 // SaveEVMEvents saves the provider EVMEvents.
@@ -378,16 +379,16 @@ func (s *SystemStore) SaveEVMEvents(ctx context.Context, events []tableland.EVME
 	for _, e := range events {
 		args := db.InsertEVMEventParams{
 			ChainID:     int64(e.ChainID),
-			EventJSON:   e.EventJSON,
+			EventJson:   string(e.EventJSON),
 			EventType:   e.EventType,
 			Address:     e.Address.Hex(),
-			Topics:      e.Topics,
+			Topics:      string(e.Topics),
 			Data:        e.Data,
-			BlockNumber: e.BlockNumber,
+			BlockNumber: int64(e.BlockNumber),
 			TxHash:      e.TxHash.Hex(),
 			TxIndex:     e.TxIndex,
 			BlockHash:   e.BlockHash.Hex(),
-			Index:       e.Index,
+			EventIndex:  e.Index,
 		}
 		if err := queries.InsertEVMEvent(ctx, args); err != nil {
 			return fmt.Errorf("insert evm event: %s", err)
@@ -401,11 +402,17 @@ func (s *SystemStore) SaveEVMEvents(ctx context.Context, events []tableland.EVME
 // It receives an optional fromHeight to only look for blocks after a block number. If null it will look
 // for blocks at any height.
 func (s *SystemStore) GetBlocksMissingExtraInfo(ctx context.Context, lastKnownHeight *int64) ([]int64, error) {
-	params := db.GetBlocksMissingExtraInfoParams{
-		ChainID:    int64(s.chainID),
-		FromHeight: lastKnownHeight,
+	var blockNumbers []int64
+	var err error
+	if lastKnownHeight == nil {
+		blockNumbers, err = s.dbWithTx.queries().GetBlocksMissingExtraInfo(ctx, int64(s.chainID))
+	} else {
+		params := db.GetBlocksMissingExtraInfoByBlockNumberParams{
+			ChainID:     int64(s.chainID),
+			BlockNumber: *lastKnownHeight,
+		}
+		blockNumbers, err = s.dbWithTx.queries().GetBlocksMissingExtraInfoByBlockNumber(ctx, params)
 	}
-	blockNumbers, err := s.dbWithTx.queries().GetBlocksMissingExtraInfo(ctx, params)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -421,7 +428,7 @@ func (s *SystemStore) InsertBlockExtraInfo(ctx context.Context, blockNumber int6
 	params := db.InsertBlockExtraInfoParams{
 		ChainID:     int64(s.chainID),
 		BlockNumber: blockNumber,
-		Timestamp:   timestamp,
+		Timestamp:   int64(timestamp),
 	}
 	if err := s.dbWithTx.queries().InsertBlockExtraInfo(ctx, params); err != nil {
 		return fmt.Errorf("insert block extra info: %s", err)
@@ -467,15 +474,15 @@ func (s *SystemStore) GetEVMEvents(ctx context.Context, txnHash common.Hash) ([]
 	for i, event := range events {
 		ret[i] = tableland.EVMEvent{
 			Address:     common.HexToAddress(event.Address),
-			Topics:      event.Topics,
+			Topics:      []byte(event.Topics),
 			Data:        event.Data,
-			BlockNumber: event.BlockNumber,
+			BlockNumber: uint64(event.BlockNumber),
 			TxHash:      common.HexToHash(event.TxHash),
 			TxIndex:     event.TxIndex,
 			BlockHash:   common.HexToHash(event.BlockHash),
-			Index:       event.Index,
+			Index:       event.EventIndex,
 			ChainID:     tableland.ChainID(event.ChainID),
-			EventJSON:   event.EventJSON,
+			EventJSON:   []byte(event.EventJson),
 			EventType:   event.EventType,
 		}
 	}
@@ -532,7 +539,7 @@ func tableFromSQLToDTO(table db.Registry) (sqlstore.Table, error) {
 		Controller: table.Controller,
 		Prefix:     table.Prefix,
 		Structure:  table.Structure,
-		CreatedAt:  table.CreatedAt,
+		CreatedAt:  time.Unix(table.CreatedAt, 0),
 	}, nil
 }
 
@@ -558,8 +565,12 @@ func aclFromSQLtoDTO(acl db.SystemAcl) (sqlstore.SystemACL, error) {
 		TableID:    id,
 		Controller: acl.Controller,
 		Privileges: privileges,
-		CreatedAt:  acl.CreatedAt,
-		UpdatedAt:  acl.UpdatedAt,
+		CreatedAt:  time.Unix(acl.CreatedAt, 0),
+	}
+
+	if acl.UpdatedAt.Valid {
+		updatedAt := time.Unix(acl.UpdatedAt.Int64, 0)
+		systemACL.UpdatedAt = &updatedAt
 	}
 
 	return systemACL, nil

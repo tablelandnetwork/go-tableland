@@ -8,6 +8,7 @@ BIN_VERSION?="git"
 HTTP_PORT ?= 8080
 
 GO_BINDATA=go run github.com/go-bindata/go-bindata/v3/go-bindata@v3.1.3
+SQLC=go run github.com/kyleconroy/sqlc/cmd/sqlc@v1.15.0
 GOVVV=go run github.com/ahmetb/govvv@v0.3.0 
 
 GOVVV_FLAGS=$(shell $(GOVVV) -flags -version $(BIN_VERSION) -pkg $(shell go list ./buildinfo))
@@ -31,7 +32,7 @@ ethereum-testerc721a:
 .PHONY: ethereum-testerc721a
 
 system-sql-assets:
-	cd pkg/sqlstore/impl/system && $(GO_BINDATA) -pkg migrations -prefix migrations/ -o migrations/migrations.go -ignore=migrations.go migrations
+	cd pkg/sqlstore/impl/system && $(GO_BINDATA) -pkg migrations -prefix migrations/ -o migrations/migrations.go -ignore=migrations.go migrations && $(SQLC) generate; cd -;
 .PHONY: system-sql-assets
 
 mocks: clean-mocks
