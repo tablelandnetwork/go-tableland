@@ -11,7 +11,7 @@
         {
             "Name": "arbitrum-goerli",
             "Probe": {
-                "CheckInterval": "120s",
+                "CheckInterval": "360s",
                 "ReceiptTimeout": "25s",
                 "SIWE": "${HEALTHBOT_ARBITRUM_GOERLI_SIWE}",
                 "Tablename": "${HEALTHBOT_ARBITRUM_GOERLI_TABLE}"
@@ -38,7 +38,7 @@
         {
             "Name": "optimism-goerli",
             "Probe": {
-                "CheckInterval": "120s",
+                "CheckInterval": "360s",
                 "ReceiptTimeout": "25s",
                 "SIWE": "${HEALTHBOT_OPTIMISM_GOERLI_SIWE}",
                 "Tablename": "${HEALTHBOT_OPTIMISM_GOERLI_TABLE}"

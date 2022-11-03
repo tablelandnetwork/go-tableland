@@ -11,7 +11,7 @@
         {
             "Name": "optimism-goerli",
             "Probe": {
-                "CheckInterval": "15s",
+                "CheckInterval": "360s",
                 "ReceiptTimeout": "20s",
                 "SIWE": "${HEALTHBOT_OPTIMISM_GOERLI_SIWE}",
                 "Tablename": "${HEALTHBOT_OPTIMISM_GOERLI_TABLE}"
