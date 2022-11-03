@@ -1,0 +1,29 @@
+version: "2"
+sql:
+  - schema: 
+      - "./migrations"
+      - "./schemas"
+    queries: "./queries"
+    engine: "sqlite"
+    gen:
+      go:
+        package: "db"
+        out: "./internal/db"
+        emit_prepared_queries: true
+        emit_interface: false
+        emit_exact_table_names: false
+        emit_empty_slices: false
+        emit_json_tags: false
+        json_tags_case_style: "camel"
+        sql_package: "database/sql"
+        overrides:
+          - column: "main.registry.chain_id"
+            go_type: "int64"
+          - column: "main.system_acl.privileges"
+            go_type: "int"
+          - column: "main.system_pending_tx.bump_price_count"
+            go_type: "int"
+          - column: "main.system_evm_events.event_index"
+            go_type: "uint"
+          - column: "main.system_evm_events.tx_index"
+            go_type: "uint"

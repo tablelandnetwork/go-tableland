@@ -3,7 +3,6 @@ package impl
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"math/big"
 	"strconv"
 	"testing"
@@ -241,7 +240,6 @@ func TestSetController(t *testing.T) {
 
 	t.Run("unset-controller", func(t *testing.T) {
 		controller := common.HexToAddress("0x0")
-		fmt.Println(controller.Hex())
 		txnHash := contractCalls.setController(controller)
 
 		tid := tables.TableID(*big.NewInt(1))
