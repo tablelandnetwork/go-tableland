@@ -350,7 +350,7 @@ func CollectReadQueryMetric(ctx context.Context, statement string, config format
 			Output:  string(config.Output),
 		}
 
-		metric := &ReadQueryMetricData{
+		metric := &readQueryMetricData{
 			ipAddress:     ipAddress,
 			sqlStatement:  statement,
 			formatOptions: formatOptions,
@@ -364,16 +364,16 @@ func CollectReadQueryMetric(ctx context.Context, statement string, config format
 	}
 }
 
-type ReadQueryMetricData struct {
+type readQueryMetricData struct {
 	ipAddress     string
 	sqlStatement  string
 	formatOptions telemetry.ReadQueryFormatOptions
 	tookMilli     int64
 }
 
-func (m *ReadQueryMetricData) IPAddress() string    { return m.ipAddress }
-func (m *ReadQueryMetricData) SQLStatement() string { return m.sqlStatement }
-func (m *ReadQueryMetricData) FormatOptions() telemetry.ReadQueryFormatOptions {
+func (m *readQueryMetricData) IPAddress() string    { return m.ipAddress }
+func (m *readQueryMetricData) SQLStatement() string { return m.sqlStatement }
+func (m *readQueryMetricData) FormatOptions() telemetry.ReadQueryFormatOptions {
 	return m.formatOptions
 }
-func (m *ReadQueryMetricData) TookMilli() int64 { return m.tookMilli }
+func (m *readQueryMetricData) TookMilli() int64 { return m.tookMilli }
