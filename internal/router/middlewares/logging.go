@@ -13,7 +13,7 @@ func WithLogging(h http.Handler) http.Handler {
 		clientIP, err := extractClientIP(r)
 		if err != nil {
 			log.Warn().Err(err).Msg("can't extract client ip")
-			clientIP = "none"
+			clientIP = ""
 		}
 
 		r = r.WithContext(context.WithValue(r.Context(), ContextIPAddress, clientIP))

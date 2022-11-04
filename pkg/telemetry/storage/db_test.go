@@ -175,9 +175,8 @@ func TestCollectAndFetchAndPublish(t *testing.T) {
 			payload := metric.Payload.(*telemetry.ReadQueryMetric)
 			require.Equal(t, readQueryMetrics[i].IPAddress(), payload.IPAddress)
 			require.Equal(t, readQueryMetrics[i].SQLStatement(), payload.SQLStatement)
-			require.Equal(t, readQueryMetrics[i].Unwrap(), payload.Unwrap)
-			require.Equal(t, readQueryMetrics[i].Extract(), payload.Extract)
-			require.Equal(t, readQueryMetrics[i].Output(), payload.Output)
+			require.Equal(t, readQueryMetrics[i].FormatOptions(), payload.FormatOptions)
+			require.Equal(t, readQueryMetrics[i].TookMilli(), payload.TookMilli)
 		}
 
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -265,6 +264,11 @@ type readQuery struct{}
 
 func (rq readQuery) IPAddress() string    { return "0.0.0.0" }
 func (rq readQuery) SQLStatement() string { return "SELECT * FROM foo" }
-func (rq readQuery) Unwrap() bool         { return false }
-func (rq readQuery) Extract() bool        { return true }
-func (rq readQuery) Output() string       { return "objects" }
+func (rq readQuery) FormatOptions() telemetry.ReadQueryFormatOptions {
+	return telemetry.ReadQueryFormatOptions{
+		Extract: true,
+		Unwrap:  false,
+		Output:  "objects",
+	}
+}
+func (rq readQuery) TookMilli() int64 { return 100 }

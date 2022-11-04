@@ -95,19 +95,22 @@ type ChainStacksMetric struct {
 type ReadQuery interface {
 	IPAddress() string
 	SQLStatement() string
+	FormatOptions() ReadQueryFormatOptions
+	TookMilli() int64
+}
 
-	Unwrap() bool
-	Extract() bool
-	Output() string
+type ReadQueryFormatOptions struct {
+	Extract bool   `json:"extract"`
+	Unwrap  bool   `json:"unwrap"`
+	Output  string `json:"output"`
 }
 
 // ReadQueryMetric contains information about a read query.
 type ReadQueryMetric struct {
 	Version int `json:"version"`
 
-	IPAddress    string `json:"ip_address"`
-	SQLStatement string `json:"sql_statement"`
-	Unwrap       bool   `json:"unwrap"`
-	Extract      bool   `json:"extract"`
-	Output       string `json:"output"`
+	IPAddress     string                 `json:"ip_address"`
+	SQLStatement  string                 `json:"sql_statement"`
+	FormatOptions ReadQueryFormatOptions `json:"format_options"`
+	TookMilli     int64                  `json:"took_milli"`
 }

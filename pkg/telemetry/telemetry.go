@@ -102,12 +102,11 @@ func Collect(ctx context.Context, metric interface{}) error {
 			Timestamp: time.Now().UTC(),
 			Type:      ReadQueryType,
 			Payload: ReadQueryMetric{
-				Version:      1,
-				IPAddress:    v.IPAddress(),
-				SQLStatement: v.SQLStatement(),
-				Unwrap:       v.Unwrap(),
-				Extract:      v.Extract(),
-				Output:       v.Output(),
+				Version:       1,
+				IPAddress:     v.IPAddress(),
+				SQLStatement:  v.SQLStatement(),
+				FormatOptions: v.FormatOptions(),
+				TookMilli:     v.TookMilli(),
 			},
 		}); err != nil {
 			return errors.Errorf("read query metric: %s", err)
