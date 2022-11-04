@@ -93,7 +93,7 @@ func (p *Publisher) publish(ctx context.Context) error {
 	}
 
 	sevenDays := 24 * 7 * time.Hour
-	if err := p.store.DeleteOlderThan(ctx, sevenDays); err != nil {
+	if err := p.store.DeletePublishedOlderThan(ctx, sevenDays); err != nil {
 		return fmt.Errorf("delete older than: %s", err)
 	}
 
@@ -104,7 +104,7 @@ func (p *Publisher) publish(ctx context.Context) error {
 type MetricsStore interface {
 	FetchMetrics(context.Context, bool, int) ([]telemetry.Metric, error)
 	MarkAsPublished(context.Context, []int64) error
-	DeleteOlderThan(context.Context, time.Duration) error
+	DeletePublishedOlderThan(context.Context, time.Duration) error
 }
 
 // MetricsExporter defines the API for exporting metrics.

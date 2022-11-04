@@ -202,7 +202,7 @@ func TestCollectAndFetchAndPublish(t *testing.T) {
 
 	t.Run("delete old metrics", func(t *testing.T) {
 		// clear store
-		err := s.DeleteOlderThan(context.Background(), 0)
+		err := s.DeletePublishedOlderThan(context.Background(), 0)
 
 		require.NoError(t, err)
 		// Store two metrics. One older than 7 days.

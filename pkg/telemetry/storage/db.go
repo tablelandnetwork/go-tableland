@@ -179,14 +179,14 @@ func (db *TelemetryDatabase) MarkAsPublished(ctx context.Context, rowids []int64
 	return nil
 }
 
-// DeleteOlderThan deletes metrics other than provided duration.
-func (db *TelemetryDatabase) DeleteOlderThan(ctx context.Context, duration time.Duration) error {
+// DeletePublishedOlderThan deletes metrics other than provided duration.
+func (db *TelemetryDatabase) DeletePublishedOlderThan(ctx context.Context, duration time.Duration) error {
 	if duration < 0 {
 		return nil
 	}
 
 	threshold := time.Now().UTC().Add(-duration).UnixMilli()
-	_, err := db.sqlDB.ExecContext(ctx, "DELETE FROM system_metrics WHERE timestamp < ?1", threshold)
+	_, err := db.sqlDB.ExecContext(ctx, "DELETE FROM system_metrics WHERE timestamp < ?1 and published", threshold)
 	if err != nil {
 		return fmt.Errorf("exec: %s", err)
 	}

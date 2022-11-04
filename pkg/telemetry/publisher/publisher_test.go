@@ -77,7 +77,7 @@ func (s *store) MarkAsPublished(_ context.Context, _ []int64) error {
 	return nil
 }
 
-func (s *store) DeleteOlderThan(context.Context, time.Duration) error {
+func (s *store) DeletePublishedOlderThan(context.Context, time.Duration) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.deleteOlderThanCalled = true
