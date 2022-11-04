@@ -94,7 +94,7 @@ func (p *Publisher) publish(ctx context.Context) error {
 
 	sevenDays := 24 * 7 * time.Hour
 	if err := p.store.DeleteOlderThan(ctx, sevenDays); err != nil {
-		return fmt.Errorf("mark as published: %s", err)
+		return fmt.Errorf("delete older than: %s", err)
 	}
 
 	return nil
