@@ -96,6 +96,23 @@ func Collect(ctx context.Context, metric interface{}) error {
 			return errors.Errorf("store chains stacks summary metric: %s", err)
 		}
 		return nil
+	case ReadQuery:
+		if err := metricStore.StoreMetric(ctx, Metric{
+			Version:   1,
+			Timestamp: time.Now().UTC(),
+			Type:      ReadQueryType,
+			Payload: ReadQueryMetric{
+				Version:      1,
+				IPAddress:    v.IPAddress(),
+				SQLStatement: v.SQLStatement(),
+				Unwrap:       v.Unwrap(),
+				Extract:      v.Extract(),
+				Output:       v.Output(),
+			},
+		}); err != nil {
+			return errors.Errorf("read query metric: %s", err)
+		}
+		return nil
 	default:
 		return fmt.Errorf("unknown metric type %T", v)
 	}

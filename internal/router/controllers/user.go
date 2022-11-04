@@ -11,9 +11,11 @@ import (
 	"github.com/hetiansu5/urlquery"
 	"github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/formatter"
+	"github.com/textileio/go-tableland/internal/router/middlewares"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/errors"
 	"github.com/textileio/go-tableland/pkg/tables"
+	"github.com/textileio/go-tableland/pkg/telemetry"
 )
 
 // SQLRunner defines the run SQL interface of Tableland.
@@ -234,8 +236,9 @@ func (c *UserController) GetTableQuery(rw http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	rw.WriteHeader(http.StatusOK)
+	c.collectReadQueryMetric(r, stm, config)
 
+	rw.WriteHeader(http.StatusOK)
 	if config.Unwrap && len(res.Rows) > 1 {
 		rw.Header().Set("Content-Type", "application/jsonl+json")
 	}
@@ -265,6 +268,23 @@ func (c *UserController) runReadRequest(
 		return nil, false
 	}
 	return res, true
+}
+
+func (c *UserController) collectReadQueryMetric(r *http.Request, statement string, config formatter.FormatConfig) {
+	value := r.Context().Value(middlewares.ContextIPAddress)
+	ipAddress, ok := value.(string)
+	if ok && ipAddress != "" {
+		metric := &ReadQueryMetricData{
+			ipAddress:    ipAddress,
+			sqlStatement: statement,
+			extract:      config.Extract,
+			unwrap:       config.Unwrap,
+			output:       string(config.Output),
+		}
+		if err := telemetry.Collect(r.Context(), metric); err != nil {
+			log.Warn().Err(err).Msg("failed to collect metric")
+		}
+	}
 }
 
 func formatterOptions(r *http.Request) ([]formatter.FormatOption, error) {
@@ -331,3 +351,17 @@ func getFormatterParams(r *http.Request) (formatterParams, error) {
 
 	return c, nil
 }
+
+type ReadQueryMetricData struct {
+	ipAddress    string
+	sqlStatement string
+	output       string
+	extract      bool
+	unwrap       bool
+}
+
+func (m ReadQueryMetricData) IPAddress() string    { return m.ipAddress }
+func (m ReadQueryMetricData) SQLStatement() string { return m.sqlStatement }
+func (m ReadQueryMetricData) Output() string       { return m.output }
+func (m ReadQueryMetricData) Extract() bool        { return m.extract }
+func (m ReadQueryMetricData) Unwrap() bool         { return m.unwrap }

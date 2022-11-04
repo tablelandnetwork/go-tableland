@@ -7,10 +7,12 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/formatter"
 	"github.com/textileio/go-tableland/internal/router/middlewares"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/tables"
+	"github.com/textileio/go-tableland/pkg/telemetry"
 )
 
 // RelayWriteQueryRequest is a user RelayWriteQuery request.
@@ -207,6 +209,8 @@ func (rs *RPCService) RunReadQuery(
 		return RunReadQueryResponse{}, errors.New("unwrapped results with more than one row aren't supported in JSON RPC API")
 	}
 
+	rs.collectReadQueryMetric(ctx, req.Statement, config)
+
 	return RunReadQueryResponse{Result: json.RawMessage(formatted)}, nil
 }
 
@@ -270,3 +274,34 @@ func (rs *RPCService) SetController(
 	ret.Transaction.Hash = txn.Hash().Hex()
 	return ret, nil
 }
+
+func (rs *RPCService) collectReadQueryMetric(ctx context.Context, statement string, config formatter.FormatConfig) {
+	value := ctx.Value(middlewares.ContextIPAddress)
+	ipAddress, ok := value.(string)
+	if ok && ipAddress != "" {
+		metric := &ReadQueryMetricData{
+			ipAddress:    ipAddress,
+			sqlStatement: statement,
+			extract:      config.Extract,
+			unwrap:       config.Unwrap,
+			output:       string(config.Output),
+		}
+		if err := telemetry.Collect(ctx, metric); err != nil {
+			log.Warn().Err(err).Msg("failed to collect metric")
+		}
+	}
+}
+
+type ReadQueryMetricData struct {
+	ipAddress    string
+	sqlStatement string
+	output       string
+	extract      bool
+	unwrap       bool
+}
+
+func (m ReadQueryMetricData) IPAddress() string    { return m.ipAddress }
+func (m ReadQueryMetricData) SQLStatement() string { return m.sqlStatement }
+func (m ReadQueryMetricData) Output() string       { return m.output }
+func (m ReadQueryMetricData) Extract() bool        { return m.extract }
+func (m ReadQueryMetricData) Unwrap() bool         { return m.unwrap }

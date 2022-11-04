@@ -18,6 +18,8 @@ const (
 	GitSummaryType
 	// ChainStacksSummaryType is the type for the ChainStacksMetric.
 	ChainStacksSummaryType
+	// ReadQueryType is the type for the ReadQueryMetric.
+	ReadQueryType
 )
 
 // Metric defines a metric.
@@ -87,4 +89,25 @@ type ChainStacksMetric struct {
 	Version int `json:"version"`
 
 	LastProcessedBlockNumbers map[tableland.ChainID]int64 `json:"last_processed_block_number"`
+}
+
+// ReadQuery defines how data is accessed to create a ReadQueryMetric.
+type ReadQuery interface {
+	IPAddress() string
+	SQLStatement() string
+
+	Unwrap() bool
+	Extract() bool
+	Output() string
+}
+
+// ReadQueryMetric contains information about a read query.
+type ReadQueryMetric struct {
+	Version int `json:"version"`
+
+	IPAddress    string `json:"ip_address"`
+	SQLStatement string `json:"sql_statement"`
+	Unwrap       bool   `json:"unwrap"`
+	Extract      bool   `json:"extract"`
+	Output       string `json:"output"`
 }
