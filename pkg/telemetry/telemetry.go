@@ -50,16 +50,16 @@ func Collect(ctx context.Context, metric interface{}) error {
 	}
 
 	switch v := metric.(type) {
-	case StateHash:
+	case StateHashMetric:
 		if err := metricStore.StoreMetric(ctx, Metric{
 			Version:   1,
 			Timestamp: time.Now().UTC(),
 			Type:      StateHashType,
 			Payload: StateHashMetric{
-				Version:     1,
-				ChainID:     v.ChainID(),
-				BlockNumber: v.BlockNumber(),
-				Hash:        v.Hash(),
+				Version:     v.Version,
+				ChainID:     v.ChainID,
+				BlockNumber: v.BlockNumber,
+				Hash:        v.Hash,
 			},
 		}); err != nil {
 			return errors.Errorf("store state hash metric: %s", err)

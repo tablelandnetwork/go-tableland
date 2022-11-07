@@ -41,16 +41,13 @@ func (m Metric) Serialize() ([]byte, error) {
 	return b, nil
 }
 
-// StateHash defines how data is accessed to create a StateHashMetric.
-type StateHash interface {
-	ChainID() int64
-	BlockNumber() int64
-	Hash() string
-}
+type StateHashMetricVersion int64
+
+const StateHashMetricV1 StateHashMetricVersion = iota
 
 // StateHashMetric defines a state hash metric.
 type StateHashMetric struct {
-	Version int64 `json:"version"`
+	Version StateHashMetricVersion `json:"version"`
 
 	ChainID     int64  `json:"chain_id"`
 	BlockNumber int64  `json:"block_number"`

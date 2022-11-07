@@ -63,31 +63,16 @@ type TxnExecutionResult struct {
 
 // StateHash represents the state of the database at given block number for a particular chain id.
 type StateHash struct {
-	chainID     tableland.ChainID
-	blockNumber int64
-	hash        string
+	ChainID     tableland.ChainID
+	BlockNumber int64
+	Hash        string
 }
 
 // NewStateHash creates a new state hash.
 func NewStateHash(chainID tableland.ChainID, blockNumber int64, hash string) StateHash {
 	return StateHash{
-		chainID:     chainID,
-		blockNumber: blockNumber,
-		hash:        hash,
+		ChainID:     chainID,
+		BlockNumber: blockNumber,
+		Hash:        hash,
 	}
-}
-
-// ChainID returns chain id.
-func (h StateHash) ChainID() int64 {
-	return int64(h.chainID)
-}
-
-// BlockNumber returns the block number.
-func (h StateHash) BlockNumber() int64 {
-	return h.blockNumber
-}
-
-// Hash returns the hash.
-func (h StateHash) Hash() string {
-	return h.hash
 }

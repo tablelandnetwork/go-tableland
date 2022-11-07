@@ -64,8 +64,8 @@ func TestReplayProductionHistory(t *testing.T) {
 		hash, err := bs.StateHash(ctx, ep.chainID)
 		require.NoError(t, err)
 
-		assert.Equal(t, expectedStateHashes[ep.chainID], hash.Hash(),
-			"ChainID %d hash %s doesn't match %s", ep.chainID, hash.Hash(), expectedStateHashes[ep.chainID])
+		assert.Equal(t, expectedStateHashes[ep.chainID], hash.Hash,
+			"ChainID %d hash %s doesn't match %s", ep.chainID, hash.Hash, expectedStateHashes[ep.chainID])
 		require.NoError(t, bs.Close())
 	}
 

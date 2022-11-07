@@ -10,7 +10,7 @@ import (
 
 func TestCollectWithoutStore(t *testing.T) {
 	metricStore = nil
-	require.NoError(t, Collect(context.Background(), stateHash{}))
+	require.NoError(t, Collect(context.Background(), fakeStateHash))
 }
 
 func TestCollectMockedtStore(t *testing.T) {
@@ -19,7 +19,7 @@ func TestCollectMockedtStore(t *testing.T) {
 		metricStore = s
 
 		require.False(t, s.called)
-		err := Collect(context.Background(), stateHash{})
+		err := Collect(context.Background(), fakeStateHash)
 		require.NoError(t, err)
 		require.True(t, s.called)
 	})
@@ -66,11 +66,12 @@ func (gs gitSummary) GetGitSummary() string    { return "fakeGitSummary" }
 func (gs gitSummary) GetBuildDate() string     { return "fakeGitDate" }
 func (gs gitSummary) GetBinaryVersion() string { return "fakeBinaryVersion" }
 
-type stateHash struct{}
-
-func (h stateHash) ChainID() int64     { return 1 }
-func (h stateHash) BlockNumber() int64 { return 1 }
-func (h stateHash) Hash() string       { return "abcdefgh" }
+var fakeStateHash = StateHashMetric{
+	Version:     StateHashMetricV1,
+	ChainID:     1,
+	BlockNumber: 1,
+	Hash:        "abcdefgh",
+}
 
 type store struct {
 	called bool

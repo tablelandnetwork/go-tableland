@@ -34,8 +34,8 @@ func TestCollectAndFetchAndPublish(t *testing.T) {
 
 	t.Run("state hash", func(t *testing.T) {
 		// collect two mocked statehash metrics
-		require.NoError(t, telemetry.Collect(context.Background(), stateHash{}))
-		require.NoError(t, telemetry.Collect(context.Background(), stateHash{}))
+		require.NoError(t, telemetry.Collect(context.Background(), fakeStateHash))
+		require.NoError(t, telemetry.Collect(context.Background(), fakeStateHash))
 
 		metrics, err := s.FetchMetrics(context.Background(), false, 10)
 		require.NoError(t, err)
@@ -47,9 +47,9 @@ func TestCollectAndFetchAndPublish(t *testing.T) {
 			require.False(t, metric.Timestamp.IsZero())
 
 			sh := metric.Payload.(*telemetry.StateHashMetric)
-			require.Equal(t, stateHash{}.ChainID(), sh.ChainID)
-			require.Equal(t, stateHash{}.BlockNumber(), sh.BlockNumber)
-			require.Equal(t, stateHash{}.Hash(), sh.Hash)
+			require.Equal(t, fakeStateHash.ChainID, sh.ChainID)
+			require.Equal(t, fakeStateHash.BlockNumber, sh.BlockNumber)
+			require.Equal(t, fakeStateHash.Hash, sh.Hash)
 		}
 
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -209,14 +209,14 @@ func TestCollectAndFetchAndPublish(t *testing.T) {
 			Version:   1,
 			Timestamp: time.Now().UTC(),
 			Type:      telemetry.StateHashType,
-			Payload:   stateHash{},
+			Payload:   fakeStateHash,
 		})
 		require.NoError(t, err)
 		err = s.StoreMetric(context.Background(), telemetry.Metric{
 			Version:   1,
 			Timestamp: time.Now().UTC().Add(-24*7*time.Hour - 1), // 7 days + 1 old
 			Type:      telemetry.StateHashType,
-			Payload:   stateHash{},
+			Payload:   fakeStateHash,
 		})
 		require.NoError(t, err)
 
@@ -254,11 +254,12 @@ func (gs gitSummary) GetGitSummary() string    { return "fakeGitSummary" }
 func (gs gitSummary) GetBuildDate() string     { return "fakeGitDate" }
 func (gs gitSummary) GetBinaryVersion() string { return "fakeBinaryVersion" }
 
-type stateHash struct{}
-
-func (h stateHash) ChainID() int64     { return 1 }
-func (h stateHash) BlockNumber() int64 { return 1 }
-func (h stateHash) Hash() string       { return "abcdefgh" }
+var fakeStateHash = telemetry.StateHashMetric{
+	Version:     telemetry.StateHashMetricV1,
+	ChainID:     1,
+	BlockNumber: 1,
+	Hash:        "abcdefgh",
+}
 
 type readQuery struct{}
 
