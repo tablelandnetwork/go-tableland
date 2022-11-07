@@ -165,7 +165,7 @@ func TestCollectAndFetchAndPublish(t *testing.T) {
 
 	t.Run("read query", func(t *testing.T) {
 		// collect two mocked read query metrics
-		readQueryMetrics := [2]readQuery{{}, {}}
+		readQueryMetrics := [2]telemetry.ReadQueryMetric{fakeReadQuery, fakeReadQuery}
 		require.NoError(t, telemetry.Collect(context.Background(), readQueryMetrics[0]))
 		require.NoError(t, telemetry.Collect(context.Background(), readQueryMetrics[1]))
 
@@ -179,10 +179,10 @@ func TestCollectAndFetchAndPublish(t *testing.T) {
 			require.False(t, metric.Timestamp.IsZero())
 
 			payload := metric.Payload.(*telemetry.ReadQueryMetric)
-			require.Equal(t, readQueryMetrics[i].IPAddress(), payload.IPAddress)
-			require.Equal(t, readQueryMetrics[i].SQLStatement(), payload.SQLStatement)
-			require.Equal(t, readQueryMetrics[i].FormatOptions(), payload.FormatOptions)
-			require.Equal(t, readQueryMetrics[i].TookMilli(), payload.TookMilli)
+			require.Equal(t, readQueryMetrics[i].IPAddress, payload.IPAddress)
+			require.Equal(t, readQueryMetrics[i].SQLStatement, payload.SQLStatement)
+			require.Equal(t, readQueryMetrics[i].FormatOptions, payload.FormatOptions)
+			require.Equal(t, readQueryMetrics[i].TookMilli, payload.TookMilli)
 		}
 
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -264,15 +264,14 @@ var fakeStateHash = telemetry.StateHashMetric{
 	Hash:        "abcdefgh",
 }
 
-type readQuery struct{}
-
-func (rq readQuery) IPAddress() string    { return "0.0.0.0" }
-func (rq readQuery) SQLStatement() string { return "SELECT * FROM foo" }
-func (rq readQuery) FormatOptions() telemetry.ReadQueryFormatOptions {
-	return telemetry.ReadQueryFormatOptions{
+var fakeReadQuery = telemetry.ReadQueryMetric{
+	Version:      telemetry.ReadQueryMetricV1,
+	IPAddress:    "0.0.0.0",
+	SQLStatement: "SELECT * FROM foo",
+	FormatOptions: telemetry.ReadQueryFormatOptions{
 		Extract: true,
 		Unwrap:  false,
 		Output:  "objects",
-	}
+	},
+	TookMilli: 100,
 }
-func (rq readQuery) TookMilli() int64 { return 100 }

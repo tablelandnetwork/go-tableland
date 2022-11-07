@@ -96,17 +96,17 @@ func Collect(ctx context.Context, metric interface{}) error {
 			return errors.Errorf("store chains stacks summary metric: %s", err)
 		}
 		return nil
-	case ReadQuery:
+	case ReadQueryMetric:
 		if err := metricStore.StoreMetric(ctx, Metric{
 			Version:   1,
 			Timestamp: time.Now().UTC(),
 			Type:      ReadQueryType,
 			Payload: ReadQueryMetric{
-				Version:       1,
-				IPAddress:     v.IPAddress(),
-				SQLStatement:  v.SQLStatement(),
-				FormatOptions: v.FormatOptions(),
-				TookMilli:     v.TookMilli(),
+				Version:       v.Version,
+				IPAddress:     v.IPAddress,
+				SQLStatement:  v.SQLStatement,
+				FormatOptions: v.FormatOptions,
+				TookMilli:     v.TookMilli,
 			},
 		}); err != nil {
 			return errors.Errorf("read query metric: %s", err)

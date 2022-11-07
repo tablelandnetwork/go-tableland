@@ -350,11 +350,12 @@ func CollectReadQueryMetric(ctx context.Context, statement string, config format
 			Output:  string(config.Output),
 		}
 
-		metric := &readQueryMetricData{
-			ipAddress:     ipAddress,
-			sqlStatement:  statement,
-			formatOptions: formatOptions,
-			tookMilli:     took.Milliseconds(),
+		metric := telemetry.ReadQueryMetric{
+			Version:       telemetry.ReadQueryMetricV1,
+			IPAddress:     ipAddress,
+			SQLStatement:  statement,
+			FormatOptions: formatOptions,
+			TookMilli:     took.Milliseconds(),
 		}
 		if err := telemetry.Collect(ctx, metric); err != nil {
 			log.Warn().Err(err).Msg("failed to collect metric")
@@ -363,17 +364,3 @@ func CollectReadQueryMetric(ctx context.Context, statement string, config format
 		log.Warn().Str("sql_statement", statement).Msg("ip address not detected. metric not sent")
 	}
 }
-
-type readQueryMetricData struct {
-	ipAddress     string
-	sqlStatement  string
-	formatOptions telemetry.ReadQueryFormatOptions
-	tookMilli     int64
-}
-
-func (m *readQueryMetricData) IPAddress() string    { return m.ipAddress }
-func (m *readQueryMetricData) SQLStatement() string { return m.sqlStatement }
-func (m *readQueryMetricData) FormatOptions() telemetry.ReadQueryFormatOptions {
-	return m.formatOptions
-}
-func (m *readQueryMetricData) TookMilli() int64 { return m.tookMilli }

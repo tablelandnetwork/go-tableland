@@ -81,13 +81,9 @@ type ChainStacksMetric struct {
 	LastProcessedBlockNumbers map[tableland.ChainID]int64 `json:"last_processed_block_number"`
 }
 
-// ReadQuery defines how data is accessed to create a ReadQueryMetric.
-type ReadQuery interface {
-	IPAddress() string
-	SQLStatement() string
-	FormatOptions() ReadQueryFormatOptions
-	TookMilli() int64
-}
+type ReadQueryMetricVersion int64
+
+const ReadQueryMetricV1 ReadQueryMetricVersion = iota
 
 type ReadQueryFormatOptions struct {
 	Extract bool   `json:"extract"`
@@ -97,7 +93,7 @@ type ReadQueryFormatOptions struct {
 
 // ReadQueryMetric contains information about a read query.
 type ReadQueryMetric struct {
-	Version int `json:"version"`
+	Version ReadQueryMetricVersion `json:"version"`
 
 	IPAddress     string                 `json:"ip_address"`
 	SQLStatement  string                 `json:"sql_statement"`
