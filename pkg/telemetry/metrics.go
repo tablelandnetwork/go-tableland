@@ -41,8 +41,10 @@ func (m Metric) Serialize() ([]byte, error) {
 	return b, nil
 }
 
+// StateHashMetricVersion is a type for versioning StateHash metrics.
 type StateHashMetricVersion int64
 
+// StateHashMetricV1 is the V1 version of StateHash metric.
 const StateHashMetricV1 StateHashMetricVersion = iota
 
 // StateHashMetric defines a state hash metric.
@@ -54,8 +56,10 @@ type StateHashMetric struct {
 	Hash        string `json:"hash"`
 }
 
+// GitSummaryMetricVersion is a type for versioning GitSummary metrics.
 type GitSummaryMetricVersion int64
 
+// GitSummaryMetricV1 is the V1 version of GitSummary metric.
 const GitSummaryMetricV1 GitSummaryMetricVersion = iota
 
 // GitSummaryMetric contains Git information of the binary.
@@ -70,8 +74,10 @@ type GitSummaryMetric struct {
 	BinaryVersion string `json:"binary_version"`
 }
 
+// ChainStacksMetricVersion is a type for versioning ChainStacks metrics.
 type ChainStacksMetricVersion int64
 
+// ChainStacksMetricV1 is the V1 version of ChainStacks metric.
 const ChainStacksMetricV1 ChainStacksMetricVersion = iota
 
 // ChainStacksMetric contains information about each chain being synced.
@@ -81,10 +87,13 @@ type ChainStacksMetric struct {
 	LastProcessedBlockNumbers map[tableland.ChainID]int64 `json:"last_processed_block_number"`
 }
 
+// ReadQueryMetricVersion is a type for versioning ReadQuery metrics.
 type ReadQueryMetricVersion int64
 
+// ReadQueryMetricV1 is the V1 version of ReadQuery metric.
 const ReadQueryMetricV1 ReadQueryMetricVersion = iota
 
+// ReadQueryFormatOptions contains formatting configuration of a ReadQuery metric.
 type ReadQueryFormatOptions struct {
 	Extract bool   `json:"extract"`
 	Unwrap  bool   `json:"unwrap"`
