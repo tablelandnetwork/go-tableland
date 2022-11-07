@@ -28,7 +28,7 @@ func TestCollectMockedtStore(t *testing.T) {
 		metricStore = s
 
 		require.False(t, s.called)
-		err := Collect(context.Background(), gitSummary{})
+		err := Collect(context.Background(), fakeGitSummary)
 		require.NoError(t, err)
 		require.True(t, s.called)
 	})
@@ -57,14 +57,15 @@ type chainsStackSummary map[tableland.ChainID]int64
 
 func (css chainsStackSummary) GetLastProcessedBlockNumber() map[tableland.ChainID]int64 { return css }
 
-type gitSummary struct{}
-
-func (gs gitSummary) GetGitCommit() string     { return "fakeGitCommit" }
-func (gs gitSummary) GetGitBranch() string     { return "fakeGitBranch" }
-func (gs gitSummary) GetGitState() string      { return "fakeGitState" }
-func (gs gitSummary) GetGitSummary() string    { return "fakeGitSummary" }
-func (gs gitSummary) GetBuildDate() string     { return "fakeGitDate" }
-func (gs gitSummary) GetBinaryVersion() string { return "fakeBinaryVersion" }
+var fakeGitSummary = GitSummaryMetric{
+	Version:       GitSummaryMetricV1,
+	GitCommit:     "fakeGitCommit",
+	GitBranch:     "fakeGitBranch",
+	GitState:      "fakeGitState",
+	GitSummary:    "fakeGitSummary",
+	BuildDate:     "fakeGitDate",
+	BinaryVersion: "fakeBinaryVersion",
+}
 
 var fakeStateHash = StateHashMetric{
 	Version:     StateHashMetricV1,

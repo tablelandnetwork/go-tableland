@@ -54,19 +54,13 @@ type StateHashMetric struct {
 	Hash        string `json:"hash"`
 }
 
-// GitSummary defines how data is accessed to create a VersionSummaryMetric.
-type GitSummary interface {
-	GetGitCommit() string
-	GetGitBranch() string
-	GetGitState() string
-	GetGitSummary() string
-	GetBuildDate() string
-	GetBinaryVersion() string
-}
+type GitSummaryMetricVersion int64
+
+const GitSummaryMetricV1 GitSummaryMetricVersion = iota
 
 // GitSummaryMetric contains Git information of the binary.
 type GitSummaryMetric struct {
-	Version int `json:"version"`
+	Version GitSummaryMetricVersion `json:"version"`
 
 	GitCommit     string `json:"git_commit"`
 	GitBranch     string `json:"git_branch"`

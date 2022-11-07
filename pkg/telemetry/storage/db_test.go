@@ -74,8 +74,8 @@ func TestCollectAndFetchAndPublish(t *testing.T) {
 
 	t.Run("git summary", func(t *testing.T) {
 		// collect two mocked gitSummary metrics
-		require.NoError(t, telemetry.Collect(context.Background(), gitSummary{}))
-		require.NoError(t, telemetry.Collect(context.Background(), gitSummary{}))
+		require.NoError(t, telemetry.Collect(context.Background(), fakeGitSummary))
+		require.NoError(t, telemetry.Collect(context.Background(), fakeGitSummary))
 
 		metrics, err := s.FetchMetrics(context.Background(), false, 10)
 		require.NoError(t, err)
@@ -87,12 +87,12 @@ func TestCollectAndFetchAndPublish(t *testing.T) {
 			require.False(t, metric.Timestamp.IsZero())
 
 			gv := metric.Payload.(*telemetry.GitSummaryMetric)
-			require.Equal(t, gitSummary{}.GetGitCommit(), gv.GitCommit)
-			require.Equal(t, gitSummary{}.GetGitBranch(), gv.GitBranch)
-			require.Equal(t, gitSummary{}.GetGitState(), gv.GitState)
-			require.Equal(t, gitSummary{}.GetGitSummary(), gv.GitSummary)
-			require.Equal(t, gitSummary{}.GetBuildDate(), gv.BuildDate)
-			require.Equal(t, gitSummary{}.GetBinaryVersion(), gv.BinaryVersion)
+			require.Equal(t, fakeGitSummary.GitCommit, gv.GitCommit)
+			require.Equal(t, fakeGitSummary.GitBranch, gv.GitBranch)
+			require.Equal(t, fakeGitSummary.GitState, gv.GitState)
+			require.Equal(t, fakeGitSummary.GitSummary, gv.GitSummary)
+			require.Equal(t, fakeGitSummary.BuildDate, gv.BuildDate)
+			require.Equal(t, fakeGitSummary.BinaryVersion, gv.BinaryVersion)
 		}
 
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -245,14 +245,15 @@ type chainsStackSummary map[tableland.ChainID]int64
 
 func (css chainsStackSummary) GetLastProcessedBlockNumber() map[tableland.ChainID]int64 { return css }
 
-type gitSummary struct{}
-
-func (gs gitSummary) GetGitCommit() string     { return "fakeGitCommit" }
-func (gs gitSummary) GetGitBranch() string     { return "fakeGitBranch" }
-func (gs gitSummary) GetGitState() string      { return "fakeGitState" }
-func (gs gitSummary) GetGitSummary() string    { return "fakeGitSummary" }
-func (gs gitSummary) GetBuildDate() string     { return "fakeGitDate" }
-func (gs gitSummary) GetBinaryVersion() string { return "fakeBinaryVersion" }
+var fakeGitSummary = telemetry.GitSummaryMetric{
+	Version:       telemetry.GitSummaryMetricV1,
+	GitCommit:     "fakeGitCommit",
+	GitBranch:     "fakeGitBranch",
+	GitState:      "fakeGitState",
+	GitSummary:    "fakeGitSummary",
+	BuildDate:     "fakeGitDate",
+	BinaryVersion: "fakeBinaryVersion",
+}
 
 var fakeStateHash = telemetry.StateHashMetric{
 	Version:     telemetry.StateHashMetricV1,
