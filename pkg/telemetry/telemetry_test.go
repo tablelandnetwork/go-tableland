@@ -38,7 +38,11 @@ func TestCollectMockedtStore(t *testing.T) {
 
 		require.False(t, s.called)
 
-		err := Collect(context.Background(), chainsStackSummary(map[tableland.ChainID]int64{1: 10, 2: 20}))
+		metric := ChainStacksMetric{
+			Version:                   ChainStacksMetricV1,
+			LastProcessedBlockNumbers: map[tableland.ChainID]int64{1: 10, 2: 20},
+		}
+		err := Collect(context.Background(), metric)
 		require.NoError(t, err)
 		require.True(t, s.called)
 	})
@@ -52,10 +56,6 @@ func TestCollectUnknownMetric(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorContains(t, err, "unknown metric")
 }
-
-type chainsStackSummary map[tableland.ChainID]int64
-
-func (css chainsStackSummary) GetLastProcessedBlockNumber() map[tableland.ChainID]int64 { return css }
 
 var fakeGitSummary = GitSummaryMetric{
 	Version:       GitSummaryMetricV1,

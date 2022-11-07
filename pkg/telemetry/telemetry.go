@@ -83,14 +83,14 @@ func Collect(ctx context.Context, metric interface{}) error {
 			return errors.Errorf("store git summary metric: %s", err)
 		}
 		return nil
-	case ChainStacksSummary:
+	case ChainStacksMetric:
 		if err := metricStore.StoreMetric(ctx, Metric{
 			Version:   1,
 			Timestamp: time.Now().UTC(),
 			Type:      ChainStacksSummaryType,
 			Payload: ChainStacksMetric{
-				Version:                   1,
-				LastProcessedBlockNumbers: v.GetLastProcessedBlockNumber(),
+				Version:                   v.Version,
+				LastProcessedBlockNumbers: v.LastProcessedBlockNumbers,
 			},
 		}); err != nil {
 			return errors.Errorf("store chains stacks summary metric: %s", err)

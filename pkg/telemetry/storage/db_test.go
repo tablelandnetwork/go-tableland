@@ -117,9 +117,15 @@ func TestCollectAndFetchAndPublish(t *testing.T) {
 
 	t.Run("chains stack summary", func(t *testing.T) {
 		// collect two mocked chainsStackSummary metrics
-		chainsStackSummaryMetrics := [2]chainsStackSummary{
-			map[tableland.ChainID]int64{1: 10, 2: 20},
-			map[tableland.ChainID]int64{1: 11, 2: 21},
+		chainsStackSummaryMetrics := [2]telemetry.ChainStacksMetric{
+			{
+				Version:                   telemetry.ChainStacksMetricV1,
+				LastProcessedBlockNumbers: map[tableland.ChainID]int64{1: 10, 2: 20},
+			},
+			{
+				Version:                   telemetry.ChainStacksMetricV1,
+				LastProcessedBlockNumbers: map[tableland.ChainID]int64{1: 11, 2: 21},
+			},
 		}
 		require.NoError(t, telemetry.Collect(context.Background(), chainsStackSummaryMetrics[0]))
 		require.NoError(t, telemetry.Collect(context.Background(), chainsStackSummaryMetrics[1]))
@@ -134,7 +140,7 @@ func TestCollectAndFetchAndPublish(t *testing.T) {
 			require.False(t, metric.Timestamp.IsZero())
 
 			css := metric.Payload.(*telemetry.ChainStacksMetric)
-			require.Equal(t, chainsStackSummaryMetrics[i].GetLastProcessedBlockNumber(), css.LastProcessedBlockNumbers)
+			require.Equal(t, chainsStackSummaryMetrics[i].LastProcessedBlockNumbers, css.LastProcessedBlockNumbers)
 		}
 
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -240,10 +246,6 @@ func TestCollectAndFetchAndPublish(t *testing.T) {
 		p.Close()
 	})
 }
-
-type chainsStackSummary map[tableland.ChainID]int64
-
-func (css chainsStackSummary) GetLastProcessedBlockNumber() map[tableland.ChainID]int64 { return css }
 
 var fakeGitSummary = telemetry.GitSummaryMetric{
 	Version:       telemetry.GitSummaryMetricV1,

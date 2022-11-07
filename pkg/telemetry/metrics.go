@@ -70,14 +70,13 @@ type GitSummaryMetric struct {
 	BinaryVersion string `json:"binary_version"`
 }
 
-// ChainStacksSummary defines how data is accessed to create a ChainStacksMetric.
-type ChainStacksSummary interface {
-	GetLastProcessedBlockNumber() map[tableland.ChainID]int64
-}
+type ChainStacksMetricVersion int64
+
+const ChainStacksMetricV1 ChainStacksMetricVersion = iota
 
 // ChainStacksMetric contains information about each chain being synced.
 type ChainStacksMetric struct {
-	Version int `json:"version"`
+	Version ChainStacksMetricVersion `json:"version"`
 
 	LastProcessedBlockNumbers map[tableland.ChainID]int64 `json:"last_processed_block_number"`
 }
