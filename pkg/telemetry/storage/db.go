@@ -137,6 +137,12 @@ func (db *TelemetryDatabase) FetchMetrics(ctx context.Context, published bool, a
 				return nil, fmt.Errorf("scan rows of system metrics: %s", err)
 			}
 			mType = telemetry.NewBlockType
+		case telemetry.NewTablelandEventType:
+			mPayload = new(telemetry.NewTablelandEventMetric)
+			if err := json.Unmarshal(payload, mPayload); err != nil {
+				return nil, fmt.Errorf("scan rows of system metrics: %s", err)
+			}
+			mType = telemetry.NewTablelandEventType
 		default:
 			return nil, fmt.Errorf("unknown metric type: %d", typ)
 		}

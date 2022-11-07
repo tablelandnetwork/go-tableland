@@ -28,7 +28,7 @@
     "Debug": true
   },
   "Analytics": {
-    "FetchExtraBlockInfo": false
+    "FetchExtraBlockInfo": true
   },
   "Backup": {
     "Enabled": true,
@@ -64,7 +64,7 @@
         "ChainAPIBackoff": "15s",
         "NewBlockPollFreq": "10s",
         "MinBlockDepth": 0,
-        "PersistEvents": false
+        "PersistEvents": true
       },
       "EventProcessor": {
         "BlockFailedExecutionBackoff": "10s",

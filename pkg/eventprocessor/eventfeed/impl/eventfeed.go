@@ -22,6 +22,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	tbleth "github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
+	"github.com/textileio/go-tableland/pkg/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
 	"go.uber.org/atomic"
@@ -374,7 +375,7 @@ func (ef *EventFeed) persistEvents(ctx context.Context, events []types.Log, pars
 
 	store := ef.systemStore.WithTx(tx)
 
-	txnsEventsExistInDB := map[common.Hash]bool{}
+	persistedTxnHashEvents := map[common.Hash]bool{}
 	tblEvents := make([]tableland.EVMEvent, 0, len(events))
 	for i, e := range events {
 		// If we already have registered events for the TxHash, we skip persisting this event.
@@ -386,14 +387,14 @@ func (ef *EventFeed) persistEvents(ctx context.Context, events []types.Log, pars
 		//   time it was seen is the one that counts. For persistence we do the same; only the first time it appeared
 		//   is the event information we save to be coherent with execution. In any case, a validator config that allows
 		//   reorgs isn't safe for state coherence between validators so this should only happen in test environments.
-		if _, ok := txnsEventsExistInDB[e.TxHash]; !ok {
-			txnHashEventsExistsInDB, err := store.AreEVMEventsPersisted(ctx, e.TxHash)
+		if _, ok := persistedTxnHashEvents[e.TxHash]; !ok {
+			areTxnHashEventsPersisted, err := store.AreEVMEventsPersisted(ctx, e.TxHash)
 			if err != nil {
 				return fmt.Errorf("check if evm txn events are persisted: %s", err)
 			}
-			txnsEventsExistInDB[e.TxHash] = txnHashEventsExistsInDB
+			persistedTxnHashEvents[e.TxHash] = areTxnHashEventsPersisted
 		}
-		if txnsEventsExistInDB[e.TxHash] {
+		if persistedTxnHashEvents[e.TxHash] {
 			continue
 		}
 
@@ -411,7 +412,7 @@ func (ef *EventFeed) persistEvents(ctx context.Context, events []types.Log, pars
 		}
 		// The reflect names are *ethereum.XXXXX, so we get only XXXXX.
 		eventType := strings.SplitN(reflect.TypeOf(parsedEvents[i]).String(), ".", 2)[1]
-		tblEvents = append(tblEvents, tableland.EVMEvent{
+		tblEvent := tableland.EVMEvent{
 			// Direct mapping from types.Log
 			Address:     e.Address,
 			Topics:      topicsJSONBytes,
@@ -426,7 +427,11 @@ func (ef *EventFeed) persistEvents(ctx context.Context, events []types.Log, pars
 			ChainID:   ef.chainID,
 			EventJSON: eventJSONBytes,
 			EventType: eventType,
-		})
+		}
+		tblEvents = append(tblEvents, tblEvent)
+		if err := telemetry.Collect(ctx, toNewTablelandEvent(tblEvent)); err != nil {
+			return fmt.Errorf("collecting new tableland event metric: %s", err)
+		}
 	}
 
 	if err := store.SaveEVMEvents(ctx, tblEvents); err != nil {
@@ -448,5 +453,21 @@ type omitRawFieldExtension struct {
 func (e *omitRawFieldExtension) UpdateStructDescriptor(structDescriptor *jsoniter.StructDescriptor) {
 	if binding := structDescriptor.GetField("Raw"); binding != nil {
 		binding.ToNames = []string{}
+	}
+}
+
+func toNewTablelandEvent(e tableland.EVMEvent) telemetry.NewTablelandEventMetric {
+	return telemetry.NewTablelandEventMetric{
+		Address:     e.Address.String(),
+		Topics:      e.Topics,
+		Data:        e.Data,
+		BlockNumber: e.BlockNumber,
+		TxHash:      e.TxHash.String(),
+		TxIndex:     e.TxIndex,
+		BlockHash:   e.BlockHash.String(),
+		Index:       e.Index,
+		ChainID:     int64(e.ChainID),
+		EventJSON:   string(e.EventJSON),
+		EventType:   e.EventType,
 	}
 }

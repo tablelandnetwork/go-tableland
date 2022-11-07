@@ -61,6 +61,8 @@ func Collect(ctx context.Context, metric interface{}) error {
 		metricType = ReadQueryType
 	case NewBlockMetric:
 		metricType = NewBlockType
+	case NewTablelandEventMetric:
+		metricType = NewTablelandEventType
 	default:
 		return fmt.Errorf("unknown metric type %T", v)
 	}

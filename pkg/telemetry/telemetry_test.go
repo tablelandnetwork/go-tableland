@@ -62,6 +62,30 @@ func TestCollectMockedtStore(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, s.called)
 	})
+	t.Run("new tableland event", func(t *testing.T) {
+		s := &store{}
+		metricStore = s
+
+		require.False(t, s.called)
+
+		metric := NewTablelandEventMetric{
+			Version:     NewTablelandEventMetricV1,
+			Address:     "addr",
+			Topics:      []byte("topics"),
+			Data:        []byte("data"),
+			BlockNumber: 1,
+			TxHash:      "txhash",
+			TxIndex:     2,
+			BlockHash:   "blockhash",
+			Index:       3,
+			ChainID:     4,
+			EventJSON:   "eventjson",
+			EventType:   "eventtype",
+		}
+		err := Collect(context.Background(), metric)
+		require.NoError(t, err)
+		require.True(t, s.called)
+	})
 }
 
 func TestCollectUnknownMetric(t *testing.T) {
