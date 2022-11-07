@@ -46,6 +46,22 @@ func TestCollectMockedtStore(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, s.called)
 	})
+	t.Run("new block", func(t *testing.T) {
+		s := &store{}
+		metricStore = s
+
+		require.False(t, s.called)
+
+		metric := NewBlockMetric{
+			Version:            NewBlockMetricV1,
+			ChainID:            10,
+			BlockNumber:        11,
+			BlockTimestampUnix: 12,
+		}
+		err := Collect(context.Background(), metric)
+		require.NoError(t, err)
+		require.True(t, s.called)
+	})
 }
 
 func TestCollectUnknownMetric(t *testing.T) {

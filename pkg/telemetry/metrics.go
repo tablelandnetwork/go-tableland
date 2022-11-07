@@ -20,6 +20,8 @@ const (
 	ChainStacksSummaryType
 	// ReadQueryType is the type for the ReadQueryMetric.
 	ReadQueryType
+	// NewBlockType is the type for the NewBlockMetric.
+	NewBlockType
 )
 
 // Metric defines a metric.
@@ -108,4 +110,19 @@ type ReadQueryMetric struct {
 	SQLStatement  string                 `json:"sql_statement"`
 	FormatOptions ReadQueryFormatOptions `json:"format_options"`
 	TookMilli     int64                  `json:"took_milli"`
+}
+
+// NewBlockMetricVersion is a type for versioning NewBlock metrics.
+type NewBlockMetricVersion int64
+
+// NewBlockMetricV1 is the V1 version of NewBlock metric.
+const NewBlockMetricV1 NewBlockMetricVersion = iota
+
+// NewBlockMetric contains information about a newly detected block
+type NewBlockMetric struct {
+	Version NewBlockMetricVersion `json:"version"`
+
+	ChainID            int    `json:"chain_id"`
+	BlockNumber        int64  `json:"block_number"`
+	BlockTimestampUnix uint64 `json:"block_timestamp_unix"`
 }

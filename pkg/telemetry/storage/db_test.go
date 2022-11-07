@@ -205,6 +205,45 @@ func TestCollectAndFetchAndPublish(t *testing.T) {
 		p.Close()
 	})
 
+	t.Run("new block", func(t *testing.T) {
+		// collect two mocked chainsStackSummary metrics
+		newBlockMetric := telemetry.NewBlockMetric{
+			Version:            telemetry.NewBlockMetricV1,
+			ChainID:            10,
+			BlockNumber:        11,
+			BlockTimestampUnix: 12,
+		}
+		require.NoError(t, telemetry.Collect(context.Background(), newBlockMetric))
+
+		metrics, err := s.FetchMetrics(context.Background(), false, 10)
+		require.NoError(t, err)
+		require.Len(t, metrics, 1)
+
+		require.Equal(t, telemetry.NewBlockType, metrics[0].Type)
+		require.Equal(t, 1, metrics[0].Version)
+		require.False(t, metrics[0].Timestamp.IsZero())
+		require.Equal(t, &newBlockMetric, metrics[0].Payload.(*telemetry.NewBlockMetric))
+
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer ts.Close()
+
+		exporter, err := publisher.NewHTTPExporter(ts.URL, "")
+		require.NoError(t, err)
+		nodeID := strings.Replace(uuid.NewString(), "-", "", -1)
+		p := publisher.NewPublisher(s, exporter, nodeID, time.Second)
+		p.Start()
+
+		require.Eventually(t, func() bool {
+			metrics, err = s.FetchMetrics(context.Background(), false, 2)
+			require.NoError(t, err)
+			return len(metrics) == 0
+		}, 5*time.Second, time.Second)
+
+		p.Close()
+	})
+
 	t.Run("delete old metrics", func(t *testing.T) {
 		// clear store
 		err := s.DeletePublishedOlderThan(context.Background(), 0)
