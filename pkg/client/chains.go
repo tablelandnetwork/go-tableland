@@ -123,7 +123,7 @@ var alchemyURLs = map[ChainID]string{
 	ChainIDs.OptimismGoerli: "https://opt-goerli.g.alchemy.com/v2/%s",
 	ChainIDs.Optimism:       "https://opt-mainnet.g.alchemy.com/v2/%s",
 	ChainIDs.ArbitrumGoerli: "https://arb-goerli.g.alchemy.com/v2/%s",
-	ChainIDs.Arbitrum:       "https://arb-goerli.g.alchemy.com/v2/%s",
+	ChainIDs.Arbitrum:       "https://arb-mainnet.g.alchemy.com/v2/%s",
 	ChainIDs.PolygonMumbai:  "https://polygon-mumbai.g.alchemy.com/v2/%s",
 	ChainIDs.Polygon:        "https://polygon-mainnet.g.alchemy.com/v2/%s",
 }
