@@ -45,11 +45,7 @@ func TestCollectAndFetchAndPublish(t *testing.T) {
 			require.Equal(t, telemetry.StateHashType, metric.Type)
 			require.Equal(t, 1, metric.Version)
 			require.False(t, metric.Timestamp.IsZero())
-
-			sh := metric.Payload.(*telemetry.StateHashMetric)
-			require.Equal(t, fakeStateHash.ChainID, sh.ChainID)
-			require.Equal(t, fakeStateHash.BlockNumber, sh.BlockNumber)
-			require.Equal(t, fakeStateHash.Hash, sh.Hash)
+			require.Equal(t, &fakeStateHash, metric.Payload.(*telemetry.StateHashMetric))
 		}
 
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -73,6 +69,15 @@ func TestCollectAndFetchAndPublish(t *testing.T) {
 	})
 
 	t.Run("git summary", func(t *testing.T) {
+		fakeGitSummary := telemetry.GitSummaryMetric{
+			Version:       telemetry.GitSummaryMetricV1,
+			GitCommit:     "fakeGitCommit",
+			GitBranch:     "fakeGitBranch",
+			GitState:      "fakeGitState",
+			GitSummary:    "fakeGitSummary",
+			BuildDate:     "fakeGitDate",
+			BinaryVersion: "fakeBinaryVersion",
+		}
 		// collect two mocked gitSummary metrics
 		require.NoError(t, telemetry.Collect(context.Background(), fakeGitSummary))
 		require.NoError(t, telemetry.Collect(context.Background(), fakeGitSummary))
@@ -86,13 +91,7 @@ func TestCollectAndFetchAndPublish(t *testing.T) {
 			require.Equal(t, 1, metric.Version)
 			require.False(t, metric.Timestamp.IsZero())
 
-			gv := metric.Payload.(*telemetry.GitSummaryMetric)
-			require.Equal(t, fakeGitSummary.GitCommit, gv.GitCommit)
-			require.Equal(t, fakeGitSummary.GitBranch, gv.GitBranch)
-			require.Equal(t, fakeGitSummary.GitState, gv.GitState)
-			require.Equal(t, fakeGitSummary.GitSummary, gv.GitSummary)
-			require.Equal(t, fakeGitSummary.BuildDate, gv.BuildDate)
-			require.Equal(t, fakeGitSummary.BinaryVersion, gv.BinaryVersion)
+			require.Equal(t, &fakeGitSummary, metric.Payload.(*telemetry.GitSummaryMetric))
 		}
 
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -164,6 +163,17 @@ func TestCollectAndFetchAndPublish(t *testing.T) {
 	})
 
 	t.Run("read query", func(t *testing.T) {
+		fakeReadQuery := telemetry.ReadQueryMetric{
+			Version:      telemetry.ReadQueryMetricV1,
+			IPAddress:    "0.0.0.0",
+			SQLStatement: "SELECT * FROM foo",
+			FormatOptions: telemetry.ReadQueryFormatOptions{
+				Extract: true,
+				Unwrap:  false,
+				Output:  "objects",
+			},
+			TookMilli: 100,
+		}
 		// collect two mocked read query metrics
 		readQueryMetrics := [2]telemetry.ReadQueryMetric{fakeReadQuery, fakeReadQuery}
 		require.NoError(t, telemetry.Collect(context.Background(), readQueryMetrics[0]))
@@ -178,11 +188,7 @@ func TestCollectAndFetchAndPublish(t *testing.T) {
 			require.Equal(t, 1, metric.Version)
 			require.False(t, metric.Timestamp.IsZero())
 
-			payload := metric.Payload.(*telemetry.ReadQueryMetric)
-			require.Equal(t, readQueryMetrics[i].IPAddress, payload.IPAddress)
-			require.Equal(t, readQueryMetrics[i].SQLStatement, payload.SQLStatement)
-			require.Equal(t, readQueryMetrics[i].FormatOptions, payload.FormatOptions)
-			require.Equal(t, readQueryMetrics[i].TookMilli, payload.TookMilli)
+			require.Equal(t, &readQueryMetrics[i], metric.Payload.(*telemetry.ReadQueryMetric))
 		}
 
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -286,31 +292,9 @@ func TestCollectAndFetchAndPublish(t *testing.T) {
 	})
 }
 
-var fakeGitSummary = telemetry.GitSummaryMetric{
-	Version:       telemetry.GitSummaryMetricV1,
-	GitCommit:     "fakeGitCommit",
-	GitBranch:     "fakeGitBranch",
-	GitState:      "fakeGitState",
-	GitSummary:    "fakeGitSummary",
-	BuildDate:     "fakeGitDate",
-	BinaryVersion: "fakeBinaryVersion",
-}
-
 var fakeStateHash = telemetry.StateHashMetric{
 	Version:     telemetry.StateHashMetricV1,
 	ChainID:     1,
 	BlockNumber: 1,
 	Hash:        "abcdefgh",
-}
-
-var fakeReadQuery = telemetry.ReadQueryMetric{
-	Version:      telemetry.ReadQueryMetricV1,
-	IPAddress:    "0.0.0.0",
-	SQLStatement: "SELECT * FROM foo",
-	FormatOptions: telemetry.ReadQueryFormatOptions{
-		Extract: true,
-		Unwrap:  false,
-		Output:  "objects",
-	},
-	TookMilli: 100,
 }
