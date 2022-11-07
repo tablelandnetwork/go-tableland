@@ -441,7 +441,7 @@ func createChainStacks(
 		chainStacks[chainCfg.ChainID] = chainStack
 	}
 
-	close := func(ctx context.Context) error {
+	closeModule := func(ctx context.Context) error {
 		// Close chains syncing.
 		var wg sync.WaitGroup
 		wg.Add(len(chainStacks))
@@ -465,7 +465,7 @@ func createChainStacks(
 		return nil
 	}
 
-	return chainStacks, close, nil
+	return chainStacks, closeModule, nil
 }
 
 func createHTTPServer(
@@ -545,14 +545,14 @@ func createHTTPServer(
 		}
 	}()
 
-	close := func(ctx context.Context) error {
+	closeModule := func(ctx context.Context) error {
 		if err := server.Shutdown(ctx); err != nil {
 			return fmt.Errorf("closing HTTP server")
 		}
 		return nil
 	}
 
-	return close, nil
+	return closeModule, nil
 }
 
 func createBackuper(dirPath string, config BackupConfig) (moduleCloser, error) {
@@ -570,10 +570,10 @@ func createBackuper(dirPath string, config BackupConfig) (moduleCloser, error) {
 	}
 	go backupScheduler.Run()
 
-	close := func(ctx context.Context) error {
+	closeModule := func(ctx context.Context) error {
 		backupScheduler.Shutdown()
 		return nil
 	}
 
-	return close, nil
+	return closeModule, nil
 }

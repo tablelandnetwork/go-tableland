@@ -307,15 +307,20 @@ func (ep *EventProcessor) calculateHash(ctx context.Context, bs executor.BlockSc
 	}
 	elapsedTime := time.Since(startTime).Milliseconds()
 	ep.log.Info().
-		Str("hash", stateHash.Hash()).
-		Int64("block_number", stateHash.BlockNumber()).
-		Int64("chain_id", stateHash.ChainID()).
+		Str("hash", stateHash.Hash).
+		Int64("block_number", stateHash.BlockNumber).
+		Int64("chain_id", int64(stateHash.ChainID)).
 		Int64("elapsed_time", elapsedTime).
 		Msg("state hash")
 
 	ep.mHashCalculationElapsedTime.Store(elapsedTime)
 
-	if err := telemetry.Collect(ctx, stateHash); err != nil {
+	if err := telemetry.Collect(ctx, telemetry.StateHashMetric{
+		Version:     telemetry.StateHashMetricV1,
+		ChainID:     int64(stateHash.ChainID),
+		BlockNumber: stateHash.BlockNumber,
+		Hash:        stateHash.Hash,
+	}); err != nil {
 		return fmt.Errorf("calculating hash for current block: %s", err)
 	}
 

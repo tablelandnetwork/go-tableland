@@ -10,7 +10,7 @@ import (
 
 func TestCollectWithoutStore(t *testing.T) {
 	metricStore = nil
-	require.NoError(t, Collect(context.Background(), stateHash{}))
+	require.NoError(t, Collect(context.Background(), fakeStateHash))
 }
 
 func TestCollectMockedtStore(t *testing.T) {
@@ -19,7 +19,7 @@ func TestCollectMockedtStore(t *testing.T) {
 		metricStore = s
 
 		require.False(t, s.called)
-		err := Collect(context.Background(), stateHash{})
+		err := Collect(context.Background(), fakeStateHash)
 		require.NoError(t, err)
 		require.True(t, s.called)
 	})
@@ -28,7 +28,7 @@ func TestCollectMockedtStore(t *testing.T) {
 		metricStore = s
 
 		require.False(t, s.called)
-		err := Collect(context.Background(), gitSummary{})
+		err := Collect(context.Background(), fakeGitSummary)
 		require.NoError(t, err)
 		require.True(t, s.called)
 	})
@@ -38,7 +38,11 @@ func TestCollectMockedtStore(t *testing.T) {
 
 		require.False(t, s.called)
 
-		err := Collect(context.Background(), chainsStackSummary(map[tableland.ChainID]int64{1: 10, 2: 20}))
+		metric := ChainStacksMetric{
+			Version:                   ChainStacksMetricV1,
+			LastProcessedBlockNumbers: map[tableland.ChainID]int64{1: 10, 2: 20},
+		}
+		err := Collect(context.Background(), metric)
 		require.NoError(t, err)
 		require.True(t, s.called)
 	})
@@ -53,24 +57,22 @@ func TestCollectUnknownMetric(t *testing.T) {
 	require.ErrorContains(t, err, "unknown metric")
 }
 
-type chainsStackSummary map[tableland.ChainID]int64
+var fakeGitSummary = GitSummaryMetric{
+	Version:       GitSummaryMetricV1,
+	GitCommit:     "fakeGitCommit",
+	GitBranch:     "fakeGitBranch",
+	GitState:      "fakeGitState",
+	GitSummary:    "fakeGitSummary",
+	BuildDate:     "fakeGitDate",
+	BinaryVersion: "fakeBinaryVersion",
+}
 
-func (css chainsStackSummary) GetLastProcessedBlockNumber() map[tableland.ChainID]int64 { return css }
-
-type gitSummary struct{}
-
-func (gs gitSummary) GetGitCommit() string     { return "fakeGitCommit" }
-func (gs gitSummary) GetGitBranch() string     { return "fakeGitBranch" }
-func (gs gitSummary) GetGitState() string      { return "fakeGitState" }
-func (gs gitSummary) GetGitSummary() string    { return "fakeGitSummary" }
-func (gs gitSummary) GetBuildDate() string     { return "fakeGitDate" }
-func (gs gitSummary) GetBinaryVersion() string { return "fakeBinaryVersion" }
-
-type stateHash struct{}
-
-func (h stateHash) ChainID() int64     { return 1 }
-func (h stateHash) BlockNumber() int64 { return 1 }
-func (h stateHash) Hash() string       { return "abcdefgh" }
+var fakeStateHash = StateHashMetric{
+	Version:     StateHashMetricV1,
+	ChainID:     1,
+	BlockNumber: 1,
+	Hash:        "abcdefgh",
+}
 
 type store struct {
 	called bool

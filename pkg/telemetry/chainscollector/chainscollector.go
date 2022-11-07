@@ -42,24 +42,21 @@ func (cc *ChainsCollector) Start(ctx context.Context) {
 			cc.log.Info().Msg("gracefully closed")
 			return
 		case <-time.After(cc.collectFrequency):
-			metric := make(chainIDBlockNumbers, len(cc.chainStacks))
+			metric := telemetry.ChainStacksMetric{
+				Version:                   telemetry.ChainStacksMetricV1,
+				LastProcessedBlockNumbers: make(map[tableland.ChainID]int64, len(cc.chainStacks)),
+			}
 			for chainID, chainStack := range cc.chainStacks {
 				blockNumber, err := chainStack.EventProcessor.GetLastExecutedBlockNumber(ctx)
 				if err != nil {
 					cc.log.Error().Err(err).Msg("get last executed block number")
 					continue
 				}
-				metric[chainID] = blockNumber
+				metric.LastProcessedBlockNumbers[chainID] = blockNumber
 			}
 			if err := telemetry.Collect(ctx, metric); err != nil {
 				cc.log.Error().Err(err).Msg("collecting chain stack metric")
 			}
 		}
 	}
-}
-
-type chainIDBlockNumbers map[tableland.ChainID]int64
-
-func (cbn chainIDBlockNumbers) GetLastProcessedBlockNumber() map[tableland.ChainID]int64 {
-	return cbn
 }

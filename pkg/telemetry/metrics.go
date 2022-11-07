@@ -41,35 +41,30 @@ func (m Metric) Serialize() ([]byte, error) {
 	return b, nil
 }
 
-// StateHash defines how data is accessed to create a StateHashMetric.
-type StateHash interface {
-	ChainID() int64
-	BlockNumber() int64
-	Hash() string
-}
+// StateHashMetricVersion is a type for versioning StateHash metrics.
+type StateHashMetricVersion int64
+
+// StateHashMetricV1 is the V1 version of StateHash metric.
+const StateHashMetricV1 StateHashMetricVersion = iota
 
 // StateHashMetric defines a state hash metric.
 type StateHashMetric struct {
-	Version int64 `json:"version"`
+	Version StateHashMetricVersion `json:"version"`
 
 	ChainID     int64  `json:"chain_id"`
 	BlockNumber int64  `json:"block_number"`
 	Hash        string `json:"hash"`
 }
 
-// GitSummary defines how data is accessed to create a VersionSummaryMetric.
-type GitSummary interface {
-	GetGitCommit() string
-	GetGitBranch() string
-	GetGitState() string
-	GetGitSummary() string
-	GetBuildDate() string
-	GetBinaryVersion() string
-}
+// GitSummaryMetricVersion is a type for versioning GitSummary metrics.
+type GitSummaryMetricVersion int64
+
+// GitSummaryMetricV1 is the V1 version of GitSummary metric.
+const GitSummaryMetricV1 GitSummaryMetricVersion = iota
 
 // GitSummaryMetric contains Git information of the binary.
 type GitSummaryMetric struct {
-	Version int `json:"version"`
+	Version GitSummaryMetricVersion `json:"version"`
 
 	GitCommit     string `json:"git_commit"`
 	GitBranch     string `json:"git_branch"`
@@ -79,26 +74,26 @@ type GitSummaryMetric struct {
 	BinaryVersion string `json:"binary_version"`
 }
 
-// ChainStacksSummary defines how data is accessed to create a ChainStacksMetric.
-type ChainStacksSummary interface {
-	GetLastProcessedBlockNumber() map[tableland.ChainID]int64
-}
+// ChainStacksMetricVersion is a type for versioning ChainStacks metrics.
+type ChainStacksMetricVersion int64
+
+// ChainStacksMetricV1 is the V1 version of ChainStacks metric.
+const ChainStacksMetricV1 ChainStacksMetricVersion = iota
 
 // ChainStacksMetric contains information about each chain being synced.
 type ChainStacksMetric struct {
-	Version int `json:"version"`
+	Version ChainStacksMetricVersion `json:"version"`
 
 	LastProcessedBlockNumbers map[tableland.ChainID]int64 `json:"last_processed_block_number"`
 }
 
-// ReadQuery defines how data is accessed to create a ReadQueryMetric.
-type ReadQuery interface {
-	IPAddress() string
-	SQLStatement() string
-	FormatOptions() ReadQueryFormatOptions
-	TookMilli() int64
-}
+// ReadQueryMetricVersion is a type for versioning ReadQuery metrics.
+type ReadQueryMetricVersion int64
 
+// ReadQueryMetricV1 is the V1 version of ReadQuery metric.
+const ReadQueryMetricV1 ReadQueryMetricVersion = iota
+
+// ReadQueryFormatOptions contains formatting configuration of a ReadQuery metric.
 type ReadQueryFormatOptions struct {
 	Extract bool   `json:"extract"`
 	Unwrap  bool   `json:"unwrap"`
@@ -107,7 +102,7 @@ type ReadQueryFormatOptions struct {
 
 // ReadQueryMetric contains information about a read query.
 type ReadQueryMetric struct {
-	Version int `json:"version"`
+	Version ReadQueryMetricVersion `json:"version"`
 
 	IPAddress     string                 `json:"ip_address"`
 	SQLStatement  string                 `json:"sql_statement"`

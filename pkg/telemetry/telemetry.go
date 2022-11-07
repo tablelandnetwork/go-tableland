@@ -50,63 +50,63 @@ func Collect(ctx context.Context, metric interface{}) error {
 	}
 
 	switch v := metric.(type) {
-	case StateHash:
+	case StateHashMetric:
 		if err := metricStore.StoreMetric(ctx, Metric{
 			Version:   1,
 			Timestamp: time.Now().UTC(),
 			Type:      StateHashType,
 			Payload: StateHashMetric{
-				Version:     1,
-				ChainID:     v.ChainID(),
-				BlockNumber: v.BlockNumber(),
-				Hash:        v.Hash(),
+				Version:     v.Version,
+				ChainID:     v.ChainID,
+				BlockNumber: v.BlockNumber,
+				Hash:        v.Hash,
 			},
 		}); err != nil {
 			return errors.Errorf("store state hash metric: %s", err)
 		}
 		return nil
-	case GitSummary:
+	case GitSummaryMetric:
 		if err := metricStore.StoreMetric(ctx, Metric{
 			Version:   1,
 			Timestamp: time.Now().UTC(),
 			Type:      GitSummaryType,
 			Payload: GitSummaryMetric{
-				Version:       1,
-				GitCommit:     v.GetGitCommit(),
-				GitBranch:     v.GetGitBranch(),
-				GitState:      v.GetGitState(),
-				GitSummary:    v.GetGitSummary(),
-				BuildDate:     v.GetBuildDate(),
-				BinaryVersion: v.GetBinaryVersion(),
+				Version:       v.Version,
+				GitCommit:     v.GitCommit,
+				GitBranch:     v.GitBranch,
+				GitState:      v.GitState,
+				GitSummary:    v.GitSummary,
+				BuildDate:     v.BuildDate,
+				BinaryVersion: v.BinaryVersion,
 			},
 		}); err != nil {
 			return errors.Errorf("store git summary metric: %s", err)
 		}
 		return nil
-	case ChainStacksSummary:
+	case ChainStacksMetric:
 		if err := metricStore.StoreMetric(ctx, Metric{
 			Version:   1,
 			Timestamp: time.Now().UTC(),
 			Type:      ChainStacksSummaryType,
 			Payload: ChainStacksMetric{
-				Version:                   1,
-				LastProcessedBlockNumbers: v.GetLastProcessedBlockNumber(),
+				Version:                   v.Version,
+				LastProcessedBlockNumbers: v.LastProcessedBlockNumbers,
 			},
 		}); err != nil {
 			return errors.Errorf("store chains stacks summary metric: %s", err)
 		}
 		return nil
-	case ReadQuery:
+	case ReadQueryMetric:
 		if err := metricStore.StoreMetric(ctx, Metric{
 			Version:   1,
 			Timestamp: time.Now().UTC(),
 			Type:      ReadQueryType,
 			Payload: ReadQueryMetric{
-				Version:       1,
-				IPAddress:     v.IPAddress(),
-				SQLStatement:  v.SQLStatement(),
-				FormatOptions: v.FormatOptions(),
-				TookMilli:     v.TookMilli(),
+				Version:       v.Version,
+				IPAddress:     v.IPAddress,
+				SQLStatement:  v.SQLStatement,
+				FormatOptions: v.FormatOptions,
+				TookMilli:     v.TookMilli,
 			},
 		}); err != nil {
 			return errors.Errorf("read query metric: %s", err)

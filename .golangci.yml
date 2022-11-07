@@ -36,6 +36,7 @@ linters-settings:
 
 linters:
   enable:
+    - revive
     - misspell
     - bodyclose
     - unconvert
