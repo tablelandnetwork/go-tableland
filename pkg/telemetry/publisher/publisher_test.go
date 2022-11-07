@@ -29,15 +29,16 @@ func TestPublisher(t *testing.T) {
 	p.Start()
 
 	require.Eventually(t, func() bool {
-		return store.Len() == 0
+		return store.Len() == 0 && store.deleteOlderThanCalled
 	}, 5*time.Second, time.Second)
 
 	p.Close()
 }
 
 type store struct {
-	mu        sync.Mutex
-	unplished []telemetry.Metric
+	mu                    sync.Mutex
+	unplished             []telemetry.Metric
+	deleteOlderThanCalled bool
 }
 
 func newStore() *store {
@@ -63,7 +64,7 @@ func (s *store) Len() int {
 	return len(s.unplished)
 }
 
-func (s *store) FetchUnpublishedMetrics(_ context.Context, _ int) ([]telemetry.Metric, error) {
+func (s *store) FetchMetrics(_ context.Context, _ bool, _ int) ([]telemetry.Metric, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.unplished, nil
@@ -73,5 +74,12 @@ func (s *store) MarkAsPublished(_ context.Context, _ []int64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.unplished = []telemetry.Metric{}
+	return nil
+}
+
+func (s *store) DeletePublishedOlderThan(context.Context, time.Duration) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.deleteOlderThanCalled = true
 	return nil
 }

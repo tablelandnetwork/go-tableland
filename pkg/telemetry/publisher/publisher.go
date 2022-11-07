@@ -70,7 +70,7 @@ func (p *Publisher) Close() {
 }
 
 func (p *Publisher) publish(ctx context.Context) error {
-	metrics, err := p.store.FetchUnpublishedMetrics(ctx, p.fetchAmount)
+	metrics, err := p.store.FetchMetrics(ctx, false, p.fetchAmount)
 	if err != nil {
 		return fmt.Errorf("fetch unpublished metrics: %s", err)
 	}
@@ -92,13 +92,19 @@ func (p *Publisher) publish(ctx context.Context) error {
 		return fmt.Errorf("mark as published: %s", err)
 	}
 
+	sevenDays := 24 * 7 * time.Hour
+	if err := p.store.DeletePublishedOlderThan(ctx, sevenDays); err != nil {
+		return fmt.Errorf("delete older than: %s", err)
+	}
+
 	return nil
 }
 
 // MetricsStore defines the API for fetching metrics and marking them as published.
 type MetricsStore interface {
-	FetchUnpublishedMetrics(context.Context, int) ([]telemetry.Metric, error)
+	FetchMetrics(context.Context, bool, int) ([]telemetry.Metric, error)
 	MarkAsPublished(context.Context, []int64) error
+	DeletePublishedOlderThan(context.Context, time.Duration) error
 }
 
 // MetricsExporter defines the API for exporting metrics.

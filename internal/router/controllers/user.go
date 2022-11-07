@@ -6,14 +6,17 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/hetiansu5/urlquery"
 	"github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/formatter"
+	"github.com/textileio/go-tableland/internal/router/middlewares"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/errors"
 	"github.com/textileio/go-tableland/pkg/tables"
+	"github.com/textileio/go-tableland/pkg/telemetry"
 )
 
 // SQLRunner defines the run SQL interface of Tableland.
@@ -212,10 +215,12 @@ func (c *UserController) GetTableQuery(rw http.ResponseWriter, r *http.Request) 
 	rw.Header().Set("Content-Type", "application/json")
 
 	stm := r.URL.Query().Get("s")
+	start := time.Now()
 	res, ok := c.runReadRequest(r.Context(), stm, rw)
 	if !ok {
 		return
 	}
+	took := time.Since(start)
 
 	opts, err := formatterOptions(r)
 	if err != nil {
@@ -234,8 +239,9 @@ func (c *UserController) GetTableQuery(rw http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	rw.WriteHeader(http.StatusOK)
+	CollectReadQueryMetric(r.Context(), stm, config, took)
 
+	rw.WriteHeader(http.StatusOK)
 	if config.Unwrap && len(res.Rows) > 1 {
 		rw.Header().Set("Content-Type", "application/jsonl+json")
 	}
@@ -331,3 +337,43 @@ func getFormatterParams(r *http.Request) (formatterParams, error) {
 
 	return c, nil
 }
+
+// CollectReadQueryMetric collects read query metric.
+// It is used for JSON-RPC service. When that is deleted we can make this private.
+func CollectReadQueryMetric(ctx context.Context, statement string, config formatter.FormatConfig, took time.Duration) {
+	value := ctx.Value(middlewares.ContextIPAddress)
+	ipAddress, ok := value.(string)
+	if ok && ipAddress != "" {
+		formatOptions := telemetry.ReadQueryFormatOptions{
+			Extract: config.Extract,
+			Unwrap:  config.Unwrap,
+			Output:  string(config.Output),
+		}
+
+		metric := &readQueryMetricData{
+			ipAddress:     ipAddress,
+			sqlStatement:  statement,
+			formatOptions: formatOptions,
+			tookMilli:     took.Milliseconds(),
+		}
+		if err := telemetry.Collect(ctx, metric); err != nil {
+			log.Warn().Err(err).Msg("failed to collect metric")
+		}
+	} else {
+		log.Warn().Str("sql_statement", statement).Msg("ip address not detected. metric not sent")
+	}
+}
+
+type readQueryMetricData struct {
+	ipAddress     string
+	sqlStatement  string
+	formatOptions telemetry.ReadQueryFormatOptions
+	tookMilli     int64
+}
+
+func (m *readQueryMetricData) IPAddress() string    { return m.ipAddress }
+func (m *readQueryMetricData) SQLStatement() string { return m.sqlStatement }
+func (m *readQueryMetricData) FormatOptions() telemetry.ReadQueryFormatOptions {
+	return m.formatOptions
+}
+func (m *readQueryMetricData) TookMilli() int64 { return m.tookMilli }

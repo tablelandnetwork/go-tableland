@@ -76,13 +76,14 @@ func (db *TelemetryDatabase) StoreMetric(ctx context.Context, metric telemetry.M
 	return nil
 }
 
-// FetchUnpublishedMetrics fetches unplished metrics.
-func (db *TelemetryDatabase) FetchUnpublishedMetrics(ctx context.Context, amount int) ([]telemetry.Metric, error) {
+// FetchMetrics fetches unplished metrics.
+func (db *TelemetryDatabase) FetchMetrics(ctx context.Context, published bool, amount int) ([]telemetry.Metric, error) {
 	rows, err := db.sqlDB.QueryContext(ctx,
 		`SELECT rowid, version, timestamp, type, payload, published FROM system_metrics 
-		WHERE published is false 
+		WHERE published is ?1 
 		ORDER BY timestamp
-		LIMIT ?1`,
+		LIMIT ?2`,
+		published,
 		amount,
 	)
 	if err != nil {
@@ -124,6 +125,12 @@ func (db *TelemetryDatabase) FetchUnpublishedMetrics(ctx context.Context, amount
 				return nil, fmt.Errorf("scan rows of system metrics: %s", err)
 			}
 			mType = telemetry.ChainStacksSummaryType
+		case telemetry.ReadQueryType:
+			mPayload = new(telemetry.ReadQueryMetric)
+			if err := json.Unmarshal(payload, mPayload); err != nil {
+				return nil, fmt.Errorf("scan rows of system metrics: %s", err)
+			}
+			mType = telemetry.ReadQueryType
 
 		default:
 			return nil, fmt.Errorf("unknown metric type: %d", typ)
@@ -167,6 +174,21 @@ func (db *TelemetryDatabase) MarkAsPublished(ctx context.Context, rowids []int64
 
 	if rowsAffected != int64(len(rowids)) {
 		return fmt.Errorf("rows affected %d, differs from rowids length %d", rowsAffected, int64(len(rowids)))
+	}
+
+	return nil
+}
+
+// DeletePublishedOlderThan deletes metrics other than provided duration.
+func (db *TelemetryDatabase) DeletePublishedOlderThan(ctx context.Context, duration time.Duration) error {
+	if duration < 0 {
+		return nil
+	}
+
+	threshold := time.Now().UTC().Add(-duration).UnixMilli()
+	_, err := db.sqlDB.ExecContext(ctx, "DELETE FROM system_metrics WHERE timestamp < ?1 and published", threshold)
+	if err != nil {
+		return fmt.Errorf("exec: %s", err)
 	}
 
 	return nil
