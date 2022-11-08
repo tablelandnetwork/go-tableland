@@ -249,7 +249,7 @@ func TestCollectAndFetchAndPublish(t *testing.T) {
 		p.Close()
 	})
 
-	t.Run("new block", func(t *testing.T) {
+	t.Run("new tableland event", func(t *testing.T) {
 		metric := telemetry.NewTablelandEventMetric{
 			Version:     telemetry.NewTablelandEventMetricV1,
 			Address:     "addr",
