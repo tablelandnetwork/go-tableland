@@ -45,11 +45,7 @@ func TestCollectAndFetchAndPublish(t *testing.T) {
 			require.Equal(t, telemetry.StateHashType, metric.Type)
 			require.Equal(t, 1, metric.Version)
 			require.False(t, metric.Timestamp.IsZero())
-
-			sh := metric.Payload.(*telemetry.StateHashMetric)
-			require.Equal(t, fakeStateHash.ChainID, sh.ChainID)
-			require.Equal(t, fakeStateHash.BlockNumber, sh.BlockNumber)
-			require.Equal(t, fakeStateHash.Hash, sh.Hash)
+			require.Equal(t, &fakeStateHash, metric.Payload.(*telemetry.StateHashMetric))
 		}
 
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -73,6 +69,15 @@ func TestCollectAndFetchAndPublish(t *testing.T) {
 	})
 
 	t.Run("git summary", func(t *testing.T) {
+		fakeGitSummary := telemetry.GitSummaryMetric{
+			Version:       telemetry.GitSummaryMetricV1,
+			GitCommit:     "fakeGitCommit",
+			GitBranch:     "fakeGitBranch",
+			GitState:      "fakeGitState",
+			GitSummary:    "fakeGitSummary",
+			BuildDate:     "fakeGitDate",
+			BinaryVersion: "fakeBinaryVersion",
+		}
 		// collect two mocked gitSummary metrics
 		require.NoError(t, telemetry.Collect(context.Background(), fakeGitSummary))
 		require.NoError(t, telemetry.Collect(context.Background(), fakeGitSummary))
@@ -86,13 +91,7 @@ func TestCollectAndFetchAndPublish(t *testing.T) {
 			require.Equal(t, 1, metric.Version)
 			require.False(t, metric.Timestamp.IsZero())
 
-			gv := metric.Payload.(*telemetry.GitSummaryMetric)
-			require.Equal(t, fakeGitSummary.GitCommit, gv.GitCommit)
-			require.Equal(t, fakeGitSummary.GitBranch, gv.GitBranch)
-			require.Equal(t, fakeGitSummary.GitState, gv.GitState)
-			require.Equal(t, fakeGitSummary.GitSummary, gv.GitSummary)
-			require.Equal(t, fakeGitSummary.BuildDate, gv.BuildDate)
-			require.Equal(t, fakeGitSummary.BinaryVersion, gv.BinaryVersion)
+			require.Equal(t, &fakeGitSummary, metric.Payload.(*telemetry.GitSummaryMetric))
 		}
 
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -164,6 +163,17 @@ func TestCollectAndFetchAndPublish(t *testing.T) {
 	})
 
 	t.Run("read query", func(t *testing.T) {
+		fakeReadQuery := telemetry.ReadQueryMetric{
+			Version:      telemetry.ReadQueryMetricV1,
+			IPAddress:    "0.0.0.0",
+			SQLStatement: "SELECT * FROM foo",
+			FormatOptions: telemetry.ReadQueryFormatOptions{
+				Extract: true,
+				Unwrap:  false,
+				Output:  "objects",
+			},
+			TookMilli: 100,
+		}
 		// collect two mocked read query metrics
 		readQueryMetrics := [2]telemetry.ReadQueryMetric{fakeReadQuery, fakeReadQuery}
 		require.NoError(t, telemetry.Collect(context.Background(), readQueryMetrics[0]))
@@ -178,12 +188,92 @@ func TestCollectAndFetchAndPublish(t *testing.T) {
 			require.Equal(t, 1, metric.Version)
 			require.False(t, metric.Timestamp.IsZero())
 
-			payload := metric.Payload.(*telemetry.ReadQueryMetric)
-			require.Equal(t, readQueryMetrics[i].IPAddress, payload.IPAddress)
-			require.Equal(t, readQueryMetrics[i].SQLStatement, payload.SQLStatement)
-			require.Equal(t, readQueryMetrics[i].FormatOptions, payload.FormatOptions)
-			require.Equal(t, readQueryMetrics[i].TookMilli, payload.TookMilli)
+			require.Equal(t, &readQueryMetrics[i], metric.Payload.(*telemetry.ReadQueryMetric))
 		}
+
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer ts.Close()
+
+		exporter, err := publisher.NewHTTPExporter(ts.URL, "")
+		require.NoError(t, err)
+		nodeID := strings.Replace(uuid.NewString(), "-", "", -1)
+		p := publisher.NewPublisher(s, exporter, nodeID, time.Second)
+		p.Start()
+
+		require.Eventually(t, func() bool {
+			metrics, err = s.FetchMetrics(context.Background(), false, 2)
+			require.NoError(t, err)
+			return len(metrics) == 0
+		}, 5*time.Second, time.Second)
+
+		p.Close()
+	})
+
+	t.Run("new block", func(t *testing.T) {
+		metric := telemetry.NewBlockMetric{
+			Version:            telemetry.NewBlockMetricV1,
+			ChainID:            10,
+			BlockNumber:        11,
+			BlockTimestampUnix: 12,
+		}
+		require.NoError(t, telemetry.Collect(context.Background(), metric))
+
+		metrics, err := s.FetchMetrics(context.Background(), false, 10)
+		require.NoError(t, err)
+		require.Len(t, metrics, 1)
+
+		require.Equal(t, telemetry.NewBlockType, metrics[0].Type)
+		require.Equal(t, 1, metrics[0].Version)
+		require.False(t, metrics[0].Timestamp.IsZero())
+		require.Equal(t, &metric, metrics[0].Payload.(*telemetry.NewBlockMetric))
+
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer ts.Close()
+
+		exporter, err := publisher.NewHTTPExporter(ts.URL, "")
+		require.NoError(t, err)
+		nodeID := strings.Replace(uuid.NewString(), "-", "", -1)
+		p := publisher.NewPublisher(s, exporter, nodeID, time.Second)
+		p.Start()
+
+		require.Eventually(t, func() bool {
+			metrics, err = s.FetchMetrics(context.Background(), false, 2)
+			require.NoError(t, err)
+			return len(metrics) == 0
+		}, 5*time.Second, time.Second)
+
+		p.Close()
+	})
+
+	t.Run("new tableland event", func(t *testing.T) {
+		metric := telemetry.NewTablelandEventMetric{
+			Version:     telemetry.NewTablelandEventMetricV1,
+			Address:     "addr",
+			Topics:      []byte("topics"),
+			Data:        []byte("data"),
+			BlockNumber: 1,
+			TxHash:      "txhash",
+			TxIndex:     2,
+			BlockHash:   "blockhash",
+			Index:       3,
+			ChainID:     4,
+			EventJSON:   "eventjson",
+			EventType:   "eventtype",
+		}
+		require.NoError(t, telemetry.Collect(context.Background(), metric))
+
+		metrics, err := s.FetchMetrics(context.Background(), false, 10)
+		require.NoError(t, err)
+		require.Len(t, metrics, 1)
+
+		require.Equal(t, telemetry.NewTablelandEventType, metrics[0].Type)
+		require.Equal(t, 1, metrics[0].Version)
+		require.False(t, metrics[0].Timestamp.IsZero())
+		require.Equal(t, &metric, metrics[0].Payload.(*telemetry.NewTablelandEventMetric))
 
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
@@ -247,31 +337,9 @@ func TestCollectAndFetchAndPublish(t *testing.T) {
 	})
 }
 
-var fakeGitSummary = telemetry.GitSummaryMetric{
-	Version:       telemetry.GitSummaryMetricV1,
-	GitCommit:     "fakeGitCommit",
-	GitBranch:     "fakeGitBranch",
-	GitState:      "fakeGitState",
-	GitSummary:    "fakeGitSummary",
-	BuildDate:     "fakeGitDate",
-	BinaryVersion: "fakeBinaryVersion",
-}
-
 var fakeStateHash = telemetry.StateHashMetric{
 	Version:     telemetry.StateHashMetricV1,
 	ChainID:     1,
 	BlockNumber: 1,
 	Hash:        "abcdefgh",
-}
-
-var fakeReadQuery = telemetry.ReadQueryMetric{
-	Version:      telemetry.ReadQueryMetricV1,
-	IPAddress:    "0.0.0.0",
-	SQLStatement: "SELECT * FROM foo",
-	FormatOptions: telemetry.ReadQueryFormatOptions{
-		Extract: true,
-		Unwrap:  false,
-		Output:  "objects",
-	},
-	TookMilli: 100,
 }

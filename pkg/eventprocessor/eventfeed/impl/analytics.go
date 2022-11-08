@@ -4,6 +4,8 @@ import (
 	"context"
 	"math/big"
 	"time"
+
+	"github.com/textileio/go-tableland/pkg/telemetry"
 )
 
 var fetchBlockExtraInfoDelay = time.Second * 10
@@ -35,6 +37,19 @@ func (ef *EventFeed) fetchExtraBlockInfo(ctx context.Context) {
 						Err(err).
 						Int64("block_number", blockNumber).
 						Msg("get extra block info")
+					return
+				}
+				newBlockMetric := telemetry.NewBlockMetric{
+					Version:            telemetry.NewBlockMetricV1,
+					ChainID:            int(ef.chainID),
+					BlockNumber:        blockNumber,
+					BlockTimestampUnix: block.Time,
+				}
+				if err := telemetry.Collect(ctx, newBlockMetric); err != nil {
+					ef.log.Error().
+						Err(err).
+						Int64("block_number", blockNumber).
+						Msg("capturing new block metric")
 					return
 				}
 				if err := ef.systemStore.InsertBlockExtraInfo(ctx, blockNumber, block.Time); err != nil {

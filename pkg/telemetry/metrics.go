@@ -20,6 +20,10 @@ const (
 	ChainStacksSummaryType
 	// ReadQueryType is the type for the ReadQueryMetric.
 	ReadQueryType
+	// NewBlockType is the type for the NewBlockMetric.
+	NewBlockType
+	// NewTablelandEventType is the type for the NewTablelandEventMetri.
+	NewTablelandEventType
 )
 
 // Metric defines a metric.
@@ -108,4 +112,42 @@ type ReadQueryMetric struct {
 	SQLStatement  string                 `json:"sql_statement"`
 	FormatOptions ReadQueryFormatOptions `json:"format_options"`
 	TookMilli     int64                  `json:"took_milli"`
+}
+
+// NewBlockMetricVersion is a type for versioning NewBlock metrics.
+type NewBlockMetricVersion int64
+
+// NewBlockMetricV1 is the V1 version of NewBlock metric.
+const NewBlockMetricV1 NewBlockMetricVersion = iota
+
+// NewBlockMetric contains information about a newly detected block.
+type NewBlockMetric struct {
+	Version NewBlockMetricVersion `json:"version"`
+
+	ChainID            int    `json:"chain_id"`
+	BlockNumber        int64  `json:"block_number"`
+	BlockTimestampUnix uint64 `json:"block_timestamp_unix"`
+}
+
+// NewTablelandEventMetricVersion is a type for versioning NewTablelandEvent metrics.
+type NewTablelandEventMetricVersion int64
+
+// NewTablelandEventMetricV1 is the V1 version of NewTablelandEvent metric.
+const NewTablelandEventMetricV1 NewTablelandEventMetricVersion = iota
+
+// NewTablelandEventMetric contains information about a newly detected Tableland event.
+type NewTablelandEventMetric struct {
+	Version NewTablelandEventMetricVersion `json:"version"`
+
+	Address     string `json:"address"`
+	Topics      []byte `json:"topics"`
+	Data        []byte `json:"data"`
+	BlockNumber uint64 `json:"block_number"`
+	TxHash      string `json:"tx_hash"`
+	TxIndex     uint   `json:"tx_index"`
+	BlockHash   string `json:"block_hash"`
+	Index       uint   `json:"index"`
+	ChainID     int64  `json:"chain_id"`
+	EventJSON   string `json:"event_json"`
+	EventType   string `json:"event_type"`
 }

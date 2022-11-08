@@ -49,70 +49,30 @@ func Collect(ctx context.Context, metric interface{}) error {
 		return nil
 	}
 
+	var metricType MetricType
 	switch v := metric.(type) {
 	case StateHashMetric:
-		if err := metricStore.StoreMetric(ctx, Metric{
-			Version:   1,
-			Timestamp: time.Now().UTC(),
-			Type:      StateHashType,
-			Payload: StateHashMetric{
-				Version:     v.Version,
-				ChainID:     v.ChainID,
-				BlockNumber: v.BlockNumber,
-				Hash:        v.Hash,
-			},
-		}); err != nil {
-			return errors.Errorf("store state hash metric: %s", err)
-		}
-		return nil
+		metricType = StateHashType
 	case GitSummaryMetric:
-		if err := metricStore.StoreMetric(ctx, Metric{
-			Version:   1,
-			Timestamp: time.Now().UTC(),
-			Type:      GitSummaryType,
-			Payload: GitSummaryMetric{
-				Version:       v.Version,
-				GitCommit:     v.GitCommit,
-				GitBranch:     v.GitBranch,
-				GitState:      v.GitState,
-				GitSummary:    v.GitSummary,
-				BuildDate:     v.BuildDate,
-				BinaryVersion: v.BinaryVersion,
-			},
-		}); err != nil {
-			return errors.Errorf("store git summary metric: %s", err)
-		}
-		return nil
+		metricType = GitSummaryType
 	case ChainStacksMetric:
-		if err := metricStore.StoreMetric(ctx, Metric{
-			Version:   1,
-			Timestamp: time.Now().UTC(),
-			Type:      ChainStacksSummaryType,
-			Payload: ChainStacksMetric{
-				Version:                   v.Version,
-				LastProcessedBlockNumbers: v.LastProcessedBlockNumbers,
-			},
-		}); err != nil {
-			return errors.Errorf("store chains stacks summary metric: %s", err)
-		}
-		return nil
+		metricType = ChainStacksSummaryType
 	case ReadQueryMetric:
-		if err := metricStore.StoreMetric(ctx, Metric{
-			Version:   1,
-			Timestamp: time.Now().UTC(),
-			Type:      ReadQueryType,
-			Payload: ReadQueryMetric{
-				Version:       v.Version,
-				IPAddress:     v.IPAddress,
-				SQLStatement:  v.SQLStatement,
-				FormatOptions: v.FormatOptions,
-				TookMilli:     v.TookMilli,
-			},
-		}); err != nil {
-			return errors.Errorf("read query metric: %s", err)
-		}
-		return nil
+		metricType = ReadQueryType
+	case NewBlockMetric:
+		metricType = NewBlockType
+	case NewTablelandEventMetric:
+		metricType = NewTablelandEventType
 	default:
 		return fmt.Errorf("unknown metric type %T", v)
 	}
+	if err := metricStore.StoreMetric(ctx, Metric{
+		Version:   1,
+		Timestamp: time.Now().UTC(),
+		Type:      metricType,
+		Payload:   metric,
+	}); err != nil {
+		return errors.Errorf("store metric: %s", err)
+	}
+	return nil
 }
