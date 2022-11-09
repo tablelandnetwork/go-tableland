@@ -1,0 +1,11 @@
+{
+    "Metrics": {
+        "Port": "9090"
+    },
+    "Log": {
+        "Human": false,
+        "Debug": true
+    },
+    "Target": "https://tableland.network/rpc",
+    "Chains": []
+}
