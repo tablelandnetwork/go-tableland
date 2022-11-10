@@ -83,3 +83,7 @@ test-replayhistory:
 lint:
 	go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.49.0 run
 .PHONYY: lint
+
+# OpenAPI
+openapi:
+	docker run -w /gen -e GEN_DIR=/gen -v ${PWD}:/gen swaggerapi/swagger-codegen-cli-v3 generate --lang go-server -o /gen/tablelandapi -i tableland-openapi-spec.yaml --additional-properties=packageName=tablelandapi 

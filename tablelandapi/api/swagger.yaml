@@ -11,7 +11,6 @@ info:
     In the 1.0.0 release of the Tableland Validator API, we've switched to a design first approach!
     You can now help us improve the API whether it's by making changes to the definition itself or to the code.
     That way, with time, we can improve the API in general, and expose some of the new features in OAS3.
-
   termsOfService: http://docs.tableland.xyz
   contact:
     name: core devs
@@ -24,136 +23,148 @@ externalDocs:
   description: Tableland docs
   url: http://docs.tableland.xyz
 servers:
-  - url: https://testnet.tableland.xyz/api/v1
+- url: https://testnet.tableland.xyz/api/v1
 tags:
-  - name: query
-    description: Query the Tableland network
-    externalDocs:
-      description: Find out more about queries
-      url: http://docs.tableland.xyz
-  - name: receipt
-    description: Get information about transaction progress
-    externalDocs:
-      description: Find out more about receipts
-      url: http://docs.tableland.xyz
-  - name: tables
-    description: Access to table information
-    externalDocs:
-      description: Find out more about tables
-      url: http://docs.tableland.xyz
+- name: query
+  description: Query the Tableland network
+  externalDocs:
+    description: Find out more about queries
+    url: http://docs.tableland.xyz
+- name: receipt
+  description: Get information about transaction progress
+  externalDocs:
+    description: Find out more about receipts
+    url: http://docs.tableland.xyz
+- name: tables
+  description: Access to table information
+  externalDocs:
+    description: Find out more about tables
+    url: http://docs.tableland.xyz
 paths:
   /query:
     get:
       tags:
-        - query
+      - query
       summary: Query the Tableland network
       description: Returns the results of a SQL query against the Tabeland network
       operationId: queryFromQuery
       parameters:
-        - name: statement
-          in: query
-          description: The SQL query statement
-          required: true
-          schema:
-            type: string
-        - name: format
-          in: query
-          description: >
-            The requested response format:
-             * `objects` - Returns the query results as a JSON array of JSON objects.
-             * `table` - Return the query results as a JSON object with columns and rows properties.
-          required: false
-          schema:
-            type: string
-            enum:
-              - objects
-              - table
-            default: "objects"
-        - name: extract
-          in: query
-          description: Whether or not to extract the JSON object from the single property of the surrounding JSON object.
-          required: false
-          schema:
-            type: boolean
-            default: false
-        - name: unwrap
-          in: query
-          description: Whether or not to unwrap the returned JSON objects from their surrounding array.
-          required: false
-          schema:
-            type: boolean
-            default: false
+      - name: statement
+        in: query
+        description: The SQL query statement
+        required: true
+        style: form
+        explode: true
+        schema:
+          type: string
+      - name: format
+        in: query
+        description: |
+          The requested response format:
+           * `objects` - Returns the query results as a JSON array of JSON objects.
+           * `table` - Return the query results as a JSON object with columns and rows properties.
+        required: false
+        style: form
+        explode: true
+        schema:
+          type: string
+          default: objects
+          enum:
+          - objects
+          - table
+      - name: extract
+        in: query
+        description: Whether or not to extract the JSON object from the single property
+          of the surrounding JSON object.
+        required: false
+        style: form
+        explode: true
+        schema:
+          type: boolean
+          default: false
+      - name: unwrap
+        in: query
+        description: Whether or not to unwrap the returned JSON objects from their
+          surrounding array.
+        required: false
+        style: form
+        explode: true
+        schema:
+          type: boolean
+          default: false
       responses:
         "200":
           description: successful operation
           content:
             application/json:
               schema:
-                oneOf:
-                  - $ref: "#/components/schemas/AnyObject"
-                  - $ref: "#/components/schemas/TableObject"
+                $ref: '#/components/schemas/inline_response_200'
         "400":
           description: Invalid query/statement value
   /exec:
     get:
       tags:
-        - query
+      - query
       summary: Query the Tableland network
       description: Returns the results of a SQL query against the Tabeland network
       operationId: queryFromBody
       requestBody:
         description: A paired statement and params to use to query the Tableland network.
-        required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ExecRequest"
+              $ref: '#/components/schemas/ExecRequest'
+        required: true
       responses:
         "200":
           description: successful operation
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ExecResponse"
+                $ref: '#/components/schemas/ExecResponse'
         "400":
           description: Invalid query/statement value
   /receipt/{txnHash}:
     get:
       tags:
-        - receipt
+      - receipt
       summary: Query the Tableland network for transaction status
       description: Returns the status of a given transaction receipt by hash
       operationId: receiptByTxnHash
       parameters:
-        - name: txnHash
-          in: path
-          description: The parent chain transaction hash
-          required: true
-          schema:
-            type: string
+      - name: txnHash
+        in: path
+        description: The parent chain transaction hash
+        required: true
+        style: simple
+        explode: false
+        schema:
+          type: string
       responses:
         "200":
           description: successful operation
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TxnReceipt"
+                $ref: '#/components/schemas/TxnReceipt'
         "400":
           description: Invalid query/statement value
   /tables/byStructure:
     get:
       tags:
-        - tables
+      - tables
       summary: Finds tables by structure
       description: Returns all tables that match a given structure
       operationId: findTablesByStructure
       parameters:
-        - name: strcture
-          in: query
-          description: Structure to filter on
-          required: true
-          schema:
-            type: string
+      - name: strcture
+        in: query
+        description: Structure to filter on
+        required: true
+        style: form
+        explode: true
+        schema:
+          type: string
       responses:
         "200":
           description: successful operation
@@ -162,23 +173,26 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/Info"
+                  $ref: '#/components/schemas/Info'
+                x-content-type: application/json
         "400":
           description: Invalid structure value
   /tables/byOwner:
     get:
       tags:
-        - tables
+      - tables
       summary: Finds tables by owner
       description: Returns all tables owned by a given address
       operationId: findTablesByOwner
       parameters:
-        - name: owner
-          in: query
-          description: Owner to filter on
-          required: true
-          schema:
-            type: string
+      - name: owner
+        in: query
+        description: Owner to filter on
+        required: true
+        style: form
+        explode: true
+        schema:
+          type: string
       responses:
         "200":
           description: successful operation
@@ -187,30 +201,33 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/Info"
+                  $ref: '#/components/schemas/Info'
+                x-content-type: application/json
         "400":
           description: Invalid owner value
   /tables/{tableId}:
     get:
       tags:
-        - tables
+      - tables
       summary: Get information about a table
       description: Returns information about a single table
       operationId: getTableById
       parameters:
-        - name: tableId
-          in: path
-          description: ID of table to return
-          required: true
-          schema:
-            type: string
+      - name: tableId
+        in: path
+        description: ID of table to return
+        required: true
+        style: simple
+        explode: false
+        schema:
+          type: string
       responses:
         "200":
           description: successful operation
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Table"
+                $ref: '#/components/schemas/Table'
         "400":
           description: Invalid ID supplied
         "404":
@@ -218,24 +235,26 @@ paths:
   /tables/{tableId}/schema:
     get:
       tags:
-        - tables
+      - tables
       summary: Get a table's schema information
       description: Returns information about a single table's schema
       operationId: getTableSchema
       parameters:
-        - name: tableId
-          in: path
-          description: ID of table to query
-          required: true
-          schema:
-            type: string
+      - name: tableId
+        in: path
+        description: ID of table to query
+        required: true
+        style: simple
+        explode: false
+        schema:
+          type: string
       responses:
         "200":
           description: successful operation
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Schema"
+                $ref: '#/components/schemas/Schema'
 components:
   schemas:
     ExecRequest:
@@ -244,54 +263,63 @@ components:
         statement:
           description: The SQL query statement(s) to execute.
           nullable: false
-          oneOf:
-            - type: array
-              items:
-                type: string
-            - type: string
           example: "SELECT name, age FROM users WHERE age < ?1"
+          oneOf:
+          - type: array
+            items:
+              type: string
+          - type: string
         params:
+          type: array
           description: The set of params to bind to the provided statement(s).
           nullable: true
-          type: array
+          example:
+          - 20
           items:
             oneOf:
-              - type: string
-              - type: number
-              - type: integer
-              - type: boolean
-              - type: array
-                items:
-                  oneOf:
-                    - type: string
-                    - type: number
-                    - type: integer
-                    - type: boolean
-          example: [20]
+            - type: string
+            - type: number
+            - type: integer
+            - type: boolean
+            - type: array
+              items:
+                oneOf:
+                - type: string
+                - type: number
+                - type: integer
+                - type: boolean
     ExecResponse:
       type: object
       properties:
         lastRowId:
           type: number
-          example: 1
           nullable: true
+          example: 1
         changes:
           type: number
-          example: 0
           nullable: false
+          example: 0
         duration:
           type: number
-          example: 0
           nullable: false
+          example: 0
         error:
           type: string
-          example: "Something went wrong"
           nullable: true
+          example: Something went wrong
         results:
           type: array
           nullable: true
           items:
             type: object
+      example:
+        duration: 0
+        lastRowId: 1
+        changes: 0
+        error: Something went wrong
+        results:
+        - {}
+        - {}
     AnyObject:
       type: object
     TableObject:
@@ -319,29 +347,20 @@ components:
           example: https://render.tableland.xyz/healthbot_5_1
         attributes:
           type: array
-          items:
-            type: "object"
-            properties:
-              display_type:
-                type: "string"
-                description: "The display type for marketplaces"
-              trait_type:
-                type: "string"
-                description: "The trait type for marketplaces"
-              value:
-                description: "The value of the property"
-                oneOf:
-                  - type: string
-                  - type: number
-                  - type: integer
-                  - type: boolean
-                  - type: object
           example:
-            {
-              "display_type": "date",
-              "trait_type": "created",
-              "value": 1657113720,
-            }
+            display_type: date
+            trait_type: created
+            value: 1657113720
+          items:
+            $ref: '#/components/schemas/Table_attributes'
+      example:
+        image: https://render.tableland.xyz/healthbot_5_1
+        external_url: https://testnet.tableland.network/tables/healthbot_5_1
+        name: healthbot_5_1
+        attributes:
+          display_type: date
+          trait_type: created
+          value: 1657113720
     TxnReceipt:
       type: object
       properties:
@@ -350,48 +369,105 @@ components:
           example: healthbot_5_1
         txnHash:
           type: string
-          example: "0x400508d7cc035b14cc53f64393a8dafcc55f66ad8f9b44d626744157337e2098"
+          example: 0x400508d7cc035b14cc53f64393a8dafcc55f66ad8f9b44d626744157337e2098
         blockNumber:
           type: number
           example: 1
         chainId:
           type: number
           example: 80001
+      example:
+        txnHash: 0x400508d7cc035b14cc53f64393a8dafcc55f66ad8f9b44d626744157337e2098
+        chainId: 80001
+        blockNumber: 1
+        tableId: healthbot_5_1
     Info:
       type: object
       properties:
         owner:
           type: string
-          example: "0xbAb12215Ed94713A290e0c618fa8177fAb5eFd2D"
+          example: 0xbAb12215Ed94713A290e0c618fa8177fAb5eFd2D
         name:
           type: string
-          example: "healthbot_5_1"
+          example: healthbot_5_1
         structure:
           type: string
-          example: "799dcf5ed5cfeb9e221500db95531ab9197224f8fc9cb9452ce30e4b5cea80d1"
+          example: 799dcf5ed5cfeb9e221500db95531ab9197224f8fc9cb9452ce30e4b5cea80d1
+      example:
+        owner: 0xbAb12215Ed94713A290e0c618fa8177fAb5eFd2D
+        name: healthbot_5_1
+        structure: 799dcf5ed5cfeb9e221500db95531ab9197224f8fc9cb9452ce30e4b5cea80d1
     Schema:
       type: object
       properties:
         columns:
           type: array
           items:
-            $ref: "#/components/schemas/Column"
+            $ref: '#/components/schemas/Column'
         tableConstraints:
           type: array
+          example:
+          - PRIMARY KEY (id)
           items:
             type: string
-          example: ["PRIMARY KEY (id)"]
+      example:
+        columns:
+        - name: id
+          type: integer
+          constraints:
+          - NOT NULL
+          - PRIMARY KEY
+          - UNIQUE
+        - name: id
+          type: integer
+          constraints:
+          - NOT NULL
+          - PRIMARY KEY
+          - UNIQUE
+        tableConstraints:
+        - PRIMARY KEY (id)
     Column:
       type: object
       properties:
         name:
           type: string
-          example: "id"
+          example: id
         type:
           type: string
-          example: "integer"
+          example: integer
         constraints:
           type: array
+          example:
+          - NOT NULL
+          - PRIMARY KEY
+          - UNIQUE
           items:
             type: string
-          example: ["NOT NULL", "PRIMARY KEY", "UNIQUE"]
+      example:
+        name: id
+        type: integer
+        constraints:
+        - NOT NULL
+        - PRIMARY KEY
+        - UNIQUE
+    inline_response_200:
+      oneOf:
+      - $ref: '#/components/schemas/AnyObject'
+      - $ref: '#/components/schemas/TableObject'
+    Table_attributes:
+      type: object
+      properties:
+        display_type:
+          type: string
+          description: The display type for marketplaces
+        trait_type:
+          type: string
+          description: The trait type for marketplaces
+        value:
+          description: The value of the property
+          oneOf:
+          - type: string
+          - type: number
+          - type: integer
+          - type: boolean
+          - type: object
