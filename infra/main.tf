@@ -46,8 +46,8 @@ provider "google" {
 resource "google_compute_instance" "validator" {
     name         = "${var.vm_name}"
     machine_type = "${var.machine_type}"
-    tags         = ["https-server", "grafana", "ssh-vm", "allow-retool-postgres"]
-    deletion_protection = true
+    tags         = ["https-server", "grafana", "ssh-vm"]
+    deletion_protection = false
 
     boot_disk {
         initialize_params {
