@@ -2,6 +2,10 @@
 
 The validator provisioner is a Terraform resource for creating an instance of a Tableland Validator in Google Cloud.
 
+## First time setup
+
+The first time you'll have to run `terraform init` to install the necessary plugins.
+
 ## Creating
 
 ```bash
