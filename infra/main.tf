@@ -51,9 +51,9 @@ resource "google_compute_instance" "validator" {
 
     boot_disk {
         initialize_params {
-            image = "ubuntu-2204-jammy-v20220902"
+            image = "ubuntu-minimal-2204-jammy-v20221101"
             type = "pd-ssd"
-            size = "30"
+            size = "50"
         }
     }
     
