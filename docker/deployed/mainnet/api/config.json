@@ -44,7 +44,7 @@
     },
     "TelemetryPublisher": {
         "Enabled": true,
-        "MetricsHubURL": "https://metricshub-<TODO>-mrgr43cf5q-uw.a.run.app",
+        "MetricsHubURL": "https://metricshub-mainnet-mrgr43cf5q-uw.a.run.app",
         "MetricsHubApiKey": "${METRICS_HUB_API_KEY}",
         "PublishingInterval": "10s",
         "ChainStackCollectFrequency": "15m"
