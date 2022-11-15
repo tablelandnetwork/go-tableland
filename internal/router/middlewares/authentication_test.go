@@ -24,6 +24,13 @@ func TestSIWE(t *testing.T) {
 		require.Equal(t, "0xd535bAd504CDd77e2C51dE26F416693DF7a01ac8", issuer)
 		require.Equal(t, tableland.ChainID(4), chainID)
 	})
+	t.Run("valid with signature with recovery bytes with leading 0", func(t *testing.T) {
+		t.Parallel()
+
+		siweToken := "eyJtZXNzYWdlIjoiVGFibGVsYW5kIHdhbnRzIHlvdSB0byBzaWduIGluIHdpdGggeW91ciBFdGhlcmV1bSBhY2NvdW50OlxuMHgyQjgwRkEyNDMxN2IzYTgwMzlkYzY1ODVmMEVEYzkyNDdDNzgxZjJjXG5cblNJV0UgTm90ZXBhZCBFeGFtcGxlXG5cblVSSTogaHR0cDovL2xvY2FsaG9zdDo1MTczXG5WZXJzaW9uOiAxXG5DaGFpbiBJRDogODAwMDFcbk5vbmNlOiBnZU1kbmVLUnFyQ3BORWtCV1xuSXNzdWVkIEF0OiAyMDIyLTExLTE1VDE1OjE4OjI2LjIyNlpcbkV4cGlyYXRpb24gVGltZTogMjA1Mi0wNC0xOFQxNTowODoxNC44MDVaIiwic2lnbmF0dXJlIjoiMHg5NWFkYjJhZGU2OTE0OWJlNjE5OGViYjAwOTVmMzY1M2NjN2JhZjM3ODQ3MmZkMzQ3YzFjM2I3NWVjZjhkMGIwNjhkZWU1ZWE2ZGI5MWUwN2VjYjYyNDUzNjI0M2FlMmJiMmNkMmU4ZjJiMjEwNGY5OTBmOTVhZTAwZTNhMGM0MzAwIn0=" //nolint
+		_, _, err := parseAuth(siweToken)
+		require.NoError(t, err)
+	})
 	t.Run("wrong domain", func(t *testing.T) {
 		t.Parallel()
 

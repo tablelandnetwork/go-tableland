@@ -20,7 +20,7 @@ require (
 	github.com/rs/zerolog v1.28.0
 	github.com/sethvargo/go-limiter v0.7.2
 	github.com/spf13/cobra v1.6.0
-	github.com/spruceid/siwe-go v0.2.1-0.20220711143404-817846826282
+	github.com/spruceid/siwe-go v0.2.1-0.20220804171946-fc1b0374f4ff
 	github.com/stretchr/testify v1.8.0
 	github.com/tablelandnetwork/sqlparser v0.0.0-20220923130758-1b39431a2fea
 	github.com/textileio/cli v1.0.2
