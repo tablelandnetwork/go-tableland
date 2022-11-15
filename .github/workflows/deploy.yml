@@ -59,7 +59,7 @@ jobs:
         name: Deploy testnet
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.TESTNET_VM_HOST }}
+          host: ${{ secrets.TESTNET_V2_VM_HOST }}
           username: validator
           key: ${{ env.vm_ssh_key }}
           port: 22
