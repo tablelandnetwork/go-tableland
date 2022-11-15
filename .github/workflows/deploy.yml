@@ -70,7 +70,7 @@ jobs:
             git fetch && git checkout -f ${{ github.sha }}
             cd docker
 
-            HEALTHBOT_ENABLED=true make testnet-up
+            make testnet-up
 
             # Wait to start and double-check we're running the expected version.
             # This helps having a green check in the GH Action be high-signal that everything is fine.
