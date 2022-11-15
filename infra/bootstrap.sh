@@ -82,7 +82,7 @@ echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEehs1xfBMLKpwV4sAIko++GQgauYXf5SNY4tl
 crontab - <<-MOF
 0 0 * * FRI /usr/bin/docker system prune --volumes -f  >> /home/validator/cronrun 2>&1
 10 * * * * gsutil rsync /home/validator/go-tableland/docker/deployed/${TBLENV}/api/backups/ gs://tableland-${TBLENV}/backups/ > /home/validator/gsutil.log 2>&1
-10 * * * * gsutil cp "ls -A -1 /home/validator/go-tableland/docker/deployed/${TBLENV}/api/backups/*.* | tail -n 1" gs://tableland-${TBLENV}/backups/tbl_backup_latest.db.zst > /home/validator/gsutil.log 2>&1
+10 * * * * gsutil cp `ls -A -1 /home/validator/go-tableland/docker/deployed/${TBLENV}/api/backups/*.* | tail -n 1` gs://tableland-${TBLENV}/backups/tbl_backup_latest.db.zst > /home/validator/gsutil.log 2>&1
 MOF
 
 EOF
