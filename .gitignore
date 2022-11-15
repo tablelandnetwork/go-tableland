@@ -23,4 +23,3 @@ evm_history.db
 # Project
 .env*
 *.ignore
-**/credential_file
