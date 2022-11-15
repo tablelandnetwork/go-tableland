@@ -47,7 +47,7 @@ resource "google_compute_instance" "validator" {
     name         = "${var.vm_name}"
     machine_type = "${var.machine_type}"
     tags         = ["https-server", "grafana", "ssh-vm"]
-    deletion_protection = false
+    deletion_protection = true
 
     boot_disk {
         initialize_params {
