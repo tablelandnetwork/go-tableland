@@ -1,0 +1,11 @@
+**/.terraform/*
+
+*.tfstate
+*.tfstate.*
+
+*.tfvars
+*.tfvars.json
+
+*.json
+*.db
+credentials_file
