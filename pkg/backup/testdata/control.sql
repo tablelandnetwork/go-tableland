@@ -1,12 +1,12 @@
 -- Statements that helps to build a control table used to test the backuper
 -- 
--- SQLite version 3.39.2
+-- SQLite version 3.39.4
 --
 -- Stats to be checked in the test:
 -- 
 -- Size: 311296
 -- Size (vacuum): 159744
--- Size (vacuum/compression): 39999
+-- Size (vacuum/compression): 39934
 
 create table mock (
 	id INT,

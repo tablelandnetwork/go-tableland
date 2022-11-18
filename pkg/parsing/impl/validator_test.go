@@ -588,9 +588,9 @@ func TestCreateTableResult(t *testing.T) {
 			// echo -n bar:INT | shasum -a 256
 			expStructureHash: "5d70b398f938650871dd0d6d421e8d1d0c89fe9ed6c8a817c97e951186da7172",
 			expRawQueries: []rawQueryTableID{
-				{id: 1, rawQuery: "CREATE TABLE my_10_nth_table_1337_1 (bar INT) STRICT"},
-				{id: 42, rawQuery: "CREATE TABLE my_10_nth_table_1337_42 (bar INT) STRICT"},
-				{id: 2929392, rawQuery: "CREATE TABLE my_10_nth_table_1337_2929392 (bar INT) STRICT"},
+				{id: 1, rawQuery: "create table my_10_nth_table_1337_1 (bar int) strict"},
+				{id: 42, rawQuery: "create table my_10_nth_table_1337_42 (bar int) strict"},
+				{id: 2929392, rawQuery: "create table my_10_nth_table_1337_2929392 (bar int) strict"},
 			},
 		},
 		{
@@ -602,8 +602,8 @@ func TestCreateTableResult(t *testing.T) {
 			// echo -n bar:INT | shasum -a 256
 			expStructureHash: "5d70b398f938650871dd0d6d421e8d1d0c89fe9ed6c8a817c97e951186da7172",
 			expRawQueries: []rawQueryTableID{
-				{id: 1, rawQuery: "CREATE TABLE _1337_1 (bar INT) STRICT"},
-				{id: 42, rawQuery: "CREATE TABLE _1337_42 (bar INT) STRICT"},
+				{id: 1, rawQuery: "create table _1337_1 (bar int) strict"},
+				{id: 42, rawQuery: "create table _1337_42 (bar int) strict"},
 			},
 		},
 		{
@@ -617,9 +617,9 @@ func TestCreateTableResult(t *testing.T) {
 			// echo -n name:TEXT,age:INT,fav_color:TEXT | shasum -a 256
 			expStructureHash: "f45023b189891ad781070ac05374d4e7d7ec7ae007cfd836791c36d609ba7ddd",
 			expRawQueries: []rawQueryTableID{
-				{id: 1, rawQuery: "CREATE TABLE person_1337_1 (name TEXT, age INT, fav_color TEXT) STRICT"},
-				{id: 42, rawQuery: "CREATE TABLE person_1337_42 (name TEXT, age INT, fav_color TEXT) STRICT"},
-				{id: 2929392, rawQuery: "CREATE TABLE person_1337_2929392 (name TEXT, age INT, fav_color TEXT) STRICT"},
+				{id: 1, rawQuery: "create table person_1337_1 (name text, age int, fav_color text) strict"},
+				{id: 42, rawQuery: "create table person_1337_42 (name text, age int, fav_color text) strict"},
+				{id: 2929392, rawQuery: "create table person_1337_2929392 (name text, age int, fav_color text) strict"},
 			},
 		},
 	}

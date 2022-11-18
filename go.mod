@@ -13,7 +13,7 @@ require (
 	github.com/hetiansu5/urlquery v1.2.7
 	github.com/json-iterator/go v1.1.12
 	github.com/klauspost/compress v1.15.11
-	github.com/mattn/go-sqlite3 v1.14.15
+	github.com/mattn/go-sqlite3 v1.14.16
 	github.com/omeid/uconfig v1.2.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.13.0
@@ -21,8 +21,8 @@ require (
 	github.com/sethvargo/go-limiter v0.7.2
 	github.com/spf13/cobra v1.6.0
 	github.com/spruceid/siwe-go v0.2.1-0.20220804171946-fc1b0374f4ff
-	github.com/stretchr/testify v1.8.0
-	github.com/tablelandnetwork/sqlparser v0.0.0-20220923130758-1b39431a2fea
+	github.com/stretchr/testify v1.8.1
+	github.com/tablelandnetwork/sqlparser v0.0.0-20221117210313-20a7e349a521
 	github.com/textileio/cli v1.0.2
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.32.0
 	go.opentelemetry.io/otel v1.11.0
@@ -90,7 +90,7 @@ require (
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/spf13/viper v1.8.1 // indirect
-	github.com/stretchr/objx v0.4.0 // indirect
+	github.com/stretchr/objx v0.5.0 // indirect
 	github.com/subosito/gotenv v1.2.0 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20220614013038-64ee5596c38a // indirect
 	github.com/textileio/go-log/v2 v2.1.3-gke-2 // indirect
