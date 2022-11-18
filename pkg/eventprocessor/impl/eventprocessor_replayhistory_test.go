@@ -1,5 +1,3 @@
-//go:build !arm64
-
 package impl
 
 import (
@@ -37,14 +35,14 @@ func TestReplayProductionHistory(t *testing.T) {
 	}
 
 	expectedStateHashes := map[tableland.ChainID]string{
-		1:      "87b02f2755e043a7d7f544bb9bf79765115f9b58",
-		5:      "b6f5f703af0e92d8f28773a024ed45119cef8c61",
-		10:     "57555e08de5b37270ddad6c2cad2c1ae7ca6901e",
-		69:     "f17f7c999790277cc91351a798eea2d08abe4285",
-		137:    "241425c72e622bb8574f7fe15ccf251ddc5c6367",
-		420:    "923d03c96ca0c3fa848b651697cf925bcdee5eff",
-		80001:  "7b15ca5f14bc4e7475d48fface3ac1a7022e3a27",
-		421613: "df1fe80afc8d9fc0ae31057b82766dd82d81ad63",
+		1:      "ce4f083e256d3458a329b6cd1ba7d8e93d9703b3",
+		5:      "9ab5a92ac961d39ee07dd1e59518c527b39719c1",
+		10:     "3d907df6936eea9ab046d89c80b995d5db26e6ac",
+		69:     "643af9ad784444242c6ef415727203941a720197",
+		137:    "b5fb42f3538738ab5856abf9e3b2e38d82378ca4",
+		420:    "8673f7095da19c1fc51f1f84b4c4ffc115a176e0",
+		80001:  "e85654e780c5e98cef2a25cd8e3764f125b2e1d1",
+		421613: "073727932afcee9a5dba19f43c023689ca855dc2",
 	}
 
 	historyDBURI := getHistoryDBURI(t)
