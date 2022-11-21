@@ -6,7 +6,7 @@ import (
 
 const (
 	mainnetURL = "https://tableland.network"
-	testnetURL = "https://testnet.tableland.network"
+	testnetURL = "https://testnets.tableland.network"
 	localURL   = "http://localhost:8080"
 )
 
