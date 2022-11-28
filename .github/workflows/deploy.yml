@@ -79,7 +79,7 @@ jobs:
             echo "All healthy!"
 
       - if: github.event_name == 'release' || github.ref == 'refs/heads/main' || contains(github.event.head_commit.message, '[mainnetdeploy]')
-        name: Deploy testnet
+        name: Deploy mainnet
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.MAINNET_VM_HOST }}
