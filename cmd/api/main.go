@@ -483,6 +483,7 @@ func createHTTPServer(
 	router := router.ConfiguredRouter(
 		gatewayConfig.ExternalURIPrefix,
 		gatewayConfig.MetadataRendererURI,
+		gatewayConfig.MetadataRendererURI,
 		httpConfig.MaxRequestPerInterval,
 		rateLimInterval,
 		parser,

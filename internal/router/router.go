@@ -24,6 +24,7 @@ import (
 func ConfiguredRouter(
 	extURLPrefix string,
 	metadataRendererURI string,
+	animationRendererURI string,
 	maxRPI uint64,
 	rateLimInterval time.Duration,
 	parser parsing.SQLValidator,
@@ -53,7 +54,7 @@ func ConfiguredRouter(
 	for chainID, stack := range chainStacks {
 		stores[chainID] = stack.Store
 	}
-	sysStore, err := systemimpl.NewSystemSQLStoreService(stores, extURLPrefix, metadataRendererURI)
+	sysStore, err := systemimpl.NewSystemSQLStoreService(stores, extURLPrefix, metadataRendererURI, animationRendererURI)
 	if err != nil {
 		log.Fatal().Err(err).Msg("creating system store")
 	}

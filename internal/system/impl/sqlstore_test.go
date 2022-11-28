@@ -66,7 +66,7 @@ func TestSystemSQLStoreService(t *testing.T) {
 	require.NoError(t, bs.Close())
 
 	stack := map[tableland.ChainID]sqlstore.SystemStore{1337: store}
-	svc, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables", "https://render.tableland.xyz")
+	svc, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables", "https://render.tableland.xyz", "")
 	require.NoError(t, err)
 	metadata, err := svc.GetTableMetadata(ctx, id)
 	require.NoError(t, err)
@@ -138,7 +138,7 @@ func TestGetSchemaByTableName(t *testing.T) {
 	require.NoError(t, bs.Close())
 
 	stack := map[tableland.ChainID]sqlstore.SystemStore{1337: store}
-	svc, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables", "https://render.tableland.xyz")
+	svc, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables", "https://render.tableland.xyz", "")
 	require.NoError(t, err)
 
 	schema, err := svc.GetSchemaByTableName(ctx, "foo_1337_42")
@@ -207,7 +207,7 @@ func TestGetMetadata(t *testing.T) {
 	t.Run("empty metadata uri", func(t *testing.T) {
 		t.Parallel()
 
-		svc, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables", "")
+		svc, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables", "", "")
 		require.NoError(t, err)
 
 		metadata, err := svc.GetTableMetadata(ctx, id)
@@ -223,7 +223,7 @@ func TestGetMetadata(t *testing.T) {
 	t.Run("with metadata uri", func(t *testing.T) {
 		t.Parallel()
 
-		svc, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables", "https://render.tableland.xyz")
+		svc, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables", "https://render.tableland.xyz", "")
 		require.NoError(t, err)
 
 		metadata, err := svc.GetTableMetadata(ctx, id)
@@ -239,7 +239,7 @@ func TestGetMetadata(t *testing.T) {
 	t.Run("with metadata uri trailing slash", func(t *testing.T) {
 		t.Parallel()
 
-		svc, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables", "https://render.tableland.xyz/")
+		svc, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables", "https://render.tableland.xyz/", "")
 		require.NoError(t, err)
 
 		metadata, err := svc.GetTableMetadata(ctx, id)
@@ -255,23 +255,15 @@ func TestGetMetadata(t *testing.T) {
 	t.Run("with wrong metadata uri", func(t *testing.T) {
 		t.Parallel()
 
-		svc, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables", "foo")
-		require.NoError(t, err)
-
-		metadata, err := svc.GetTableMetadata(ctx, id)
-		require.NoError(t, err)
-
-		require.Equal(t, "foo_1337_42", metadata.Name)
-		require.Equal(t, fmt.Sprintf("https://tableland.network/tables/chain/%d/tables/%s", 1337, id), metadata.ExternalURL)
-		require.Equal(t, DefaultMetadataImage, metadata.Image)
-		require.Equal(t, "date", metadata.Attributes[0].DisplayType)
-		require.Equal(t, "created", metadata.Attributes[0].TraitType)
+		_, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables", "foo", "")
+		require.Error(t, err)
+		require.ErrorContains(t, err, "metadata renderer uri could not be parsed")
 	})
 
 	t.Run("non existent table", func(t *testing.T) {
 		t.Parallel()
 
-		svc, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables", "foo")
+		svc, err := NewSystemSQLStoreService(stack, "https://tableland.network/tables", "https://render.tableland.xyz", "")
 		require.NoError(t, err)
 
 		id, _ := tables.NewTableID("43")
@@ -283,6 +275,28 @@ func TestGetMetadata(t *testing.T) {
 		require.Equal(t, fmt.Sprintf("https://tableland.network/tables/chain/%d/tables/%s", 1337, id), metadata.ExternalURL)
 		require.Equal(t, "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0nNTEyJyBoZWlnaHQ9JzUxMicgeG1sbnM9J2h0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnJz48cmVjdCB3aWR0aD0nNTEyJyBoZWlnaHQ9JzUxMicgZmlsbD0nIzAwMCcvPjwvc3ZnPg==", metadata.Image) // nolint
 		require.Equal(t, "Table not found", metadata.Message)
+	})
+
+	t.Run("with metadata uri and animation uri", func(t *testing.T) {
+		t.Parallel()
+
+		svc, err := NewSystemSQLStoreService(
+			stack,
+			"https://tableland.network/tables",
+			"https://render.tableland.xyz",
+			"https://render.tableland.xyz/anim",
+		)
+		require.NoError(t, err)
+
+		metadata, err := svc.GetTableMetadata(ctx, id)
+		require.NoError(t, err)
+
+		require.Equal(t, "foo_1337_42", metadata.Name)
+		require.Equal(t, fmt.Sprintf("https://tableland.network/tables/chain/%d/tables/%s", 1337, id), metadata.ExternalURL)
+		require.Equal(t, "https://render.tableland.xyz/1337/42", metadata.Image)
+		require.Equal(t, "https://render.tableland.xyz/anim/?chain=1337&id=42", metadata.AnimationURL)
+		require.Equal(t, "date", metadata.Attributes[0].DisplayType)
+		require.Equal(t, "created", metadata.Attributes[0].TraitType)
 	})
 }
 

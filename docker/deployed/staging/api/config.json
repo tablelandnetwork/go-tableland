@@ -8,7 +8,8 @@
   },
   "Gateway": {
     "ExternalURIPrefix": "https://staging.tableland.network",
-    "MetadataRendererURI": ""
+    "MetadataRendererURI": "",
+    "AnimationRendererURI": ""
   },
   "DB": {
     "Port": "5432"
