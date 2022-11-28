@@ -1,609 +1,273 @@
-openapi: 3.0.0
+openapi: 3.0.3
 info:
-  title: Tableland Remote API
-  version: 0.0.1
+  title: Tableland Validator - OpenAPI 3.0
+  description: |-
+    In Tableland, Validators are the execution unit/actors of the protocol.
+    They have the following responsibilities:
+    - Listen to on-chain events to materialize Tableland-compliant SQL queries in a database engine (currently, SQLite by default).
+    - Serve read-queries (e.g: SELECT * FROM foo_69_1) to the external world.
+    - Serve state queries (e.g. list tables, get receipts, etc) to the external world.
+
+    In the 1.0.0 release of the Tableland Validator API, we've switched to a design first approach!
+    You can now help us improve the API whether it's by making changes to the definition itself or to the code.
+    That way, with time, we can improve the API in general, and expose some of the new features in OAS3.
+
+  termsOfService: http://docs.tableland.xyz
+  contact:
+    name: core devs
+    email: carson@textile.io
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  version: 1.0.0
+externalDocs:
+  description: Tableland docs
+  url: http://docs.tableland.xyz
 servers:
-  - url: https://testnet.tableland.network
+  - url: https://testnet.tableland.xyz/api/v1
+tags:
+  - name: query
+    description: Query the Tableland network
+    externalDocs:
+      description: Find out more about queries
+      url: http://docs.tableland.xyz
+  - name: receipt
+    description: Get information about transaction progress
+    externalDocs:
+      description: Find out more about receipts
+      url: http://docs.tableland.xyz
+  - name: tables
+    description: Access to table information
+    externalDocs:
+      description: Find out more about tables
+      url: http://docs.tableland.xyz
 paths:
-  /rpc:
-    post:
-      security:
-        - bearerAuth: []
-      summary: Lets you interact with Tableland's JSON-RPC calls
-      description: >
-        The following JSON-RPC methods are available:
-
-        * The `validateCreateTable` method allows you validate a CREATE TABLE query as a pre-mint check, and also calculate its corresponding structure hash.
-
-        * The `runReadQuery` method allows you execute a read-query in the validator and get the result.
-
-        * The `validateWriteQuery` method allows you validate a mutating query as a pre contract call check.
-
-        * The `relayWriteQuery` method allows you to rely on the validator to send a runSQL SC call on your behalf for write-queries.
-
-        * The `getReceipt` method allows you to get the receipt of a chain transaction to know if it was executed, and the execution details.
-
-        * The `setController` method allows you to rely on the validator to send a setController SC call on your behalf for a table.
-
-        All the above RPC calls expect an Authorization header with a signed SIWE except:
-        - runReadQuery
-
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              oneOf:
-                - $ref: "#/components/schemas/runReadQuery"
-                - $ref: "#/components/schemas/relayWriteQuery"
-                - $ref: "#/components/schemas/validateCreateTable"
-                - $ref: "#/components/schemas/getReceipt"
-                - $ref: "#/components/schemas/setController"
-            examples:
-              validateCreateTable:
-                value:
-                  jsonrpc: "2.0"
-                  method: tableland_validateCreateTable
-                  id: 1
-                  params:
-                    - id: "0"
-                      create_statement: "CREATE TABLE myname_31337 (column_a int, column_b text);"
-              validateWriteQuery:
-                value:
-                  jsonrpc: "2.0"
-                  method: tableland_validateWriteQuery
-                  id: 1
-                  params:
-                    - id: "0"
-                      statement: "INSERT INTO healthbot_31337_1 VALUES (1);"
-              runReadQuery:
-                value:
-                  jsonrpc: "2.0"
-                  method: tableland_runReadQuery
-                  id: 1
-                  params:
-                    - statement: SELECT * FROM healthbot_31337_1;
-              relayWriteQuery:
-                value:
-                  jsonrpc: "2.0"
-                  method: tableland_relayWriteQuery
-                  id: 1
-                  params:
-                    - statement: INSERT INTO healthbot_31337_1 values (2);
-              getReceipt:
-                value:
-                  jsonrpc: "2.0"
-                  method: tableland_getReceipt
-                  id: 1
-                  params:
-                    - txn_hash: "0x400508d7cc035b14cc53f64393a8dafcc55f66ad8f9b44d626744157337e2098"
-              setController:
-                value:
-                  jsonrpc: "2.0"
-                  method: tableland_setController
-                  id: 1
-                  params:
-                    - controller: "0x0"
-                      token_id: "1"
+  /query:
+    get:
+      tags:
+        - query
+      summary: Query the Tableland network
+      description: Returns the results of a SQL query against the Tabeland network
+      operationId: queryFromQuery
+      parameters:
+        - name: statement
+          in: query
+          description: The SQL query statement
+          required: true
+          schema:
+            type: string
+        - name: format
+          in: query
+          description: >
+            The requested response format:
+             * `objects` - Returns the query results as a JSON array of JSON objects.
+             * `table` - Return the query results as a JSON object with columns and rows properties.
+          required: false
+          schema:
+            type: string
+            enum:
+              - objects
+              - table
+            default: "objects"
+        - name: extract
+          in: query
+          description: Whether or not to extract the JSON object from the single property of the surrounding JSON object.
+          required: false
+          schema:
+            type: boolean
+            default: false
+        - name: unwrap
+          in: query
+          description: Whether or not to unwrap the returned JSON objects from their surrounding array.
+          required: false
+          schema:
+            type: boolean
+            default: false
       responses:
         "200":
-          description: OK
-          headers:
-            Access-Control-Allow-Headers:
-              schema:
-                type: string
-                example: "Accept, Accept-Language, Content-Type, Authorization"
-            Access-Control-Allow-Origin:
-              schema:
-                type: string
-                example: "*"
-            Access-Control-Allow-Methods:
-              schema:
-                type: string
-                example: "GET, POST, OPTIONS"
-            Trace-Id:
-              schema:
-                type: string
-                example: "579bf7aa-9bcf-4405-9d9e-7fd6c1672d1b"
-            Content-Type:
-              schema:
-                type: string
-                example: application/json
+          description: successful operation
           content:
             application/json:
               schema:
                 type: object
-              examples:
-                validateCreateTable:
-                  value:
-                    jsonrpc: "2.0"
-                    id: 1
-                    result:
-                      structure_hash: "ef7be01282ea97380e4d3bbcba6774cbc7242c46ee51b7e611f1efdfa3623e53"
-                validateWriteQuery:
-                  value:
-                    jsonrpc: "2.0"
-                    id: 1
-                    result:
-                      table_id: "1"
-                relayWriteQuery:
-                  value:
-                    jsonrpc: "2.0"
-                    id: 1
-                    result:
-                      tx:
-                        hash: "0xc3e7d1e81b59556f414a5f5c23760eb61b4bfaa18150d924d7d3b334941dbecd"
-                runReadQuery:
-                  value:
-                    jsonrpc: "2.0"
-                    id: 1
-                    result:
-                      data:
-                        columns:
-                          - name: column_a
-                        rows:
-                          - [1]
-                getReceipt:
-                  value:
-                    jsonrpc: "2.0"
-                    id: 1
-                    result:
-                      ok: true
-                      receipt:
-                        chain_id: 5
-                        txn_hash: "0xc3e7d1e81b59556f414a5f5c23760eb61b4bfaa18150d924d7d3b334941dbecd"
-                        block_number: 1000
-                        table_id: "2"
-                setController:
-                  value:
-                    jsonrpc: "2.0"
-                    id: 1
-                    result:
-                      tx:
-                        hash: "0xa69590589a9ae04bfde4ca07351c611f9ddb2ddc3bab6cd0165684dc959be5c7"
-  /chain/{chainID}/tables/controller/{address}:
-    get:
-      summary: Get all tables controlled by an ETH address
-      parameters:
-        - in: path
-          name: chainID
-          schema:
-            type: integer
-          required: true
-          description: The ChainID of the targeted chain.
-        - in: path
-          name: address
-          schema:
-            type: string
-          required: true
-          description: An ETH address
-      responses:
-        "200":
-          description: Successful response
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: "object"
-                  required:
-                    - "name"
-                    - "controller"
-                    - "structure"
-                  properties:
-                    name:
-                      type: "string"
-                    controller:
-                      type: "string"
-                    structure:
-                      type: "string"
-                example:
-                  - controller: "0xbAb12215Ed94713A290e0c618fa8177fAb5eFd2D"
-                    name: "healthbot_31337_1"
-                    structure: "be1eb905f03347a439ecf9b612632fd53839b7f082dc2f9be6ef7da5dfddd660"
-  /chain/{chainID}/tables/structure/{hash}:
-    get:
-      summary: Get all tables that has the structure defined by the given hash
-      parameters:
-        - in: path
-          name: chainID
-          schema:
-            type: integer
-          required: true
-          description: The ChainID of the targeted chain.
-        - in: path
-          name: hash
-          schema:
-            type: string
-          required: true
-          description: hash of the schema of the table
-      responses:
-        "200":
-          description: Successful response
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: "object"
-                  required:
-                    - "name"
-                    - "controller"
-                    - "structure"
-                  properties:
-                    name:
-                      type: "string"
-                    controller:
-                      type: "string"
-                    structure:
-                      type: "string"
-                example:
-                  - controller: "0xbAb12215Ed94713A290e0c618fa8177fAb5eFd2D"
-                    name: "healthbot_31337_1"
-                    structure: "be1eb905f03347a439ecf9b612632fd53839b7f082dc2f9be6ef7da5dfddd660"
-  /chain/{chainID}/tables/{id}:
-    get:
-      summary: Get the metadata associated with a table
-      parameters:
-        - in: path
-          name: chainID
-          schema:
-            type: integer
-          required: true
-          description: The ChainID of the targeted chain.
-        - in: path
-          name: id
-          schema:
-            type: string
-          required: true
-          description: The id of the table
-      responses:
-        "200":
-          description: Successful response
-          content:
-            application/json:
-              schema:
-                type: "object"
-                required:
-                  - name
-                  - description
-                  - external_url
-                  - image
-                  - attributes
-                properties:
-                  name:
-                    type: "string"
-                  description:
-                    type: "string"
-                  external_url:
-                    type: "string"
-                  image:
-                    type: "string"
-                  attributes:
-                    type: array
-                    items:
-                      type: object
-                      required:
-                        - display_type
-                        - trait_type
-                        - value
-                      properties:
-                        display_type:
-                          type: "string"
-                        trait_type:
-                          type: "string"
-                        value:
-                          type: "integer"
-                example:
-                  name: "myname"
-                  external_url: "https://testnet.tableland.network/tables/0"
-                  image: "https://bafkreifhuhrjhzbj4onqgbrmhpysk2mop2jimvdvfut6taiyzt2yqzt43a.ipfs.dweb.link"
-                  attributes:
-                    - display_type: "date"
-                      trait_type: "created"
-                      value: 1644274661
-        "500":
-          description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                type: "object"
-                required:
-                  - message
-                example:
-                  message: "Failed to fetch metadata"
         "400":
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                type: "object"
-                required:
-                  - message
-                example:
-                  message: "Invalid id format"
-  /schema/{tableName}:
+          description: Invalid query/statement value
+  /receipt/{chainId}/{txnHash}:
     get:
-      summary: Get the schema of a table by its full name
+      tags:
+        - receipt
+      summary: Query the Tableland network for transaction status
+      description: Returns the status of a given transaction receipt by hash
+      operationId: receiptByTxnHash
       parameters:
-        - in: path
-          name: tableName
+        - name: chainId
+          in: path
+          description: The parent chain to target
+          required: true
+          schema:
+            type: number
+        - name: txnHash
+          in: path
+          description: The transaction hash to request
+          required: true
           schema:
             type: string
-          required: true
-          description: The full name of the table
       responses:
         "200":
-          description: Successful response
+          description: successful operation
           content:
             application/json:
               schema:
-                type: object
-                items:
-                  type: "object"
-                  required:
-                    - "columns"
-                    - "table_constraints"
-                  properties:
-                    columns:
-                      type: "array"
-                      items:
-                        type: "object"
-                        required:
-                          - "name"
-                          - "type"
-                          - "constraints"
-                        properties:
-                          name: 
-                            type: "string"
-                          type: 
-                            type: "string"
-                          constraints:
-                            type: "array"
-                            items:
-                              type: "string"
-                    table_constraints:
-                      type: "array"
-                      items:
-                        type: "string"
-                example:
-                  columns: 
-                    - name: "a"
-                      type: "int"
-                      constraints:
-                        - "PRIMARY KEY"
-                  table_constraints:
-                     - "CHECK (a > 0)"
-  /query?s={readStatement}:
+                $ref: "#/components/schemas/TxnReceipt"
+        "400":
+          description: Invalid query/statement value
+  /tables/structure/{hash}:
     get:
-      summary: Get a read query with the statement in the `s` querystring parameter
+      tags:
+        - tables
+      summary: Finds tables by structure
+      description: Returns all tables that match a given structure
+      operationId: findTablesByStructure
       parameters:
-        - in: query
-          name: readStatement
-          description: The SQL statement describing the read query
+        - name: hash
+          in: path
+          description: Structure hash to filter on
           required: true
+          schema:
+            type: string
+        - name: chainId
+          in: query
+          description: The parent chain to filter on
+          required: false
+          schema:
+            type: number
       responses:
         "200":
-          description: Successful response
+          description: successful operation
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  type: "object"
-                  required:
-                    - "data"
-                  properties:
-                    data:
-                      type: "object"
-                example:
-                  columns:
-                    - name: column_a
-                  rows:
-                    - [1]
-          headers:
-            Access-Control-Allow-Headers:
+                  $ref: "#/components/schemas/Info"
+        "400":
+          description: Invalid structure value
+  /tables/{tableName}:
+    get:
+      tags:
+        - tables
+      summary: Get information about a table
+      description: Returns information about a single table, including schema information
+      operationId: getTableByName
+      parameters:
+        - name: tableName
+          in: path
+          description: Full name of table to return
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
               schema:
-                type: string
-                example: "Accept, Accept-Language, Content-Type, Authorization"
-            Access-Control-Allow-Origin:
-              schema:
-                type: string
-                example: "*"
-            Access-Control-Allow-Methods:
-              schema:
-                type: string
-                example: "GET, POST, OPTIONS"
-            Trace-Id:
-              schema:
-                type: string
-                example: "579bf7aa-9bcf-4405-9d9e-7fd6c1672d1b"
-            Content-Type:
-              schema:
-                type: string
-                example: application/json
-
+                $ref: "#/components/schemas/Table"
+        "400":
+          description: Invalid name supplied
+        "404":
+          description: Table not found
 components:
-  securitySchemes:
-    bearerAuth: # arbitrary name for the security scheme
-      type: http
-      scheme: bearer
-      bearerFormat: SIWE
   schemas:
-    runReadQuery:
-      type: "object"
-      required:
-        - "method"
-        - "id"
-        - "jsonrpc"
-        - "params"
+    Table:
+      type: object
       properties:
-        method:
-          type: "string"
-          description: "Method name"
-        id:
-          type: "integer"
-          default: 1
-          format: int32
-          description: "Request ID"
-        jsonrpc:
-          type: "string"
-          default: "2.0"
-          description: "JSON-RPC Version (2.0)"
-        params:
-          type: "array"
+        name:
+          type: string
+          example: healthbot_5_1
+        external_url:
+          type: string
+          example: https://testnet.tableland.network/tables/healthbot_5_1
+        image:
+          type: string
+          example: https://render.tableland.xyz/healthbot_5_1
+        attributes:
+          type: array
           items:
             type: "object"
-            required:
-              - "statement"
             properties:
-              statement:
+              display_type:
                 type: "string"
-    relayWriteQuery:
-      type: "object"
-      required:
-        - "method"
-        - "id"
-        - "jsonrpc"
-        - "params"
+                description: "The display type for marketplaces"
+              trait_type:
+                type: "string"
+                description: "The trait type for marketplaces"
+              value:
+                description: "The value of the property"
+                oneOf:
+                  - type: string
+                  - type: number
+                  - type: integer
+                  - type: boolean
+                  - type: object
+          example:
+            {
+              "display_type": "date",
+              "trait_type": "created",
+              "value": 1657113720,
+            }
+        schema:
+          $ref: "#/components/schemas/Schema"
+    TxnReceipt:
+      type: object
       properties:
-        method:
-          type: "string"
-          description: "Method name"
-        id:
-          type: "integer"
-          default: 1
-          format: int32
-          description: "Request ID"
-        jsonrpc:
-          type: "string"
-          default: "2.0"
-          description: "JSON-RPC Version (2.0)"
-        params:
-          type: "array"
-          items:
-            type: "object"
-            required:
-              - "statement"
-            properties:
-              statement:
-                type: "string"
-    validateCreateTable:
-      type: "object"
-      required:
-        - "method"
-        - "id"
-        - "jsonrpc"
-        - "params"
+        tableId:
+          type: string
+          example: healthbot_5_1
+        txnHash:
+          type: string
+          example: "0x400508d7cc035b14cc53f64393a8dafcc55f66ad8f9b44d626744157337e2098"
+        blockNumber:
+          type: number
+          example: 1
+        chainId:
+          type: number
+          example: 80001
+    Info:
+      type: object
       properties:
-        method:
-          type: "string"
-          description: "Method name"
-        id:
-          type: "integer"
-          default: 1
-          format: int32
-          description: "Request ID"
-        jsonrpc:
-          type: "string"
-          default: "2.0"
-          description: "JSON-RPC Version (2.0)"
-        params:
-          type: "array"
-          items:
-            type: "object"
-            required:
-              - "create_statement"
-            properties:
-              create_statement:
-                type: "string"
-    validateWriteQuery:
-      type: "object"
-      required:
-        - "method"
-        - "id"
-        - "jsonrpc"
-        - "params"
+        owner:
+          type: string
+          example: "0xbAb12215Ed94713A290e0c618fa8177fAb5eFd2D"
+        name:
+          type: string
+          example: "healthbot_5_1"
+        structure:
+          type: string
+          example: "799dcf5ed5cfeb9e221500db95531ab9197224f8fc9cb9452ce30e4b5cea80d1"
+    Schema:
+      type: object
       properties:
-        method:
-          type: "string"
-          description: "Method name"
-        id:
-          type: "integer"
-          default: 1
-          format: int32
-          description: "Request ID"
-        jsonrpc:
-          type: "string"
-          default: "2.0"
-          description: "JSON-RPC Version (2.0)"
-        params:
-          type: "array"
+        columns:
+          type: array
           items:
-            type: "object"
-            required:
-              - "statement"
-            properties:
-              statement:
-                type: "string"
-    getReceipt:
-      type: "object"
-      required:
-        - "method"
-        - "id"
-        - "jsonrpc"
-        - "params"
+            $ref: "#/components/schemas/Column"
+        tableConstraints:
+          type: array
+          items:
+            type: string
+          example: ["PRIMARY KEY (id)"]
+    Column:
+      type: object
       properties:
-        method:
-          type: "string"
-          description: "Method name"
-        id:
-          type: "integer"
-          default: 1
-          format: int32
-          description: "Request ID"
-        jsonrpc:
-          type: "string"
-          default: "2.0"
-          description: "JSON-RPC Version (2.0)"
-        params:
-          type: "array"
+        name:
+          type: string
+          example: "id"
+        type:
+          type: string
+          example: "integer"
+        constraints:
+          type: array
           items:
-            type: "object"
-            required:
-              - "txn_hash"
-            properties:
-              txn_hash:
-                type: "string"
-    setController:
-      type: "object"
-      required:
-        - "method"
-        - "id"
-        - "jsonrpc"
-        - "params"
-      properties:
-        method:
-          type: "string"
-          description: "Method name"
-        id:
-          type: "integer"
-          default: 1
-          format: int32
-          description: "Request ID"
-        jsonrpc:
-          type: "string"
-          default: "2.0"
-          description: "JSON-RPC Version (2.0)"
-        params:
-          type: "array"
-          items:
-            type: "object"
-            required:
-              - "controller"
-              - "token_id"
-            properties:
-              controller:
-                type: "string"
-              token_id:
-                type: "string"
+            type: string
+          example: ["NOT NULL", "PRIMARY KEY", "UNIQUE"]
