@@ -85,5 +85,9 @@ lint:
 .PHONYY: lint
 
 # OpenAPI
+SPEC_URL=https://raw.githubusercontent.com/tablelandnetwork/docs/spec/validatorapi/specs/validator/tableland-openapi-spec.yaml
 openapi:
-	docker run -w /gen -e GEN_DIR=/gen -v ${PWD}:/gen swaggerapi/swagger-codegen-cli-v3 generate --lang go-server -o /gen/tablelandapi -i tableland-openapi-spec.yaml --additional-properties=packageName=tablelandapi 
+	curl -s ${SPEC_URL} > tableland-openapi-spec.yaml
+	docker run -w /gen -e GEN_DIR=/gen -v ${PWD}:/gen swaggerapi/swagger-codegen-cli-v3 \
+	generate --lang go-server -o /gen/tablelandapi -i tableland-openapi-spec.yaml --additional-properties=packageName=tablelandapi 
+	rm tableland-openapi-spec.yaml
