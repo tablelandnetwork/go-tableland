@@ -90,4 +90,5 @@ openapi:
 	curl -s ${SPEC_URL} > tableland-openapi-spec.yaml
 	docker run -w /gen -e GEN_DIR=/gen -v ${PWD}:/gen swaggerapi/swagger-codegen-cli-v3 \
 	generate --lang go-server -o /gen/tablelandapi -i tableland-openapi-spec.yaml --additional-properties=packageName=tablelandapi 
+	cd tablelandapi && sudo rm -rf Dockerfile go/README.md api .swagger-codegen .swagger-codegen-ignore
 	rm tableland-openapi-spec.yaml
