@@ -14,7 +14,6 @@ GOVVV=go run github.com/ahmetb/govvv@v0.3.0
 GOVVV_FLAGS=$(shell $(GOVVV) -flags -version $(BIN_VERSION) -pkg $(shell go list ./buildinfo))
 
 # Code generation
-
 ethereum: ethereum-testcontroller ethereum-testerc721 ethereum-testerc721a
 	go run github.com/ethereum/go-ethereum/cmd/abigen@v1.10.20 --abi ./pkg/tables/impl/ethereum/abi.json --pkg ethereum --type Contract --out pkg/tables/impl/ethereum/contract.go --bin pkg/tables/impl/ethereum/bytecode.bin
 .PHONY: ethereum
@@ -52,7 +51,6 @@ generate-history-db:
 	rm ${EVM_EVENTS_TARGET}
 
 # Build 
-
 build-api:
 	go build -ldflags="${GOVVV_FLAGS}" ./cmd/api
 .PHONY: build-api
@@ -70,7 +68,6 @@ image:
 .PHONY: image
 
 # Test
-
 test: 
 	go test ./... -short -race
 .PHONY: test
@@ -79,7 +76,6 @@ test-replayhistory:
 	go test ./pkg/eventprocessor/impl -run=TestReplayProductionHistory -race
 
 # Lint
-
 lint:
 	go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.49.0 run
 .PHONYY: lint
