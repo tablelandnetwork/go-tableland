@@ -480,7 +480,7 @@ func createHTTPServer(
 		return nil, fmt.Errorf("parsing http ratelimiter interval: %s", err)
 	}
 
-	router := router.ConfiguredRouter(
+	router, err := router.ConfiguredRouter(
 		gatewayConfig.ExternalURIPrefix,
 		gatewayConfig.MetadataRendererURI,
 		gatewayConfig.AnimationRendererURI,
@@ -490,6 +490,9 @@ func createHTTPServer(
 		userStore,
 		chainStacks,
 	)
+	if err != nil {
+		return nil, fmt.Errorf("configuring router: %s", err)
+	}
 
 	server := &http.Server{
 		Addr:         ":" + httpConfig.Port,
