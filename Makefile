@@ -78,13 +78,19 @@ test-replayhistory:
 # Lint
 lint:
 	go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.49.0 run
-.PHONYY: lint
+.PHONY: lint
 
 # OpenAPI
 SPEC_URL=https://raw.githubusercontent.com/tablelandnetwork/docs/spec/validatorapi/specs/validator/tableland-openapi-spec.yaml
-openapi:
-	curl -s ${SPEC_URL} > tableland-openapi-spec.yaml
-	docker run -w /gen -e GEN_DIR=/gen -v ${PWD}:/gen swaggerapi/swagger-codegen-cli-v3 \
-	generate --lang go-server -o /gen/tablelandapi -i tableland-openapi-spec.yaml --additional-properties=packageName=tablelandapi 
-	cd tablelandapi && sudo rm -rf main.go Dockerfile go/README.md api .swagger-codegen .swagger-codegen-ignore
-	rm tableland-openapi-spec.yaml
+APIV1=${PWD}/internal/router/controllers/apiv1
+gen-api-v1:
+	mkdir -p ${APIV1}
+	curl -s ${SPEC_URL} > ${APIV1}/tableland-openapi-spec.yaml
+	docker run -w /gen -e GEN_DIR=/gen -v ${APIV1}:/gen swaggerapi/swagger-codegen-cli-v3 \
+	   generate --lang go-server -o /gen -i tableland-openapi-spec.yaml --additional-properties=packageName=apiv1 
+	sudo chown -R ${USER} ${APIV1} 
+	cd ${APIV1} && \
+	   mv go/* . && \
+	   rm -rf go main.go Dockerfile README.md api .swagger-codegen .swagger-codegen-ignore
+	rm ${APIV1}/tableland-openapi-spec.yaml
+.PHONY: gen-api-v1
