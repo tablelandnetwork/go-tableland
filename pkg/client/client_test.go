@@ -223,7 +223,7 @@ func setup(t *testing.T) clientCalls {
 		},
 	}
 
-	router := router.ConfiguredRouter(
+	router, err := router.ConfiguredRouter(
 		"https://testnet.tableland.network",
 		"https://render.tableland.xyz",
 		"",
@@ -233,6 +233,7 @@ func setup(t *testing.T) clientCalls {
 		userStore,
 		chainStack,
 	)
+	require.NoError(t, err)
 
 	server := httptest.NewServer(router.Handler())
 

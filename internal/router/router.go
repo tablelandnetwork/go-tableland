@@ -8,9 +8,8 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/gorilla/mux"
 	"github.com/textileio/go-tableland/internal/chains"
-	"github.com/textileio/go-tableland/internal/router/controllers"
+	"github.com/textileio/go-tableland/internal/router/controllers/legacy"
 	"github.com/textileio/go-tableland/internal/router/middlewares"
-	"github.com/textileio/go-tableland/internal/router/rpcservice"
 	systemimpl "github.com/textileio/go-tableland/internal/system/impl"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/internal/tableland/impl"
@@ -41,14 +40,14 @@ func ConfiguredRouter(
 	if err != nil {
 		return nil, fmt.Errorf("instrumenting mesa: %s", err)
 	}
-	rpcService := rpcservice.NewRPCService(mesaService)
-	userController := controllers.NewUserController(mesaService)
+	rpcService := legacy.NewRPCService(mesaService)
+	userController := legacy.NewUserController(mesaService)
 
 	server := rpc.NewServer()
 	if err := server.RegisterName("tableland", rpcService); err != nil {
 		return nil, fmt.Errorf("failed to register a json-rpc service: %s", err)
 	}
-	infraController := controllers.NewInfraController()
+	infraController := legacy.NewInfraController()
 
 	stores := make(map[tableland.ChainID]sqlstore.SystemStore, len(chainStacks))
 	for chainID, stack := range chainStacks {
@@ -62,7 +61,7 @@ func ConfiguredRouter(
 	if err != nil {
 		return nil, fmt.Errorf("instrumenting system sql store: %s", err)
 	}
-	systemController := controllers.NewSystemController(systemService)
+	systemController := legacy.NewSystemController(systemService)
 
 	// General router configuration.
 	router := NewRouter()
