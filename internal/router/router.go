@@ -1,12 +1,12 @@
 package router
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/gorilla/mux"
-	"github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/chains"
 	"github.com/textileio/go-tableland/internal/router/controllers"
 	"github.com/textileio/go-tableland/internal/router/middlewares"
@@ -30,23 +30,23 @@ func ConfiguredRouter(
 	parser parsing.SQLValidator,
 	userStore *user.UserStore,
 	chainStacks map[tableland.ChainID]chains.ChainStack,
-) *Router {
+) (*Router, error) {
 	instrUserStore, err := sqlstoreimpl.NewInstrumentedUserStore(userStore)
 	if err != nil {
-		log.Fatal().Err(err).Msg("creating instrumented user store")
+		return nil, fmt.Errorf("creating instrumented user store: %s", err)
 	}
 
 	mesaService := impl.NewTablelandMesa(parser, instrUserStore, chainStacks)
 	mesaService, err = impl.NewInstrumentedTablelandMesa(mesaService)
 	if err != nil {
-		log.Fatal().Err(err).Msg("instrumenting mesa")
+		return nil, fmt.Errorf("instrumenting mesa: %s", err)
 	}
 	rpcService := rpcservice.NewRPCService(mesaService)
 	userController := controllers.NewUserController(mesaService)
 
 	server := rpc.NewServer()
 	if err := server.RegisterName("tableland", rpcService); err != nil {
-		log.Fatal().Err(err).Msg("failed to register a json-rpc service")
+		return nil, fmt.Errorf("failed to register a json-rpc service: %s", err)
 	}
 	infraController := controllers.NewInfraController()
 
@@ -56,11 +56,11 @@ func ConfiguredRouter(
 	}
 	sysStore, err := systemimpl.NewSystemSQLStoreService(stores, extURLPrefix, metadataRendererURI, animationRendererURI)
 	if err != nil {
-		log.Fatal().Err(err).Msg("creating system store")
+		return nil, fmt.Errorf("creating system store: %s", err)
 	}
 	systemService, err := systemimpl.NewInstrumentedSystemSQLStoreService(sysStore)
 	if err != nil {
-		log.Fatal().Err(err).Msg("instrumenting system sql store")
+		return nil, fmt.Errorf("instrumenting system sql store: %s", err)
 	}
 	systemController := controllers.NewSystemController(systemService)
 
@@ -78,7 +78,7 @@ func ConfiguredRouter(
 	}
 	rateLim, err := middlewares.RateLimitController(cfg)
 	if err != nil {
-		log.Fatal().Err(err).Msg("creating rate limit controller middleware")
+		return nil, fmt.Errorf("creating rate limit controller middleware: %s", err)
 	}
 
 	router.Post("/rpc", func(rw http.ResponseWriter, r *http.Request) {
@@ -99,7 +99,7 @@ func ConfiguredRouter(
 	router.Get("/healthz", healthHandler)
 	router.Get("/health", healthHandler)
 
-	return router
+	return router, nil
 }
 
 func healthHandler(w http.ResponseWriter, _ *http.Request) {
