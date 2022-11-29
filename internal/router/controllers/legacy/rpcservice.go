@@ -1,4 +1,4 @@
-package rpcservice
+package legacy
 
 import (
 	"context"
@@ -9,7 +9,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/textileio/go-tableland/internal/formatter"
-	"github.com/textileio/go-tableland/internal/router/controllers"
 	"github.com/textileio/go-tableland/internal/router/middlewares"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/tables"
@@ -211,7 +210,7 @@ func (rs *RPCService) RunReadQuery(
 		return RunReadQueryResponse{}, errors.New("unwrapped results with more than one row aren't supported in JSON RPC API")
 	}
 
-	controllers.CollectReadQueryMetric(ctx, req.Statement, config, took)
+	CollectReadQueryMetric(ctx, req.Statement, config, took)
 
 	return RunReadQueryResponse{Result: json.RawMessage(formatted)}, nil
 }
