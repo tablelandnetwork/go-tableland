@@ -1,4 +1,4 @@
-package client
+package client_legacy
 
 import (
 	"context"
@@ -15,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/textileio/go-tableland/internal/router/controllers/legacy"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/client"
 	"github.com/textileio/go-tableland/pkg/nonce/impl"
 	"github.com/textileio/go-tableland/pkg/siwe"
 	"github.com/textileio/go-tableland/pkg/tables"
@@ -22,16 +23,17 @@ import (
 	"github.com/textileio/go-tableland/pkg/wallet"
 )
 
-var defaultChain = Chains.PolygonMumbai
+var defaultChain = client.Chains.PolygonMumbai
 
+// TODO(json-rpc): remove client_legacy package when support is dropped.
 // TxnReceipt is a Tableland event processing receipt.
 type TxnReceipt struct {
-	ChainID       ChainID `json:"chain_id"`
-	TxnHash       string  `json:"txn_hash"`
-	BlockNumber   int64   `json:"block_number"`
-	Error         string  `json:"error"`
-	ErrorEventIdx int     `json:"error_event_idx"`
-	TableID       *string `json:"table_id,omitempty"`
+	ChainID       client.ChainID `json:"chain_id"`
+	TxnHash       string         `json:"txn_hash"`
+	BlockNumber   int64          `json:"block_number"`
+	Error         string         `json:"error"`
+	ErrorEventIdx int            `json:"error_event_idx"`
+	TableID       *string        `json:"table_id,omitempty"`
 }
 
 // TableID is the ID of a Table.
@@ -76,13 +78,13 @@ type Client struct {
 	tblRPC      *rpc.Client
 	tblHTTP     *http.Client
 	tblContract *ethereum.Client
-	chain       Chain
+	chain       client.Chain
 	relayWrites bool
 	wallet      *wallet.Wallet
 }
 
 type config struct {
-	chain           *Chain
+	chain           *client.Chain
 	relayWrites     *bool
 	infuraAPIKey    string
 	alchemyAPIKey   string
@@ -94,7 +96,7 @@ type config struct {
 type NewClientOption func(*config)
 
 // NewClientChain specifies chaininfo.
-func NewClientChain(chain Chain) NewClientOption {
+func NewClientChain(chain client.Chain) NewClientOption {
 	return func(ncc *config) {
 		ncc.chain = &chain
 	}
@@ -455,7 +457,7 @@ func (c *Client) getReceipt(ctx context.Context, txnHash string) (*TxnReceipt, b
 	}
 
 	receipt := TxnReceipt{
-		ChainID:       ChainID(res.Receipt.ChainID),
+		ChainID:       client.ChainID(res.Receipt.ChainID),
 		TxnHash:       res.Receipt.TxnHash,
 		BlockNumber:   res.Receipt.BlockNumber,
 		Error:         res.Receipt.Error,
@@ -497,19 +499,19 @@ func getContractBackend(ctx context.Context, config config) (bind.ContractBacken
 	if config.contractBackend != nil && config.infuraAPIKey == "" && config.alchemyAPIKey == "" {
 		return config.contractBackend, nil
 	} else if config.infuraAPIKey != "" && config.contractBackend == nil && config.alchemyAPIKey == "" {
-		tmpl, found := InfuraURLs[config.chain.ID]
+		tmpl, found := client.InfuraURLs[config.chain.ID]
 		if !found {
 			return nil, fmt.Errorf("chain id %v not supported for Infura", config.chain.ID)
 		}
 		return ethclient.DialContext(ctx, fmt.Sprintf(tmpl, config.infuraAPIKey))
 	} else if config.alchemyAPIKey != "" && config.contractBackend == nil && config.infuraAPIKey == "" {
-		tmpl, found := AlchemyURLs[config.chain.ID]
+		tmpl, found := client.AlchemyURLs[config.chain.ID]
 		if !found {
 			return nil, fmt.Errorf("chain id %v not supported for Alchemy", config.chain.ID)
 		}
 		return ethclient.DialContext(ctx, fmt.Sprintf(tmpl, config.alchemyAPIKey))
 	} else if config.local {
-		url, found := LocalURLs[config.chain.ID]
+		url, found := client.LocalURLs[config.chain.ID]
 		if !found {
 			return nil, fmt.Errorf("chain id %v not supported for Local", config.chain.ID)
 		}

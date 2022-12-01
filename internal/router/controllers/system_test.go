@@ -23,7 +23,7 @@ func TestSystemControllerMock(t *testing.T) {
 		require.NoError(t, err)
 
 		router := mux.NewRouter()
-		router.HandleFunc("/chain/{chainID}/tables/{id}", systemController.GetTable)
+		router.HandleFunc("/chain/{chainID}/tables/{tableId}", systemController.GetTable)
 
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
@@ -158,7 +158,7 @@ func TestTableNotFoundMock(t *testing.T) {
 	systemController := NewSystemController(systemService)
 
 	router := mux.NewRouter()
-	router.HandleFunc("/tables/{id}", systemController.GetTable)
+	router.HandleFunc("/tables/{tableId}", systemController.GetTable)
 
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
