@@ -16,7 +16,7 @@ func RESTChainID(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 
-		chainID, err := strconv.ParseInt(vars["chainID"], 10, 64)
+		chainID, err := strconv.ParseInt(vars["chainId"], 10, 64)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			_ = json.NewEncoder(w).Encode(errors.ServiceError{Message: "no chain id in path"})
