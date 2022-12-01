@@ -107,7 +107,7 @@ func (c Chain) CanRelayWrites() bool {
 	return c.ID != ChainIDs.Ethereum && c.ID != ChainIDs.Optimism && c.ID != ChainIDs.Polygon
 }
 
-var infuraURLs = map[ChainID]string{
+var InfuraURLs = map[ChainID]string{
 	ChainIDs.EthereumGoerli: "https://goerli.infura.io/v3/%s",
 	ChainIDs.Ethereum:       "https://mainnet.infura.io/v3/%s",
 	ChainIDs.OptimismGoerli: "https://optimism-goerli.infura.io/v3/%s",
@@ -118,7 +118,7 @@ var infuraURLs = map[ChainID]string{
 	ChainIDs.Polygon:        "https://polygon-mainnet.infura.io/v3/%s",
 }
 
-var alchemyURLs = map[ChainID]string{
+var AlchemyURLs = map[ChainID]string{
 	ChainIDs.EthereumGoerli: "https://eth-goerli.g.alchemy.com/v2/%s",
 	ChainIDs.Ethereum:       "https://eth-mainnet.g.alchemy.com/v2/%s",
 	ChainIDs.OptimismGoerli: "https://opt-goerli.g.alchemy.com/v2/%s",
@@ -129,6 +129,6 @@ var alchemyURLs = map[ChainID]string{
 	ChainIDs.Polygon:        "https://polygon-mainnet.g.alchemy.com/v2/%s",
 }
 
-var localURLs = map[ChainID]string{
+var LocalURLs = map[ChainID]string{
 	ChainIDs.Local: "http://localhost:8545",
 }
