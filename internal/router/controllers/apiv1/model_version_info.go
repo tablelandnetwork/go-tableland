@@ -9,13 +9,19 @@
  */
 package apiv1
 
-type TxnReceipt struct {
+type VersionInfo struct {
 
-	TableId string `json:"table_id,omitempty"`
+	Version string `json:"version,omitempty"`
 
-	TxnHash string `json:"txnHash,omitempty"`
+	GitCommit string `json:"gitCommit,omitempty"`
 
-	BlockNumber int64 `json:"blockNumber,omitempty"`
+	GitBranch string `json:"gitBranch,omitempty"`
 
-	ChainId int32 `json:"chainId,omitempty"`
+	GitState string `json:"gitState,omitempty"`
+
+	GitSummary string `json:"gitSummary,omitempty"`
+
+	BuildDate string `json:"buildDate,omitempty"`
+
+	BinaryVersion string `json:"binary_version,omitempty"`
 }

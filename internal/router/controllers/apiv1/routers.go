@@ -56,6 +56,13 @@ var routes = Routes{
 	},
 
 	Route{
+		"Health",
+		strings.ToUpper("Get"),
+		"/api/v1/health",
+		Health,
+	},
+
+	Route{
 		"QueryFromQuery",
 		strings.ToUpper("Get"),
 		"/api/v1/query",
@@ -70,16 +77,16 @@ var routes = Routes{
 	},
 
 	Route{
-		"FindTablesByStructure",
+		"GetTableById",
 		strings.ToUpper("Get"),
-		"/api/v1/tables/structure/{hash}",
-		FindTablesByStructure,
+		"/api/v1/tables/{chainId}/{tableId}",
+		GetTableById,
 	},
 
 	Route{
-		"GetTableByName",
+		"Version",
 		strings.ToUpper("Get"),
-		"/api/v1/tables/{tableName}",
-		GetTableByName,
+		"/api/v1/version",
+		Version,
 	},
 }

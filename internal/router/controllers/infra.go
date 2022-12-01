@@ -1,4 +1,4 @@
-package legacy
+package controllers
 
 import (
 	"encoding/json"

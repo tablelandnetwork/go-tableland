@@ -9,13 +9,11 @@
  */
 package apiv1
 
-type TxnReceipt struct {
+import (
+	"net/http"
+)
 
-	TableId string `json:"table_id,omitempty"`
-
-	TxnHash string `json:"txnHash,omitempty"`
-
-	BlockNumber int64 `json:"blockNumber,omitempty"`
-
-	ChainId int32 `json:"chainId,omitempty"`
+func Version(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.WriteHeader(http.StatusOK)
 }

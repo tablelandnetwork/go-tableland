@@ -1,4 +1,4 @@
-package legacy
+package controllers
 
 import (
 	"encoding/json"
@@ -27,7 +27,7 @@ func (c *SystemController) GetTable(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-type", "application/json")
 	vars := mux.Vars(r)
 
-	id, err := tables.NewTableID(vars["id"])
+	id, err := tables.NewTableID(vars["tableId"])
 	if err != nil {
 		rw.WriteHeader(http.StatusBadRequest)
 		log.Ctx(ctx).
@@ -196,4 +196,8 @@ func (c *SystemController) GetSchemaByTableName(rw http.ResponseWriter, r *http.
 		Columns:          columns,
 		TableConstraints: schema.TableConstraints,
 	})
+}
+
+func HealthHandler(w http.ResponseWriter, _ *http.Request) {
+	w.WriteHeader(http.StatusOK)
 }
