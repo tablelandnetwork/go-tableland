@@ -3,34 +3,18 @@ package client
 import (
 	"context"
 	"database/sql"
-	"encoding/hex"
 	"fmt"
-	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/go-tableland/internal/chains"
-	"github.com/textileio/go-tableland/internal/router"
 	"github.com/textileio/go-tableland/internal/tableland"
 	tblimpl "github.com/textileio/go-tableland/internal/tableland/impl"
-	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
-	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
-	epimpl "github.com/textileio/go-tableland/pkg/eventprocessor/impl"
-	"github.com/textileio/go-tableland/pkg/nonce/impl"
-	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
-	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
-	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
 	"github.com/textileio/go-tableland/pkg/tables"
-	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
-	"github.com/textileio/go-tableland/pkg/tables/impl/testutil"
-	"github.com/textileio/go-tableland/pkg/wallet"
-	"github.com/textileio/go-tableland/tests"
-
-	executor "github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor/impl"
+	"github.com/textileio/go-tableland/tests/fullstack"
 )
 
 func TestCreate(t *testing.T) {
@@ -179,96 +163,21 @@ type clientCalls struct {
 }
 
 func setup(t *testing.T) clientCalls {
-	t.Helper()
-
-	ctx := context.Background()
-
-	dbURI := tests.Sqlite3URI(t)
-
-	store, err := system.New(dbURI, tableland.ChainID(1337))
-	require.NoError(t, err)
-
-	parser, err := parserimpl.New([]string{"system_", "registry", "sqlite_"})
-	require.NoError(t, err)
-
-	db, err := sql.Open("sqlite3", dbURI)
-	require.NoError(t, err)
-	db.SetMaxOpenConns(1)
-
-	ex, err := executor.NewExecutor(1337, db, parser, 0, &aclHalfMock{store})
-	require.NoError(t, err)
-
-	backend, addr, _, _, sk := testutil.Setup(t)
-
-	wallet, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(sk)))
-	require.NoError(t, err)
-
-	registry, err := ethereum.NewClient(
-		backend,
-		1337,
-		addr,
-		wallet,
-		impl.NewSimpleTracker(wallet, backend),
-	)
-	require.NoError(t, err)
-
-	userStore, err := user.New(dbURI)
-	require.NoError(t, err)
-
-	chainStack := map[tableland.ChainID]chains.ChainStack{
-		1337: {
-			Store:                 store,
-			Registry:              registry,
-			AllowTransactionRelay: true,
-		},
-	}
-
-	router, err := router.ConfiguredRouter(
-		"https://testnet.tableland.network",
-		"https://render.tableland.xyz",
-		"",
-		10,
-		time.Second,
-		parser,
-		userStore,
-		chainStack,
-	)
-	require.NoError(t, err)
-
-	server := httptest.NewServer(router.Handler())
+	stack := fullstack.CreateFullStack(t, fullstack.Deps{})
 
 	c := Chain{
-		Endpoint:     server.URL,
-		ID:           ChainID(1337),
-		ContractAddr: addr,
+		Endpoint:     stack.Server.URL,
+		ID:           ChainID(fullstack.ChainID),
+		ContractAddr: stack.Address,
 	}
 
-	client, err := NewClient(ctx, wallet, NewClientChain(c), NewClientContractBackend(backend))
-	require.NoError(t, err)
-
-	// Spin up dependencies needed for the EventProcessor.
-	// i.e: Executor, Parser, and EventFeed (connected to the EVM chain)
-	ef, err := efimpl.New(
-		store,
-		1337,
-		backend,
-		addr,
-		eventfeed.WithNewHeadPollFreq(time.Millisecond),
-		eventfeed.WithMinBlockDepth(0))
-	require.NoError(t, err)
-
-	// Create EventProcessor for our test.
-	ep, err := epimpl.New(parser, ex, ef, 1337)
-	require.NoError(t, err)
-
-	err = ep.Start()
+	client, err := NewClient(context.Background(), stack.Wallet, NewClientChain(c), NewClientContractBackend(stack.Backend))
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		ep.Stop()
 		client.Close()
-		server.Close()
 	})
 
+	ctx := context.Background()
 	return clientCalls{
 		list: func() []TableInfo {
 			res, err := client.List(ctx)
@@ -278,7 +187,7 @@ func setup(t *testing.T) clientCalls {
 		create: func(schema string, opts ...CreateOption) (TableID, string) {
 			go func() {
 				time.Sleep(time.Second * 1)
-				backend.Commit()
+				stack.Backend.Commit()
 			}()
 			id, table, err := client.Create(ctx, schema, opts...)
 			require.NoError(t, err)
@@ -291,7 +200,7 @@ func setup(t *testing.T) clientCalls {
 		write: func(query string, opts ...WriteOption) string {
 			hash, err := client.Write(ctx, query, opts...)
 			require.NoError(t, err)
-			backend.Commit()
+			stack.Backend.Commit()
 			return hash
 		},
 		hash: func(statement string) string {
@@ -312,7 +221,7 @@ func setup(t *testing.T) clientCalls {
 		setController: func(controller common.Address, tableID TableID) string {
 			hash, err := client.SetController(ctx, controller, tableID)
 			require.NoError(t, err)
-			backend.Commit()
+			stack.Backend.Commit()
 			return hash
 		},
 	}

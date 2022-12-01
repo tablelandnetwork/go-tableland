@@ -35,6 +35,7 @@ import (
 	nonceimpl "github.com/textileio/go-tableland/pkg/nonce/impl"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
+	"github.com/textileio/go-tableland/pkg/sqlstore"
 	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
@@ -99,7 +100,7 @@ func main() {
 	}
 
 	// HTTP API server.
-	closeHTTPServer, err := createHTTPServer(config.HTTP, config.Gateway, parser, userStore, chainStacks)
+	closeHTTPServer, err := createAPIServer(config.HTTP, config.Gateway, parser, userStore, chainStacks)
 	if err != nil {
 		log.Fatal().Err(err).Msg("creating HTTP server")
 	}
@@ -468,27 +469,46 @@ func createChainStacks(
 	return chainStacks, closeModule, nil
 }
 
-func createHTTPServer(
+func createAPIServer(
 	httpConfig HTTPConfig,
 	gatewayConfig GatewayConfig,
 	parser parsing.SQLValidator,
 	userStore *user.UserStore,
 	chainStacks map[tableland.ChainID]chains.ChainStack,
 ) (moduleCloser, error) {
+	instrUserStore, err := sqlstoreimpl.NewInstrumentedUserStore(userStore)
+	if err != nil {
+		return nil, fmt.Errorf("creating instrumented user store: %s", err)
+	}
+
+	mesaService := impl.NewTablelandMesa(parser, instrUserStore, chainStacks)
+	mesaService, err = impl.NewInstrumentedTablelandMesa(mesaService)
+	if err != nil {
+		return nil, fmt.Errorf("instrumenting mesa: %s", err)
+	}
+
+	stores := make(map[tableland.ChainID]sqlstore.SystemStore, len(chainStacks))
+	for chainID, stack := range chainStacks {
+		stores[chainID] = stack.Store
+	}
+	sysStore, err := systemimpl.NewSystemSQLStoreService(stores, gatewayConfig.ExternalURIPrefix, gatewayConfig.MetadataRendererURI, gatewayConfig.AnimationRendererURI)
+	if err != nil {
+		return nil, fmt.Errorf("creating system store: %s", err)
+	}
+	systemService, err := systemimpl.NewInstrumentedSystemSQLStoreService(sysStore)
+	if err != nil {
+		return nil, fmt.Errorf("instrumenting system sql store: %s", err)
+	}
 	rateLimInterval, err := time.ParseDuration(httpConfig.RateLimInterval)
 	if err != nil {
 		return nil, fmt.Errorf("parsing http ratelimiter interval: %s", err)
 	}
 
 	router, err := router.ConfiguredRouter(
-		gatewayConfig.ExternalURIPrefix,
-		gatewayConfig.MetadataRendererURI,
-		gatewayConfig.AnimationRendererURI,
+		mesaService,
+		systemService,
 		httpConfig.MaxRequestPerInterval,
 		rateLimInterval,
-		parser,
-		userStore,
-		chainStacks,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("configuring router: %s", err)
