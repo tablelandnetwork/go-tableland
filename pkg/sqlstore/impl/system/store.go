@@ -246,7 +246,7 @@ func (s *SystemStore) GetSchemaByTableName(ctx context.Context, name string) (sq
 		return sqlstore.TableSchema{}, fmt.Errorf("failed to get the table: %s", err)
 	}
 
-	index := strings.LastIndex(createStmt, "STRICT")
+	index := strings.LastIndex(createStmt, "strict")
 	ast, err := sqlparser.Parse(createStmt[:index])
 	if err != nil {
 		return sqlstore.TableSchema{}, fmt.Errorf("failed to parse create stmt: %s", err)
@@ -257,15 +257,15 @@ func (s *SystemStore) GetSchemaByTableName(ctx context.Context, name string) (sq
 	}
 
 	createTableNode := ast.Statements[0].(*sqlparser.CreateTable)
-	columns := make([]sqlstore.ColumnSchema, len(createTableNode.Columns))
-	for i, col := range createTableNode.Columns {
+	columns := make([]sqlstore.ColumnSchema, len(createTableNode.ColumnsDef))
+	for i, col := range createTableNode.ColumnsDef {
 		colConstraints := []string{}
 		for _, colConstraint := range col.Constraints {
 			colConstraints = append(colConstraints, colConstraint.String())
 		}
 
 		columns[i] = sqlstore.ColumnSchema{
-			Name:        col.Name.String(),
+			Name:        col.Column.String(),
 			Type:        strings.ToLower(col.Type),
 			Constraints: colConstraints,
 		}

@@ -149,16 +149,16 @@ func TestGetSchemaByTableName(t *testing.T) {
 	require.Equal(t, "a", schema.Columns[0].Name)
 	require.Equal(t, "int", schema.Columns[0].Type)
 	require.Len(t, schema.Columns[0].Constraints, 1)
-	require.Equal(t, "PRIMARY KEY", schema.Columns[0].Constraints[0])
+	require.Equal(t, "primary key", schema.Columns[0].Constraints[0])
 
 	require.Equal(t, "b", schema.Columns[1].Name)
 	require.Equal(t, "text", schema.Columns[1].Type)
 	require.Len(t, schema.Columns[1].Constraints, 3)
-	require.Equal(t, "NOT NULL", schema.Columns[1].Constraints[0])
-	require.Equal(t, "DEFAULT 'foo'", schema.Columns[1].Constraints[1])
-	require.Equal(t, "UNIQUE", schema.Columns[1].Constraints[2])
+	require.Equal(t, "not null", schema.Columns[1].Constraints[0])
+	require.Equal(t, "default 'foo'", schema.Columns[1].Constraints[1])
+	require.Equal(t, "unique", schema.Columns[1].Constraints[2])
 
-	require.Equal(t, "CHECK(a > 0)", schema.TableConstraints[0])
+	require.Equal(t, "check(a > 0)", schema.TableConstraints[0])
 }
 
 func TestGetMetadata(t *testing.T) {
