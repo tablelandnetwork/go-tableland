@@ -27,7 +27,7 @@ func (c *SystemController) GetReceiptByTransactionHash(rw http.ResponseWriter, r
 	rw.Header().Set("Content-Type", "application/json")
 	ctx := r.Context()
 
-	paramTxnHash := mux.Vars(r)["transactionhash"]
+	paramTxnHash := mux.Vars(r)["transactionHash"]
 	txnHash := common.HexToHash(paramTxnHash)
 
 	receipt, exists, err := c.systemService.GetReceiptByTransactionHash(ctx, txnHash)

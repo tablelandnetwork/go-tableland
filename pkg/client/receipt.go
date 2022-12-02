@@ -44,6 +44,7 @@ func (c *Client) Receipt(
 
 func (c *Client) getReceipt(ctx context.Context, txnHash string) (*apiv1.TransactionReceipt, bool, error) {
 	url := (*c.baseURL).
+		JoinPath("api/v1/receipt").
 		JoinPath(strconv.FormatInt(int64(c.chain.ID), 10)).
 		JoinPath(txnHash)
 

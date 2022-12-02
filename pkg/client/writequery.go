@@ -61,12 +61,12 @@ func (c *Client) Create(ctx context.Context, schema string, opts ...CreateOption
 		return TableID{}, "", errors.New("no receipt found before timeout")
 	}
 
-	tableID, ok := big.NewInt(0).SetString(*r.TableID, 10)
+	tableID, ok := big.NewInt(0).SetString(r.TableId, 10)
 	if !ok {
 		return TableID{}, "", errors.New("parsing table id from response")
 	}
 
-	return TableID(*tableID), fmt.Sprintf("%s_%d_%s", conf.prefix, c.chain.ID, *r.TableID), nil
+	return TableID(*tableID), fmt.Sprintf("%s_%d_%s", conf.prefix, c.chain.ID, r.TableId), nil
 }
 
 // Write initiates a write query, returning the txn hash.

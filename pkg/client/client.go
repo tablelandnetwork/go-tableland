@@ -10,9 +10,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/textileio/go-tableland/internal/router/controllers/legacy"
 	systemimpl "github.com/textileio/go-tableland/internal/system/impl"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/nonce/impl"
@@ -137,101 +135,6 @@ func NewClient(ctx context.Context, wallet *wallet.Wallet, opts ...NewClientOpti
 		parser:      parser,
 		baseURL:     baseURL,
 	}, nil
-}
-
-type receiptConfig struct {
-	timeout *time.Duration
-}
-
-// ReceiptOption controls the behavior of calls to Receipt.
-type ReceiptOption func(*receiptConfig)
-
-// WaitFor causes calls to Receipt to wait for the specified duration.
-func WaitFor(timeout time.Duration) ReceiptOption {
-	return func(rc *receiptConfig) {
-		rc.timeout = &timeout
-	}
-}
-
-// Receipt gets a transaction receipt.
-func (c *Client) Receipt(
-	ctx context.Context,
-	txnHash string,
-	options ...ReceiptOption,
-) (*TxnReceipt, bool, error) {
-	config := receiptConfig{}
-	for _, option := range options {
-		option(&config)
-	}
-	if config.timeout != nil {
-		return c.waitForReceipt(ctx, txnHash, *config.timeout)
-	}
-	return c.getReceipt(ctx, txnHash)
-}
-
-// SetController sets the controller address for the specified table.
-func (c *Client) SetController(
-	ctx context.Context,
-	controller common.Address,
-	tableID TableID,
-) (string, error) {
-	req := legacy.SetControllerRequest{Controller: controller.Hex(), TokenID: tableID.String()}
-	var res legacy.SetControllerResponse
-
-	if err := c.tblRPC.CallContext(ctx, &res, "tableland_setController", req); err != nil {
-		return "", fmt.Errorf("calling rpc setController: %v", err)
-	}
-
-	return res.Transaction.Hash, nil
-}
-
-func (c *Client) getReceipt(ctx context.Context, txnHash string) (*TxnReceipt, bool, error) {
-	req := legacy.GetReceiptRequest{TxnHash: txnHash}
-	var res legacy.GetReceiptResponse
-	if err := c.tblRPC.CallContext(ctx, &res, "tableland_getReceipt", req); err != nil {
-		return nil, false, fmt.Errorf("calling rpc getReceipt: %v", err)
-	}
-	if !res.Ok {
-		return nil, res.Ok, nil
-	}
-
-	receipt := TxnReceipt{
-		ChainID:       ChainID(res.Receipt.ChainID),
-		TxnHash:       res.Receipt.TxnHash,
-		BlockNumber:   res.Receipt.BlockNumber,
-		Error:         res.Receipt.Error,
-		ErrorEventIdx: res.Receipt.ErrorEventIdx,
-		TableID:       res.Receipt.TableID,
-	}
-	return &receipt, res.Ok, nil
-}
-
-func (c *Client) waitForReceipt(
-	ctx context.Context,
-	txnHash string,
-	timeout time.Duration,
-) (*TxnReceipt, bool, error) {
-	for stay, timeout := true, time.After(timeout); stay; {
-		select {
-		case <-timeout:
-			stay = false
-		default:
-			receipt, found, err := c.getReceipt(ctx, txnHash)
-			if err != nil {
-				return nil, false, err
-			}
-			if found {
-				return receipt, found, nil
-			}
-			time.Sleep(time.Second)
-		}
-	}
-	return nil, false, nil
-}
-
-// Close implements Close.
-func (c *Client) Close() {
-	c.tblRPC.Close()
 }
 
 func getContractBackend(ctx context.Context, config config) (bind.ContractBackend, error) {
