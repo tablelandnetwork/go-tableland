@@ -333,35 +333,8 @@ func (c *Client) Read(ctx context.Context, query string, target interface{}, opt
 	return nil
 }
 
-type writeConfig struct {
-	relay bool
-}
-
-// WriteOption controls the behavior of Write.
-type WriteOption func(*writeConfig)
-
-// WriteRelay specifies whether or not to relay write queries through the Tableland validator.
-// Default behavior is false for main net EVM chains, true for all others.
-func WriteRelay(relay bool) WriteOption {
-	return func(wc *writeConfig) {
-		wc.relay = relay
-	}
-}
-
 // Write initiates a write query, returning the txn hash.
-func (c *Client) Write(ctx context.Context, query string, opts ...WriteOption) (string, error) {
-	conf := writeConfig{relay: c.relayWrites}
-	for _, opt := range opts {
-		opt(&conf)
-	}
-	if conf.relay {
-		req := &legacy.RelayWriteQueryRequest{Statement: query}
-		var res legacy.RelayWriteQueryResponse
-		if err := c.tblRPC.CallContext(ctx, &res, "tableland_relayWriteQuery", req); err != nil {
-			return "", fmt.Errorf("calling rpc relayWriteQuery: %v", err)
-		}
-		return res.Transaction.Hash, nil
-	}
+func (c *Client) Write(ctx context.Context, query string) (string, error) {
 	tableID, err := c.Validate(ctx, query)
 	if err != nil {
 		return "", fmt.Errorf("calling Validate: %v", err)
