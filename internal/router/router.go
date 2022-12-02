@@ -99,11 +99,11 @@ func configureAPIV1Routes(
 	infraCtrl *controllers.InfraController,
 ) error {
 	handlers := map[string]http.HandlerFunc{
-		"QueryFromQuery":   userCtrl.GetTableQuery,
-		"ReceiptByTxnHash": nil,                 // systemCtrl.GetTxnHash, // TODO(jsign): do it.
-		"GetTableById":     systemCtrl.GetTable, // TODO(jsign): verify output.
-		"Version":          infraCtrl.Version,
-		"Health":           controllers.HealthHandler,
+		"QueryFromQuery":           userCtrl.GetTableQuery,
+		"ReceiptByTransactionHash": systemCtrl.GetReceiptByTransactionHash,
+		"GetTableById":             systemCtrl.GetTable, // TODO(jsign): verify output.
+		"Version":                  infraCtrl.Version,
+		"Health":                   controllers.HealthHandler,
 	}
 
 	var specRoutesCount int

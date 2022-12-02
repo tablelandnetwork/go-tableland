@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog/log"
+	"github.com/textileio/go-tableland/internal/router/controllers/apiv1"
 	"github.com/textileio/go-tableland/internal/system"
 	"github.com/textileio/go-tableland/pkg/errors"
 	"github.com/textileio/go-tableland/pkg/tables"
@@ -19,6 +21,41 @@ type SystemController struct {
 // NewSystemController creates a new SystemController.
 func NewSystemController(svc system.SystemService) *SystemController {
 	return &SystemController{svc}
+}
+
+func (c *SystemController) GetReceiptByTransactionHash(rw http.ResponseWriter, r *http.Request) {
+	rw.Header().Set("Content-Type", "application/json")
+	ctx := r.Context()
+
+	paramTxnHash := mux.Vars(r)["transactionhash"]
+	txnHash := common.HexToHash(paramTxnHash)
+
+	receipt, exists, err := c.systemService.GetReceiptByTransactionHash(ctx, txnHash)
+	if err != nil {
+		rw.WriteHeader(http.StatusBadRequest)
+		log.Ctx(ctx).Error().Err(err).Msg("get receipt by transaction hash")
+		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Get receipt by transaction hash failed"})
+		return
+	}
+	if !exists {
+		rw.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	receiptResponse := apiv1.TransactionReceipt{
+		TransactionHash: paramTxnHash,
+		BlockNumber:     receipt.BlockNumber,
+		ChainId:         int32(receipt.ChainID),
+	}
+	if receipt.TableID != nil {
+		receiptResponse.TableId = receipt.TableID.String()
+	}
+	if receipt.Error != nil {
+		receiptResponse.Error_ = *receipt.Error
+		receiptResponse.ErrorEventIdx = int32(*receipt.ErrorEventIdx)
+	}
+	rw.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(rw).Encode(receiptResponse)
 }
 
 // GetTable handles the GET /chain/{chainID}/tables/{id} call.
