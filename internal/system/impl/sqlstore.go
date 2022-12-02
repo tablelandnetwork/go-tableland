@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/common"
 	logger "github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/router/middlewares"
 	"github.com/textileio/go-tableland/internal/system"
@@ -125,6 +126,37 @@ func (s *SystemSQLStoreService) GetTableMetadata(
 			},
 		},
 	}, nil
+}
+
+func (s *SystemSQLStoreService) GetReceiptByTransactionHash(
+	ctx context.Context,
+	txnHash common.Hash,
+) (sqlstore.Receipt, bool, error) {
+	ctxChainID := ctx.Value(middlewares.ContextKeyChainID)
+	chainID, ok := ctxChainID.(tableland.ChainID)
+	if !ok {
+		return sqlstore.Receipt{}, false, errors.New("no chain id found in context")
+	}
+	store, ok := s.stores[chainID]
+	if !ok {
+		return sqlstore.Receipt{}, false, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
+	}
+	receipt, exists, err := store.GetReceipt(ctx, txnHash.Hex())
+	if err != nil {
+		return sqlstore.Receipt{}, false, fmt.Errorf("transaction receipt lookup: %s", err)
+	}
+	if !exists {
+		return sqlstore.Receipt{}, false, nil
+	}
+	return sqlstore.Receipt{
+		ChainID:       chainID,
+		BlockNumber:   receipt.BlockNumber,
+		IndexInBlock:  receipt.IndexInBlock,
+		TxnHash:       receipt.TxnHash,
+		TableID:       receipt.TableID,
+		Error:         receipt.Error,
+		ErrorEventIdx: receipt.ErrorEventIdx,
+	}, true, nil
 }
 
 // GetTablesByController returns table's fetched from SQLStore by controller address.

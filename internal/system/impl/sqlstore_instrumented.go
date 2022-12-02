@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/textileio/go-tableland/internal/router/middlewares"
 	"github.com/textileio/go-tableland/internal/system"
 	"github.com/textileio/go-tableland/internal/tableland"
@@ -38,6 +39,25 @@ func NewInstrumentedSystemSQLStoreService(system system.SystemService) (system.S
 	return &InstrumentedSystemSQLStoreService{system, callCount, latencyHistogram}, nil
 }
 
+// GetReceiptByTransactionHash implements system.SystemService
+func (s *InstrumentedSystemSQLStoreService) GetReceiptByTransactionHash(ctx context.Context, hash common.Hash) (sqlstore.Receipt, bool, error) {
+	start := time.Now()
+	receipt, exists, err := s.system.GetReceiptByTransactionHash(ctx, hash)
+	latency := time.Since(start).Milliseconds()
+	chainID, _ := ctx.Value(middlewares.ContextKeyChainID).(tableland.ChainID)
+
+	attributes := append([]attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("GetReceiptByTransactionHash")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+		{Key: "chainID", Value: attribute.Int64Value(int64(chainID))},
+	}, metrics.BaseAttrs...)
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return receipt, exists, err
+}
+
 // GetTableMetadata returns table's metadata fetched from SQLStore.
 func (s *InstrumentedSystemSQLStoreService) GetTableMetadata(
 	ctx context.Context,
@@ -51,7 +71,6 @@ func (s *InstrumentedSystemSQLStoreService) GetTableMetadata(
 	// NOTE: we may face a risk of high-cardilatity in the future. This should be revised.
 	attributes := append([]attribute.KeyValue{
 		{Key: "method", Value: attribute.StringValue("GetTableMetadata")},
-		{Key: "id", Value: attribute.StringValue(id.String())},
 		{Key: "success", Value: attribute.BoolValue(err == nil)},
 		{Key: "chainID", Value: attribute.Int64Value(int64(chainID))},
 	}, metrics.BaseAttrs...)

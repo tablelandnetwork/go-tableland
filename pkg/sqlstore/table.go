@@ -62,3 +62,14 @@ type SystemACL struct {
 	CreatedAt  time.Time
 	UpdatedAt  *time.Time
 }
+
+type Receipt struct {
+	ChainID      tableland.ChainID
+	BlockNumber  int64
+	IndexInBlock int64
+	TxnHash      string
+
+	TableID       *tables.TableID
+	Error         *string
+	ErrorEventIdx *int
+}
