@@ -2,88 +2,40 @@ package client
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/textileio/go-tableland/internal/router/controllers/legacy"
+	systemimpl "github.com/textileio/go-tableland/internal/system/impl"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/nonce/impl"
-	"github.com/textileio/go-tableland/pkg/siwe"
-	"github.com/textileio/go-tableland/pkg/tables"
+	"github.com/textileio/go-tableland/pkg/parsing"
+	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/wallet"
 )
 
 var defaultChain = Chains.PolygonMumbai
 
-// TxnReceipt is a Tableland event processing receipt.
-type TxnReceipt struct {
-	ChainID       ChainID `json:"chain_id"`
-	TxnHash       string  `json:"txn_hash"`
-	BlockNumber   int64   `json:"block_number"`
-	Error         string  `json:"error"`
-	ErrorEventIdx int     `json:"error_event_idx"`
-	TableID       *string `json:"table_id,omitempty"`
-}
-
-// TableID is the ID of a Table.
-type TableID big.Int
-
-// String returns a string representation of the TableID.
-func (tid TableID) String() string {
-	bi := (big.Int)(tid)
-	return bi.String()
-}
-
-// ToBigInt returns a *big.Int representation of the TableID.
-func (tid TableID) ToBigInt() *big.Int {
-	bi := (big.Int)(tid)
-	b := &big.Int{}
-	b.Set(&bi)
-	return b
-}
-
-// TableInfo summarizes information about a table.
-type TableInfo struct {
-	Controller string    `json:"controller"`
-	Name       string    `json:"name"`
-	Structure  string    `json:"structure"`
-	CreatedAt  time.Time `json:"created_at"`
-}
-
-// NewTableID creates a TableID from a string representation of the uint256.
-func NewTableID(strID string) (TableID, error) {
-	tableID := &big.Int{}
-	if _, ok := tableID.SetString(strID, 10); !ok {
-		return TableID{}, fmt.Errorf("parsing stringified id failed")
-	}
-	if tableID.Cmp(&big.Int{}) < 0 {
-		return TableID{}, fmt.Errorf("table id is negative")
-	}
-	return TableID(*tableID), nil
-}
-
 // Client is the Tableland client.
 type Client struct {
-	tblRPC      *rpc.Client
 	tblHTTP     *http.Client
 	tblContract *ethereum.Client
 	chain       Chain
-	relayWrites bool
 	wallet      *wallet.Wallet
+	parser      parsing.SQLValidator
+	baseURL     *url.URL
 }
 
 type config struct {
 	chain           *Chain
-	relayWrites     *bool
 	infuraAPIKey    string
 	alchemyAPIKey   string
 	local           bool
@@ -97,13 +49,6 @@ type NewClientOption func(*config)
 func NewClientChain(chain Chain) NewClientOption {
 	return func(ncc *config) {
 		ncc.chain = &chain
-	}
-}
-
-// NewClientRelayWrites specifies whether or not to relay write queries through the Tableland validator.
-func NewClientRelayWrites(relay bool) NewClientOption {
-	return func(ncc *config) {
-		ncc.relayWrites = &relay
 	}
 }
 
@@ -141,15 +86,6 @@ func NewClient(ctx context.Context, wallet *wallet.Wallet, opts ...NewClientOpti
 	for _, opt := range opts {
 		opt(&config)
 	}
-	var relay bool
-	if config.relayWrites != nil {
-		relay = *config.relayWrites
-	} else {
-		relay = config.chain.CanRelayWrites()
-	}
-	if relay && !config.chain.CanRelayWrites() {
-		return nil, errors.New("options specified to relay writes for a chain that doesn't support it")
-	}
 
 	contractBackend, err := getContractBackend(ctx, config)
 	if err != nil {
@@ -167,208 +103,40 @@ func NewClient(ctx context.Context, wallet *wallet.Wallet, opts ...NewClientOpti
 		return nil, fmt.Errorf("creating contract client: %v", err)
 	}
 
-	siwe, err := siwe.EncodedSIWEMsg(tableland.ChainID(config.chain.ID), wallet, time.Hour*24*365)
-	if err != nil {
-		return nil, fmt.Errorf("creating siwe value: %v", err)
+	parserOpts := []parsing.Option{
+		parsing.WithMaxReadQuerySize(35000),
+		parsing.WithMaxWriteQuerySize(35000),
 	}
 
-	tblRPC, err := rpc.DialContext(ctx, config.chain.Endpoint+"/rpc")
+	parser, err := parserimpl.New([]string{
+		"sqlite_",
+		systemimpl.SystemTablesPrefix,
+		systemimpl.RegistryTableName,
+	}, parserOpts...)
 	if err != nil {
-		return nil, fmt.Errorf("creating rpc client: %v", err)
+		return nil, fmt.Errorf("new parser: %s", err)
 	}
-	tblRPC.SetHeader("Authorization", "Bearer "+siwe)
+
+	parser, err = parserimpl.NewInstrumentedSQLValidator(parser)
+	if err != nil {
+		return nil, fmt.Errorf("instrumenting parser: %s", err)
+	}
+
+	baseURL, err := url.Parse(config.chain.Endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("invalid endpoint URL: %s", err)
+	}
 
 	return &Client{
-		tblRPC:      tblRPC,
-		tblHTTP:     &http.Client{},
+		tblHTTP: &http.Client{
+			Timeout: time.Second * 30,
+		},
 		tblContract: tblContract,
 		chain:       *config.chain,
-		relayWrites: relay,
 		wallet:      wallet,
+		parser:      parser,
+		baseURL:     baseURL,
 	}, nil
-}
-
-// List lists something.
-func (c *Client) List(ctx context.Context) ([]TableInfo, error) {
-	url := fmt.Sprintf(
-		"%s/chain/%d/tables/controller/%s",
-		c.chain.Endpoint,
-		c.chain.ID,
-		c.wallet.Address().Hex(),
-	)
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("creating request: %v", err)
-	}
-	req = req.WithContext(ctx)
-	res, err := c.tblHTTP.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("calling http endpoint: %v", err)
-	}
-	defer func() {
-		_ = res.Body.Close()
-	}()
-
-	var ret []TableInfo
-
-	if err := json.NewDecoder(res.Body).Decode(&ret); err != nil {
-		return nil, fmt.Errorf("decoding response body: %v", err)
-	}
-
-	return ret, nil
-}
-
-type createConfig struct {
-	prefix         string
-	receiptTimeout *time.Duration
-}
-
-// CreateOption controls the behavior of Create.
-type CreateOption func(*createConfig)
-
-// WithPrefix allows you to specify an optional table name prefix where
-// the final table name will be <prefix>_<chain-id>_<tableid>.
-func WithPrefix(prefix string) CreateOption {
-	return func(cc *createConfig) {
-		cc.prefix = prefix
-	}
-}
-
-// WithReceiptTimeout specifies how long to wait for the Tableland
-// receipt that contains the table id.
-func WithReceiptTimeout(timeout time.Duration) CreateOption {
-	return func(cc *createConfig) {
-		cc.receiptTimeout = &timeout
-	}
-}
-
-// Create creates a new table on the Tableland.
-func (c *Client) Create(ctx context.Context, schema string, opts ...CreateOption) (TableID, string, error) {
-	defaultTimeout := time.Minute * 10
-	conf := createConfig{receiptTimeout: &defaultTimeout}
-	for _, opt := range opts {
-		opt(&conf)
-	}
-
-	createStatement := fmt.Sprintf("CREATE TABLE %s_%d %s", conf.prefix, c.chain.ID, schema)
-	req := &legacy.ValidateCreateTableRequest{CreateStatement: createStatement}
-	var res legacy.ValidateCreateTableResponse
-
-	if err := c.tblRPC.CallContext(ctx, &res, "tableland_validateCreateTable", req); err != nil {
-		return TableID{}, "", fmt.Errorf("calling rpc validateCreateTable: %v", err)
-	}
-
-	t, err := c.tblContract.CreateTable(ctx, c.wallet.Address(), createStatement)
-	if err != nil {
-		return TableID{}, "", fmt.Errorf("calling contract create table: %v", err)
-	}
-
-	r, found, err := c.waitForReceipt(ctx, t.Hash().Hex(), *conf.receiptTimeout)
-	if err != nil {
-		return TableID{}, "", fmt.Errorf("waiting for txn receipt: %v", err)
-	}
-	if !found {
-		return TableID{}, "", errors.New("no receipt found before timeout")
-	}
-
-	tableID, ok := big.NewInt(0).SetString(*r.TableID, 10)
-	if !ok {
-		return TableID{}, "", errors.New("parsing table id from response")
-	}
-
-	return TableID(*tableID), fmt.Sprintf("%s_%d_%s", conf.prefix, c.chain.ID, *r.TableID), nil
-}
-
-// Output is used to control the output format of a Read using the ReadOutput option.
-type Output string
-
-const (
-	// Table returns the query results as a JSON object with columns and rows properties.
-	Table Output = "table"
-	// Objects returns the query results as a JSON array of JSON objects. This is the default.
-	Objects Output = "objects"
-)
-
-// ReadOption controls the behavior of Read.
-type ReadOption func(*legacy.RunReadQueryRequest)
-
-// ReadOutput sets the output format. Default is Objects.
-func ReadOutput(output Output) ReadOption {
-	return func(rrqr *legacy.RunReadQueryRequest) {
-		rrqr.Output = (*string)(&output)
-	}
-}
-
-// ReadExtract specifies whether or not to extract the JSON object
-// from the single property of the surrounding JSON object.
-// Default is false.
-func ReadExtract() ReadOption {
-	return func(rrqr *legacy.RunReadQueryRequest) {
-		v := true
-		rrqr.Extract = &v
-	}
-}
-
-// ReadUnwrap specifies whether or not to unwrap the returned JSON objects from their surrounding array.
-// Default is false.
-func ReadUnwrap() ReadOption {
-	return func(rrqr *legacy.RunReadQueryRequest) {
-		v := true
-		rrqr.Unwrap = &v
-	}
-}
-
-// Read runs a read query with the provided opts and unmarshals the results into target.
-func (c *Client) Read(ctx context.Context, query string, target interface{}, opts ...ReadOption) error {
-	req := &legacy.RunReadQueryRequest{Statement: query}
-	for _, opt := range opts {
-		opt(req)
-	}
-	res := &legacy.RunReadQueryResponse{
-		Result: target,
-	}
-	if err := c.tblRPC.CallContext(ctx, &res, "tableland_runReadQuery", req); err != nil {
-		return fmt.Errorf("calling rpc runReadQuery: %v", err)
-	}
-	return nil
-}
-
-// Write initiates a write query, returning the txn hash.
-func (c *Client) Write(ctx context.Context, query string) (string, error) {
-	tableID, err := c.Validate(ctx, query)
-	if err != nil {
-		return "", fmt.Errorf("calling Validate: %v", err)
-	}
-	res, err := c.tblContract.RunSQL(ctx, c.wallet.Address(), tables.TableID(tableID), query)
-	if err != nil {
-		return "", fmt.Errorf("calling RunSQL: %v", err)
-	}
-	return res.Hash().Hex(), nil
-}
-
-// Hash validates the provided create table statement and returns its hash.
-func (c *Client) Hash(ctx context.Context, statement string) (string, error) {
-	req := &legacy.ValidateCreateTableRequest{CreateStatement: statement}
-	var res legacy.ValidateCreateTableResponse
-	if err := c.tblRPC.CallContext(ctx, &res, "tableland_validateCreateTable", req); err != nil {
-		return "", fmt.Errorf("calling rpc validateCreateTable: %v", err)
-	}
-	return res.StructureHash, nil
-}
-
-// Validate validates a write query, returning the table id.
-func (c *Client) Validate(ctx context.Context, statement string) (TableID, error) {
-	req := &legacy.ValidateWriteQueryRequest{Statement: statement}
-	var res legacy.ValidateWriteQueryResponse
-	if err := c.tblRPC.CallContext(ctx, &res, "tableland_validateWriteQuery", req); err != nil {
-		return TableID{}, fmt.Errorf("calling rpc validateWriteQuery: %v", err)
-	}
-	tableID, ok := big.NewInt(0).SetString(res.TableID, 10)
-	if !ok {
-		return TableID{}, errors.New("parsing table id from response")
-	}
-
-	return TableID(*tableID), nil
 }
 
 type receiptConfig struct {
@@ -489,4 +257,33 @@ func getContractBackend(ctx context.Context, config config) (bind.ContractBacken
 		return ethclient.DialContext(ctx, url)
 	}
 	return nil, errors.New("no provider specified, must provide an Infura API key, Alchemy API key, or an ETH backend")
+}
+
+// TableID is the ID of a Table.
+type TableID big.Int
+
+// String returns a string representation of the TableID.
+func (tid TableID) String() string {
+	bi := (big.Int)(tid)
+	return bi.String()
+}
+
+// ToBigInt returns a *big.Int representation of the TableID.
+func (tid TableID) ToBigInt() *big.Int {
+	bi := (big.Int)(tid)
+	b := &big.Int{}
+	b.Set(&bi)
+	return b
+}
+
+// NewTableID creates a TableID from a string representation of the uint256.
+func NewTableID(strID string) (TableID, error) {
+	tableID := &big.Int{}
+	if _, ok := tableID.SetString(strID, 10); !ok {
+		return TableID{}, fmt.Errorf("parsing stringified id failed")
+	}
+	if tableID.Cmp(&big.Int{}) < 0 {
+		return TableID{}, fmt.Errorf("table id is negative")
+	}
+	return TableID(*tableID), nil
 }
