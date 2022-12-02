@@ -9,19 +9,17 @@
  */
 package apiv1
 
-type VersionInfo struct {
+type TransactionReceipt struct {
 
-	Version string `json:"version,omitempty"`
+	TableId string `json:"tableId,omitempty"`
 
-	GitCommit string `json:"gitCommit,omitempty"`
+	TransactionHash string `json:"transactionHash,omitempty"`
 
-	GitBranch string `json:"gitBranch,omitempty"`
+	BlockNumber int64 `json:"blockNumber,omitempty"`
 
-	GitState string `json:"gitState,omitempty"`
+	ChainId int32 `json:"chainId,omitempty"`
 
-	GitSummary string `json:"gitSummary,omitempty"`
+	Error_ string `json:"error,omitempty"`
 
-	BuildDate string `json:"buildDate,omitempty"`
-
-	BinaryVersion string `json:"binaryVersion,omitempty"`
+	ErrorEventIdx int32 `json:"errorEventIdx,omitempty"`
 }

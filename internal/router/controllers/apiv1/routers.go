@@ -70,10 +70,10 @@ var routes = Routes{
 	},
 
 	Route{
-		"ReceiptByTxnHash",
+		"ReceiptByTransactionnHash",
 		strings.ToUpper("Get"),
-		"/api/v1/receipt/{chainId}/{txnHash}",
-		ReceiptByTxnHash,
+		"/api/v1/receipt/{chainId}/{transactionHash}",
+		ReceiptByTransactionnHash,
 	},
 
 	Route{
