@@ -2,7 +2,6 @@ package client_legacy
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"testing"
 	"time"
@@ -10,11 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/go-tableland/internal/tableland"
-	tblimpl "github.com/textileio/go-tableland/internal/tableland/impl"
 	"github.com/textileio/go-tableland/pkg/client"
-	"github.com/textileio/go-tableland/pkg/sqlstore"
-	"github.com/textileio/go-tableland/pkg/tables"
 	"github.com/textileio/go-tableland/tests/fullstack"
 )
 
@@ -131,25 +126,6 @@ func requireReceipt(t *testing.T, calls clientCalls, hash string, opts ...Receip
 	require.True(t, found)
 	require.NotNil(t, res)
 	return res
-}
-
-type aclHalfMock struct {
-	sqlStore sqlstore.SystemStore
-}
-
-func (acl *aclHalfMock) CheckPrivileges(
-	ctx context.Context,
-	tx *sql.Tx,
-	controller common.Address,
-	id tables.TableID,
-	op tableland.Operation,
-) (bool, error) {
-	aclImpl := tblimpl.NewACL(acl.sqlStore, nil)
-	return aclImpl.CheckPrivileges(ctx, tx, controller, id, op)
-}
-
-func (acl *aclHalfMock) IsOwner(_ context.Context, _ common.Address, _ tables.TableID) (bool, error) {
-	return true, nil
 }
 
 type clientCalls struct {

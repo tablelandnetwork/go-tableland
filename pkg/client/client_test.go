@@ -2,18 +2,11 @@ package client
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/go-tableland/internal/tableland"
-	tblimpl "github.com/textileio/go-tableland/internal/tableland/impl"
-	"github.com/textileio/go-tableland/pkg/sqlstore"
-	"github.com/textileio/go-tableland/pkg/tables"
 	"github.com/textileio/go-tableland/tests/fullstack"
 )
 
@@ -24,29 +17,12 @@ func TestCreate(t *testing.T) {
 	requireCreate(t, calls)
 }
 
-func TestList(t *testing.T) {
-	t.Parallel()
-
-	calls := setup(t)
-	requireCreate(t, calls)
-	res := calls.list()
-	require.Len(t, res, 1)
-}
-
-func TestRelayWrite(t *testing.T) {
+func TestWrite(t *testing.T) {
 	t.Parallel()
 
 	calls := setup(t)
 	_, table := requireCreate(t, calls)
-	requireWrite(t, calls, table, WriteRelay(true))
-}
-
-func TestDirectWrite(t *testing.T) {
-	t.Parallel()
-
-	calls := setup(t)
-	_, table := requireCreate(t, calls)
-	requireWrite(t, calls, table, WriteRelay(false))
+	requireWrite(t, calls, table)
 }
 
 func TestRead(t *testing.T) {
@@ -62,55 +38,38 @@ func TestRead(t *testing.T) {
 	}
 
 	res0 := []result{}
-	calls.read(fmt.Sprintf("select * from %s", table), &res0)
+	calls.query(fmt.Sprintf("select * from %s", table), &res0)
 	require.Len(t, res0, 1)
 	require.Equal(t, "baz", res0[0].Bar)
 
 	res1 := map[string]interface{}{}
-	calls.read(fmt.Sprintf("select * from %s", table), &res1, ReadOutput(Table))
+	calls.query(fmt.Sprintf("select * from %s", table), &res1, ReadOutput(Table))
 	require.Len(t, res1, 2)
 
 	res2 := result{}
-	calls.read(fmt.Sprintf("select * from %s", table), &res2, ReadUnwrap())
+	calls.query(fmt.Sprintf("select * from %s", table), &res2, ReadUnwrap())
 	require.Equal(t, "baz", res2.Bar)
 
 	res3 := []string{}
-	calls.read(fmt.Sprintf("select * from %s", table), &res3, ReadExtract())
+	calls.query(fmt.Sprintf("select * from %s", table), &res3, ReadExtract())
 	require.Len(t, res3, 1)
 	require.Equal(t, "baz", res3[0])
 
 	res4 := ""
-	calls.read(fmt.Sprintf("select * from %s", table), &res4, ReadUnwrap(), ReadExtract())
+	calls.query(fmt.Sprintf("select * from %s", table), &res4, ReadUnwrap(), ReadExtract())
 	require.Equal(t, "baz", res4)
 }
 
-func TestHash(t *testing.T) {
-	t.Parallel()
-
-	calls := setup(t)
-	hash := calls.hash("create table foo_1337 (bar text)")
-	require.NotEmpty(t, hash)
+func TestGetTableByID(t *testing.T) {
+	t.Fail()
 }
 
-func TestValidate(t *testing.T) {
-	t.Parallel()
-
-	calls := setup(t)
-	id, table := requireCreate(t, calls)
-	res := calls.validate(fmt.Sprintf("insert into %s (bar) values ('hi')", table))
-	require.Equal(t, id, res)
+func TestVersion(t *testing.T) {
+	t.Fail()
 }
 
-func TestSetController(t *testing.T) {
-	t.Parallel()
-
-	calls := setup(t)
-	tableID, _ := requireCreate(t, calls)
-	key, err := crypto.GenerateKey()
-	require.NoError(t, err)
-	controller := common.HexToAddress(crypto.PubkeyToAddress(key.PublicKey).Hex())
-	hash := calls.setController(controller, tableID)
-	require.NotEmpty(t, hash)
+func TestHealth(t *testing.T) {
+	t.Fail()
 }
 
 func requireCreate(t *testing.T, calls clientCalls) (TableID, string) {
@@ -119,8 +78,8 @@ func requireCreate(t *testing.T, calls clientCalls) (TableID, string) {
 	return id, table
 }
 
-func requireWrite(t *testing.T, calls clientCalls, table string, opts ...WriteOption) string {
-	hash := calls.write(fmt.Sprintf("insert into %s (bar) values('baz')", table), opts...)
+func requireWrite(t *testing.T, calls clientCalls, table string) string {
+	hash := calls.write(fmt.Sprintf("insert into %s (bar) values('baz')", table))
 	require.NotEmpty(t, hash)
 	return hash
 }
@@ -132,34 +91,14 @@ func requireReceipt(t *testing.T, calls clientCalls, hash string, opts ...Receip
 	return res
 }
 
-type aclHalfMock struct {
-	sqlStore sqlstore.SystemStore
-}
-
-func (acl *aclHalfMock) CheckPrivileges(
-	ctx context.Context,
-	tx *sql.Tx,
-	controller common.Address,
-	id tables.TableID,
-	op tableland.Operation,
-) (bool, error) {
-	aclImpl := tblimpl.NewACL(acl.sqlStore, nil)
-	return aclImpl.CheckPrivileges(ctx, tx, controller, id, op)
-}
-
-func (acl *aclHalfMock) IsOwner(_ context.Context, _ common.Address, _ tables.TableID) (bool, error) {
-	return true, nil
-}
-
 type clientCalls struct {
-	list          func() []TableInfo
-	create        func(schema string, opts ...CreateOption) (TableID, string)
-	read          func(query string, target interface{}, opts ...ReadOption)
-	write         func(query string, opts ...WriteOption) string
-	hash          func(statement string) string
-	validate      func(statement string) TableID
-	receipt       func(txnHash string, options ...ReceiptOption) (*TxnReceipt, bool)
-	setController func(controller common.Address, tableID TableID) string
+	create       func(schema string, opts ...CreateOption) (TableID, string)
+	write        func(query string) string
+	query        func(query string, target interface{}, opts ...ReadOption)
+	receipt      func(txnHash string, options ...ReceiptOption) (*TxnReceipt, bool)
+	getTableById func(tableID int64) (*TxnReceipt, bool)
+	version      func() error
+	health       func() (bool, error)
 }
 
 func setup(t *testing.T) clientCalls {
@@ -179,11 +118,6 @@ func setup(t *testing.T) clientCalls {
 
 	ctx := context.Background()
 	return clientCalls{
-		list: func() []TableInfo {
-			res, err := client.List(ctx)
-			require.NoError(t, err)
-			return res
-		},
 		create: func(schema string, opts ...CreateOption) (TableID, string) {
 			go func() {
 				time.Sleep(time.Second * 1)
@@ -193,36 +127,23 @@ func setup(t *testing.T) clientCalls {
 			require.NoError(t, err)
 			return id, table
 		},
-		read: func(query string, target interface{}, opts ...ReadOption) {
+		query: func(query string, target interface{}, opts ...ReadOption) {
 			err := client.Read(ctx, query, target, opts...)
 			require.NoError(t, err)
 		},
-		write: func(query string, opts ...WriteOption) string {
-			hash, err := client.Write(ctx, query, opts...)
+		write: func(query string) string {
+			hash, err := client.Write(ctx, query)
 			require.NoError(t, err)
 			stack.Backend.Commit()
 			return hash
-		},
-		hash: func(statement string) string {
-			hash, err := client.Hash(ctx, statement)
-			require.NoError(t, err)
-			return hash
-		},
-		validate: func(statement string) TableID {
-			tableID, err := client.Validate(ctx, statement)
-			require.NoError(t, err)
-			return tableID
 		},
 		receipt: func(txnHash string, options ...ReceiptOption) (*TxnReceipt, bool) {
 			receipt, found, err := client.Receipt(ctx, txnHash, options...)
 			require.NoError(t, err)
 			return receipt, found
 		},
-		setController: func(controller common.Address, tableID TableID) string {
-			hash, err := client.SetController(ctx, controller, tableID)
-			require.NoError(t, err)
-			stack.Backend.Commit()
-			return hash
-		},
+		getTableById: func(tableID int64) (*TxnReceipt, bool) { panic("TODO") },
+		version:      func() error { panic("TODO") },
+		health:       func() (bool, error) { panic("TODO") },
 	}
 }
