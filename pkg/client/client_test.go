@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/textileio/go-tableland/internal/router/controllers/apiv1"
 	"github.com/textileio/go-tableland/tests/fullstack"
 )
 
@@ -61,15 +62,32 @@ func TestRead(t *testing.T) {
 }
 
 func TestGetTableByID(t *testing.T) {
-	t.Fail()
+	t.SkipNow()
 }
 
 func TestVersion(t *testing.T) {
-	t.Fail()
+	t.Parallel()
+
+	calls := setup(t)
+	info, err := calls.version()
+	require.NoError(t, err)
+
+	require.NotEmpty(t, info.Version)
+	require.NotEmpty(t, info.GitCommit)
+	require.NotEmpty(t, info.GitBranch)
+	require.NotEmpty(t, info.GitState)
+	require.NotEmpty(t, info.GitSummary)
+	require.NotEmpty(t, info.BuildDate)
+	require.NotEmpty(t, info.BinaryVersion)
 }
 
 func TestHealth(t *testing.T) {
-	t.Fail()
+	t.Parallel()
+
+	calls := setup(t)
+	healthy, err := calls.health()
+	require.NoError(t, err)
+	require.True(t, healthy)
 }
 
 func requireCreate(t *testing.T, calls clientCalls) (TableID, string) {
@@ -84,7 +102,7 @@ func requireWrite(t *testing.T, calls clientCalls, table string) string {
 	return hash
 }
 
-func requireReceipt(t *testing.T, calls clientCalls, hash string, opts ...ReceiptOption) *TxnReceipt {
+func requireReceipt(t *testing.T, calls clientCalls, hash string, opts ...ReceiptOption) *apiv1.TransactionReceipt {
 	res, found := calls.receipt(hash, opts...)
 	require.True(t, found)
 	require.NotNil(t, res)
@@ -95,9 +113,9 @@ type clientCalls struct {
 	create       func(schema string, opts ...CreateOption) (TableID, string)
 	write        func(query string) string
 	query        func(query string, target interface{}, opts ...ReadOption)
-	receipt      func(txnHash string, options ...ReceiptOption) (*TxnReceipt, bool)
-	getTableById func(tableID int64) (*TxnReceipt, bool)
-	version      func() error
+	receipt      func(txnHash string, options ...ReceiptOption) (*apiv1.TransactionReceipt, bool)
+	getTableById func(tableID int64) bool
+	version      func() (*apiv1.VersionInfo, error)
 	health       func() (bool, error)
 }
 
@@ -112,9 +130,6 @@ func setup(t *testing.T) clientCalls {
 
 	client, err := NewClient(context.Background(), stack.Wallet, NewClientChain(c), NewClientContractBackend(stack.Backend))
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		client.Close()
-	})
 
 	ctx := context.Background()
 	return clientCalls{
@@ -137,13 +152,17 @@ func setup(t *testing.T) clientCalls {
 			stack.Backend.Commit()
 			return hash
 		},
-		receipt: func(txnHash string, options ...ReceiptOption) (*TxnReceipt, bool) {
+		receipt: func(txnHash string, options ...ReceiptOption) (*apiv1.TransactionReceipt, bool) {
 			receipt, found, err := client.Receipt(ctx, txnHash, options...)
 			require.NoError(t, err)
 			return receipt, found
 		},
-		getTableById: func(tableID int64) (*TxnReceipt, bool) { panic("TODO") },
-		version:      func() error { panic("TODO") },
-		health:       func() (bool, error) { panic("TODO") },
+		getTableById: func(tableID int64) bool { panic("TODO") },
+		version: func() (*apiv1.VersionInfo, error) {
+			return client.Version(ctx)
+		},
+		health: func() (bool, error) {
+			return client.CheckHealth(ctx)
+		},
 	}
 }
