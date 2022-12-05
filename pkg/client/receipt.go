@@ -57,7 +57,7 @@ func (c *Client) getReceipt(ctx context.Context, txnHash string) (*apiv1.Transac
 	}
 	if response.StatusCode != http.StatusOK {
 		msg, _ := io.ReadAll(response.Body)
-		return nil, false, fmt.Errorf("failed call: %s", msg)
+		return nil, false, fmt.Errorf("failed call (status: %d, body: %s)", response.StatusCode, msg)
 	}
 	var tr apiv1.TransactionReceipt
 	if err := json.NewDecoder(response.Body).Decode(&tr); err != nil {
