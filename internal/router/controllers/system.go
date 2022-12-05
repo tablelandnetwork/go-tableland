@@ -3,6 +3,7 @@ package controllers
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gorilla/mux"
@@ -89,12 +90,48 @@ func (c *SystemController) GetTable(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var metadataRes interface{}
+	metadataRes = metadata
+	// TODO(json-rpc): remove this if when dropping support. It won't be needed anymore for compatibility reasons.
+	if strings.HasPrefix(r.RequestURI, "/api/v1/tables") {
+		metadataV1 := apiv1.Table{
+			Name:         metadata.Name,
+			ExternalUrl:  metadata.ExternalURL,
+			AnimationUrl: metadata.AnimationURL,
+			Image:        metadata.Image,
+			Attributes:   make([]apiv1.TableAttributes, len(metadata.Attributes)),
+			Schema: &apiv1.Schema{
+				Columns:          make([]apiv1.Column, len(metadata.Schema.Columns)),
+				TableConstraints: make([]string, len(metadata.Schema.TableConstraints)),
+			},
+		}
+		for i, attr := range metadata.Attributes {
+			metadataV1.Attributes[i] = apiv1.TableAttributes{
+				DisplayType: attr.DisplayType,
+				TraitType:   attr.TraitType,
+				Value:       attr.Value,
+			}
+		}
+		for i, schemaColumn := range metadata.Schema.Columns {
+			metadataV1.Schema.Columns[i] = apiv1.Column{
+				Name:        schemaColumn.Name,
+				Type_:       schemaColumn.Type,
+				Constraints: make([]string, len(schemaColumn.Constraints)),
+			}
+			copy(metadataV1.Schema.Columns[i].Constraints, schemaColumn.Constraints)
+		}
+		copy(metadataV1.Schema.TableConstraints, metadata.Schema.TableConstraints)
+
+		metadataRes = metadataV1
+	}
+
 	rw.WriteHeader(http.StatusOK)
 	enc := json.NewEncoder(rw)
 	enc.SetEscapeHTML(false)
-	_ = enc.Encode(metadata)
+	_ = enc.Encode(metadataRes)
 }
 
+// TODO(json-rpc): delete when dropping support.
 // GetTablesByController handles the GET /chain/{chainID}/tables/controller/{address} call.
 func (c *SystemController) GetTablesByController(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -137,6 +174,7 @@ func (c *SystemController) GetTablesByController(rw http.ResponseWriter, r *http
 	_ = json.NewEncoder(rw).Encode(retTables)
 }
 
+// TODO(json-rpc): delete when dropping support.
 // GetTablesByStructureHash handles the GET /chain/{id}/tables/structure/{hash} call.
 func (c *SystemController) GetTablesByStructureHash(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -176,6 +214,7 @@ func (c *SystemController) GetTablesByStructureHash(rw http.ResponseWriter, r *h
 	_ = json.NewEncoder(rw).Encode(retTables)
 }
 
+// TODO(json-rpc): delete when droppping support.
 // GetSchemaByTableName handles the GET /schema/{table_name} call.
 func (c *SystemController) GetSchemaByTableName(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()

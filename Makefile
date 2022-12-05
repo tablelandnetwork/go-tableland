@@ -91,6 +91,6 @@ gen-api-v1:
 	sudo chown -R ${USER} ${APIV1} 
 	cd ${APIV1} && \
 	   mv go/* . && \
-	   rm -rf go main.go Dockerfile README.md api .swagger-codegen .swagger-codegen-ignore
-	rm ${APIV1}/tableland-openapi-spec.yaml
+	   rm -rf go main.go Dockerfile README.md api .swagger-codegen .swagger-codegen-ignore *.yaml
+	sed -i 's/\*OneOfTableAttributesValue/interface{}/' internal/router/controllers/apiv1/model_table_attributes.go
 .PHONY: gen-api-v1

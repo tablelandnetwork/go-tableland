@@ -44,6 +44,7 @@ type TableMetadata struct {
 	Message      string                   `json:"message,omitempty"`
 	AnimationURL string                   `json:"animation_url,omitempty"`
 	Attributes   []TableMetadataAttribute `json:"attributes,omitempty"`
+	Schema       TableSchema
 }
 
 // TableMetadataAttribute represents the table metadata attribute.
