@@ -48,6 +48,9 @@ func (*SystemMockService) GetTableMetadata(_ context.Context, id tables.TableID)
 				Value:       1546360800,
 			},
 		},
+		Schema: sqlstore.TableSchema{
+			Columns: []sqlstore.ColumnSchema{{Name: "foo", Type: "text"}},
+		},
 	}, nil
 }
 

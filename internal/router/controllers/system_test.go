@@ -34,7 +34,8 @@ func TestSystemControllerMock(t *testing.T) {
 			"name":"name-1",
 			"external_url":"https://tableland.network/tables/100",
 			"image":"https://bafkreifhuhrjhzbj4onqgbrmhpysk2mop2jimvdvfut6taiyzt2yqzt43a.ipfs.dweb.link",
-			"attributes":[{"display_type":"date","trait_type":"created","value":1546360800}]
+			"attributes":[{"display_type":"date","trait_type":"created","value":1546360800}],
+			"schema":{"columns":[{"name":"foo","type":"text","constraints":null}],"table_constraints":null}}
 		}`
 		require.JSONEq(t, expJSON, rr.Body.String())
 	})

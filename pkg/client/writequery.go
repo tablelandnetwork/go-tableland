@@ -37,7 +37,7 @@ func WithReceiptTimeout(timeout time.Duration) CreateOption {
 
 // Create creates a new table on the Tableland.
 func (c *Client) Create(ctx context.Context, schema string, opts ...CreateOption) (TableID, string, error) {
-	defaultTimeout := time.Minute * 10
+	defaultTimeout := time.Minute
 	conf := createConfig{receiptTimeout: &defaultTimeout}
 	for _, opt := range opts {
 		opt(&conf)

@@ -166,7 +166,6 @@ func setup(t *testing.T) clientCalls {
 			}()
 			id, table, err := client.Create(ctx, schema, opts...)
 			require.NoError(t, err)
-			stack.Backend.Commit()
 			return id, table
 		},
 		query: func(query string, target interface{}, opts ...ReadOption) {
