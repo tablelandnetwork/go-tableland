@@ -98,12 +98,30 @@ func configureAPIV1Routes(
 	userCtrl *controllers.UserController,
 	infraCtrl *controllers.InfraController,
 ) error {
-	handlers := map[string]http.HandlerFunc{
-		"QueryFromQuery":           userCtrl.GetTableQuery,
-		"ReceiptByTransactionHash": systemCtrl.GetReceiptByTransactionHash,
-		"GetTableById":             systemCtrl.GetTable, // TODO(jsign): verify output.
-		"Version":                  infraCtrl.Version,
-		"Health":                   controllers.HealthHandler,
+	handlers := map[string]struct {
+		handler     http.HandlerFunc
+		middlewares []mux.MiddlewareFunc
+	}{
+		"QueryFromQuery": {
+			userCtrl.GetTableQuery,
+			[]mux.MiddlewareFunc{middlewares.WithLogging, rateLim},
+		},
+		"ReceiptByTransactionHash": {
+			systemCtrl.GetReceiptByTransactionHash,
+			[]mux.MiddlewareFunc{middlewares.WithLogging, middlewares.RESTChainID, rateLim},
+		},
+		"GetTableById": { // TODO(jsign): verify output.
+			systemCtrl.GetTable,
+			[]mux.MiddlewareFunc{middlewares.WithLogging, middlewares.RESTChainID, rateLim},
+		},
+		"Version": {
+			infraCtrl.Version,
+			[]mux.MiddlewareFunc{middlewares.WithLogging, rateLim},
+		},
+		"Health": {
+			controllers.HealthHandler,
+			[]mux.MiddlewareFunc{middlewares.WithLogging, rateLim},
+		},
 	}
 
 	var specRoutesCount int
@@ -115,7 +133,7 @@ func configureAPIV1Routes(
 		}
 
 		specRoutesCount++
-		handle, ok := handlers[routeName]
+		endpoint, ok := handlers[routeName]
 		if !ok {
 			return fmt.Errorf("route with name %s not found in handler", routeName)
 		}
@@ -123,10 +141,12 @@ func configureAPIV1Routes(
 		if err != nil {
 			return fmt.Errorf("get path template: %s", err)
 		}
+
 		router.get(
 			pathTemplate,
-			handle,
-			middlewares.WithLogging, middlewares.OtelHTTP(routeName), middlewares.RESTChainID, rateLim)
+			endpoint.handler,
+			append(endpoint.middlewares, middlewares.OtelHTTP(routeName))...,
+		)
 		return nil
 	}); err != nil {
 		return fmt.Errorf("configuring api v1 router: %s", err)
