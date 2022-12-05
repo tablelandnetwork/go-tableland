@@ -65,7 +65,9 @@ func TestGetTableByID(t *testing.T) {
 	t.Parallel()
 
 	calls := setup(t)
-	id, fullName := requireCreate(t, calls)
+	id, fullName := calls.create(
+		"(bar text DEFAULT 'foo',zar int, CHECK (zar>0))",
+		WithPrefix("foo"), WithReceiptTimeout(time.Second*10))
 
 	table := calls.getTableById(id)
 	require.NotEmpty(t, fullName, table.Name)
@@ -96,7 +98,7 @@ func TestVersion(t *testing.T) {
 	info, err := calls.version()
 	require.NoError(t, err)
 
-	require.NotEmpty(t, info.Version)
+	require.Equal(t, int32(0), info.Version)
 	require.NotEmpty(t, info.GitCommit)
 	require.NotEmpty(t, info.GitBranch)
 	require.NotEmpty(t, info.GitState)
@@ -115,9 +117,7 @@ func TestHealth(t *testing.T) {
 }
 
 func requireCreate(t *testing.T, calls clientCalls) (TableID, string) {
-	id, tableName := calls.create(
-		"(bar text DEFAULT 'foo',zar int, CHECK (zar>0))",
-		WithPrefix("foo"), WithReceiptTimeout(time.Second*10))
+	id, tableName := calls.create("(bar text)", WithPrefix("foo"), WithReceiptTimeout(time.Second*10))
 	require.Equal(t, "foo_1337_1", tableName)
 	return id, tableName
 }
@@ -166,6 +166,7 @@ func setup(t *testing.T) clientCalls {
 			}()
 			id, table, err := client.Create(ctx, schema, opts...)
 			require.NoError(t, err)
+			stack.Backend.Commit()
 			return id, table
 		},
 		query: func(query string, target interface{}, opts ...ReadOption) {

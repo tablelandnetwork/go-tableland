@@ -11,7 +11,7 @@ package apiv1
 
 type VersionInfo struct {
 
-	Version string `json:"version,omitempty"`
+	Version int32 `json:"version,omitempty"`
 
 	GitCommit string `json:"gitCommit,omitempty"`
 
