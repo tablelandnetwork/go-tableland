@@ -112,9 +112,14 @@ func (s *SystemSQLStoreService) GetTableMetadata(
 			Message:     "Table not found",
 		}, nil
 	}
+	tableName := fmt.Sprintf("%s_%d_%s", table.Prefix, table.ChainID, table.ID)
+	schema, err := store.GetSchemaByTableName(ctx, tableName)
+	if err != nil {
+		return sqlstore.TableMetadata{}, fmt.Errorf("get table schema information: %s", err)
+	}
 
 	return sqlstore.TableMetadata{
-		Name:         fmt.Sprintf("%s_%d_%s", table.Prefix, table.ChainID, table.ID),
+		Name:         tableName,
 		ExternalURL:  fmt.Sprintf("%s/chain/%d/tables/%s", s.extURLPrefix, table.ChainID, table.ID),
 		Image:        s.getMetadataImage(table.ChainID, table.ID),
 		AnimationURL: s.getAnimationURL(table.ChainID, table.ID),
@@ -125,6 +130,7 @@ func (s *SystemSQLStoreService) GetTableMetadata(
 				Value:       table.CreatedAt.Unix(),
 			},
 		},
+		Schema: schema,
 	}, nil
 }
 

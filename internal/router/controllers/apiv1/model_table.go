@@ -15,6 +15,8 @@ type Table struct {
 
 	ExternalUrl string `json:"external_url,omitempty"`
 
+	AnimationUrl string `json:"animation_url,omitempty"`
+
 	Image string `json:"image,omitempty"`
 
 	Attributes []TableAttributes `json:"attributes,omitempty"`

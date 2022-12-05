@@ -13,5 +13,5 @@ type Schema struct {
 
 	Columns []Column `json:"columns,omitempty"`
 
-	TableConstraints []string `json:"tableConstraints,omitempty"`
+	TableConstraints []string `json:"table_constraints,omitempty"`
 }

@@ -15,5 +15,5 @@ type TableAttributes struct {
 	// The trait type for marketplaces
 	TraitType string `json:"trait_type,omitempty"`
 	// The value of the property
-	Value *OneOfTableAttributesValue `json:"value,omitempty"`
+	Value interface{} `json:"value,omitempty"`
 }

@@ -62,7 +62,21 @@ func TestRead(t *testing.T) {
 }
 
 func TestGetTableByID(t *testing.T) {
-	t.SkipNow()
+	t.Parallel()
+
+	calls := setup(t)
+	id, fullName := requireCreate(t, calls)
+
+	table := calls.getTableById(id)
+	require.NotEmpty(t, fullName, table.Name)
+	require.NotEmpty(t, table.ExternalUrl)
+	require.NotEmpty(t, table.AnimationUrl)
+	require.NotEmpty(t, table.Image)
+	require.Greater(t, len(table.Attributes), 0)
+
+	require.NotNil(t, table.Schema)
+	require.NotEmpty(t, table.Schema.Columns)
+	require.NotEmpty(t, table.Schema.TableConstraints)
 }
 
 func TestVersion(t *testing.T) {
@@ -91,9 +105,11 @@ func TestHealth(t *testing.T) {
 }
 
 func requireCreate(t *testing.T, calls clientCalls) (TableID, string) {
-	id, table := calls.create("(bar text)", WithPrefix("foo"), WithReceiptTimeout(time.Second*10))
-	require.Equal(t, "foo_1337_1", table)
-	return id, table
+	id, tableName := calls.create(
+		"(bar text DEFAULT 'foo',zar int, CHECK (zar>0))",
+		WithPrefix("foo"), WithReceiptTimeout(time.Second*10))
+	require.Equal(t, "foo_1337_1", tableName)
+	return id, tableName
 }
 
 func requireWrite(t *testing.T, calls clientCalls, table string) string {
@@ -114,7 +130,7 @@ type clientCalls struct {
 	write        func(query string) string
 	query        func(query string, target interface{}, opts ...ReadOption)
 	receipt      func(txnHash string, options ...ReceiptOption) (*apiv1.TransactionReceipt, bool)
-	getTableById func(tableID int64) bool
+	getTableById func(tableID TableID) *apiv1.Table
 	version      func() (*apiv1.VersionInfo, error)
 	health       func() (bool, error)
 }
@@ -157,7 +173,11 @@ func setup(t *testing.T) clientCalls {
 			require.NoError(t, err)
 			return receipt, found
 		},
-		getTableById: func(tableID int64) bool { panic("TODO") },
+		getTableById: func(tableID TableID) *apiv1.Table {
+			table, err := client.GetTable(ctx, tableID)
+			require.NoError(t, err)
+			return table
+		},
 		version: func() (*apiv1.VersionInfo, error) {
 			return client.Version(ctx)
 		},
