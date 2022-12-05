@@ -11,15 +11,15 @@ package apiv1
 
 type TransactionReceipt struct {
 
-	TableId string `json:"tableId,omitempty"`
+	TableId string `json:"table_id,omitempty"`
 
-	TransactionHash string `json:"transactionHash,omitempty"`
+	TransactionHash string `json:"transaction_hash,omitempty"`
 
-	BlockNumber int64 `json:"blockNumber,omitempty"`
+	BlockNumber int64 `json:"block_number,omitempty"`
 
-	ChainId int32 `json:"chainId,omitempty"`
+	ChainId int32 `json:"chain_id,omitempty"`
 
 	Error_ string `json:"error,omitempty"`
 
-	ErrorEventIdx int32 `json:"errorEventIdx,omitempty"`
+	ErrorEventIdx int32 `json:"error_event_idx,omitempty"`
 }

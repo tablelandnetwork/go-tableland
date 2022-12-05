@@ -13,15 +13,15 @@ type VersionInfo struct {
 
 	Version int32 `json:"version,omitempty"`
 
-	GitCommit string `json:"gitCommit,omitempty"`
+	GitCommit string `json:"git_commit,omitempty"`
 
-	GitBranch string `json:"gitBranch,omitempty"`
+	GitBranch string `json:"git_branch,omitempty"`
 
-	GitState string `json:"gitState,omitempty"`
+	GitState string `json:"git_state,omitempty"`
 
-	GitSummary string `json:"gitSummary,omitempty"`
+	GitSummary string `json:"git_summary,omitempty"`
 
-	BuildDate string `json:"buildDate,omitempty"`
+	BuildDate string `json:"build_date,omitempty"`
 
-	BinaryVersion string `json:"binaryVersion,omitempty"`
+	BinaryVersion string `json:"binary_version,omitempty"`
 }

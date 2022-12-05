@@ -52,7 +52,7 @@ jobs:
             # Wait to start and double-check we're running the expected version.
             # This helps having a green check in the GH Action be high-signal that everything is fine.
             sleep 5;
-            for i in 1 2 3 4; do [ $(curl --insecure --silent https://127.0.0.1/api/v1/version | jq .gitCommit) = "\"${{ steps.prep.outputs.sha_short}}\"" ] && break || (if [ $i = 4 ]; then exit -1; else sleep 5; fi ) done 
+            for i in 1 2 3 4; do [ $(curl --insecure --silent https://127.0.0.1/api/v1/version | jq .git_commit) = "\"${{ steps.prep.outputs.sha_short}}\"" ] && break || (if [ $i = 4 ]; then exit -1; else sleep 5; fi ) done 
             echo "All healthy!"
 
       - if: github.ref == 'refs/heads/main'|| contains(github.event.head_commit.message, '[testnetdeploy]')
@@ -75,7 +75,7 @@ jobs:
             # Wait to start and double-check we're running the expected version.
             # This helps having a green check in the GH Action be high-signal that everything is fine.
             sleep 5;
-            for i in 1 2 3 4; do [ $(curl --insecure --silent https://127.0.0.1/api/v1/version | jq .gitCommit) = "\"${{ steps.prep.outputs.sha_short}}\"" ] && break || (if [ $i = 4 ]; then exit -1; else sleep 5; fi ) done 
+            for i in 1 2 3 4; do [ $(curl --insecure --silent https://127.0.0.1/api/v1/version | jq .git_commit) = "\"${{ steps.prep.outputs.sha_short}}\"" ] && break || (if [ $i = 4 ]; then exit -1; else sleep 5; fi ) done 
             echo "All healthy!"
 
       - if: github.event_name == 'release' || github.ref == 'refs/heads/main' || contains(github.event.head_commit.message, '[mainnetdeploy]')
@@ -98,5 +98,5 @@ jobs:
             # Wait to start and double-check we're running the expected version.
             # This helps having a green check in the GH Action be high-signal that everything is fine.
             sleep 5;
-            for i in 1 2 3 4; do [ $(curl --insecure --silent https://127.0.0.1/api/v1/version | jq .gitCommit) = "\"${{ steps.prep.outputs.sha_short}}\"" ] && break || (if [ $i = 4 ]; then exit -1; else sleep 5; fi ) done 
+            for i in 1 2 3 4; do [ $(curl --insecure --silent https://127.0.0.1/api/v1/version | jq .git_commit) = "\"${{ steps.prep.outputs.sha_short}}\"" ] && break || (if [ $i = 4 ]; then exit -1; else sleep 5; fi ) done 
             echo "All healthy!"
