@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -64,7 +65,8 @@ func (c *Client) Read(ctx context.Context, query string, target interface{}, opt
 		opt(&params)
 	}
 
-	url := *c.baseURL // This is a shallow-copy, but it's safe.
+	url := *c.baseURL.JoinPath("api/v1/query")
+
 	values := url.Query()
 	values.Set("statement", query)
 	values.Set("format", string(params.format))
@@ -82,10 +84,11 @@ func (c *Client) Read(ctx context.Context, query string, target interface{}, opt
 	}
 	if response.StatusCode != http.StatusOK {
 		msg, _ := io.ReadAll(response.Body)
-		return fmt.Errorf("the response wasn't successful: %s", msg)
+		return fmt.Errorf("the response wasn't successful (status: %d, body: %s)", response.StatusCode, msg)
 	}
 
-	if err := json.NewDecoder(response.Body).Decode(&target); err != nil {
+	debug, _ := io.ReadAll(response.Body)
+	if err := json.NewDecoder(bytes.NewReader(debug)).Decode(&target); err != nil {
 		return fmt.Errorf("decoding result into struct: %s", err)
 	}
 
