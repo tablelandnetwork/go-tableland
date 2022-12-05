@@ -214,7 +214,11 @@ func (c *UserController) GetTableRow(rw http.ResponseWriter, r *http.Request) {
 func (c *UserController) GetTableQuery(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-Type", "application/json")
 
-	stm := r.URL.Query().Get("s")
+	stm := r.URL.Query().Get("s") // TODO(json-rpc): remove query parameter "s" when dropping support.
+	if stm == "" {
+		stm = r.URL.Query().Get("statement")
+	}
+
 	start := time.Now()
 	res, ok := c.runReadRequest(r.Context(), stm, rw)
 	if !ok {
@@ -299,7 +303,11 @@ type formatterParams struct {
 
 func getFormatterParams(r *http.Request) (formatterParams, error) {
 	c := formatterParams{}
-	output := r.URL.Query().Get("output")
+	output := r.URL.Query().Get("output") // TODO(json-rpc): drop "output" when dropping support.
+	if output == "" {
+		output = r.URL.Query().Get("format")
+	}
+
 	extract := r.URL.Query().Get("extract")
 	unwrap := r.URL.Query().Get("unwrap")
 	if output != "" {
