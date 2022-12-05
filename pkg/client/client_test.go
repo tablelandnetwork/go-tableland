@@ -69,14 +69,24 @@ func TestGetTableByID(t *testing.T) {
 
 	table := calls.getTableById(id)
 	require.NotEmpty(t, fullName, table.Name)
-	require.NotEmpty(t, table.ExternalUrl)
-	require.NotEmpty(t, table.AnimationUrl)
-	require.NotEmpty(t, table.Image)
-	require.Greater(t, len(table.Attributes), 0)
+	require.Equal(t, "https://testnet.tableland.network/chain/1337/tables/1", table.ExternalUrl)
+	require.Equal(t, "https://render.tableland.xyz/anim/?chain=1337&id=1", table.AnimationUrl)
+	require.Equal(t, "https://render.tableland.xyz/1337/1", table.Image)
+
+	require.Len(t, table.Attributes, 1)
+	require.Equal(t, "date", table.Attributes[0].DisplayType)
+	require.Equal(t, "created", table.Attributes[0].TraitType)
+	require.NotEmpty(t, table.Attributes[0].Value)
 
 	require.NotNil(t, table.Schema)
-	require.NotEmpty(t, table.Schema.Columns)
-	require.NotEmpty(t, table.Schema.TableConstraints)
+	require.Len(t, table.Schema.Columns, 2)
+	require.Equal(t, "bar", table.Schema.Columns[0].Name)
+	require.Equal(t, "text", table.Schema.Columns[0].Type_)
+	require.Len(t, table.Schema.Columns[0].Constraints, 1)
+	require.Equal(t, "DEFAULT 'foo'", table.Schema.Columns[0].Constraints[0])
+
+	require.Len(t, table.Schema.TableConstraints, 1)
+	require.Equal(t, "CHECK(zar > 0)", table.Schema.TableConstraints[0])
 }
 
 func TestVersion(t *testing.T) {
