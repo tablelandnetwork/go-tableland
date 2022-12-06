@@ -106,11 +106,7 @@ func (s *SystemSQLStoreService) GetTableMetadata(
 			}, nil
 		}
 
-		return sqlstore.TableMetadata{
-			ExternalURL: fmt.Sprintf("%s/chain/%d/tables/%s", s.extURLPrefix, chainID, id),
-			Image:       s.emptyMetadataImage(),
-			Message:     "Table not found",
-		}, nil
+		return sqlstore.TableMetadata{}, system.ErrTableNotFound
 	}
 	tableName := fmt.Sprintf("%s_%d_%s", table.Prefix, table.ChainID, table.ID)
 	schema, err := store.GetSchemaByTableName(ctx, tableName)
