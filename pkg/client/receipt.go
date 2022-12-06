@@ -48,10 +48,15 @@ func (c *Client) getReceipt(ctx context.Context, txnHash string) (*apiv1.Transac
 		JoinPath(strconv.FormatInt(int64(c.chain.ID), 10)).
 		JoinPath(txnHash)
 
-	response, err := c.tblHTTP.Get(url.String())
+	req, err := http.NewRequestWithContext(ctx, "GET", url.String(), nil)
+	if err != nil {
+		return nil, false, fmt.Errorf("creating request: %s", err)
+	}
+	response, err := c.tblHTTP.Do(req)
 	if err != nil {
 		return nil, false, fmt.Errorf("calling get receipt by transaction hash: %s", err)
 	}
+	defer response.Body.Close()
 	if response.StatusCode == http.StatusNotFound {
 		return nil, false, nil
 	}

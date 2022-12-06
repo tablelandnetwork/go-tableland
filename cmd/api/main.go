@@ -491,7 +491,11 @@ func createAPIServer(
 	for chainID, stack := range chainStacks {
 		stores[chainID] = stack.Store
 	}
-	sysStore, err := systemimpl.NewSystemSQLStoreService(stores, gatewayConfig.ExternalURIPrefix, gatewayConfig.MetadataRendererURI, gatewayConfig.AnimationRendererURI)
+	sysStore, err := systemimpl.NewSystemSQLStoreService(
+		stores,
+		gatewayConfig.ExternalURIPrefix,
+		gatewayConfig.MetadataRendererURI,
+		gatewayConfig.AnimationRendererURI)
 	if err != nil {
 		return nil, fmt.Errorf("creating system store: %s", err)
 	}

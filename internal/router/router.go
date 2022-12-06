@@ -50,9 +50,7 @@ func ConfiguredRouter(
 
 	// TODO(json-rpc): remove this when dropping support.
 	// APIs Legacy (REST + JSON-RPC)
-	if err := configureLegacyRoutes(router, server, rateLim, systemCtrl, userCtrl, infraCtrl); err != nil {
-		return nil, fmt.Errorf("configuring legacy API: %s", err)
-	}
+	configureLegacyRoutes(router, server, rateLim, systemCtrl, userCtrl, infraCtrl)
 
 	// APIs V1
 	if err := configureAPIV1Routes(router, rateLim, systemCtrl, userCtrl, infraCtrl); err != nil {
@@ -69,7 +67,7 @@ func configureLegacyRoutes(
 	systemCtrl *controllers.SystemController,
 	userCtrl *controllers.UserController,
 	infraCtrl *controllers.InfraController,
-) error {
+) {
 	router.post("/rpc", func(rw http.ResponseWriter, r *http.Request) {
 		server.ServeHTTP(rw, r)
 	}, middlewares.WithLogging, middlewares.OtelHTTP("rpc"), middlewares.Authentication, rateLim)
@@ -87,8 +85,6 @@ func configureLegacyRoutes(
 	// Health endpoint configuration.
 	router.get("/healthz", controllers.HealthHandler)
 	router.get("/health", controllers.HealthHandler)
-
-	return nil
 }
 
 func configureAPIV1Routes(

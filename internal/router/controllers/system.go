@@ -34,7 +34,6 @@ func (c *SystemController) GetReceiptByTransactionHash(rw http.ResponseWriter, r
 		log.Ctx(ctx).Error().Err(err).Msg("invalid transaction hash")
 		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Invalid transaction hash"})
 		return
-
 	}
 	txnHash := common.HexToHash(paramTxnHash)
 
@@ -142,8 +141,8 @@ func (c *SystemController) GetTable(rw http.ResponseWriter, r *http.Request) {
 	_ = enc.Encode(metadataRes)
 }
 
-// TODO(json-rpc): delete when dropping support.
 // GetTablesByController handles the GET /chain/{chainID}/tables/controller/{address} call.
+// TODO(json-rpc): delete when dropping support.
 func (c *SystemController) GetTablesByController(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	rw.Header().Set("Content-type", "application/json")

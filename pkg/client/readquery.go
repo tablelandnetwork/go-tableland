@@ -77,10 +77,15 @@ func (c *Client) Read(ctx context.Context, query string, target interface{}, opt
 	}
 	url.RawQuery = values.Encode()
 
-	response, err := c.tblHTTP.Get(url.String())
+	req, err := http.NewRequestWithContext(ctx, "GET", url.String(), nil)
+	if err != nil {
+		return fmt.Errorf("creating request: %s", err)
+	}
+	response, err := c.tblHTTP.Do(req)
 	if err != nil {
 		return fmt.Errorf("calling query: %s", err)
 	}
+	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
 		msg, _ := io.ReadAll(response.Body)
 		return fmt.Errorf("the response wasn't successful (status: %d, body: %s)", response.StatusCode, msg)
