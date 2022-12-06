@@ -20,10 +20,15 @@ func (c *Client) GetTable(ctx context.Context, tableID TableID) (*apiv1.Table, e
 		JoinPath(strconv.FormatInt(int64(c.chain.ID), 10)).
 		JoinPath(strconv.FormatInt(tableID.ToBigInt().Int64(), 10))
 
-	response, err := c.tblHTTP.Get(url.String())
+	req, err := http.NewRequestWithContext(ctx, "GET", url.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %s", err)
+	}
+	response, err := c.tblHTTP.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("calling get tables by id: %s", err)
 	}
+	defer response.Body.Close()
 	if response.StatusCode == http.StatusNotFound {
 		return nil, ErrTableNotFound
 	}

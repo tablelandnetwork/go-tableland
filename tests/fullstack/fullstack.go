@@ -101,6 +101,7 @@ func CreateFullStack(t *testing.T, deps Deps) FullStack {
 		wallet,
 		nonceimpl.NewSimpleTracker(wallet, backend),
 	)
+	require.NoError(t, err)
 
 	chainStacks := map[tableland.ChainID]chains.ChainStack{
 		1337: {
@@ -144,7 +145,7 @@ func CreateFullStack(t *testing.T, deps Deps) FullStack {
 	require.NoError(t, err)
 	db.SetMaxOpenConns(1)
 
-	ex, err := executor.NewExecutor(1337, db, parser, 0, &aclHalfMock{systemStore})
+	ex, err := executor.NewExecutor(1337, db, parser, 0, acl)
 	require.NoError(t, err)
 
 	router, err := router.ConfiguredRouter(tbl, systemService, 10, time.Second)

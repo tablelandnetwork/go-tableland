@@ -127,7 +127,7 @@ func NewSystemMockErrService() system.SystemService {
 	return &SystemMockErrService{}
 }
 
-// GetReceiptByTransactionHash implements system.SystemService
+// GetReceiptByTransactionHash implements system.SystemService.
 func (*SystemMockErrService) GetReceiptByTransactionHash(context.Context, common.Hash) (sqlstore.Receipt, bool, error) {
 	return sqlstore.Receipt{}, false, nil
 }

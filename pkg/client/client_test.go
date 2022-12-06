@@ -22,8 +22,8 @@ func TestWrite(t *testing.T) {
 	t.Parallel()
 
 	calls := setup(t)
-	_, table := requireCreate(t, calls)
-	requireWrite(t, calls, table)
+	tableName := requireCreate(t, calls)
+	requireWrite(t, calls, tableName)
 }
 
 func TestRead(t *testing.T) {
@@ -31,8 +31,8 @@ func TestRead(t *testing.T) {
 
 	t.Run("status 200", func(t *testing.T) {
 		calls := setup(t)
-		_, table := requireCreate(t, calls)
-		hash := requireWrite(t, calls, table)
+		tableName := requireCreate(t, calls)
+		hash := requireWrite(t, calls, tableName)
 		requireReceipt(t, calls, hash, WaitFor(time.Second*10))
 
 		type result struct {
@@ -40,25 +40,25 @@ func TestRead(t *testing.T) {
 		}
 
 		res0 := []result{}
-		calls.query(fmt.Sprintf("select * from %s", table), &res0)
+		calls.query(fmt.Sprintf("select * from %s", tableName), &res0)
 		require.Len(t, res0, 1)
 		require.Equal(t, "baz", res0[0].Bar)
 
 		res1 := map[string]interface{}{}
-		calls.query(fmt.Sprintf("select * from %s", table), &res1, ReadOutput(Table))
+		calls.query(fmt.Sprintf("select * from %s", tableName), &res1, ReadOutput(Table))
 		require.Len(t, res1, 2)
 
 		res2 := result{}
-		calls.query(fmt.Sprintf("select * from %s", table), &res2, ReadUnwrap())
+		calls.query(fmt.Sprintf("select * from %s", tableName), &res2, ReadUnwrap())
 		require.Equal(t, "baz", res2.Bar)
 
 		res3 := []string{}
-		calls.query(fmt.Sprintf("select * from %s", table), &res3, ReadExtract())
+		calls.query(fmt.Sprintf("select * from %s", tableName), &res3, ReadExtract())
 		require.Len(t, res3, 1)
 		require.Equal(t, "baz", res3[0])
 
 		res4 := ""
-		calls.query(fmt.Sprintf("select * from %s", table), &res4, ReadUnwrap(), ReadExtract())
+		calls.query(fmt.Sprintf("select * from %s", tableName), &res4, ReadUnwrap(), ReadExtract())
 		require.Equal(t, "baz", res4)
 	})
 
@@ -74,21 +74,21 @@ func TestGetReceipt(t *testing.T) {
 
 	t.Run("status 200", func(t *testing.T) {
 		calls := setup(t)
-		_, table := requireCreate(t, calls)
-		hash := requireWrite(t, calls, table)
+		tableName := requireCreate(t, calls)
+		hash := requireWrite(t, calls, tableName)
 		requireReceipt(t, calls, hash, WaitFor(time.Second*10))
 	})
 
 	t.Run("status 400", func(t *testing.T) {
 		calls := setup(t)
-		_, _ = requireCreate(t, calls)
+		_ = requireCreate(t, calls)
 		_, _, err := calls.client.Receipt(context.Background(), "0xINVALIDHASH")
 		require.Error(t, err)
 	})
 
 	t.Run("status 404", func(t *testing.T) {
 		calls := setup(t)
-		_, _ = requireCreate(t, calls)
+		_ = requireCreate(t, calls)
 		_, exists, err := calls.client.Receipt(context.Background(), "0x5c6f90e52284726a7276d6a20a3df94a4532a8fa4c921233a301e95673ad0255") //nolint
 		require.NoError(t, err)
 		require.False(t, exists)
@@ -159,10 +159,10 @@ func TestHealth(t *testing.T) {
 	require.True(t, healthy)
 }
 
-func requireCreate(t *testing.T, calls clientCalls) (TableID, string) {
-	id, tableName := calls.create("(bar text)", WithPrefix("foo"), WithReceiptTimeout(time.Second*10))
+func requireCreate(t *testing.T, calls clientCalls) string {
+	_, tableName := calls.create("(bar text)", WithPrefix("foo"), WithReceiptTimeout(time.Second*10))
 	require.Equal(t, "foo_1337_1", tableName)
-	return id, tableName
+	return tableName
 }
 
 func requireWrite(t *testing.T, calls clientCalls, table string) string {

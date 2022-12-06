@@ -71,7 +71,7 @@ func (c *Client) Create(ctx context.Context, schema string, opts ...CreateOption
 
 // Write initiates a write query, returning the txn hash.
 func (c *Client) Write(ctx context.Context, query string) (string, error) {
-	tableID, err := c.Validate(ctx, query)
+	tableID, err := c.Validate(query)
 	if err != nil {
 		return "", fmt.Errorf("calling Validate: %v", err)
 	}
