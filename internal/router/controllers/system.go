@@ -29,6 +29,13 @@ func (c *SystemController) GetReceiptByTransactionHash(rw http.ResponseWriter, r
 	ctx := r.Context()
 
 	paramTxnHash := mux.Vars(r)["transactionHash"]
+	if _, err := common.ParseHexOrString(paramTxnHash); err != nil {
+		rw.WriteHeader(http.StatusBadRequest)
+		log.Ctx(ctx).Error().Err(err).Msg("invalid transaction hash")
+		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Invalid transaction hash"})
+		return
+
+	}
 	txnHash := common.HexToHash(paramTxnHash)
 
 	receipt, exists, err := c.systemService.GetReceiptByTransactionHash(ctx, txnHash)
@@ -78,6 +85,10 @@ func (c *SystemController) GetTable(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	metadata, err := c.systemService.GetTableMetadata(ctx, id)
+	if err == system.ErrTableNotFound {
+		rw.WriteHeader(http.StatusNotFound)
+		return
+	}
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 		log.Ctx(ctx).

@@ -1,7 +1,6 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -87,8 +86,7 @@ func (c *Client) Read(ctx context.Context, query string, target interface{}, opt
 		return fmt.Errorf("the response wasn't successful (status: %d, body: %s)", response.StatusCode, msg)
 	}
 
-	debug, _ := io.ReadAll(response.Body)
-	if err := json.NewDecoder(bytes.NewReader(debug)).Decode(&target); err != nil {
+	if err := json.NewDecoder(response.Body).Decode(&target); err != nil {
 		return fmt.Errorf("decoding result into struct: %s", err)
 	}
 
