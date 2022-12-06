@@ -107,6 +107,7 @@ func (c Chain) CanRelayWrites() bool {
 	return c.ID != ChainIDs.Ethereum && c.ID != ChainIDs.Optimism && c.ID != ChainIDs.Polygon
 }
 
+// InfuraURLs contains the URLs for supported chains for Infura.
 var InfuraURLs = map[ChainID]string{
 	ChainIDs.EthereumGoerli: "https://goerli.infura.io/v3/%s",
 	ChainIDs.Ethereum:       "https://mainnet.infura.io/v3/%s",
@@ -118,6 +119,7 @@ var InfuraURLs = map[ChainID]string{
 	ChainIDs.Polygon:        "https://polygon-mainnet.infura.io/v3/%s",
 }
 
+// AlchemyURLs contains the URLs for supported chains for Alchemy.
 var AlchemyURLs = map[ChainID]string{
 	ChainIDs.EthereumGoerli: "https://eth-goerli.g.alchemy.com/v2/%s",
 	ChainIDs.Ethereum:       "https://eth-mainnet.g.alchemy.com/v2/%s",
@@ -129,6 +131,7 @@ var AlchemyURLs = map[ChainID]string{
 	ChainIDs.Polygon:        "https://polygon-mainnet.g.alchemy.com/v2/%s",
 }
 
+// LocalURLs contains the URLs for a local network.
 var LocalURLs = map[ChainID]string{
 	ChainIDs.Local: "http://localhost:8545",
 }

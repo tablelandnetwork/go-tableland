@@ -126,9 +126,9 @@ func userRowToMap(cols []tableland.Column, row []*tableland.ColumnValue) map[str
 	return m
 }
 
-// TODO(json-rpc): delete method when dropping support.
 // GetTableRow handles the GET /chain/{chainID}/tables/{id}/{key}/{value} call.
 // Use format=erc721 query param to generate JSON for ERC721 metadata.
+// TODO(json-rpc): delete method when dropping support.
 func (c *UserController) GetTableRow(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-Type", "application/json")
 	vars := mux.Vars(r)

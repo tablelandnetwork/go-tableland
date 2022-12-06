@@ -1,4 +1,4 @@
-package client_legacy
+package clientlegacy
 
 import (
 	"context"
@@ -25,8 +25,8 @@ import (
 
 var defaultChain = client.Chains.PolygonMumbai
 
-// TODO(json-rpc): remove client_legacy package when support is dropped.
 // TxnReceipt is a Tableland event processing receipt.
+// TODO(json-rpc): remove client_legacy package when support is dropped.
 type TxnReceipt struct {
 	ChainID       client.ChainID `json:"chain_id"`
 	TxnHash       string         `json:"txn_hash"`

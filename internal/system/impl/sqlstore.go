@@ -130,6 +130,7 @@ func (s *SystemSQLStoreService) GetTableMetadata(
 	}, nil
 }
 
+// GetReceiptByTransactionHash returns a receipt by transaction hash.
 func (s *SystemSQLStoreService) GetReceiptByTransactionHash(
 	ctx context.Context,
 	txnHash common.Hash,

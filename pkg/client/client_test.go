@@ -104,7 +104,7 @@ func TestGetTableByID(t *testing.T) {
 			"(bar text DEFAULT 'foo',zar int, CHECK (zar>0))",
 			WithPrefix("foo"), WithReceiptTimeout(time.Second*10))
 
-		table := calls.getTableById(id)
+		table := calls.getTableByID(id)
 		require.NotEmpty(t, fullName, table.Name)
 		require.Equal(t, "https://testnet.tableland.network/chain/1337/tables/1", table.ExternalUrl)
 		require.Equal(t, "https://render.tableland.xyz/anim/?chain=1337&id=1", table.AnimationUrl)
@@ -184,7 +184,7 @@ type clientCalls struct {
 	write        func(query string) string
 	query        func(query string, target interface{}, opts ...ReadOption)
 	receipt      func(txnHash string, options ...ReceiptOption) (*apiv1.TransactionReceipt, bool)
-	getTableById func(tableID TableID) *apiv1.Table
+	getTableByID func(tableID TableID) *apiv1.Table
 	version      func() (*apiv1.VersionInfo, error)
 	health       func() (bool, error)
 }
@@ -198,7 +198,11 @@ func setup(t *testing.T) clientCalls {
 		ContractAddr: stack.Address,
 	}
 
-	client, err := NewClient(context.Background(), stack.Wallet, NewClientChain(c), NewClientContractBackend(stack.Backend))
+	client, err := NewClient(
+		context.Background(),
+		stack.Wallet,
+		NewClientChain(c),
+		NewClientContractBackend(stack.Backend))
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -228,7 +232,7 @@ func setup(t *testing.T) clientCalls {
 			require.NoError(t, err)
 			return receipt, found
 		},
-		getTableById: func(tableID TableID) *apiv1.Table {
+		getTableByID: func(tableID TableID) *apiv1.Table {
 			table, err := client.GetTable(ctx, tableID)
 			require.NoError(t, err)
 			return table

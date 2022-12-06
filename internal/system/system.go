@@ -9,10 +9,11 @@ import (
 	"github.com/textileio/go-tableland/pkg/tables"
 )
 
+// ErrTableNotFound indicates that the table doesn't exist.
 var ErrTableNotFound = errors.New("table not found")
 
-// TODO(json-rpc): this interface should be cleaned up after dropping support.
 // SystemService defines what system operations can be done.
+// TODO(json-rpc): this interface should be cleaned up after dropping support.
 type SystemService interface {
 	GetTableMetadata(context.Context, tables.TableID) (sqlstore.TableMetadata, error)
 	GetTablesByController(context.Context, string) ([]sqlstore.Table, error)

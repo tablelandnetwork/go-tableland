@@ -21,7 +21,7 @@ func NewSystemMockService() system.SystemService {
 	return &SystemMockService{}
 }
 
-// GetReceiptByTransactionHash implements system.SystemService
+// GetReceiptByTransactionHash implements system.SystemService.
 func (*SystemMockService) GetReceiptByTransactionHash(context.Context, common.Hash) (sqlstore.Receipt, bool, error) {
 	tableID, _ := tables.NewTableID("10")
 	return sqlstore.Receipt{

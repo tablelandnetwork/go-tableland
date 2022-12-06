@@ -6,6 +6,7 @@ import (
 	"net/http"
 )
 
+// CheckHealth returns true if the targeted validator endpoint is considered healthy, and false otherwise.
 func (c *Client) CheckHealth(ctx context.Context) (bool, error) {
 	url := *c.baseURL.JoinPath("api/v1/health")
 	req, err := http.NewRequestWithContext(ctx, "GET", url.String(), nil)
@@ -16,7 +17,7 @@ func (c *Client) CheckHealth(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("http get error: %s", err)
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 
 	return res.StatusCode == http.StatusOK, nil
 }
