@@ -39,8 +39,11 @@ func NewInstrumentedSystemSQLStoreService(system system.SystemService) (system.S
 	return &InstrumentedSystemSQLStoreService{system, callCount, latencyHistogram}, nil
 }
 
-// GetReceiptByTransactionHash implements system.SystemService
-func (s *InstrumentedSystemSQLStoreService) GetReceiptByTransactionHash(ctx context.Context, hash common.Hash) (sqlstore.Receipt, bool, error) {
+// GetReceiptByTransactionHash implements system.SystemService.
+func (s *InstrumentedSystemSQLStoreService) GetReceiptByTransactionHash(
+	ctx context.Context,
+	hash common.Hash,
+) (sqlstore.Receipt, bool, error) {
 	start := time.Now()
 	receipt, exists, err := s.system.GetReceiptByTransactionHash(ctx, hash)
 	latency := time.Since(start).Milliseconds()

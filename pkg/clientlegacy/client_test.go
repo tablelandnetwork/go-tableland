@@ -1,4 +1,4 @@
-package client_legacy
+package clientlegacy
 
 import (
 	"context"
@@ -148,7 +148,11 @@ func setup(t *testing.T) clientCalls {
 		ContractAddr: stack.Address,
 	}
 
-	client, err := NewClient(context.Background(), stack.Wallet, NewClientChain(c), NewClientContractBackend(stack.Backend))
+	client, err := NewClient(
+		context.Background(),
+		stack.Wallet,
+		NewClientChain(c),
+		NewClientContractBackend(stack.Backend))
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		client.Close()

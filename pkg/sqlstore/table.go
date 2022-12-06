@@ -64,6 +64,7 @@ type SystemACL struct {
 	UpdatedAt  *time.Time
 }
 
+// Receipt represents a Tableland receipt.
 type Receipt struct {
 	ChainID      tableland.ChainID
 	BlockNumber  int64

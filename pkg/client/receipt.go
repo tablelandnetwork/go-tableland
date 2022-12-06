@@ -56,7 +56,7 @@ func (c *Client) getReceipt(ctx context.Context, txnHash string) (*apiv1.Transac
 	if err != nil {
 		return nil, false, fmt.Errorf("calling get receipt by transaction hash: %s", err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode == http.StatusNotFound {
 		return nil, false, nil
 	}

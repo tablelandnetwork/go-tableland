@@ -12,8 +12,11 @@ import (
 	"github.com/textileio/go-tableland/internal/router/controllers/apiv1"
 )
 
+// ErrTableNotFound is returned if the provided table ID isn't found in the network.
 var ErrTableNotFound = errors.New("table not found")
 
+// GetTable returns the table information given its ID. If the table ID doesn't exist,
+// it returns ErrTableNotFound.
 func (c *Client) GetTable(ctx context.Context, tableID TableID) (*apiv1.Table, error) {
 	url := *c.baseURL.
 		JoinPath("api/v1/tables/").
@@ -28,7 +31,7 @@ func (c *Client) GetTable(ctx context.Context, tableID TableID) (*apiv1.Table, e
 	if err != nil {
 		return nil, fmt.Errorf("calling get tables by id: %s", err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode == http.StatusNotFound {
 		return nil, ErrTableNotFound
 	}

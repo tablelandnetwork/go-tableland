@@ -85,7 +85,7 @@ func (c *Client) Read(ctx context.Context, query string, target interface{}, opt
 	if err != nil {
 		return fmt.Errorf("calling query: %s", err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode != http.StatusOK {
 		msg, _ := io.ReadAll(response.Body)
 		return fmt.Errorf("the response wasn't successful (status: %d, body: %s)", response.StatusCode, msg)

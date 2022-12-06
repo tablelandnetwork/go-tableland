@@ -24,6 +24,7 @@ func NewSystemController(svc system.SystemService) *SystemController {
 	return &SystemController{svc}
 }
 
+// GetReceiptByTransactionHash handles request asking for a transaction receipt.
 func (c *SystemController) GetReceiptByTransactionHash(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-Type", "application/json")
 	ctx := r.Context()
@@ -184,8 +185,8 @@ func (c *SystemController) GetTablesByController(rw http.ResponseWriter, r *http
 	_ = json.NewEncoder(rw).Encode(retTables)
 }
 
-// TODO(json-rpc): delete when dropping support.
 // GetTablesByStructureHash handles the GET /chain/{id}/tables/structure/{hash} call.
+// TODO(json-rpc): delete when dropping support.
 func (c *SystemController) GetTablesByStructureHash(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -224,8 +225,8 @@ func (c *SystemController) GetTablesByStructureHash(rw http.ResponseWriter, r *h
 	_ = json.NewEncoder(rw).Encode(retTables)
 }
 
-// TODO(json-rpc): delete when droppping support.
 // GetSchemaByTableName handles the GET /schema/{table_name} call.
+// TODO(json-rpc): delete when droppping support.
 func (c *SystemController) GetSchemaByTableName(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -284,6 +285,7 @@ func (c *SystemController) GetSchemaByTableName(rw http.ResponseWriter, r *http.
 	})
 }
 
+// HealthHandler serves health check requests.
 func HealthHandler(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }

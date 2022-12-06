@@ -61,6 +61,7 @@ type Deps struct {
 	SystemService system.SystemService
 }
 
+// CreateFullStack creates a running validator with the provided dependencies, or defaults otherwise.
 func CreateFullStack(t *testing.T, deps Deps) FullStack {
 	t.Helper()
 

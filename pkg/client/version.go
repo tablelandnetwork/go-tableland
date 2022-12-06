@@ -11,6 +11,7 @@ import (
 	"github.com/textileio/go-tableland/internal/router/controllers/apiv1"
 )
 
+// Version returns the validator version information.
 func (c *Client) Version(ctx context.Context) (*apiv1.VersionInfo, error) {
 	url := *c.baseURL.JoinPath("api/v1/version")
 
@@ -22,7 +23,7 @@ func (c *Client) Version(ctx context.Context) (*apiv1.VersionInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("http get error: %s", err)
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 
 	bb, _ := io.ReadAll(res.Body)
 
