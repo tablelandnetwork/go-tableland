@@ -25,15 +25,15 @@ func (t Table) Name() string {
 
 // TableSchema represents the schema of a table.
 type TableSchema struct {
-	Columns          []ColumnSchema `json:"columns"`
-	TableConstraints []string       `json:"table_constraints"`
+	Columns          []ColumnSchema
+	TableConstraints []string
 }
 
 // ColumnSchema represents the schema of a column.
 type ColumnSchema struct {
-	Name        string   `json:"name"`
-	Type        string   `json:"type"`
-	Constraints []string `json:"constraints"`
+	Name        string
+	Type        string
+	Constraints []string
 }
 
 // TableMetadata represents table metadata (OpenSea standard).
