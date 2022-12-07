@@ -1,4 +1,4 @@
-package client
+package v1
 
 import (
 	"context"
@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	systemimpl "github.com/textileio/go-tableland/internal/system/impl"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/client"
 	"github.com/textileio/go-tableland/pkg/nonce/impl"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
@@ -20,20 +21,20 @@ import (
 	"github.com/textileio/go-tableland/pkg/wallet"
 )
 
-var defaultChain = Chains.PolygonMumbai
+var defaultChain = client.Chains.PolygonMumbai
 
 // Client is the Tableland client.
 type Client struct {
 	tblHTTP     *http.Client
 	tblContract *ethereum.Client
-	chain       Chain
+	chain       client.Chain
 	wallet      *wallet.Wallet
 	parser      parsing.SQLValidator
 	baseURL     *url.URL
 }
 
 type config struct {
-	chain           *Chain
+	chain           *client.Chain
 	infuraAPIKey    string
 	alchemyAPIKey   string
 	local           bool
@@ -44,7 +45,7 @@ type config struct {
 type NewClientOption func(*config)
 
 // NewClientChain specifies chaininfo.
-func NewClientChain(chain Chain) NewClientOption {
+func NewClientChain(chain client.Chain) NewClientOption {
 	return func(ncc *config) {
 		ncc.chain = &chain
 	}
@@ -141,19 +142,19 @@ func getContractBackend(ctx context.Context, config config) (bind.ContractBacken
 	if config.contractBackend != nil && config.infuraAPIKey == "" && config.alchemyAPIKey == "" {
 		return config.contractBackend, nil
 	} else if config.infuraAPIKey != "" && config.contractBackend == nil && config.alchemyAPIKey == "" {
-		tmpl, found := InfuraURLs[config.chain.ID]
+		tmpl, found := client.InfuraURLs[config.chain.ID]
 		if !found {
 			return nil, fmt.Errorf("chain id %v not supported for Infura", config.chain.ID)
 		}
 		return ethclient.DialContext(ctx, fmt.Sprintf(tmpl, config.infuraAPIKey))
 	} else if config.alchemyAPIKey != "" && config.contractBackend == nil && config.infuraAPIKey == "" {
-		tmpl, found := AlchemyURLs[config.chain.ID]
+		tmpl, found := client.AlchemyURLs[config.chain.ID]
 		if !found {
 			return nil, fmt.Errorf("chain id %v not supported for Alchemy", config.chain.ID)
 		}
 		return ethclient.DialContext(ctx, fmt.Sprintf(tmpl, config.alchemyAPIKey))
 	} else if config.local {
-		url, found := LocalURLs[config.chain.ID]
+		url, found := client.LocalURLs[config.chain.ID]
 		if !found {
 			return nil, fmt.Errorf("chain id %v not supported for Local", config.chain.ID)
 		}

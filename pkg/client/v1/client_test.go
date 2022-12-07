@@ -1,4 +1,4 @@
-package client
+package v1
 
 import (
 	"context"
@@ -8,27 +8,22 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/router/controllers/apiv1"
+	"github.com/textileio/go-tableland/pkg/client"
 	"github.com/textileio/go-tableland/tests/fullstack"
 )
 
 func TestCreate(t *testing.T) {
-	t.Parallel()
-
 	calls := setup(t)
 	requireCreate(t, calls)
 }
 
 func TestWrite(t *testing.T) {
-	t.Parallel()
-
 	calls := setup(t)
 	tableName := requireCreate(t, calls)
 	requireWrite(t, calls, tableName)
 }
 
 func TestRead(t *testing.T) {
-	t.Parallel()
-
 	t.Run("status 200", func(t *testing.T) {
 		calls := setup(t)
 		tableName := requireCreate(t, calls)
@@ -70,8 +65,6 @@ func TestRead(t *testing.T) {
 }
 
 func TestGetReceipt(t *testing.T) {
-	t.Parallel()
-
 	t.Run("status 200", func(t *testing.T) {
 		calls := setup(t)
 		tableName := requireCreate(t, calls)
@@ -96,8 +89,6 @@ func TestGetReceipt(t *testing.T) {
 }
 
 func TestGetTableByID(t *testing.T) {
-	t.Parallel()
-
 	t.Run("status 200", func(t *testing.T) {
 		calls := setup(t)
 		id, fullName := calls.create(
@@ -120,10 +111,10 @@ func TestGetTableByID(t *testing.T) {
 		require.Equal(t, "bar", table.Schema.Columns[0].Name)
 		require.Equal(t, "text", table.Schema.Columns[0].Type_)
 		require.Len(t, table.Schema.Columns[0].Constraints, 1)
-		require.Equal(t, "DEFAULT 'foo'", table.Schema.Columns[0].Constraints[0])
+		require.Equal(t, "default 'foo'", table.Schema.Columns[0].Constraints[0])
 
 		require.Len(t, table.Schema.TableConstraints, 1)
-		require.Equal(t, "CHECK(zar > 0)", table.Schema.TableConstraints[0])
+		require.Equal(t, "check(zar > 0)", table.Schema.TableConstraints[0])
 	})
 	t.Run("status 404", func(t *testing.T) {
 		calls := setup(t)
@@ -135,8 +126,6 @@ func TestGetTableByID(t *testing.T) {
 }
 
 func TestVersion(t *testing.T) {
-	t.Parallel()
-
 	calls := setup(t)
 	info, err := calls.version()
 	require.NoError(t, err)
@@ -151,8 +140,6 @@ func TestVersion(t *testing.T) {
 }
 
 func TestHealth(t *testing.T) {
-	t.Parallel()
-
 	calls := setup(t)
 	healthy, err := calls.health()
 	require.NoError(t, err)
@@ -192,9 +179,9 @@ type clientCalls struct {
 func setup(t *testing.T) clientCalls {
 	stack := fullstack.CreateFullStack(t, fullstack.Deps{})
 
-	c := Chain{
+	c := client.Chain{
 		Endpoint:     stack.Server.URL,
-		ID:           ChainID(fullstack.ChainID),
+		ID:           client.ChainID(fullstack.ChainID),
 		ContractAddr: stack.Address,
 	}
 
