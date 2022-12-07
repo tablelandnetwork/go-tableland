@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -62,25 +61,16 @@ func (pp *QueryValidator) ValidateCreateTable(query string, chainID tableland.Ch
 	}
 
 	node := stmt.(*sqlparser.CreateTable)
-	if !pp.createTableNameRegEx.MatchString(node.Table.String()) {
-		return nil, &parsing.ErrInvalidTableName{}
-	}
-	parts := strings.Split(node.Table.String(), "_")
-	if len(parts) < 2 {
-		return nil, fmt.Errorf("table name isn't referencing the chain id")
-	}
-
-	prefix := strings.Join(parts[:len(parts)-1], "_")
-	if hasPrefix(prefix, pp.systemTablePrefixes) {
-		return nil, &parsing.ErrPrefixTableName{Prefix: prefix}
-	}
-
-	strChainID := parts[len(parts)-1]
-	tableChainID, err := strconv.ParseInt(strChainID, 10, 64)
+	validTable, err := sqlparser.ValidateCreateTargetTable(node.Table)
 	if err != nil {
-		return nil, fmt.Errorf("parsing chain id in table name: %s", err)
+		return nil, fmt.Errorf("create table name is not valid: %w", err)
 	}
-	if tableChainID != int64(chainID) {
+
+	if hasPrefix(validTable.Prefix(), pp.systemTablePrefixes) {
+		return nil, &parsing.ErrPrefixTableName{Prefix: validTable.Prefix()}
+	}
+
+	if validTable.ChainID() != int64(chainID) {
 		return nil, &parsing.ErrInvalidTableName{}
 	}
 
@@ -88,7 +78,7 @@ func (pp *QueryValidator) ValidateCreateTable(query string, chainID tableland.Ch
 		chainID:       chainID,
 		cNode:         node,
 		structureHash: node.StructureHash(),
-		prefix:        prefix,
+		prefix:        validTable.Prefix(),
 	}, nil
 }
 
@@ -117,7 +107,7 @@ func (pp *QueryValidator) ValidateMutatingQuery(
 	// Since we support write queries with more than one statement,
 	// do the write/grant-query validation in each of them. Also, check
 	// that each statement reference always the same table.
-	var targetTable, refTable string
+	var targetTable, refTable *sqlparser.ValidatedTable
 	for i := range ast.Statements {
 		if ast.Errors[i] != nil {
 			return nil, fmt.Errorf("non sysntax error in %d-th statement: %w", i, ast.Errors[i])
@@ -130,6 +120,7 @@ func (pp *QueryValidator) ValidateMutatingQuery(
 			if err != nil {
 				return nil, fmt.Errorf("validating write-query: %w", err)
 			}
+
 		case sqlparser.GrantOrRevokeStatement:
 			refTable, err = pp.validateGrantQuery(s)
 			if err != nil {
@@ -139,32 +130,28 @@ func (pp *QueryValidator) ValidateMutatingQuery(
 			return nil, &parsing.ErrStatementIsNotSupported{}
 		}
 
-		if targetTable == "" {
+		if targetTable == nil {
 			targetTable = refTable
-		} else if targetTable != refTable {
-			return nil, &parsing.ErrMultiTableReference{Ref1: targetTable, Ref2: refTable}
+		} else if targetTable.Name() != refTable.Name() {
+			return nil, &parsing.ErrMultiTableReference{Ref1: targetTable.Name(), Ref2: refTable.Name()}
 		}
 	}
 
-	prefix, queryChainID, tableID, err := pp.deconstructRefTable(targetTable)
-	if err != nil {
-		return nil, fmt.Errorf("deconstructing referenced table name: %w", err)
-	}
-	if queryChainID != chainID {
-		return nil, fmt.Errorf("the query references chain-id %d but expected %d", queryChainID, chainID)
+	if targetTable.ChainID() != int64(chainID) {
+		return nil, fmt.Errorf("the query references chain-id %d but expected %d", targetTable.ChainID(), chainID)
 	}
 
 	ret := make([]parsing.MutatingStmt, len(ast.Statements))
 	for i := range ast.Statements {
 		stmt := ast.Statements[i]
-		tblID, err := tables.NewTableID(tableID)
+		tblID, err := tables.NewTableID(fmt.Sprintf("%d", targetTable.TokenID()))
 		if err != nil {
 			return nil, &parsing.ErrInvalidTableName{}
 		}
 		mutatingStmt := &mutatingStmt{
 			node:        stmt,
-			dbTableName: targetTable,
-			prefix:      prefix,
+			dbTableName: targetTable.Name(),
+			prefix:      targetTable.Prefix(),
 			tableID:     tblID,
 		}
 
@@ -221,38 +208,6 @@ func (pp *QueryValidator) ValidateReadQuery(query string) (parsing.ReadStmt, err
 	return &readStmt{
 		query: query,
 	}, nil
-}
-
-// deconstructRefTable returns three main deconstructions of the reference table name in the query:
-// 1) The {prefix}  of {prefix}_{chainID}_{ID}, if any.
-// 2) The {chainID} of {prefix}_{chainID}_{ID}.
-// 3) The {tableID} of {prefix}_{chainID}_{ID}.
-// If the referenced table is a system table, it will only return.
-func (pp *QueryValidator) deconstructRefTable(refTable string) (string, tableland.ChainID, string, error) {
-	if hasPrefix(refTable, pp.systemTablePrefixes) {
-		return "", 0, refTable, nil
-	}
-	if !pp.queryTableNameRegEx.MatchString(refTable) {
-		return "", 0, "", &parsing.ErrInvalidTableName{}
-	}
-
-	parts := strings.Split(refTable, "_")
-	// This validation is redundant considering that refTable matches the expected regex,
-	// so we're being a bit paranoid here since it's an easy check.
-	if len(parts) < 2 {
-		return "", 0, "", &parsing.ErrInvalidTableName{}
-	}
-
-	tableID := parts[len(parts)-1]
-	partChainID := parts[len(parts)-2]
-	prefix := strings.Join(parts[:len(parts)-2], "_")
-
-	chainID, err := strconv.ParseInt(partChainID, 10, 64)
-	if err != nil {
-		return "", 0, "", &parsing.ErrInvalidTableName{}
-	}
-
-	return prefix, tableland.ChainID(chainID), tableID, nil
 }
 
 type mutatingStmt struct {
@@ -398,24 +353,52 @@ func (s *readStmt) GetQuery() (string, error) {
 	return s.query, nil
 }
 
-func (pp *QueryValidator) validateWriteQuery(stmt sqlparser.WriteStatement) (string, error) {
+func (pp *QueryValidator) validateWriteQuery(stmt sqlparser.WriteStatement) (*sqlparser.ValidatedTable, error) {
 	if err := checkNoSystemTablesReferencing(stmt, pp.systemTablePrefixes); err != nil {
-		return "", fmt.Errorf("no system-table reference: %w", err)
+		return nil, fmt.Errorf("no system-table reference: %w", err)
 	}
 
-	return stmt.GetTable().String(), nil
+	insertTable, err := sqlparser.ValidateTargetTable(stmt.GetTable())
+	if err != nil {
+		return nil, fmt.Errorf("table name is not valid: %w", err)
+	}
+
+	if insert, ok := stmt.(*sqlparser.Insert); ok && insert.Select != nil {
+		tables, err := sqlparser.ValidateTargetTables(insert.Select)
+		if err != nil {
+			return nil, fmt.Errorf("validating select table names: %w", err)
+		}
+
+		if len(tables) > 1 {
+			return nil, fmt.Errorf("select should have only one table")
+		}
+
+		if tables[0].ChainID() != insertTable.ChainID() {
+			return nil, &parsing.ErrInsertWithSelectChainMistmatch{
+				InsertChainID: insertTable.ChainID(),
+				SelectChainID: tables[0].ChainID(),
+			}
+		}
+	}
+
+	return insertTable, nil
 }
 
-func (pp *QueryValidator) validateGrantQuery(stmt sqlparser.GrantOrRevokeStatement) (string, error) {
+func (pp *QueryValidator) validateGrantQuery(stmt sqlparser.GrantOrRevokeStatement) (*sqlparser.ValidatedTable, error) {
 	// check if roles are ETH addresses
 	for _, role := range stmt.GetRoles() {
 		addr := common.Address{}
 		if err := addr.UnmarshalText([]byte(role)); err != nil {
-			return "", &parsing.ErrRoleIsNotAnEthAddress{}
+			return nil, &parsing.ErrRoleIsNotAnEthAddress{}
 		}
 	}
 
-	return stmt.GetTable().String(), nil
+	table, err := sqlparser.ValidateTargetTable(stmt.GetTable())
+	if err != nil {
+		return nil, fmt.Errorf("table name is not valid: %w", err)
+	}
+
+	return table, nil
 }
 
 func checkNonEmptyStatement(parsed *sqlparser.AST) error {

@@ -166,7 +166,7 @@ func TestWriteQuery(t *testing.T) {
 		{
 			name:       "table id or chain id is missing",
 			query:      "delete from Hello_4 where a=2",
-			expErrType: ptr2ErrInvalidTableName(),
+			expErrType: ptr2ErrWrongFormatTableName(),
 		},
 		{
 			name:       "unprefixed table is missing underscore",
@@ -176,12 +176,12 @@ func TestWriteQuery(t *testing.T) {
 		{
 			name:       "non-numeric table id",
 			query:      "delete from person_4_wrong where a=2",
-			expErrType: ptr2ErrInvalidTableName(),
+			expErrType: ptr2ErrWrongFormatTableName(),
 		},
 		{
 			name:       "non-numeric chain id",
 			query:      "delete from _wrong_4 where a=2",
-			expErrType: ptr2ErrInvalidTableName(),
+			expErrType: ptr2ErrWrongFormatTableName(),
 		},
 
 		// Valid insert and updates.
@@ -265,12 +265,14 @@ func TestWriteQuery(t *testing.T) {
 			expErrType: ptr2ErrInvalidSyntax(),
 		},
 
-		// Disallow JOINs and sub-queries
+		// insert with select chain mismatch
 		{
-			name:       "insert subquery",
-			query:      "insert into foo select * from bar",
-			expErrType: ptr2ErrInvalidSyntax(),
+			name:       "insert subquery chain mismatch",
+			query:      "insert into foo_1_1 select * from bar_2_1",
+			expErrType: ptr2ErrInsertWithSelectChainMistmatch(),
 		},
+
+		// Disallow JOINs and sub-queries
 		{
 			name:       "update join",
 			query:      "update foo set a=1 from bar",
@@ -455,7 +457,7 @@ func TestCreateTableChecks(t *testing.T) {
 			name:       "missing chain id",
 			query:      "create table Hello (foo int)",
 			chainID:    68,
-			expErrType: ptr2ErrInvalidTableName(),
+			expErrType: ptr2ErrWrongFormatTableName(),
 		},
 		{
 			name:       "missing underscore",
@@ -942,6 +944,11 @@ func ptr2ErrInvalidTableName() **parsing.ErrInvalidTableName {
 	return &e
 }
 
+func ptr2ErrWrongFormatTableName() **sqlparser.ErrTableNameWrongFormat {
+	var e *sqlparser.ErrTableNameWrongFormat
+	return &e
+}
+
 func ptr2ErrPrefixTableName() **parsing.ErrPrefixTableName {
 	var e *parsing.ErrPrefixTableName
 	return &e
@@ -954,5 +961,10 @@ func ptr2ErrStatementIsNotSupported() **parsing.ErrStatementIsNotSupported {
 
 func ptr2ErrRoleIsNotAnEthAddress() **parsing.ErrRoleIsNotAnEthAddress {
 	var e *parsing.ErrRoleIsNotAnEthAddress
+	return &e
+}
+
+func ptr2ErrInsertWithSelectChainMistmatch() **parsing.ErrInsertWithSelectChainMistmatch {
+	var e *parsing.ErrInsertWithSelectChainMistmatch
 	return &e
 }

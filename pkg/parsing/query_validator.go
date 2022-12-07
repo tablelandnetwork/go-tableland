@@ -204,6 +204,17 @@ func (e *ErrWriteQueryTooLong) Error() string {
 		e.Length, e.MaxAllowed)
 }
 
+// ErrInsertWithSelectChainMistmatch is an error returned there is a mismatch of chains in a insert with select.
+type ErrInsertWithSelectChainMistmatch struct {
+	InsertChainID int64
+	SelectChainID int64
+}
+
+func (e *ErrInsertWithSelectChainMistmatch) Error() string {
+	return fmt.Sprintf(
+		"insert with select chain mismatch (insert chain %d, select chain %d)", e.InsertChainID, e.SelectChainID)
+}
+
 // Config contains configuration parameters for tableland.
 type Config struct {
 	MaxReadQuerySize  int
