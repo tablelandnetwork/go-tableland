@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 )
 
 // Output is used to control the output format of a Read using the ReadOutput option.
@@ -57,6 +58,8 @@ func ReadUnwrap() ReadOption {
 	}
 }
 
+var queryURL, _ = url.Parse("/api/v1/query")
+
 // Read runs a read query with the provided opts and unmarshals the results into target.
 func (c *Client) Read(ctx context.Context, query string, target interface{}, opts ...ReadOption) error {
 	params := defaultReadQueryParameters
@@ -64,8 +67,7 @@ func (c *Client) Read(ctx context.Context, query string, target interface{}, opt
 		opt(&params)
 	}
 
-	url := *c.baseURL.JoinPath("api/v1/query")
-
+	url := c.baseURL.ResolveReference(queryURL)
 	values := url.Query()
 	values.Set("statement", query)
 	values.Set("format", string(params.format))

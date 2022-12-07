@@ -13,9 +13,9 @@ import (
 
 // Version returns the validator version information.
 func (c *Client) Version(ctx context.Context) (*apiv1.VersionInfo, error) {
-	url := *c.baseURL.JoinPath("api/v1/version")
+	url := fmt.Sprintf("%s/api/v1/version", c.baseURL)
 
-	req, err := http.NewRequestWithContext(ctx, "GET", url.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %s", err)
 	}

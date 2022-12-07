@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 
 	"github.com/textileio/go-tableland/internal/router/controllers/apiv1"
 )
@@ -18,12 +17,8 @@ var ErrTableNotFound = errors.New("table not found")
 // GetTable returns the table information given its ID. If the table ID doesn't exist,
 // it returns ErrTableNotFound.
 func (c *Client) GetTable(ctx context.Context, tableID TableID) (*apiv1.Table, error) {
-	url := *c.baseURL.
-		JoinPath("api/v1/tables/").
-		JoinPath(strconv.FormatInt(int64(c.chain.ID), 10)).
-		JoinPath(strconv.FormatInt(tableID.ToBigInt().Int64(), 10))
-
-	req, err := http.NewRequestWithContext(ctx, "GET", url.String(), nil)
+	url := fmt.Sprintf("%s/api/v1/tables/%d/%d", c.baseURL, c.chain.ID, tableID.ToBigInt().Uint64())
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %s", err)
 	}
