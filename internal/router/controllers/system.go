@@ -84,8 +84,15 @@ func (c *SystemController) GetTable(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	isAPIV1 := strings.HasPrefix(r.RequestURI, "/api/v1/tables")
+
 	metadata, err := c.systemService.GetTableMetadata(ctx, id)
 	if err == system.ErrTableNotFound {
+		if !isAPIV1 {
+			rw.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(rw).Encode(metadata)
+			return
+		}
 		rw.WriteHeader(http.StatusNotFound)
 		return
 	}
