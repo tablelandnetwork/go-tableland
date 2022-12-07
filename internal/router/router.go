@@ -106,7 +106,7 @@ func configureAPIV1Routes(
 			systemCtrl.GetReceiptByTransactionHash,
 			[]mux.MiddlewareFunc{middlewares.WithLogging, middlewares.RESTChainID, rateLim},
 		},
-		"GetTableById": { // TODO(jsign): verify output.
+		"GetTableById": {
 			systemCtrl.GetTable,
 			[]mux.MiddlewareFunc{middlewares.WithLogging, middlewares.RESTChainID, rateLim},
 		},
