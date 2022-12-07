@@ -111,7 +111,7 @@ func (c *SystemController) GetTable(rw http.ResponseWriter, r *http.Request) {
 	var metadataRes interface{}
 	metadataRes = metadata
 	// TODO(json-rpc): remove this if when dropping support. It won't be needed anymore for compatibility reasons.
-	if strings.HasPrefix(r.RequestURI, "/api/v1/tables") {
+	if isAPIV1 {
 		metadataV1 := apiv1.Table{
 			Name:         metadata.Name,
 			ExternalUrl:  metadata.ExternalURL,
