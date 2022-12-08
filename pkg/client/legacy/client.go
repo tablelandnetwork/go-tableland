@@ -1,4 +1,4 @@
-package client
+package clientlegacy
 
 import (
 	"context"
@@ -13,8 +13,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/textileio/go-tableland/internal/router/rpcservice"
+	"github.com/textileio/go-tableland/internal/router/controllers/legacy"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/client"
 	"github.com/textileio/go-tableland/pkg/nonce/impl"
 	"github.com/textileio/go-tableland/pkg/siwe"
 	"github.com/textileio/go-tableland/pkg/tables"
@@ -22,16 +23,17 @@ import (
 	"github.com/textileio/go-tableland/pkg/wallet"
 )
 
-var defaultChain = Chains.PolygonMumbai
+var defaultChain = client.Chains.PolygonMumbai
 
 // TxnReceipt is a Tableland event processing receipt.
+// TODO(json-rpc): remove client_legacy package when support is dropped.
 type TxnReceipt struct {
-	ChainID       ChainID `json:"chain_id"`
-	TxnHash       string  `json:"txn_hash"`
-	BlockNumber   int64   `json:"block_number"`
-	Error         string  `json:"error"`
-	ErrorEventIdx int     `json:"error_event_idx"`
-	TableID       *string `json:"table_id,omitempty"`
+	ChainID       client.ChainID `json:"chain_id"`
+	TxnHash       string         `json:"txn_hash"`
+	BlockNumber   int64          `json:"block_number"`
+	Error         string         `json:"error"`
+	ErrorEventIdx int            `json:"error_event_idx"`
+	TableID       *string        `json:"table_id,omitempty"`
 }
 
 // TableID is the ID of a Table.
@@ -76,13 +78,13 @@ type Client struct {
 	tblRPC      *rpc.Client
 	tblHTTP     *http.Client
 	tblContract *ethereum.Client
-	chain       Chain
+	chain       client.Chain
 	relayWrites bool
 	wallet      *wallet.Wallet
 }
 
 type config struct {
-	chain           *Chain
+	chain           *client.Chain
 	relayWrites     *bool
 	infuraAPIKey    string
 	alchemyAPIKey   string
@@ -94,7 +96,7 @@ type config struct {
 type NewClientOption func(*config)
 
 // NewClientChain specifies chaininfo.
-func NewClientChain(chain Chain) NewClientOption {
+func NewClientChain(chain client.Chain) NewClientOption {
 	return func(ncc *config) {
 		ncc.chain = &chain
 	}
@@ -251,8 +253,8 @@ func (c *Client) Create(ctx context.Context, schema string, opts ...CreateOption
 	}
 
 	createStatement := fmt.Sprintf("CREATE TABLE %s_%d %s", conf.prefix, c.chain.ID, schema)
-	req := &rpcservice.ValidateCreateTableRequest{CreateStatement: createStatement}
-	var res rpcservice.ValidateCreateTableResponse
+	req := &legacy.ValidateCreateTableRequest{CreateStatement: createStatement}
+	var res legacy.ValidateCreateTableResponse
 
 	if err := c.tblRPC.CallContext(ctx, &res, "tableland_validateCreateTable", req); err != nil {
 		return TableID{}, "", fmt.Errorf("calling rpc validateCreateTable: %v", err)
@@ -290,11 +292,11 @@ const (
 )
 
 // ReadOption controls the behavior of Read.
-type ReadOption func(*rpcservice.RunReadQueryRequest)
+type ReadOption func(*legacy.RunReadQueryRequest)
 
 // ReadOutput sets the output format. Default is Objects.
 func ReadOutput(output Output) ReadOption {
-	return func(rrqr *rpcservice.RunReadQueryRequest) {
+	return func(rrqr *legacy.RunReadQueryRequest) {
 		rrqr.Output = (*string)(&output)
 	}
 }
@@ -303,7 +305,7 @@ func ReadOutput(output Output) ReadOption {
 // from the single property of the surrounding JSON object.
 // Default is false.
 func ReadExtract() ReadOption {
-	return func(rrqr *rpcservice.RunReadQueryRequest) {
+	return func(rrqr *legacy.RunReadQueryRequest) {
 		v := true
 		rrqr.Extract = &v
 	}
@@ -312,7 +314,7 @@ func ReadExtract() ReadOption {
 // ReadUnwrap specifies whether or not to unwrap the returned JSON objects from their surrounding array.
 // Default is false.
 func ReadUnwrap() ReadOption {
-	return func(rrqr *rpcservice.RunReadQueryRequest) {
+	return func(rrqr *legacy.RunReadQueryRequest) {
 		v := true
 		rrqr.Unwrap = &v
 	}
@@ -320,11 +322,11 @@ func ReadUnwrap() ReadOption {
 
 // Read runs a read query with the provided opts and unmarshals the results into target.
 func (c *Client) Read(ctx context.Context, query string, target interface{}, opts ...ReadOption) error {
-	req := &rpcservice.RunReadQueryRequest{Statement: query}
+	req := &legacy.RunReadQueryRequest{Statement: query}
 	for _, opt := range opts {
 		opt(req)
 	}
-	res := &rpcservice.RunReadQueryResponse{
+	res := &legacy.RunReadQueryResponse{
 		Result: target,
 	}
 	if err := c.tblRPC.CallContext(ctx, &res, "tableland_runReadQuery", req); err != nil {
@@ -355,8 +357,8 @@ func (c *Client) Write(ctx context.Context, query string, opts ...WriteOption) (
 		opt(&conf)
 	}
 	if conf.relay {
-		req := &rpcservice.RelayWriteQueryRequest{Statement: query}
-		var res rpcservice.RelayWriteQueryResponse
+		req := &legacy.RelayWriteQueryRequest{Statement: query}
+		var res legacy.RelayWriteQueryResponse
 		if err := c.tblRPC.CallContext(ctx, &res, "tableland_relayWriteQuery", req); err != nil {
 			return "", fmt.Errorf("calling rpc relayWriteQuery: %v", err)
 		}
@@ -375,8 +377,8 @@ func (c *Client) Write(ctx context.Context, query string, opts ...WriteOption) (
 
 // Hash validates the provided create table statement and returns its hash.
 func (c *Client) Hash(ctx context.Context, statement string) (string, error) {
-	req := &rpcservice.ValidateCreateTableRequest{CreateStatement: statement}
-	var res rpcservice.ValidateCreateTableResponse
+	req := &legacy.ValidateCreateTableRequest{CreateStatement: statement}
+	var res legacy.ValidateCreateTableResponse
 	if err := c.tblRPC.CallContext(ctx, &res, "tableland_validateCreateTable", req); err != nil {
 		return "", fmt.Errorf("calling rpc validateCreateTable: %v", err)
 	}
@@ -385,8 +387,8 @@ func (c *Client) Hash(ctx context.Context, statement string) (string, error) {
 
 // Validate validates a write query, returning the table id.
 func (c *Client) Validate(ctx context.Context, statement string) (TableID, error) {
-	req := &rpcservice.ValidateWriteQueryRequest{Statement: statement}
-	var res rpcservice.ValidateWriteQueryResponse
+	req := &legacy.ValidateWriteQueryRequest{Statement: statement}
+	var res legacy.ValidateWriteQueryResponse
 	if err := c.tblRPC.CallContext(ctx, &res, "tableland_validateWriteQuery", req); err != nil {
 		return TableID{}, fmt.Errorf("calling rpc validateWriteQuery: %v", err)
 	}
@@ -434,8 +436,8 @@ func (c *Client) SetController(
 	controller common.Address,
 	tableID TableID,
 ) (string, error) {
-	req := rpcservice.SetControllerRequest{Controller: controller.Hex(), TokenID: tableID.String()}
-	var res rpcservice.SetControllerResponse
+	req := legacy.SetControllerRequest{Controller: controller.Hex(), TokenID: tableID.String()}
+	var res legacy.SetControllerResponse
 
 	if err := c.tblRPC.CallContext(ctx, &res, "tableland_setController", req); err != nil {
 		return "", fmt.Errorf("calling rpc setController: %v", err)
@@ -445,8 +447,8 @@ func (c *Client) SetController(
 }
 
 func (c *Client) getReceipt(ctx context.Context, txnHash string) (*TxnReceipt, bool, error) {
-	req := rpcservice.GetReceiptRequest{TxnHash: txnHash}
-	var res rpcservice.GetReceiptResponse
+	req := legacy.GetReceiptRequest{TxnHash: txnHash}
+	var res legacy.GetReceiptResponse
 	if err := c.tblRPC.CallContext(ctx, &res, "tableland_getReceipt", req); err != nil {
 		return nil, false, fmt.Errorf("calling rpc getReceipt: %v", err)
 	}
@@ -455,7 +457,7 @@ func (c *Client) getReceipt(ctx context.Context, txnHash string) (*TxnReceipt, b
 	}
 
 	receipt := TxnReceipt{
-		ChainID:       ChainID(res.Receipt.ChainID),
+		ChainID:       client.ChainID(res.Receipt.ChainID),
 		TxnHash:       res.Receipt.TxnHash,
 		BlockNumber:   res.Receipt.BlockNumber,
 		Error:         res.Receipt.Error,
@@ -497,19 +499,19 @@ func getContractBackend(ctx context.Context, config config) (bind.ContractBacken
 	if config.contractBackend != nil && config.infuraAPIKey == "" && config.alchemyAPIKey == "" {
 		return config.contractBackend, nil
 	} else if config.infuraAPIKey != "" && config.contractBackend == nil && config.alchemyAPIKey == "" {
-		tmpl, found := infuraURLs[config.chain.ID]
+		tmpl, found := client.InfuraURLs[config.chain.ID]
 		if !found {
 			return nil, fmt.Errorf("chain id %v not supported for Infura", config.chain.ID)
 		}
 		return ethclient.DialContext(ctx, fmt.Sprintf(tmpl, config.infuraAPIKey))
 	} else if config.alchemyAPIKey != "" && config.contractBackend == nil && config.infuraAPIKey == "" {
-		tmpl, found := alchemyURLs[config.chain.ID]
+		tmpl, found := client.AlchemyURLs[config.chain.ID]
 		if !found {
 			return nil, fmt.Errorf("chain id %v not supported for Alchemy", config.chain.ID)
 		}
 		return ethclient.DialContext(ctx, fmt.Sprintf(tmpl, config.alchemyAPIKey))
 	} else if config.local {
-		url, found := localURLs[config.chain.ID]
+		url, found := client.LocalURLs[config.chain.ID]
 		if !found {
 			return nil, fmt.Errorf("chain id %v not supported for Local", config.chain.ID)
 		}

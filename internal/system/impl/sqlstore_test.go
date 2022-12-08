@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/router/middlewares"
+	sys "github.com/textileio/go-tableland/internal/system"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	executor "github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor/impl"
@@ -270,8 +271,7 @@ func TestGetMetadata(t *testing.T) {
 		require.NoError(t, err)
 
 		metadata, err := svc.GetTableMetadata(ctx, id)
-		require.NoError(t, err)
-
+		require.ErrorIs(t, err, sys.ErrTableNotFound)
 		require.Equal(t, fmt.Sprintf("https://tableland.network/tables/chain/%d/tables/%s", 1337, id), metadata.ExternalURL)
 		require.Equal(t, "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0nNTEyJyBoZWlnaHQ9JzUxMicgeG1sbnM9J2h0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnJz48cmVjdCB3aWR0aD0nNTEyJyBoZWlnaHQ9JzUxMicgZmlsbD0nIzAwMCcvPjwvc3ZnPg==", metadata.Image) // nolint
 		require.Equal(t, "Table not found", metadata.Message)

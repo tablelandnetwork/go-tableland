@@ -128,6 +128,7 @@ func userRowToMap(cols []tableland.Column, row []*tableland.ColumnValue) map[str
 
 // GetTableRow handles the GET /chain/{chainID}/tables/{id}/{key}/{value} call.
 // Use format=erc721 query param to generate JSON for ERC721 metadata.
+// TODO(json-rpc): delete method when dropping support.
 func (c *UserController) GetTableRow(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-Type", "application/json")
 	vars := mux.Vars(r)
@@ -214,7 +215,11 @@ func (c *UserController) GetTableRow(rw http.ResponseWriter, r *http.Request) {
 func (c *UserController) GetTableQuery(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-Type", "application/json")
 
-	stm := r.URL.Query().Get("s")
+	stm := r.URL.Query().Get("s") // TODO(json-rpc): remove query parameter "s" when dropping support.
+	if stm == "" {
+		stm = r.URL.Query().Get("statement")
+	}
+
 	start := time.Now()
 	res, ok := c.runReadRequest(r.Context(), stm, rw)
 	if !ok {
@@ -299,7 +304,11 @@ type formatterParams struct {
 
 func getFormatterParams(r *http.Request) (formatterParams, error) {
 	c := formatterParams{}
-	output := r.URL.Query().Get("output")
+	output := r.URL.Query().Get("output") // TODO(json-rpc): drop "output" when dropping support.
+	if output == "" {
+		output = r.URL.Query().Get("format")
+	}
+
 	extract := r.URL.Query().Get("extract")
 	unwrap := r.URL.Query().Get("unwrap")
 	if output != "" {

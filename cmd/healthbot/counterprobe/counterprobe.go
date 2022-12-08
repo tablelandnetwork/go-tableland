@@ -10,7 +10,7 @@ import (
 
 	"github.com/rs/zerolog"
 	logger "github.com/rs/zerolog/log"
-	"github.com/textileio/go-tableland/internal/router/rpcservice"
+	"github.com/textileio/go-tableland/internal/router/controllers/legacy"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
 
@@ -149,22 +149,22 @@ func (cp *CounterProbe) healthCheck(ctx context.Context) (int64, error) {
 }
 
 func (cp *CounterProbe) increaseCounterValue(ctx context.Context) error {
-	updateCounterReq := rpcservice.RelayWriteQueryRequest{
+	updateCounterReq := legacy.RelayWriteQueryRequest{
 		Statement: fmt.Sprintf("update %s set counter=counter+1", cp.tableName),
 	}
-	var updateCounterRes rpcservice.RelayWriteQueryResponse
+	var updateCounterRes legacy.RelayWriteQueryResponse
 	if err := cp.rpcClient.CallContext(ctx, &updateCounterRes, "tableland_relayWriteQuery", updateCounterReq); err != nil {
 		return fmt.Errorf("calling tableland_runReadQuery: %s", err)
 	}
 
-	getReceiptRequest := rpcservice.GetReceiptRequest{
+	getReceiptRequest := legacy.GetReceiptRequest{
 		TxnHash: updateCounterRes.Transaction.Hash,
 	}
 
 	start := time.Now()
 	deadline := time.Now().Add(cp.receiptTimeout)
 	for time.Now().Before(deadline) {
-		var getReceiptResponse rpcservice.GetReceiptResponse
+		var getReceiptResponse legacy.GetReceiptResponse
 		if err := cp.rpcClient.CallContext(ctx, &getReceiptResponse, "tableland_getReceipt", getReceiptRequest); err != nil {
 			return fmt.Errorf("calling tableland_getReceipt: %s", err)
 		}
@@ -183,7 +183,7 @@ func (cp *CounterProbe) increaseCounterValue(ctx context.Context) error {
 
 func (cp *CounterProbe) getCurrentCounterValue(ctx context.Context) (int64, error) {
 	output := "table"
-	getCounterReq := rpcservice.RunReadQueryRequest{
+	getCounterReq := legacy.RunReadQueryRequest{
 		Statement: fmt.Sprintf("select * from %s", cp.tableName),
 		Output:    &output,
 	}

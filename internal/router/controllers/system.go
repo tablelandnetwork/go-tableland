@@ -3,9 +3,12 @@ package controllers
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog/log"
+	"github.com/textileio/go-tableland/internal/router/controllers/apiv1"
 	"github.com/textileio/go-tableland/internal/system"
 	"github.com/textileio/go-tableland/pkg/errors"
 	"github.com/textileio/go-tableland/pkg/tables"
@@ -21,13 +24,55 @@ func NewSystemController(svc system.SystemService) *SystemController {
 	return &SystemController{svc}
 }
 
-// GetTable handles the GET /chain/{chainID}/tables/{id} call.
+// GetReceiptByTransactionHash handles request asking for a transaction receipt.
+func (c *SystemController) GetReceiptByTransactionHash(rw http.ResponseWriter, r *http.Request) {
+	rw.Header().Set("Content-Type", "application/json")
+	ctx := r.Context()
+
+	paramTxnHash := mux.Vars(r)["transactionHash"]
+	if _, err := common.ParseHexOrString(paramTxnHash); err != nil {
+		rw.WriteHeader(http.StatusBadRequest)
+		log.Ctx(ctx).Error().Err(err).Msg("invalid transaction hash")
+		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Invalid transaction hash"})
+		return
+	}
+	txnHash := common.HexToHash(paramTxnHash)
+
+	receipt, exists, err := c.systemService.GetReceiptByTransactionHash(ctx, txnHash)
+	if err != nil {
+		rw.WriteHeader(http.StatusBadRequest)
+		log.Ctx(ctx).Error().Err(err).Msg("get receipt by transaction hash")
+		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Get receipt by transaction hash failed"})
+		return
+	}
+	if !exists {
+		rw.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	receiptResponse := apiv1.TransactionReceipt{
+		TransactionHash: paramTxnHash,
+		BlockNumber:     receipt.BlockNumber,
+		ChainId:         int32(receipt.ChainID),
+	}
+	if receipt.TableID != nil {
+		receiptResponse.TableId = receipt.TableID.String()
+	}
+	if receipt.Error != nil {
+		receiptResponse.Error_ = *receipt.Error
+		receiptResponse.ErrorEventIdx = int32(*receipt.ErrorEventIdx)
+	}
+	rw.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(rw).Encode(receiptResponse)
+}
+
+// GetTable handles the GET /chain/{chainID}/tables/{tableId} call.
 func (c *SystemController) GetTable(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	rw.Header().Set("Content-type", "application/json")
 	vars := mux.Vars(r)
 
-	id, err := tables.NewTableID(vars["id"])
+	id, err := tables.NewTableID(vars["tableId"])
 	if err != nil {
 		rw.WriteHeader(http.StatusBadRequest)
 		log.Ctx(ctx).
@@ -39,7 +84,18 @@ func (c *SystemController) GetTable(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	isAPIV1 := strings.HasPrefix(r.RequestURI, "/api/v1/tables")
+
 	metadata, err := c.systemService.GetTableMetadata(ctx, id)
+	if err == system.ErrTableNotFound {
+		if !isAPIV1 {
+			rw.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(rw).Encode(metadata)
+			return
+		}
+		rw.WriteHeader(http.StatusNotFound)
+		return
+	}
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 		log.Ctx(ctx).
@@ -52,11 +108,41 @@ func (c *SystemController) GetTable(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	metadataV1 := apiv1.Table{
+		Name:         metadata.Name,
+		ExternalUrl:  metadata.ExternalURL,
+		AnimationUrl: metadata.AnimationURL,
+		Image:        metadata.Image,
+		Attributes:   make([]apiv1.TableAttributes, len(metadata.Attributes)),
+		Schema: &apiv1.Schema{
+			Columns:          make([]apiv1.Column, len(metadata.Schema.Columns)),
+			TableConstraints: make([]string, len(metadata.Schema.TableConstraints)),
+		},
+	}
+	for i, attr := range metadata.Attributes {
+		metadataV1.Attributes[i] = apiv1.TableAttributes{
+			DisplayType: attr.DisplayType,
+			TraitType:   attr.TraitType,
+			Value:       attr.Value,
+		}
+	}
+	for i, schemaColumn := range metadata.Schema.Columns {
+		metadataV1.Schema.Columns[i] = apiv1.Column{
+			Name:        schemaColumn.Name,
+			Type_:       schemaColumn.Type,
+			Constraints: make([]string, len(schemaColumn.Constraints)),
+		}
+		copy(metadataV1.Schema.Columns[i].Constraints, schemaColumn.Constraints)
+	}
+	copy(metadataV1.Schema.TableConstraints, metadata.Schema.TableConstraints)
+
 	rw.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(rw).Encode(metadata)
+
+	_ = json.NewEncoder(rw).Encode(metadataV1)
 }
 
 // GetTablesByController handles the GET /chain/{chainID}/tables/controller/{address} call.
+// TODO(json-rpc): delete when dropping support.
 func (c *SystemController) GetTablesByController(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	rw.Header().Set("Content-type", "application/json")
@@ -99,6 +185,7 @@ func (c *SystemController) GetTablesByController(rw http.ResponseWriter, r *http
 }
 
 // GetTablesByStructureHash handles the GET /chain/{id}/tables/structure/{hash} call.
+// TODO(json-rpc): delete when dropping support.
 func (c *SystemController) GetTablesByStructureHash(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -138,6 +225,7 @@ func (c *SystemController) GetTablesByStructureHash(rw http.ResponseWriter, r *h
 }
 
 // GetSchemaByTableName handles the GET /schema/{table_name} call.
+// TODO(json-rpc): delete when droppping support.
 func (c *SystemController) GetSchemaByTableName(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -194,4 +282,9 @@ func (c *SystemController) GetSchemaByTableName(rw http.ResponseWriter, r *http.
 		Columns:          columns,
 		TableConstraints: schema.TableConstraints,
 	})
+}
+
+// HealthHandler serves health check requests.
+func HealthHandler(w http.ResponseWriter, _ *http.Request) {
+	w.WriteHeader(http.StatusOK)
 }

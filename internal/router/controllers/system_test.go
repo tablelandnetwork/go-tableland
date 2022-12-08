@@ -23,7 +23,7 @@ func TestSystemControllerMock(t *testing.T) {
 		require.NoError(t, err)
 
 		router := mux.NewRouter()
-		router.HandleFunc("/chain/{chainID}/tables/{id}", systemController.GetTable)
+		router.HandleFunc("/chain/{chainID}/tables/{tableId}", systemController.GetTable)
 
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
@@ -34,7 +34,8 @@ func TestSystemControllerMock(t *testing.T) {
 			"name":"name-1",
 			"external_url":"https://tableland.network/tables/100",
 			"image":"https://bafkreifhuhrjhzbj4onqgbrmhpysk2mop2jimvdvfut6taiyzt2yqzt43a.ipfs.dweb.link",
-			"attributes":[{"display_type":"date","trait_type":"created","value":1546360800}]
+			"attributes":[{"display_type":"date","trait_type":"created","value":1546360800}],
+			"schema":{"columns":[{"name":"foo","type":"text"}]}
 		}`
 		require.JSONEq(t, expJSON, rr.Body.String())
 	})
@@ -158,7 +159,7 @@ func TestTableNotFoundMock(t *testing.T) {
 	systemController := NewSystemController(systemService)
 
 	router := mux.NewRouter()
-	router.HandleFunc("/tables/{id}", systemController.GetTable)
+	router.HandleFunc("/tables/{tableId}", systemController.GetTable)
 
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
