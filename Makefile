@@ -86,7 +86,7 @@ APIV1=${PWD}/internal/router/controllers/apiv1
 gen-api-v1:
 	mkdir -p ${APIV1}
 	curl -s ${SPEC_URL} > ${APIV1}/tableland-openapi-spec.yaml
-	docker run -w /gen -e GEN_DIR=/gen -v ${APIV1}:/gen swaggerapi/swagger-codegen-cli-v3 \
+	docker run -w /gen -e GEN_DIR=/gen -v ${APIV1}:/gen swaggerapi/swagger-codegen-cli-v3:3.0.36 \
 	   generate --lang go-server -o /gen -i tableland-openapi-spec.yaml --additional-properties=packageName=apiv1 
 	sudo chown -R ${USER} ${APIV1} 
 	cd ${APIV1} && \

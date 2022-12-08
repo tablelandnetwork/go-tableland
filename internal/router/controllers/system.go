@@ -66,7 +66,7 @@ func (c *SystemController) GetReceiptByTransactionHash(rw http.ResponseWriter, r
 	_ = json.NewEncoder(rw).Encode(receiptResponse)
 }
 
-// GetTable handles the GET /chain/{chainID}/tables/{id} call.
+// GetTable handles the GET /chain/{chainID}/tables/{tableId} call.
 func (c *SystemController) GetTable(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	rw.Header().Set("Content-type", "application/json")
