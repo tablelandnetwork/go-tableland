@@ -246,7 +246,7 @@ func (s *SystemStore) GetSchemaByTableName(ctx context.Context, name string) (sq
 		return sqlstore.TableSchema{}, fmt.Errorf("failed to get the table: %s", err)
 	}
 
-	index := strings.LastIndex(createStmt, "strict")
+	index := strings.LastIndex(strings.ToLower(createStmt), "strict")
 	ast, err := sqlparser.Parse(createStmt[:index])
 	if err != nil {
 		return sqlstore.TableSchema{}, fmt.Errorf("failed to parse create stmt: %s", err)
