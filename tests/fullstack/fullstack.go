@@ -149,7 +149,7 @@ func CreateFullStack(t *testing.T, deps Deps) FullStack {
 	ex, err := executor.NewExecutor(1337, db, parser, 0, acl)
 	require.NoError(t, err)
 
-	router, err := router.ConfiguredRouter(tbl, systemService, 10, time.Second)
+	router, err := router.ConfiguredRouter(tbl, systemService, 10, time.Second, []tableland.ChainID{ChainID})
 	require.NoError(t, err)
 
 	server := httptest.NewServer(router.Handler())
