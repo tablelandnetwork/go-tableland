@@ -116,11 +116,6 @@ func NewClient(ctx context.Context, wallet *wallet.Wallet, opts ...NewClientOpti
 		return nil, fmt.Errorf("new parser: %s", err)
 	}
 
-	parser, err = parserimpl.NewInstrumentedSQLValidator(parser)
-	if err != nil {
-		return nil, fmt.Errorf("instrumenting parser: %s", err)
-	}
-
 	baseURL, err := url.Parse(config.chain.Endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("invalid endpoint URL: %s", err)
