@@ -487,9 +487,11 @@ func createAPIServer(
 		return nil, fmt.Errorf("instrumenting mesa: %s", err)
 	}
 
+	supportedChainIDs := make([]tableland.ChainID, 0, len(chainStacks))
 	stores := make(map[tableland.ChainID]sqlstore.SystemStore, len(chainStacks))
 	for chainID, stack := range chainStacks {
 		stores[chainID] = stack.Store
+		supportedChainIDs = append(supportedChainIDs, chainID)
 	}
 	sysStore, err := systemimpl.NewSystemSQLStoreService(
 		stores,
@@ -513,6 +515,7 @@ func createAPIServer(
 		systemService,
 		httpConfig.MaxRequestPerInterval,
 		rateLimInterval,
+		supportedChainIDs,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("configuring router: %s", err)
