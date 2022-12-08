@@ -34,8 +34,8 @@ var defaultReadQueryParameters = readQueryParameters{
 // ReadOption controls the behavior of Read.
 type ReadOption func(*readQueryParameters)
 
-// ReadOutput sets the output format. Default is Objects.
-func ReadOutput(output Output) ReadOption {
+// ReadFormat sets the output format. Default is Objects.
+func ReadFormat(output Output) ReadOption {
 	return func(params *readQueryParameters) {
 		params.format = output
 	}
