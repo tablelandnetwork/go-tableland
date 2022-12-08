@@ -40,7 +40,7 @@ func TestRead(t *testing.T) {
 		require.Equal(t, "baz", res0[0].Bar)
 
 		res1 := map[string]interface{}{}
-		calls.query(fmt.Sprintf("select * from %s", tableName), &res1, ReadOutput(Table))
+		calls.query(fmt.Sprintf("select * from %s", tableName), &res1, ReadFormat(Table))
 		require.Len(t, res1, 2)
 
 		res2 := result{}
