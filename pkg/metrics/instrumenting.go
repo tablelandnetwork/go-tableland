@@ -7,7 +7,6 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/otel/attribute"
 	otelprom "go.opentelemetry.io/otel/exporters/prometheus"
@@ -18,7 +17,6 @@ import (
 	"go.opentelemetry.io/otel/metric/instrument/asyncint64"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/aggregation"
-	"go.opentelemetry.io/otel/sdk/metric/view"
 )
 
 // BaseAttrs contains attributes that should be added in all exported metrics.
@@ -28,26 +26,15 @@ var BaseAttrs []attribute.KeyValue
 func SetupInstrumentation(prometheusAddr string, serviceName string) error {
 	BaseAttrs = []attribute.KeyValue{attribute.String("service_name", serviceName)}
 
-	exporter := otelprom.New()
-
-	v, err := view.New(
-		view.MatchInstrumentKind(view.SyncHistogram),
-		view.WithSetAggregation(aggregation.ExplicitBucketHistogram{
-			Boundaries: []float64{0.5, 1, 2, 4, 10, 50, 100, 500, 1000, 5000},
-		}),
-	)
+	exporter, err := otelprom.New(otelprom.WithAggregationSelector(aggregatorSelector))
 	if err != nil {
-		return fmt.Errorf("configuring histogram buckets: %s", err)
+		return fmt.Errorf("creating prometheus exporter: %s", err)
 	}
-	provider := metric.NewMeterProvider(metric.WithReader(exporter, v))
+
+	provider := metric.NewMeterProvider(metric.WithReader(exporter))
 	global.SetMeterProvider(provider)
 
-	registry := prometheus.NewRegistry()
-	if err := registry.Register(exporter.Collector); err != nil {
-		return fmt.Errorf("error registering collector: %v", err)
-	}
-
-	http.Handle("/metrics", promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
+	http.Handle("/metrics", promhttp.Handler())
 	go func() {
 		_ = http.ListenAndServe(prometheusAddr, nil)
 	}()
@@ -165,4 +152,19 @@ func startCollectingMemoryMetrics() error {
 		return fmt.Errorf("registering callback: %s", err)
 	}
 	return nil
+}
+
+func aggregatorSelector(ik metric.InstrumentKind) aggregation.Aggregation {
+	switch ik {
+	case metric.InstrumentKindSyncCounter, metric.InstrumentKindSyncUpDownCounter, metric.InstrumentKindAsyncCounter, metric.InstrumentKindAsyncUpDownCounter:
+		return aggregation.Sum{}
+	case metric.InstrumentKindAsyncGauge:
+		return aggregation.LastValue{}
+	case metric.InstrumentKindSyncHistogram:
+		return aggregation.ExplicitBucketHistogram{
+			Boundaries: []float64{0.5, 1, 2, 4, 10, 50, 100, 500, 1000, 5000},
+			NoMinMax:   false,
+		}
+	}
+	panic("unknown instrument kind")
 }
