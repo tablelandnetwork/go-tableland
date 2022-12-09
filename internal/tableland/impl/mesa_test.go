@@ -64,27 +64,6 @@ func TestTodoAppWorkflow(t *testing.T) {
 	processCSV(ctx, t, chainID, caller, tbld, "testdata/todoapp_queries.csv", backend)
 }
 
-func TestAny(t *testing.T) {
-	t.Parallel()
-
-	setup := newTablelandSetupBuilder().
-		withAllowTransactionRelay(true).
-		build(t)
-	tablelandClient := setup.newTablelandClient(t)
-
-	ctx, chainID, backend, sc := setup.ctx, setup.chainID, setup.ethClient, setup.contract
-	tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
-
-	caller := txOpts.From
-	_, err := sc.CreateTable(txOpts, caller,
-		`CREATE TABLE any_1337 (
-			wild ANY
-		  );`)
-	require.NoError(t, err)
-
-	processCSV(ctx, t, chainID, caller, tbld, "testdata/any_queries.csv", backend)
-}
-
 func TestInsertOnConflict(t *testing.T) {
 	t.Parallel()
 	// TODO: This test was passing because the "DO UPDATE SET" clause didn't have a table name.

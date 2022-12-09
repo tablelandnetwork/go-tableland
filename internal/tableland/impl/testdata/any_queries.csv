@@ -1,3 +1,0 @@
-w,"INSERT INTO any_1337_1 VALUES ('hello')",""
-w,"INSERT INTO any_1337_1 VALUES (3)",""
-r,"SELECT * FROM any_1337_1","{""columns"":[{""name"":""wild""}],""rows"":[[""hello""],[3]]}"
