@@ -101,7 +101,7 @@ func configureAPIV1Routes(
 		handler     http.HandlerFunc
 		middlewares []mux.MiddlewareFunc
 	}{
-		"QueryFromQuery": {
+		"QueryByStatement": {
 			userCtrl.GetTableQuery,
 			[]mux.MiddlewareFunc{middlewares.WithLogging, rateLim},
 		},
