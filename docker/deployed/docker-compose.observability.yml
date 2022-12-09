@@ -1,6 +1,6 @@
 services:
   prometheus:
-    image: prom/prometheus:v2.36.2
+    image: prom/prometheus:v2.39.1
     container_name: prometheus
     volumes:
       - ${PWD}/observability/prometheus:/etc/prometheus
