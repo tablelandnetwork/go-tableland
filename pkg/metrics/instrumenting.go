@@ -156,7 +156,8 @@ func startCollectingMemoryMetrics() error {
 
 func aggregatorSelector(ik metric.InstrumentKind) aggregation.Aggregation {
 	switch ik {
-	case metric.InstrumentKindSyncCounter, metric.InstrumentKindSyncUpDownCounter, metric.InstrumentKindAsyncCounter, metric.InstrumentKindAsyncUpDownCounter:
+	case metric.InstrumentKindSyncCounter, metric.InstrumentKindSyncUpDownCounter,
+		metric.InstrumentKindAsyncCounter, metric.InstrumentKindAsyncUpDownCounter:
 		return aggregation.Sum{}
 	case metric.InstrumentKindAsyncGauge:
 		return aggregation.LastValue{}
