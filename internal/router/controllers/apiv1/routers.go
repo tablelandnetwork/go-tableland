@@ -63,10 +63,10 @@ var routes = Routes{
 	},
 
 	Route{
-		"QueryFromQuery",
+		"QueryByStatement",
 		strings.ToUpper("Get"),
 		"/api/v1/query",
-		QueryFromQuery,
+		QueryByStatement,
 	},
 
 	Route{
