@@ -28,7 +28,6 @@ func ConfiguredRouter(
 	if err := server.RegisterName("tableland", rpcService); err != nil {
 		return nil, fmt.Errorf("failed to register a json-rpc service: %s", err)
 	}
-	userCtrl := controllers.NewUserController(tableland, systemService)
 
 	// General router configuration.
 	router := newRouter()
@@ -46,12 +45,14 @@ func ConfiguredRouter(
 		return nil, fmt.Errorf("creating rate limit controller middleware: %s", err)
 	}
 
+	ctrl := controllers.NewUserController(tableland, systemService)
+
 	// TODO(json-rpc): remove this when dropping support.
 	// APIs Legacy (REST + JSON-RPC)
-	configureLegacyRoutes(router, server, supportedChainIDs, rateLim, userCtrl)
+	configureLegacyRoutes(router, server, supportedChainIDs, rateLim, ctrl)
 
 	// APIs V1
-	if err := configureAPIV1Routes(router, supportedChainIDs, rateLim, userCtrl); err != nil {
+	if err := configureAPIV1Routes(router, supportedChainIDs, rateLim, ctrl); err != nil {
 		return nil, fmt.Errorf("configuring API v1: %s", err)
 	}
 
