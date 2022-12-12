@@ -13,6 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/formatter"
 	"github.com/textileio/go-tableland/internal/router/middlewares"
+	"github.com/textileio/go-tableland/internal/system"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/errors"
 	"github.com/textileio/go-tableland/pkg/tables"
@@ -26,12 +27,16 @@ type SQLRunner interface {
 
 // UserController defines the HTTP handlers for interacting with user tables.
 type UserController struct {
-	runner SQLRunner
+	runner        SQLRunner
+	systemService system.SystemService
 }
 
 // NewUserController creates a new UserController.
-func NewUserController(runner SQLRunner) *UserController {
-	return &UserController{runner}
+func NewUserController(runner SQLRunner, svc system.SystemService) *UserController {
+	return &UserController{
+		runner:        runner,
+		systemService: svc,
+	}
 }
 
 // MetadataConfig defines columns should be mapped to erc721 metadata

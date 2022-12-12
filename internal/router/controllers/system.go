@@ -14,16 +14,6 @@ import (
 	"github.com/textileio/go-tableland/pkg/tables"
 )
 
-// SystemController defines the HTTP handlers for interacting with system operations.
-type SystemController struct {
-	systemService system.SystemService
-}
-
-// NewSystemController creates a new SystemController.
-func NewSystemController(svc system.SystemService) *SystemController {
-	return &SystemController{svc}
-}
-
 // GetReceiptByTransactionHash handles request asking for a transaction receipt.
 func (c *SystemController) GetReceiptByTransactionHash(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -70,7 +60,7 @@ func (c *SystemController) GetReceiptByTransactionHash(rw http.ResponseWriter, r
 }
 
 // GetTable handles the GET /chain/{chainID}/tables/{tableId} call.
-func (c *SystemController) GetTable(rw http.ResponseWriter, r *http.Request) {
+func (c *UserController) GetTable(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
 
@@ -149,7 +139,7 @@ func (c *SystemController) GetTable(rw http.ResponseWriter, r *http.Request) {
 
 // GetTablesByController handles the GET /chain/{chainID}/tables/controller/{address} call.
 // TODO(json-rpc): delete when dropping support.
-func (c *SystemController) GetTablesByController(rw http.ResponseWriter, r *http.Request) {
+func (c *UserController) GetTablesByController(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	rw.Header().Set("Content-type", "application/json")
 	vars := mux.Vars(r)
@@ -192,7 +182,7 @@ func (c *SystemController) GetTablesByController(rw http.ResponseWriter, r *http
 
 // GetTablesByStructureHash handles the GET /chain/{id}/tables/structure/{hash} call.
 // TODO(json-rpc): delete when dropping support.
-func (c *SystemController) GetTablesByStructureHash(rw http.ResponseWriter, r *http.Request) {
+func (c *UserController) GetTablesByStructureHash(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	rw.Header().Set("Content-type", "application/json")
@@ -232,7 +222,7 @@ func (c *SystemController) GetTablesByStructureHash(rw http.ResponseWriter, r *h
 
 // GetSchemaByTableName handles the GET /schema/{table_name} call.
 // TODO(json-rpc): delete when droppping support.
-func (c *SystemController) GetSchemaByTableName(rw http.ResponseWriter, r *http.Request) {
+func (c *UserController) GetSchemaByTableName(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	rw.Header().Set("Content-type", "application/json")
