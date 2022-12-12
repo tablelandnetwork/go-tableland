@@ -14,13 +14,13 @@ import (
 	"github.com/textileio/go-tableland/mocks"
 )
 
-func TestUserController(t *testing.T) {
+func TestGetTableRow(t *testing.T) {
 	t.Parallel()
 
 	req, err := http.NewRequest("GET", "/chain/69/tables/100/id/1", nil)
 	require.NoError(t, err)
 
-	userController := NewUserController(newTableRowRunnerMock(t))
+	userController := NewUserController(newTableRowRunnerMock(t), nil)
 
 	router := mux.NewRouter()
 	router.HandleFunc("/chain/{chainID}/tables/{id}/{key}/{value}", userController.GetTableRow)
@@ -33,13 +33,13 @@ func TestUserController(t *testing.T) {
 	require.JSONEq(t, expJSON, rr.Body.String())
 }
 
-func TestUserControllerERC721Metadata(t *testing.T) {
+func TestERC721Metadata(t *testing.T) {
 	t.Parallel()
 
 	req, err := http.NewRequest("GET", "/chain/69/tables/100/id/1?format=erc721&name=id&image=image&description=description&external_url=external_url&attributes[0][column]=base&attributes[0][trait_type]=Base&attributes[1][column]=eyes&attributes[1][trait_type]=Eyes&attributes[2][column]=mouth&attributes[2][trait_type]=Mouth&attributes[3][column]=level&attributes[3][trait_type]=Level&attributes[4][column]=stamina&attributes[4][trait_type]=Stamina&attributes[5][column]=personality&attributes[5][trait_type]=Personality&attributes[6][column]=aqua_power&attributes[6][display_type]=boost_number&attributes[6][trait_type]=Aqua%20Power&attributes[7][column]=stamina_increase&attributes[7][display_type]=boost_percentage&attributes[7][trait_type]=Stamina%20Increase&attributes[8][column]=generation&attributes[8][display_type]=number&attributes[8][trait_type]=Generation", nil) // nolint
 	require.NoError(t, err)
 
-	userController := NewUserController(newTableRowRunnerMock(t))
+	userController := NewUserController(newTableRowRunnerMock(t), nil)
 
 	router := mux.NewRouter()
 	router.HandleFunc("/chain/{chainID}/tables/{id}/{key}/{value}", userController.GetTableRow)
@@ -52,7 +52,7 @@ func TestUserControllerERC721Metadata(t *testing.T) {
 	require.JSONEq(t, expJSON, rr.Body.String())
 }
 
-func TestUserControllerBadQuery(t *testing.T) {
+func TestBadQuery(t *testing.T) {
 	t.Parallel()
 
 	r := mocks.NewSQLRunner(t)
@@ -61,7 +61,7 @@ func TestUserControllerBadQuery(t *testing.T) {
 	req, err := http.NewRequest("GET", "/chain/69/tables/100/invalid_column/0", nil)
 	require.NoError(t, err)
 
-	userController := NewUserController(r)
+	userController := NewUserController(r, nil)
 
 	router := mux.NewRouter()
 	router.HandleFunc("/chain/{chainID}/tables/{id}/{key}/{value}", userController.GetTableRow)
@@ -75,7 +75,7 @@ func TestUserControllerBadQuery(t *testing.T) {
 	require.JSONEq(t, expJSON, rr.Body.String())
 }
 
-func TestUserControllerRowNotFound(t *testing.T) {
+func TestRowNotFound(t *testing.T) {
 	t.Parallel()
 
 	r := mocks.NewSQLRunner(t)
@@ -104,7 +104,7 @@ func TestUserControllerRowNotFound(t *testing.T) {
 	req, err := http.NewRequest("GET", "/chain/69/tables/100/id/1", nil)
 	require.NoError(t, err)
 
-	userController := NewUserController(r)
+	userController := NewUserController(r, nil)
 
 	router := mux.NewRouter()
 	router.HandleFunc("/chain/{chainID}/tables/{id}/{key}/{value}", userController.GetTableRow)
@@ -118,7 +118,7 @@ func TestUserControllerRowNotFound(t *testing.T) {
 	require.JSONEq(t, expJSON, rr.Body.String())
 }
 
-func TestUserControllerQuery(t *testing.T) {
+func TestQuery(t *testing.T) {
 	r := mocks.NewSQLRunner(t)
 	r.EXPECT().RunReadQuery(mock.Anything, mock.AnythingOfType("string")).Return(
 		&tableland.TableData{
@@ -148,7 +148,7 @@ func TestUserControllerQuery(t *testing.T) {
 		nil,
 	)
 
-	userController := NewUserController(r)
+	userController := NewUserController(r, nil)
 
 	router := mux.NewRouter()
 	router.HandleFunc("/query", userController.GetTableQuery)
@@ -186,7 +186,7 @@ func TestUserControllerQuery(t *testing.T) {
 	}
 }
 
-func TestUserControllerLegacyQuery(t *testing.T) {
+func TestLegacyQuery(t *testing.T) {
 	r := mocks.NewSQLRunner(t)
 	r.EXPECT().RunReadQuery(mock.Anything, mock.AnythingOfType("string")).Return(
 		&tableland.TableData{
@@ -208,7 +208,7 @@ func TestUserControllerLegacyQuery(t *testing.T) {
 		nil,
 	)
 
-	userController := NewUserController(r)
+	userController := NewUserController(r, nil)
 
 	router := mux.NewRouter()
 	router.HandleFunc("/query", userController.GetTableQuery)
@@ -237,7 +237,7 @@ func TestUserControllerLegacyQuery(t *testing.T) {
 	}
 }
 
-func TestUserControllerQueryExtracted(t *testing.T) {
+func TestQueryExtracted(t *testing.T) {
 	r := mocks.NewSQLRunner(t)
 	r.EXPECT().RunReadQuery(mock.Anything, mock.AnythingOfType("string")).Return(
 		&tableland.TableData{
@@ -251,7 +251,7 @@ func TestUserControllerQueryExtracted(t *testing.T) {
 		nil,
 	)
 
-	userController := NewUserController(r)
+	userController := NewUserController(r, nil)
 
 	router := mux.NewRouter()
 	router.HandleFunc("/query", userController.GetTableQuery)

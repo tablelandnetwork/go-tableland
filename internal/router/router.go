@@ -28,9 +28,7 @@ func ConfiguredRouter(
 	if err := server.RegisterName("tableland", rpcService); err != nil {
 		return nil, fmt.Errorf("failed to register a json-rpc service: %s", err)
 	}
-	userCtrl := controllers.NewUserController(tableland)
-
-	systemCtrl := controllers.NewSystemController(systemService)
+	userCtrl := controllers.NewUserController(tableland, systemService)
 
 	// General router configuration.
 	router := newRouter()
@@ -50,10 +48,10 @@ func ConfiguredRouter(
 
 	// TODO(json-rpc): remove this when dropping support.
 	// APIs Legacy (REST + JSON-RPC)
-	configureLegacyRoutes(router, server, supportedChainIDs, rateLim, systemCtrl, userCtrl)
+	configureLegacyRoutes(router, server, supportedChainIDs, rateLim, userCtrl)
 
 	// APIs V1
-	if err := configureAPIV1Routes(router, supportedChainIDs, rateLim, systemCtrl, userCtrl); err != nil {
+	if err := configureAPIV1Routes(router, supportedChainIDs, rateLim, userCtrl); err != nil {
 		return nil, fmt.Errorf("configuring API v1: %s", err)
 	}
 
@@ -65,7 +63,6 @@ func configureLegacyRoutes(
 	server *rpc.Server,
 	supportedChainIDs []tableland.ChainID,
 	rateLim mux.MiddlewareFunc,
-	systemCtrl *controllers.SystemController,
 	userCtrl *controllers.UserController,
 ) {
 	router.post("/rpc", func(rw http.ResponseWriter, r *http.Request) {
@@ -73,11 +70,11 @@ func configureLegacyRoutes(
 	}, middlewares.WithLogging, middlewares.OtelHTTP("rpc"), middlewares.Authentication, rateLim)
 
 	// Gateway configuration.
-	router.get("/chain/{chainId}/tables/{tableId}", systemCtrl.GetTable, middlewares.WithLogging, middlewares.OtelHTTP("GetTable"), middlewares.RESTChainID(supportedChainIDs), rateLim)                                        // nolint
-	router.get("/chain/{chainId}/tables/{id}/{key}/{value}", userCtrl.GetTableRow, middlewares.WithLogging, middlewares.OtelHTTP("GetTableRow"), middlewares.RESTChainID(supportedChainIDs), rateLim)                           // nolint
-	router.get("/chain/{chainId}/tables/controller/{address}", systemCtrl.GetTablesByController, middlewares.WithLogging, middlewares.OtelHTTP("GetTablesByController"), middlewares.RESTChainID(supportedChainIDs), rateLim)   // nolint
-	router.get("/chain/{chainId}/tables/structure/{hash}", systemCtrl.GetTablesByStructureHash, middlewares.WithLogging, middlewares.OtelHTTP("GetTablesByStructureHash"), middlewares.RESTChainID(supportedChainIDs), rateLim) // nolint
-	router.get("/schema/{table_name}", systemCtrl.GetSchemaByTableName, middlewares.WithLogging, middlewares.OtelHTTP("GetSchemaFromTableName"), rateLim)                                                                       // nolint
+	router.get("/chain/{chainId}/tables/{tableId}", userCtrl.GetTable, middlewares.WithLogging, middlewares.OtelHTTP("GetTable"), middlewares.RESTChainID(supportedChainIDs), rateLim)                                        // nolint
+	router.get("/chain/{chainId}/tables/{id}/{key}/{value}", userCtrl.GetTableRow, middlewares.WithLogging, middlewares.OtelHTTP("GetTableRow"), middlewares.RESTChainID(supportedChainIDs), rateLim)                         // nolint
+	router.get("/chain/{chainId}/tables/controller/{address}", userCtrl.GetTablesByController, middlewares.WithLogging, middlewares.OtelHTTP("GetTablesByController"), middlewares.RESTChainID(supportedChainIDs), rateLim)   // nolint
+	router.get("/chain/{chainId}/tables/structure/{hash}", userCtrl.GetTablesByStructureHash, middlewares.WithLogging, middlewares.OtelHTTP("GetTablesByStructureHash"), middlewares.RESTChainID(supportedChainIDs), rateLim) // nolint
+	router.get("/schema/{table_name}", userCtrl.GetSchemaByTableName, middlewares.WithLogging, middlewares.OtelHTTP("GetSchemaFromTableName"), rateLim)                                                                       // nolint
 
 	router.get("/query", userCtrl.GetTableQuery, middlewares.WithLogging, middlewares.OtelHTTP("GetTableQuery"), rateLim) // nolint
 	router.get("/version", userCtrl.Version, middlewares.WithLogging, middlewares.OtelHTTP("Version"), rateLim)           // nolint
@@ -91,7 +88,6 @@ func configureAPIV1Routes(
 	router *Router,
 	supportedChainIDs []tableland.ChainID,
 	rateLim mux.MiddlewareFunc,
-	systemCtrl *controllers.SystemController,
 	userCtrl *controllers.UserController,
 ) error {
 	handlers := map[string]struct {
@@ -103,11 +99,11 @@ func configureAPIV1Routes(
 			[]mux.MiddlewareFunc{middlewares.WithLogging, rateLim},
 		},
 		"ReceiptByTransactionHash": {
-			systemCtrl.GetReceiptByTransactionHash,
+			userCtrl.GetReceiptByTransactionHash,
 			[]mux.MiddlewareFunc{middlewares.WithLogging, middlewares.RESTChainID(supportedChainIDs), rateLim},
 		},
 		"GetTableById": {
-			systemCtrl.GetTable,
+			userCtrl.GetTable,
 			[]mux.MiddlewareFunc{middlewares.WithLogging, middlewares.RESTChainID(supportedChainIDs), rateLim},
 		},
 		"Version": {

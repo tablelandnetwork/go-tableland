@@ -11,11 +11,11 @@ import (
 	systemimpl "github.com/textileio/go-tableland/internal/system/impl"
 )
 
-func TestSystemControllerMock(t *testing.T) {
+func TestGetTablesByMocked(t *testing.T) {
 	t.Parallel()
 
 	systemService := systemimpl.NewSystemMockService()
-	systemController := NewSystemController(systemService)
+	ctrl := NewUserController(nil, systemService)
 
 	t.Run("get table metadata", func(t *testing.T) {
 		t.Parallel()
@@ -23,7 +23,7 @@ func TestSystemControllerMock(t *testing.T) {
 		require.NoError(t, err)
 
 		router := mux.NewRouter()
-		router.HandleFunc("/chain/{chainID}/tables/{tableId}", systemController.GetTable)
+		router.HandleFunc("/chain/{chainID}/tables/{tableId}", ctrl.GetTable)
 
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
@@ -46,7 +46,7 @@ func TestSystemControllerMock(t *testing.T) {
 		require.NoError(t, err)
 
 		router := mux.NewRouter()
-		router.HandleFunc("/chain/{chainID}/tables/controller/{hash}", systemController.GetTablesByController)
+		router.HandleFunc("/chain/{chainID}/tables/controller/{hash}", ctrl.GetTablesByController)
 
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
@@ -73,7 +73,7 @@ func TestSystemControllerMock(t *testing.T) {
 		require.NoError(t, err)
 
 		router := mux.NewRouter()
-		router.HandleFunc("/chain/{chainID}/tables/structure/{hash}", systemController.GetTablesByStructureHash)
+		router.HandleFunc("/chain/{chainID}/tables/structure/{hash}", ctrl.GetTablesByStructureHash)
 
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
@@ -100,7 +100,7 @@ func TestSystemControllerMock(t *testing.T) {
 		require.NoError(t, err)
 
 		router := mux.NewRouter()
-		router.HandleFunc("/schema/{table_name}", systemController.GetSchemaByTableName)
+		router.HandleFunc("/schema/{table_name}", ctrl.GetSchemaByTableName)
 
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
@@ -126,7 +126,7 @@ func TestSystemControllerMock(t *testing.T) {
 	})
 }
 
-func TestInvalidID(t *testing.T) {
+func TestGetTableWithInvalidID(t *testing.T) {
 	t.Parallel()
 
 	id := "invalid integer"
@@ -135,7 +135,7 @@ func TestInvalidID(t *testing.T) {
 	require.NoError(t, err)
 
 	systemService := systemimpl.NewSystemMockService()
-	systemController := NewSystemController(systemService)
+	systemController := NewUserController(nil, systemService)
 
 	router := mux.NewRouter()
 	router.HandleFunc("/tables/{id}", systemController.GetTable)
@@ -156,7 +156,7 @@ func TestTableNotFoundMock(t *testing.T) {
 	require.NoError(t, err)
 
 	systemService := systemimpl.NewSystemMockErrService()
-	systemController := NewSystemController(systemService)
+	systemController := NewUserController(nil, systemService)
 
 	router := mux.NewRouter()
 	router.HandleFunc("/tables/{tableId}", systemController.GetTable)
