@@ -26,11 +26,11 @@ func NewSystemController(svc system.SystemService) *SystemController {
 
 // GetReceiptByTransactionHash handles request asking for a transaction receipt.
 func (c *SystemController) GetReceiptByTransactionHash(rw http.ResponseWriter, r *http.Request) {
-	rw.Header().Set("Content-Type", "application/json")
 	ctx := r.Context()
 
 	paramTxnHash := mux.Vars(r)["transactionHash"]
 	if _, err := common.ParseHexOrString(paramTxnHash); err != nil {
+		rw.Header().Set("Content-Type", "application/json")
 		rw.WriteHeader(http.StatusBadRequest)
 		log.Ctx(ctx).Error().Err(err).Msg("invalid transaction hash")
 		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Invalid transaction hash"})
@@ -40,6 +40,7 @@ func (c *SystemController) GetReceiptByTransactionHash(rw http.ResponseWriter, r
 
 	receipt, exists, err := c.systemService.GetReceiptByTransactionHash(ctx, txnHash)
 	if err != nil {
+		rw.Header().Set("Content-Type", "application/json")
 		rw.WriteHeader(http.StatusBadRequest)
 		log.Ctx(ctx).Error().Err(err).Msg("get receipt by transaction hash")
 		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Get receipt by transaction hash failed"})
@@ -62,6 +63,8 @@ func (c *SystemController) GetReceiptByTransactionHash(rw http.ResponseWriter, r
 		receiptResponse.Error_ = *receipt.Error
 		receiptResponse.ErrorEventIdx = int32(*receipt.ErrorEventIdx)
 	}
+
+	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(rw).Encode(receiptResponse)
 }
@@ -69,11 +72,11 @@ func (c *SystemController) GetReceiptByTransactionHash(rw http.ResponseWriter, r
 // GetTable handles the GET /chain/{chainID}/tables/{tableId} call.
 func (c *SystemController) GetTable(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	rw.Header().Set("Content-type", "application/json")
 	vars := mux.Vars(r)
 
 	id, err := tables.NewTableID(vars["tableId"])
 	if err != nil {
+		rw.Header().Set("Content-type", "application/json")
 		rw.WriteHeader(http.StatusBadRequest)
 		log.Ctx(ctx).
 			Error().
@@ -89,6 +92,7 @@ func (c *SystemController) GetTable(rw http.ResponseWriter, r *http.Request) {
 	metadata, err := c.systemService.GetTableMetadata(ctx, id)
 	if err == system.ErrTableNotFound {
 		if !isAPIV1 {
+			rw.Header().Set("Content-type", "application/json")
 			rw.WriteHeader(http.StatusOK)
 			_ = json.NewEncoder(rw).Encode(metadata)
 			return
@@ -97,6 +101,7 @@ func (c *SystemController) GetTable(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
+		rw.Header().Set("Content-type", "application/json")
 		rw.WriteHeader(http.StatusInternalServerError)
 		log.Ctx(ctx).
 			Error().
@@ -136,6 +141,7 @@ func (c *SystemController) GetTable(rw http.ResponseWriter, r *http.Request) {
 	}
 	copy(metadataV1.Schema.TableConstraints, metadata.Schema.TableConstraints)
 
+	rw.Header().Set("Content-type", "application/json")
 	rw.WriteHeader(http.StatusOK)
 	enc := json.NewEncoder(rw)
 	enc.SetEscapeHTML(false)
