@@ -29,15 +29,15 @@ type SQLRunner interface {
 	RunReadQuery(ctx context.Context, stmt string) (*tableland.TableData, error)
 }
 
-// UserController defines the HTTP handlers for interacting with user tables.
-type UserController struct {
+// Controller defines the HTTP handlers for interacting with user tables.
+type Controller struct {
 	runner        SQLRunner
 	systemService system.SystemService
 }
 
-// NewUserController creates a new UserController.
-func NewUserController(runner SQLRunner, svc system.SystemService) *UserController {
-	return &UserController{
+// NewController creates a new Controller.
+func NewController(runner SQLRunner, svc system.SystemService) *Controller {
+	return &Controller{
 		runner:        runner,
 		systemService: svc,
 	}
@@ -138,7 +138,7 @@ func userRowToMap(cols []tableland.Column, row []*tableland.ColumnValue) map[str
 // GetTableRow handles the GET /chain/{chainID}/tables/{id}/{key}/{value} call.
 // Use format=erc721 query param to generate JSON for ERC721 metadata.
 // TODO(json-rpc): delete method when dropping support.
-func (c *UserController) GetTableRow(rw http.ResponseWriter, r *http.Request) {
+func (c *Controller) GetTableRow(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-Type", "application/json")
 	vars := mux.Vars(r)
 	format := r.URL.Query().Get("format")
@@ -220,7 +220,7 @@ func (c *UserController) GetTableRow(rw http.ResponseWriter, r *http.Request) {
 }
 
 // Version returns git information of the running binary.
-func (c *UserController) Version(rw http.ResponseWriter, _ *http.Request) {
+func (c *Controller) Version(rw http.ResponseWriter, _ *http.Request) {
 	rw.Header().Set("Content-type", "application/json")
 	summary := buildinfo.GetSummary()
 	rw.WriteHeader(http.StatusOK)
@@ -237,7 +237,7 @@ func (c *UserController) Version(rw http.ResponseWriter, _ *http.Request) {
 }
 
 // GetReceiptByTransactionHash handles request asking for a transaction receipt.
-func (c *UserController) GetReceiptByTransactionHash(rw http.ResponseWriter, r *http.Request) {
+func (c *Controller) GetReceiptByTransactionHash(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	paramTxnHash := mux.Vars(r)["transactionHash"]
@@ -282,7 +282,7 @@ func (c *UserController) GetReceiptByTransactionHash(rw http.ResponseWriter, r *
 }
 
 // GetTable handles the GET /chain/{chainID}/tables/{tableId} call.
-func (c *UserController) GetTable(rw http.ResponseWriter, r *http.Request) {
+func (c *Controller) GetTable(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
 
@@ -360,7 +360,7 @@ func (c *UserController) GetTable(rw http.ResponseWriter, r *http.Request) {
 
 // GetTablesByController handles the GET /chain/{chainID}/tables/controller/{address} call.
 // TODO(json-rpc): delete when dropping support.
-func (c *UserController) GetTablesByController(rw http.ResponseWriter, r *http.Request) {
+func (c *Controller) GetTablesByController(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	rw.Header().Set("Content-type", "application/json")
 	vars := mux.Vars(r)
@@ -403,7 +403,7 @@ func (c *UserController) GetTablesByController(rw http.ResponseWriter, r *http.R
 
 // GetTablesByStructureHash handles the GET /chain/{id}/tables/structure/{hash} call.
 // TODO(json-rpc): delete when dropping support.
-func (c *UserController) GetTablesByStructureHash(rw http.ResponseWriter, r *http.Request) {
+func (c *Controller) GetTablesByStructureHash(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	rw.Header().Set("Content-type", "application/json")
@@ -443,7 +443,7 @@ func (c *UserController) GetTablesByStructureHash(rw http.ResponseWriter, r *htt
 
 // GetSchemaByTableName handles the GET /schema/{table_name} call.
 // TODO(json-rpc): delete when droppping support.
-func (c *UserController) GetSchemaByTableName(rw http.ResponseWriter, r *http.Request) {
+func (c *Controller) GetSchemaByTableName(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	rw.Header().Set("Content-type", "application/json")
@@ -508,7 +508,7 @@ func HealthHandler(w http.ResponseWriter, _ *http.Request) {
 
 // GetTableQuery handles the GET /query?s=[statement] call.
 // Use mode=columns|rows|json|lines query param to control output format.
-func (c *UserController) GetTableQuery(rw http.ResponseWriter, r *http.Request) {
+func (c *Controller) GetTableQuery(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-Type", "application/json")
 
 	stm := r.URL.Query().Get("s") // TODO(json-rpc): remove query parameter "s" when dropping support.
@@ -549,7 +549,7 @@ func (c *UserController) GetTableQuery(rw http.ResponseWriter, r *http.Request) 
 	_, _ = rw.Write(formatted)
 }
 
-func (c *UserController) runReadRequest(
+func (c *Controller) runReadRequest(
 	ctx context.Context,
 	stm string,
 	rw http.ResponseWriter,
