@@ -8,16 +8,8 @@ import (
 	"github.com/textileio/go-tableland/internal/router/controllers/apiv1"
 )
 
-// InfraController defines the HTTP handlers for infrastructure APIs.
-type InfraController struct{}
-
-// NewInfraController creates a new InfraController.
-func NewInfraController() *InfraController {
-	return &InfraController{}
-}
-
 // Version returns git information of the running binary.
-func (c *InfraController) Version(rw http.ResponseWriter, _ *http.Request) {
+func (c *UserController) Version(rw http.ResponseWriter, _ *http.Request) {
 	rw.Header().Set("Content-type", "application/json")
 	summary := buildinfo.GetSummary()
 	rw.WriteHeader(http.StatusOK)
