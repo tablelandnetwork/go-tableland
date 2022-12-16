@@ -294,7 +294,8 @@ func TestGetMetadata(t *testing.T) {
 		require.Equal(t, "foo_1337_42", metadata.Name)
 		require.Equal(t, fmt.Sprintf("https://tableland.network/tables/chain/%d/tables/%s", 1337, id), metadata.ExternalURL)
 		require.Equal(t, "https://render.tableland.xyz/1337/42", metadata.Image)
-		require.Equal(t, "https://render.tableland.xyz/anim/?chain=1337&id=42", metadata.AnimationURL)
+		// TODO(jsign): skipped do to active workaround for OpenSea.
+		// require.Equal(t, "https://render.tableland.xyz/anim/?chain=1337&id=42", metadata.AnimationURL)
 		require.Equal(t, "date", metadata.Attributes[0].DisplayType)
 		require.Equal(t, "created", metadata.Attributes[0].TraitType)
 	})
