@@ -200,6 +200,17 @@ func (s *SystemSQLStoreService) getAnimationURL(chainID tableland.ChainID, table
 	if s.animationRendererURI == "" {
 		return DefaultAnimationURL
 	}
+
+	// TODO(jsign): this is a temporal hack to workaround an unknown OpenSea problem. This isn't acceptable production
+	// code. When the final solution lands, we should reorg this code chunk.
+	//
+	// For non-mainnet chains, we must return empty. An empty string in `animation_url` will make the field disappear
+	// since we configured it with an `omitempy` JSON tag.
+	if !(chainID == 1 || chainID == 42161 || chainID == 137 || chainID == 10) {
+		return ""
+	}
+	///
+
 	return fmt.Sprintf("%s/?chain=%d&id=%s", s.animationRendererURI, chainID, tableID)
 }
 
