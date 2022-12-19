@@ -11,8 +11,11 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/buildinfo"
 	"github.com/textileio/go-tableland/cmd/healthbot/counterprobe"
+	"github.com/textileio/go-tableland/pkg/client"
+	clientV1 "github.com/textileio/go-tableland/pkg/client/v1"
 	"github.com/textileio/go-tableland/pkg/logging"
 	"github.com/textileio/go-tableland/pkg/metrics"
+	"github.com/textileio/go-tableland/pkg/wallet"
 )
 
 func main() {
@@ -36,10 +39,24 @@ func main() {
 			log.Fatal().Err(err).Msgf("receipt timeout has invalid format: %s", chainCfg.Probe.ReceiptTimeout)
 		}
 
+		wallet, err := wallet.NewWallet(chainCfg.WalletPrivateKey)
+		if err != nil {
+			log.Fatal().Err(err).Msg("unable to create wallet from private key string")
+		}
+
+		chain, ok := client.Chains[client.ChainID(chainCfg.ChainID)]
+		if !ok {
+			log.Fatal().Int("chain_id", chainCfg.ChainID).Msg("the chain id isn't supported in the Tableland client")
+		}
+
+		client, err := clientV1.NewClient(ctx, wallet, clientV1.NewClientChain(chain))
+		if err != nil {
+			log.Fatal().Err(err).Msg("error creating tbl client")
+		}
+
 		cp, err := counterprobe.New(
-			chainCfg.Name,
-			cfg.Target,
-			chainCfg.Probe.SIWE,
+			chain.Name,
+			client,
 			chainCfg.Probe.Tablename,
 			checkInterval,
 			receiptTimeout)

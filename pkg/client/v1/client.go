@@ -21,7 +21,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/wallet"
 )
 
-var defaultChain = client.Chains.PolygonMumbai
+var defaultChain = client.Chains[client.ChainIDs.PolygonMumbai]
 
 // Client is the Tableland client.
 type Client struct {
