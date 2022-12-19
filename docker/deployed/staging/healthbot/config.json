@@ -9,11 +9,11 @@
     "Target": "https://staging.tableland.network/rpc",
     "Chains": [
         {
-            "Name": "optimism-goerli",
+            "ChainID": 5,
+            "WalletPrivateKey": "${HEALTHBOT_OPTIMISM_GOERLI_PRIVATE_KEY}",
             "Probe": {
                 "CheckInterval": "360s",
                 "ReceiptTimeout": "20s",
-                "SIWE": "${HEALTHBOT_OPTIMISM_GOERLI_SIWE}",
                 "Tablename": "${HEALTHBOT_OPTIMISM_GOERLI_TABLE}"
             }
         }
