@@ -116,7 +116,7 @@ func TestReadRunSQL(t *testing.T) {
 				if tc.expErrType == nil {
 					require.NoError(t, err)
 					require.NotNil(t, rs)
-					q, err := rs.GetQuery()
+					q, err := rs.GetQuery(nil)
 					require.NoError(t, err)
 					require.Equal(t, tc.query, q)
 					return
@@ -728,7 +728,7 @@ func TestGetWriteStatements(t *testing.T) {
 				require.NoError(t, err)
 
 				for i := range stmts {
-					query, err := stmts[i].GetQuery()
+					query, err := stmts[i].GetQuery(nil)
 					require.NoError(t, err)
 					require.Equal(t, tc.expectedStmts[i], query)
 				}
@@ -779,7 +779,7 @@ func TestGetGrantStatementRolesAndPrivileges(t *testing.T) {
 				for i := range stmts {
 					gs, ok := stmts[i].(parsing.GrantStmt)
 					require.True(t, ok)
-					q, err := gs.GetQuery()
+					q, err := gs.GetQuery(nil)
 					require.NoError(t, err)
 					require.Equal(t, tc.expectedStmt, q)
 					require.Equal(t, tc.roles, gs.GetRoles())
@@ -830,7 +830,7 @@ func TestWriteStatementAddWhereClause(t *testing.T) {
 				err = ws.AddWhereClause(tc.whereClause)
 				require.NoError(t, err)
 
-				sql, err := ws.GetQuery()
+				sql, err := ws.GetQuery(nil)
 				require.NoError(t, err)
 				require.Equal(t, tc.expQuery, sql)
 			}
@@ -854,7 +854,7 @@ func TestWriteStatementAddReturningClause(t *testing.T) {
 		err = ws.AddReturningClause()
 		require.NoError(t, err)
 
-		sql, err := ws.GetQuery()
+		sql, err := ws.GetQuery(nil)
 		require.NoError(t, err)
 		require.Equal(t, "insert into foo_1337_1 values ('bar') returning (rowid)", sql)
 	})
@@ -873,7 +873,7 @@ func TestWriteStatementAddReturningClause(t *testing.T) {
 		err = ws.AddReturningClause()
 		require.NoError(t, err)
 
-		sql, err := ws.GetQuery()
+		sql, err := ws.GetQuery(nil)
 		require.NoError(t, err)
 		require.Equal(t, "update foo_1337_1 set foo = 'bar' returning (rowid)", sql)
 	})
@@ -900,12 +900,11 @@ func TestCustomFunctionResolveReadQuery(t *testing.T) {
 	type testCase struct {
 		name     string
 		query    string
-		rqr      ReadQueryResolver
 		mustFail bool
 		expQuery string
 	}
 
-	rqr := newReadQueryResolver(map[tableland.ChainID]uint64{
+	rqr := newReadQueryResolver(map[tableland.ChainID]int64{
 		tableland.ChainID(1337): 1001,
 		tableland.ChainID(1338): 1002,
 		tableland.ChainID(1339): 1003,
@@ -1022,21 +1021,12 @@ func TestCustomFunctionResolveWriteQuery(t *testing.T) {
 	}
 }
 
-type WriteQueryResolver interface {
-	GetTxnHash() string
-	GetBlockNumber() uint64
-}
-
-type ReadQueryResolver interface {
-	GetBlockNumber() uint64
-}
-
 type writeQueryResolver struct {
 	txnHash     string
-	blockNumber uint64
+	blockNumber int64
 }
 
-func newWriteQueryResolver(txnHash string, blockNumber uint64) *writeQueryResolver {
+func newWriteQueryResolver(txnHash string, blockNumber int64) *writeQueryResolver {
 	return &writeQueryResolver{txnHash: txnHash, blockNumber: blockNumber}
 }
 
@@ -1044,19 +1034,19 @@ func (wqr *writeQueryResolver) GetTxnHash() string {
 	return wqr.txnHash
 }
 
-func (wqr *writeQueryResolver) GetBlockNumber() uint64 {
+func (wqr *writeQueryResolver) GetBlockNumber() int64 {
 	return wqr.blockNumber
 }
 
 type readQueryResolver struct {
-	chainBlockNumbers map[tableland.ChainID]uint64
+	chainBlockNumbers map[tableland.ChainID]int64
 }
 
-func newReadQueryResolver(chainBlockNumbers map[tableland.ChainID]uint64) *readQueryResolver {
+func newReadQueryResolver(chainBlockNumbers map[tableland.ChainID]int64) *readQueryResolver {
 	return &readQueryResolver{chainBlockNumbers: chainBlockNumbers}
 }
 
-func (wqr *readQueryResolver) GetBlockNumber(chainID tableland.ChainID) (uint64, bool) {
+func (wqr *readQueryResolver) GetBlockNumber(chainID tableland.ChainID) (int64, bool) {
 	blockNumber, ok := wqr.chainBlockNumbers[chainID]
 	return blockNumber, ok
 }
