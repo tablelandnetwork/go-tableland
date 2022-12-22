@@ -894,9 +894,53 @@ func TestWriteStatementAddReturningClause(t *testing.T) {
 	})
 }
 
-type WriteQueryResolver interface {
-	GetTxnHash() string
-	GetBlockNumber() uint64
+func TestCustomFunctionResolveReadQuery(t *testing.T) {
+	t.Parallel()
+
+	type testCase struct {
+		name     string
+		query    string
+		rqr      ReadQueryResolver
+		mustFail bool
+		expQuery string
+	}
+
+	rqr := newReadQueryResolver(map[tableland.ChainID]uint64{
+		tableland.ChainID(1337): 1001,
+		tableland.ChainID(1338): 1002,
+		tableland.ChainID(1339): 1003,
+	})
+	tests := []testCase{
+		{
+			name:     "select with block_num(*)",
+			query:    "select block_num(1337), block_num(1338) from foo_1337_1 where a = block_num(1339)",
+			expQuery: "select 1001, 1002 from foo_1337_1 where a = 1003",
+		},
+		{
+			name:     "select with block_num(*) for chainID that doesn't exist",
+			query:    "select block_num(1337) from foo_1337_1 where a = block_num(1336)",
+			mustFail: true,
+		},
+	}
+
+	for _, it := range tests {
+		t.Run(it.name, func(tc testCase) func(t *testing.T) {
+			return func(t *testing.T) {
+				t.Parallel()
+
+				parser := newParser(t, []string{"system_", "registry"})
+				stmt, err := parser.ValidateReadQuery(tc.query)
+				require.NoError(t, err)
+
+				q, err := stmt.GetQuery(rqr)
+				if tc.mustFail {
+					require.Error(t, err)
+					return
+				}
+				require.Equal(t, tc.expQuery, q)
+			}
+		}(it))
+	}
 }
 
 func TestCustomFunctionResolveWriteQuery(t *testing.T) {
@@ -905,33 +949,30 @@ func TestCustomFunctionResolveWriteQuery(t *testing.T) {
 	type testCase struct {
 		name       string
 		query      string
-		wqr        WriteQueryResolver
 		mustFail   bool
 		expQueries []string
 	}
+
+	wqr := newWriteQueryResolver("0xDEADBEEF", 100)
 	tests := []testCase{
 		{
 			name:       "insert with custom functions",
 			query:      "insert into foo_1337_1 values (txn_hash(), block_num())",
-			wqr:        newWriteQueryResolver("0xDEADBEEF", 100),
 			expQueries: []string{"insert into foo_1337_1 values ('0xDEADBEEF', 100)"},
 		},
 		{
 			name:       "update with custom functions",
 			query:      "update foo_1337_1 SET a=txn_hash(), b=block_num() where c in (block_num(), block_num()+1)",
-			wqr:        newWriteQueryResolver("0xDEADBEEF", 100),
 			expQueries: []string{"update foo_1337_1 SET a='0xDEADBEEF', b=100 where c in (100, 100+1)"},
 		},
 		{
 			name:       "delete with custom functions",
 			query:      "delete from foo_1337_1 where a=block_num() and b=txn_hash()",
-			wqr:        newWriteQueryResolver("0xDEADBEEF", 100),
 			expQueries: []string{"delete from foo_1337_1 where a=100 and b='0xDEADBEEF'"},
 		},
 		{
 			name:  "multiple queries",
 			query: "insert into foo_1337_1 values (txn_hash()); delete from foo_1337_1 where a=block_num()",
-			wqr:   newWriteQueryResolver("0xDEADBEEF", 100),
 			expQueries: []string{
 				"insert into foo_1337_1 values ('0xDEADBEEF')",
 				"delete from foo_1337_1 where a=100",
@@ -940,25 +981,21 @@ func TestCustomFunctionResolveWriteQuery(t *testing.T) {
 		{
 			name:     "block_num() with integer argument",
 			query:    "delete from foo_1337_1 where a=block_num(1337)",
-			wqr:      newWriteQueryResolver("0xDEADBEEF", 100),
 			mustFail: true,
 		},
 		{
 			name:     "block_num() with string argument",
 			query:    "delete from foo_1337_1 where a=block_num('foo')",
-			wqr:      newWriteQueryResolver("0xDEADBEEF", 100),
 			mustFail: true,
 		},
 		{
 			name:     "txn_hash() with an integer argument",
 			query:    "insert into foo_1337_1 values (txn_hash(1))",
-			wqr:      newWriteQueryResolver("0xDEADBEEF", 100),
 			mustFail: true,
 		},
 		{
 			name:     "txn_hash() with a string argument",
 			query:    "insert into foo_1337_1 values (txn_hash('foo'))",
-			wqr:      newWriteQueryResolver("0xDEADBEEF", 100),
 			mustFail: true,
 		},
 	}
@@ -973,7 +1010,7 @@ func TestCustomFunctionResolveWriteQuery(t *testing.T) {
 				require.NoError(t, err)
 
 				for i, stmt := range mutStmts {
-					q, err := stmt.GetQuery(tc.wqr)
+					q, err := stmt.GetQuery(wqr)
 					if tc.mustFail {
 						require.Error(t, err)
 						return
@@ -983,6 +1020,15 @@ func TestCustomFunctionResolveWriteQuery(t *testing.T) {
 			}
 		}(it))
 	}
+}
+
+type WriteQueryResolver interface {
+	GetTxnHash() string
+	GetBlockNumber() uint64
+}
+
+type ReadQueryResolver interface {
+	GetBlockNumber() uint64
 }
 
 type writeQueryResolver struct {
@@ -1000,6 +1046,19 @@ func (wqr *writeQueryResolver) GetTxnHash() string {
 
 func (wqr *writeQueryResolver) GetBlockNumber() uint64 {
 	return wqr.blockNumber
+}
+
+type readQueryResolver struct {
+	chainBlockNumbers map[tableland.ChainID]uint64
+}
+
+func newReadQueryResolver(chainBlockNumbers map[tableland.ChainID]uint64) *readQueryResolver {
+	return &readQueryResolver{chainBlockNumbers: chainBlockNumbers}
+}
+
+func (wqr *readQueryResolver) GetBlockNumber(chainID tableland.ChainID) (uint64, bool) {
+	blockNumber, ok := wqr.chainBlockNumbers[chainID]
+	return blockNumber, ok
 }
 
 func newParser(t *testing.T, prefixes []string, opts ...parsing.Option) parsing.SQLValidator {
