@@ -9,16 +9,25 @@ import (
 	"github.com/textileio/go-tableland/pkg/tables"
 )
 
-// Stmt represents any valid read or mutating query.
-type Stmt interface {
-	GetQuery() (string, error)
+// WriteQueryResolver resolves Tablealand Custom Functions for a write statement.
+type WriteQueryResolver interface {
+	// GetTxnHash returns the transaction hash of the transaction containing the query being processed.
+	GetTxnHash() string
+
+	// GetBlockNumber returns the block number of the block containing query being processed.
+	GetBlockNumber() int64
+}
+
+// ReadQueryResolver resolves Tablealand Custom Functions for a read statement.
+type ReadQueryResolver interface {
+	// GetBlockNumber returns the last known block number for the provided chainID. If the chainID isn't known,
+	// it returns (0, false).
+	GetBlockNumber(chainID tableland.ChainID) (int64, bool)
 }
 
 // MutatingStmt represents mutating statement, that is either
 // a SugaredWriteStmt or a SugaredGrantStmt.
 type MutatingStmt interface {
-	Stmt
-
 	// GetPrefix returns the prefix of the table, if any.  e.g: "insert into foo_4_100" -> "foo".
 	// Since the prefix is optional, it can return "".
 	GetPrefix() string
@@ -30,6 +39,9 @@ type MutatingStmt interface {
 
 	// GetDBTableName returns the database table name.
 	GetDBTableName() string
+
+	// GetQuery returns an executable stringification of a mutating statements with resolved custom functions.
+	GetQuery(WriteQueryResolver) (string, error)
 }
 
 // ReadStmt is an already parsed read statement that satisfies all
@@ -37,7 +49,8 @@ type MutatingStmt interface {
 // with correct assumptions about parsing validity and being a read statement
 // (select).
 type ReadStmt interface {
-	Stmt
+	// GetQuery returns an executable stringification of a mutating statements with resolved custom functions.
+	GetQuery(ReadQueryResolver) (string, error)
 }
 
 // WriteStmt is an already parsed write statement that satisfies all
