@@ -75,9 +75,13 @@ func (bs *blockScope) ExecuteTxnEvents(
 	}
 
 	ts := &txnScope{
-		parser:    bs.parser,
-		acl:       bs.acl,
 		scopeVars: bs.scopeVars,
+
+		parser:        bs.parser,
+		queryResolver: newWriteQueryResolver(evmTxn.TxnHash.Hex(), bs.scopeVars.BlockNumber),
+
+		acl: bs.acl,
+
 		log: logger.With().
 			Str("component", "txnscope").
 			Int64("chain_id", int64(bs.scopeVars.ChainID)).
@@ -233,4 +237,21 @@ func (bs *blockScope) Commit() error {
 		return fmt.Errorf("commit db txn: %s", err)
 	}
 	return nil
+}
+
+type writeQueryResolver struct {
+	txnHash     string
+	blockNumber int64
+}
+
+func newWriteQueryResolver(txnHash string, blockNumber int64) *writeQueryResolver {
+	return &writeQueryResolver{txnHash: txnHash, blockNumber: blockNumber}
+}
+
+func (wqr *writeQueryResolver) GetTxnHash() string {
+	return wqr.txnHash
+}
+
+func (wqr *writeQueryResolver) GetBlockNumber() int64 {
+	return wqr.blockNumber
 }
