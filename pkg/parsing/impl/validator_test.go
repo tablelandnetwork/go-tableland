@@ -793,12 +793,13 @@ func TestGetGrantStatementRolesAndPrivileges(t *testing.T) {
 func TestWriteStatementAddWhereClause(t *testing.T) {
 	t.Parallel()
 
-	testCase := []struct {
+	type subTest struct {
 		name        string
 		query       string
 		whereClause string
 		expQuery    string
-	}{
+	}
+	testCase := []subTest{
 		{
 			name:        "no-where-clause",
 			query:       "UPDATE foo_1337_10 SET id = 1",
@@ -814,24 +815,26 @@ func TestWriteStatementAddWhereClause(t *testing.T) {
 	}
 
 	for _, tc := range testCase {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
+		t.Run(tc.name, func(tc subTest) func(t *testing.T) {
+			return func(t *testing.T) {
+				t.Parallel()
 
-			parser := newParser(t, []string{"system_", "registry"})
-			mss, err := parser.ValidateMutatingQuery(tc.query, 1337)
-			require.NoError(t, err)
-			require.Len(t, mss, 1)
+				parser := newParser(t, []string{"system_", "registry"})
+				mss, err := parser.ValidateMutatingQuery(tc.query, 1337)
+				require.NoError(t, err)
+				require.Len(t, mss, 1)
 
-			ws, ok := mss[0].(parsing.WriteStmt)
-			require.True(t, ok)
+				ws, ok := mss[0].(parsing.WriteStmt)
+				require.True(t, ok)
 
-			err = ws.AddWhereClause(tc.whereClause)
-			require.NoError(t, err)
+				err = ws.AddWhereClause(tc.whereClause)
+				require.NoError(t, err)
 
-			sql, err := ws.GetQuery()
-			require.NoError(t, err)
-			require.Equal(t, tc.expQuery, sql)
-		})
+				sql, err := ws.GetQuery()
+				require.NoError(t, err)
+				require.Equal(t, tc.expQuery, sql)
+			}
+		}(tc))
 	}
 }
 
@@ -889,6 +892,114 @@ func TestWriteStatementAddReturningClause(t *testing.T) {
 		err = ws.AddReturningClause()
 		require.ErrorAs(t, err, &parsing.ErrCantAddReturningOnDELETE)
 	})
+}
+
+type WriteQueryResolver interface {
+	GetTxnHash() string
+	GetBlockNumber() uint64
+}
+
+func TestCustomFunctionResolveWriteQuery(t *testing.T) {
+	t.Parallel()
+
+	type testCase struct {
+		name       string
+		query      string
+		wqr        WriteQueryResolver
+		mustFail   bool
+		expQueries []string
+	}
+	tests := []testCase{
+		{
+			name:       "insert with custom functions",
+			query:      "insert into foo_1337_1 values (txn_hash(), block_num())",
+			wqr:        newWriteQueryResolver("0xDEADBEEF", 100),
+			expQueries: []string{"insert into foo_1337_1 values ('0xDEADBEEF', 100)"},
+		},
+		{
+			name:       "update with custom functions",
+			query:      "update foo_1337_1 SET a=txn_hash(), b=block_num() where c in (block_num(), block_num()+1)",
+			wqr:        newWriteQueryResolver("0xDEADBEEF", 100),
+			expQueries: []string{"update foo_1337_1 SET a='0xDEADBEEF', b=100 where c in (100, 100+1)"},
+		},
+		{
+			name:       "delete with custom functions",
+			query:      "delete from foo_1337_1 where a=block_num() and b=txn_hash()",
+			wqr:        newWriteQueryResolver("0xDEADBEEF", 100),
+			expQueries: []string{"delete from foo_1337_1 where a=100 and b='0xDEADBEEF'"},
+		},
+		{
+			name:  "multiple queries",
+			query: "insert into foo_1337_1 values (txn_hash()); delete from foo_1337_1 where a=block_num()",
+			wqr:   newWriteQueryResolver("0xDEADBEEF", 100),
+			expQueries: []string{
+				"insert into foo_1337_1 values ('0xDEADBEEF')",
+				"delete from foo_1337_1 where a=100",
+			},
+		},
+		{
+			name:     "block_num() with integer argument",
+			query:    "delete from foo_1337_1 where a=block_num(1337)",
+			wqr:      newWriteQueryResolver("0xDEADBEEF", 100),
+			mustFail: true,
+		},
+		{
+			name:     "block_num() with string argument",
+			query:    "delete from foo_1337_1 where a=block_num('foo')",
+			wqr:      newWriteQueryResolver("0xDEADBEEF", 100),
+			mustFail: true,
+		},
+		{
+			name:     "txn_hash() with an integer argument",
+			query:    "insert into foo_1337_1 values (txn_hash(1))",
+			wqr:      newWriteQueryResolver("0xDEADBEEF", 100),
+			mustFail: true,
+		},
+		{
+			name:     "txn_hash() with a string argument",
+			query:    "insert into foo_1337_1 values (txn_hash('foo'))",
+			wqr:      newWriteQueryResolver("0xDEADBEEF", 100),
+			mustFail: true,
+		},
+	}
+
+	for _, it := range tests {
+		t.Run(it.name, func(tc testCase) func(t *testing.T) {
+			return func(t *testing.T) {
+				t.Parallel()
+
+				parser := newParser(t, []string{"system_", "registry"})
+				mutStmts, err := parser.ValidateMutatingQuery(tc.query, tableland.ChainID(100))
+				require.NoError(t, err)
+
+				for i, stmt := range mutStmts {
+					q, err := stmt.GetQuery(tc.wqr)
+					if tc.mustFail {
+						require.Error(t, err)
+						return
+					}
+					require.Equal(t, tc.expQueries[i], q)
+				}
+			}
+		}(it))
+	}
+}
+
+type writeQueryResolver struct {
+	txnHash     string
+	blockNumber uint64
+}
+
+func newWriteQueryResolver(txnHash string, blockNumber uint64) *writeQueryResolver {
+	return &writeQueryResolver{txnHash: txnHash, blockNumber: blockNumber}
+}
+
+func (wqr *writeQueryResolver) GetTxnHash() string {
+	return wqr.txnHash
+}
+
+func (wqr *writeQueryResolver) GetBlockNumber() uint64 {
+	return wqr.blockNumber
 }
 
 func newParser(t *testing.T, prefixes []string, opts ...parsing.Option) parsing.SQLValidator {
