@@ -18,11 +18,12 @@ var log = logger.With().Str("component", "userstore").Logger()
 
 // UserStore provides access to the db store.
 type UserStore struct {
-	db *sql.DB
+	db       *sql.DB
+	resolver parsing.ReadQueryResolver
 }
 
 // New creates a new UserStore.
-func New(dbURI string) (*UserStore, error) {
+func New(dbURI string, resolver parsing.ReadQueryResolver) (*UserStore, error) {
 	attrs := append([]attribute.KeyValue{attribute.String("name", "userstore")}, metrics.BaseAttrs...)
 	db, err := otelsql.Open("sqlite3", dbURI, otelsql.WithAttributes(attrs...))
 	if err != nil {
@@ -32,13 +33,14 @@ func New(dbURI string) (*UserStore, error) {
 		return nil, fmt.Errorf("registering dbstats: %s", err)
 	}
 	return &UserStore{
-		db: db,
+		db:       db,
+		resolver: resolver,
 	}, nil
 }
 
 // Read executes a read statement on the db.
 func (db *UserStore) Read(ctx context.Context, rq parsing.ReadStmt) (*tableland.TableData, error) {
-	query, err := rq.GetQuery()
+	query, err := rq.GetQuery(db.resolver)
 	if err != nil {
 		return nil, fmt.Errorf("get query: %s", err)
 	}

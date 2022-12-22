@@ -16,6 +16,7 @@ import (
 	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
 	executor "github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor/impl"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
+	rqresolver "github.com/textileio/go-tableland/pkg/readqueryresolver"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
 	"github.com/textileio/go-tableland/pkg/tables"
@@ -372,7 +373,8 @@ func setup(t *testing.T) (
 	}
 
 	require.NoError(t, err)
-	userStore, err := user.New(dbURI)
+	userStore, err := user.New(
+		dbURI, rqresolver.New(map[tableland.ChainID]eventprocessor.EventProcessor{chainID: ep}))
 	require.NoError(t, err)
 
 	tableReader := func(readQuery string) []int64 {

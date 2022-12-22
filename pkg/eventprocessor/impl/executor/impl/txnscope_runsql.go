@@ -243,7 +243,7 @@ func (ts *txnScope) executeWriteStmt(
 	}
 
 	if policy.WithCheck() == "" {
-		query, err := ws.GetQuery()
+		query, err := ws.GetQuery(ts.queryResolver)
 		if err != nil {
 			return fmt.Errorf("get query query: %s", err)
 		}
@@ -281,7 +281,7 @@ func (ts *txnScope) executeWriteStmt(
 		ts.log.Warn().Err(err).Msg("add returning clause called on delete")
 	}
 
-	query, err := ws.GetQuery()
+	query, err := ws.GetQuery(ts.queryResolver)
 	if err != nil {
 		return fmt.Errorf("get query: %s", err)
 	}

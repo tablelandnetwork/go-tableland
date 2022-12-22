@@ -34,7 +34,9 @@ func (e *errQueryExecution) Error() string {
 type txnScope struct {
 	log zerolog.Logger
 
-	parser    parsing.SQLValidator
+	parser        parsing.SQLValidator
+	queryResolver parsing.WriteQueryResolver
+
 	acl       tableland.ACL
 	scopeVars scopeVars
 
