@@ -206,7 +206,7 @@ func (pp *QueryValidator) ValidateReadQuery(query string) (parsing.ReadStmt, err
 	}
 
 	return &readStmt{
-		query: query,
+		statement: ast.Statements[0],
 	}, nil
 }
 
@@ -220,8 +220,12 @@ type mutatingStmt struct {
 
 var _ parsing.MutatingStmt = (*mutatingStmt)(nil)
 
-func (s *mutatingStmt) GetQuery() (string, error) {
-	return s.node.String(), nil
+func (s *mutatingStmt) GetQuery(resolver parsing.WriteQueryResolver) (string, error) {
+	query, err := s.node.Resolve(resolver)
+	if err != nil {
+		return "", fmt.Errorf("resolving write query: %s", err)
+	}
+	return query, nil
 }
 
 func (s *mutatingStmt) GetPrefix() string {
@@ -344,13 +348,18 @@ func (gs *grantStmt) GetPrivileges() tableland.Privileges {
 }
 
 type readStmt struct {
-	query string
+	statement sqlparser.Statement
 }
 
 var _ parsing.ReadStmt = (*readStmt)(nil)
 
-func (s *readStmt) GetQuery() (string, error) {
-	return s.query, nil
+func (s *readStmt) GetQuery(resolver parsing.ReadQueryResolver) (string, error) {
+	query, err := s.statement.Resolve(resolver)
+	if err != nil {
+		return "", fmt.Errorf("resolving sql query: %s", err)
+	}
+
+	return query, nil
 }
 
 func (pp *QueryValidator) validateWriteQuery(stmt sqlparser.WriteStatement) (*sqlparser.ValidatedTable, error) {
