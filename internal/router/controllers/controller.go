@@ -355,7 +355,9 @@ func (c *Controller) GetTable(rw http.ResponseWriter, r *http.Request) {
 
 	rw.Header().Set("Content-type", "application/json")
 	rw.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(rw).Encode(metadataV1)
+	enc := json.NewEncoder(rw)
+	enc.SetEscapeHTML(false)
+	_ = enc.Encode(metadataV1)
 }
 
 // GetTablesByController handles the GET /chain/{chainID}/tables/controller/{address} call.
