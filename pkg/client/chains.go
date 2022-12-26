@@ -40,64 +40,64 @@ var ChainIDs = struct {
 type Chain struct {
 	Endpoint     string
 	ID           ChainID
+	Name         string
 	ContractAddr common.Address
 }
 
 // Chains is the connection info for all chains supported by Tableland.
-var Chains = struct {
-	Ethereum       Chain
-	Optimism       Chain
-	Polygon        Chain
-	Arbitrum       Chain
-	EthereumGoerli Chain
-	OptimismGoerli Chain
-	ArbitrumGoerli Chain
-	PolygonMumbai  Chain
-	Local          Chain
-}{
-	Ethereum: Chain{
+var Chains = map[ChainID]Chain{
+	ChainIDs.Ethereum: {
 		Endpoint:     mainnetURL,
 		ID:           ChainIDs.Ethereum,
+		Name:         "Ethereum",
 		ContractAddr: common.HexToAddress("0x012969f7e3439a9B04025b5a049EB9BAD82A8C12"),
 	},
-	Optimism: Chain{
+	ChainIDs.Optimism: {
 		Endpoint:     mainnetURL,
 		ID:           ChainIDs.Optimism,
+		Name:         "Optimism",
 		ContractAddr: common.HexToAddress("0xfad44BF5B843dE943a09D4f3E84949A11d3aa3e6"),
 	},
-	Polygon: Chain{
+	ChainIDs.Polygon: {
 		Endpoint:     mainnetURL,
 		ID:           ChainIDs.Polygon,
+		Name:         "Polygon",
 		ContractAddr: common.HexToAddress("0x5c4e6A9e5C1e1BF445A062006faF19EA6c49aFeA"),
 	},
-	Arbitrum: Chain{
+	ChainIDs.Arbitrum: {
 		Endpoint:     mainnetURL,
 		ID:           ChainIDs.Arbitrum,
+		Name:         "Arbitrum",
 		ContractAddr: common.HexToAddress("0x9aBd75E8640871A5a20d3B4eE6330a04c962aFfd"),
 	},
-	EthereumGoerli: Chain{
+	ChainIDs.EthereumGoerli: {
 		Endpoint:     testnetURL,
 		ID:           ChainIDs.EthereumGoerli,
+		Name:         "Ethereum Goerli",
 		ContractAddr: common.HexToAddress("0xDA8EA22d092307874f30A1F277D1388dca0BA97a"),
 	},
-	OptimismGoerli: Chain{
+	ChainIDs.OptimismGoerli: {
 		Endpoint:     testnetURL,
 		ID:           ChainIDs.OptimismGoerli,
+		Name:         "Optimism Goerli",
 		ContractAddr: common.HexToAddress("0xC72E8a7Be04f2469f8C2dB3F1BdF69A7D516aBbA"),
 	},
-	ArbitrumGoerli: Chain{
+	ChainIDs.ArbitrumGoerli: {
 		Endpoint:     testnetURL,
 		ID:           ChainIDs.ArbitrumGoerli,
+		Name:         "Arbitrum Goerli",
 		ContractAddr: common.HexToAddress("0x033f69e8d119205089Ab15D340F5b797732f646b"),
 	},
-	PolygonMumbai: Chain{
+	ChainIDs.PolygonMumbai: {
 		Endpoint:     testnetURL,
 		ID:           ChainIDs.PolygonMumbai,
+		Name:         "Polygon Mumbai",
 		ContractAddr: common.HexToAddress("0x4b48841d4b32C4650E4ABc117A03FE8B51f38F68"),
 	},
-	Local: Chain{
+	ChainIDs.Local: {
 		Endpoint:     localURL,
 		ID:           ChainIDs.Local,
+		Name:         "Local",
 		ContractAddr: common.HexToAddress("0xe7f1725e7734ce288f8367e1bb143e90bb3f0512"),
 	},
 }
