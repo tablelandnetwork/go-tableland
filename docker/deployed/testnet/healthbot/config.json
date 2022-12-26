@@ -6,7 +6,6 @@
         "Human": false,
         "Debug": true
     },
-    "Target": "https://testnets.tableland.network/rpc",
     "Chains": [
         {
             "Name": 421613,

@@ -6,7 +6,6 @@
         "Human": false,
         "Debug": true
     },
-    "Target": "https://staging.tableland.network/rpc",
     "Chains": [
         {
             "ChainID": 5,
