@@ -79,13 +79,6 @@ func TestCustomFunctionsWriteQuery(t *testing.T) {
 			assertExpectation:    checkBlockNumberEq1,
 		},
 		{
-			// block_num(<chain-id>) must be valid **only** for read queries.
-			name:                 "block_num() with integer argument",
-			query:                "insert into foo_1337_100 values (block_num(1337))",
-			newExecutorWithTable: newExecutorWithIntegerTable,
-			mustFail:             true,
-		},
-		{
 			name:                 "block_num() with string argument",
 			query:                "insert into foo_1337_100 values (block_num('nope'))",
 			newExecutorWithTable: newExecutorWithIntegerTable,
@@ -99,12 +92,13 @@ func TestCustomFunctionsWriteQuery(t *testing.T) {
 				ctx := context.Background()
 				ex, dbURI := test.newExecutorWithTable()
 
-				bs, err := ex.NewBlockScope(ctx, 0)
+				bs, err := ex.NewBlockScope(ctx, 1)
 				require.NoError(t, err)
 
 				txnHash, res, err := execTxnWithRunSQLEvents(t, bs, []string{test.query})
 				if test.mustFail {
-					require.Error(t, err)
+					require.NotNil(t, res.Error)
+					return
 				}
 				require.NoError(t, err)
 				require.NotNil(t, res.TableID)

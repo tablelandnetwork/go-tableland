@@ -5,25 +5,10 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/tablelandnetwork/sqlparser"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/tables"
 )
-
-// WriteQueryResolver resolves Tablealand Custom Functions for a write statement.
-type WriteQueryResolver interface {
-	// GetTxnHash returns the transaction hash of the transaction containing the query being processed.
-	GetTxnHash() string
-
-	// GetBlockNumber returns the block number of the block containing query being processed.
-	GetBlockNumber() int64
-}
-
-// ReadQueryResolver resolves Tablealand Custom Functions for a read statement.
-type ReadQueryResolver interface {
-	// GetBlockNumber returns the last known block number for the provided chainID. If the chainID isn't known,
-	// it returns (0, false).
-	GetBlockNumber(chainID tableland.ChainID) (int64, bool)
-}
 
 // MutatingStmt represents mutating statement, that is either
 // a SugaredWriteStmt or a SugaredGrantStmt.
@@ -41,7 +26,7 @@ type MutatingStmt interface {
 	GetDBTableName() string
 
 	// GetQuery returns an executable stringification of a mutating statements with resolved custom functions.
-	GetQuery(WriteQueryResolver) (string, error)
+	GetQuery(sqlparser.WriteStatementResolver) (string, error)
 }
 
 // ReadStmt is an already parsed read statement that satisfies all
@@ -50,7 +35,7 @@ type MutatingStmt interface {
 // (select).
 type ReadStmt interface {
 	// GetQuery returns an executable stringification of a mutating statements with resolved custom functions.
-	GetQuery(ReadQueryResolver) (string, error)
+	GetQuery(sqlparser.ReadStatementResolver) (string, error)
 }
 
 // WriteStmt is an already parsed write statement that satisfies all

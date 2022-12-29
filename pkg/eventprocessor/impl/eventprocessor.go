@@ -313,7 +313,7 @@ func (ep *EventProcessor) calculateHash(ctx context.Context, bs executor.BlockSc
 	if err := telemetry.Collect(ctx, telemetry.StateHashMetric{
 		Version:     telemetry.StateHashMetricV1,
 		ChainID:     int64(stateHash.ChainID),
-		BlockNumber: int64(stateHash.BlockNumber),
+		BlockNumber: stateHash.BlockNumber,
 		Hash:        stateHash.Hash,
 	}); err != nil {
 		return fmt.Errorf("calculating hash for current block: %s", err)

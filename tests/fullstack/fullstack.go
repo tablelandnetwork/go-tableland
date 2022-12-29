@@ -27,7 +27,7 @@ import (
 	nonceimpl "github.com/textileio/go-tableland/pkg/nonce/impl"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
-	rqresolver "github.com/textileio/go-tableland/pkg/readqueryresolver"
+	rsresolver "github.com/textileio/go-tableland/pkg/readstatementresolver"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	sqlstoreimplsystem "github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
@@ -147,7 +147,7 @@ func CreateFullStack(t *testing.T, deps Deps) FullStack {
 		if userStore == nil {
 			userStore, err = user.New(
 				dbURI,
-				rqresolver.New(map[tableland.ChainID]eventprocessor.EventProcessor{tableland.ChainID(1337): ep}),
+				rsresolver.New(map[tableland.ChainID]eventprocessor.EventProcessor{1337: ep}),
 			)
 			require.NoError(t, err)
 		}

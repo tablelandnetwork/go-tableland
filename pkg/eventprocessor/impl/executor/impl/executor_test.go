@@ -223,7 +223,7 @@ func newExecutorWithStringTable(t *testing.T, rowsLimit int) (*Executor, string)
 	return newExecutorWithTable(t, rowsLimit, "create table foo_1337 (zar text)")
 }
 
-func newExecutorWithIntegerTable(t *testing.T, rowsLimit int) (*Executor, string) {
+func newExecutorWithIntegerTable(t *testing.T, rowsLimit int) (*Executor, string) { //nolint
 	return newExecutorWithTable(t, rowsLimit, "create table foo_1337 (zar int)")
 }
 
