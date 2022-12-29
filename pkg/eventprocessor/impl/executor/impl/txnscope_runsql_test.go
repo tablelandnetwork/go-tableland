@@ -25,7 +25,7 @@ func TestRunSQL_OneEventPerTxn(t *testing.T) {
 		t.Parallel()
 
 		ctx := context.Background()
-		ex, dbURI := newExecutorWithIntegerTable(t, 0)
+		ex, dbURI := newExecutorWithStringTable(t, 0)
 
 		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
@@ -43,7 +43,7 @@ func TestRunSQL_OneEventPerTxn(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		ex, dbURI := newExecutorWithIntegerTable(t, 0)
+		ex, dbURI := newExecutorWithStringTable(t, 0)
 
 		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
@@ -64,7 +64,7 @@ func TestRunSQL_OneEventPerTxn(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		ex, dbURI := newExecutorWithIntegerTable(t, 0)
+		ex, dbURI := newExecutorWithStringTable(t, 0)
 
 		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
@@ -94,7 +94,7 @@ func TestRunSQL_OneEventPerTxn(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		ex, dbURI := newExecutorWithIntegerTable(t, 0)
+		ex, dbURI := newExecutorWithStringTable(t, 0)
 
 		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
@@ -230,7 +230,7 @@ func TestRunSQL_WriteQueriesWithPolicies(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		ex, _ := newExecutorWithIntegerTable(t, 0)
+		ex, _ := newExecutorWithStringTable(t, 0)
 
 		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
@@ -249,7 +249,7 @@ func TestRunSQL_WriteQueriesWithPolicies(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		ex, _ := newExecutorWithIntegerTable(t, 0)
+		ex, _ := newExecutorWithStringTable(t, 0)
 
 		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
@@ -269,7 +269,7 @@ func TestRunSQL_WriteQueriesWithPolicies(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		ex, _ := newExecutorWithIntegerTable(t, 0)
+		ex, _ := newExecutorWithStringTable(t, 0)
 
 		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
@@ -289,7 +289,7 @@ func TestRunSQL_WriteQueriesWithPolicies(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		ex, _ := newExecutorWithIntegerTable(t, 0)
+		ex, _ := newExecutorWithStringTable(t, 0)
 
 		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
@@ -310,7 +310,7 @@ func TestRunSQL_WriteQueriesWithPolicies(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		ex, dbURI := newExecutorWithIntegerTable(t, 0)
+		ex, dbURI := newExecutorWithStringTable(t, 0)
 
 		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
@@ -349,7 +349,7 @@ func TestRunSQL_RowCountLimit(t *testing.T) {
 	ctx := context.Background()
 
 	rowLimit := 10
-	ex, dbURI := newExecutorWithIntegerTable(t, rowLimit)
+	ex, dbURI := newExecutorWithStringTable(t, rowLimit)
 
 	// Helper func to insert a row and return the result.
 	insertRow := func(t *testing.T) *string {
@@ -386,7 +386,7 @@ func TestWithCheck(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		ex, dbURI := newExecutorWithIntegerTable(t, 0)
+		ex, dbURI := newExecutorWithStringTable(t, 0)
 
 		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
@@ -410,7 +410,7 @@ func TestWithCheck(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		ex, dbURI := newExecutorWithIntegerTable(t, 0)
+		ex, dbURI := newExecutorWithStringTable(t, 0)
 
 		{
 			bs, err := ex.NewBlockScope(ctx, 0)
@@ -444,7 +444,7 @@ func TestWithCheck(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		ex, dbURI := newExecutorWithIntegerTable(t, 0)
+		ex, dbURI := newExecutorWithStringTable(t, 0)
 
 		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
@@ -472,7 +472,7 @@ func TestWithCheck(t *testing.T) {
 		ctx := context.Background()
 
 		rowLimit := 10
-		ex, dbURI := newExecutorWithIntegerTable(t, rowLimit)
+		ex, dbURI := newExecutorWithStringTable(t, rowLimit)
 
 		{
 			bs, err := ex.NewBlockScope(ctx, 0)
@@ -511,15 +511,13 @@ func TestWithCheck(t *testing.T) {
 	})
 }
 
-func assertExecTxnWithRunSQLEvents(t *testing.T, bs executor.BlockScope, stmts []string) common.Hash {
+func assertExecTxnWithRunSQLEvents(t *testing.T, bs executor.BlockScope, stmts []string) {
 	t.Helper()
 
-	txnHash, res, err := execTxnWithRunSQLEvents(t, bs, stmts)
+	_, res, err := execTxnWithRunSQLEvents(t, bs, stmts)
 	require.NoError(t, err)
 	require.NotNil(t, res.TableID)
 	require.Equal(t, int64(100), res.TableID.ToBigInt().Int64())
-
-	return txnHash
 }
 
 func execTxnWithRunSQLEvents(
@@ -564,6 +562,5 @@ func execTxnWithRunSQLEventsAndPolicy(
 	txnHash := common.BytesToHash(hashBytes[:])
 
 	txnResult, err := bs.ExecuteTxnEvents(context.Background(), eventfeed.TxnEvents{TxnHash: txnHash, Events: events})
-
 	return txnHash, txnResult, err
 }

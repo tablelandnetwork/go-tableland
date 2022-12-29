@@ -77,8 +77,8 @@ func (bs *blockScope) ExecuteTxnEvents(
 	ts := &txnScope{
 		scopeVars: bs.scopeVars,
 
-		parser:        bs.parser,
-		queryResolver: newWriteQueryResolver(evmTxn.TxnHash.Hex(), bs.scopeVars.BlockNumber),
+		parser:            bs.parser,
+		statementResolver: newWriteStatementResolver(evmTxn.TxnHash.Hex(), bs.scopeVars.BlockNumber),
 
 		acl: bs.acl,
 
@@ -239,19 +239,19 @@ func (bs *blockScope) Commit() error {
 	return nil
 }
 
-type writeQueryResolver struct {
+type writeStatmentResolver struct {
 	txnHash     string
 	blockNumber int64
 }
 
-func newWriteQueryResolver(txnHash string, blockNumber int64) *writeQueryResolver {
-	return &writeQueryResolver{txnHash: txnHash, blockNumber: blockNumber}
+func newWriteStatementResolver(txnHash string, blockNumber int64) *writeStatmentResolver {
+	return &writeStatmentResolver{txnHash: txnHash, blockNumber: blockNumber}
 }
 
-func (wqr *writeQueryResolver) GetTxnHash() string {
+func (wqr *writeStatmentResolver) GetTxnHash() string {
 	return wqr.txnHash
 }
 
-func (wqr *writeQueryResolver) GetBlockNumber() int64 {
+func (wqr *writeStatmentResolver) GetBlockNumber() int64 {
 	return wqr.blockNumber
 }

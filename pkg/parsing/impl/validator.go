@@ -220,12 +220,16 @@ type mutatingStmt struct {
 
 var _ parsing.MutatingStmt = (*mutatingStmt)(nil)
 
-func (s *mutatingStmt) GetQuery(resolver parsing.WriteQueryResolver) (string, error) {
-	query, err := s.node.Resolve(resolver)
-	if err != nil {
-		return "", fmt.Errorf("resolving write query: %s", err)
+func (s *mutatingStmt) GetQuery(resolver sqlparser.WriteStatementResolver) (string, error) {
+	if writeStmt, ok := s.node.(sqlparser.WriteStatement); ok {
+		query, err := writeStmt.Resolve(resolver)
+		if err != nil {
+			return "", fmt.Errorf("resolving write statement: %s", err)
+		}
+		return query, nil
 	}
-	return query, nil
+
+	return s.node.String(), nil
 }
 
 func (s *mutatingStmt) GetPrefix() string {
@@ -353,10 +357,10 @@ type readStmt struct {
 
 var _ parsing.ReadStmt = (*readStmt)(nil)
 
-func (s *readStmt) GetQuery(resolver parsing.ReadQueryResolver) (string, error) {
-	query, err := s.statement.Resolve(resolver)
+func (s *readStmt) GetQuery(resolver sqlparser.ReadStatementResolver) (string, error) {
+	query, err := s.statement.(sqlparser.ReadStatement).Resolve(resolver)
 	if err != nil {
-		return "", fmt.Errorf("resolving sql query: %s", err)
+		return "", fmt.Errorf("resolving read statement: %s", err)
 	}
 
 	return query, nil

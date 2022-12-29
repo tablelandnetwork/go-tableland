@@ -45,7 +45,7 @@ func TestReadRunSQL(t *testing.T) {
 		// Allow joins and sub-queries
 		{
 			name:       "with join",
-			query:      "select * from foo_1 join bar_2 on a=b",
+			query:      "select * from foo_1 join bar_2 on a = b",
 			expErrType: nil,
 		},
 		{
@@ -59,24 +59,8 @@ func TestReadRunSQL(t *testing.T) {
 			expErrType: nil,
 		},
 		{
-			name: "select with complex subqueries in function arguments",
-			query: `select
-				json_object(
-				  'name', '#' || rigs.id,
-				  'external_url', 'https://rigs.tableland.xyz/' || rigs.id,
-				  'attributes', json_array(
-					  json_object('trait_type', 'Fleet', 'value', rigs.fleet),
-					  json_object('trait_type', 'Chassis', 'value', rigs.chassis),
-					  json_object('trait_type', 'Wheels', 'value', rigs.wheels),
-					  json_object('trait_type', 'Background', 'value', rigs.background),
-					  json_object('trait_type', (
-						select name from badges_2 where badges.rig_id = rigs.id and position = 1 limit 1
-					  ), 'value', (
-						select image from badges_2 where badges.rig_id = rigs.id and position = 1 limit 1
-					  ))
-				  )
-			  )
-			  from rigs_1;`,
+			name:       "select with complex subqueries in function arguments",
+			query:      `select json_object('name', '#' || rigs.id, 'external_url', 'https://rigs.tableland.xyz/' || rigs.id, 'attributes', json_array(json_object('trait_type', 'Fleet', 'value', rigs.fleet), json_object('trait_type', 'Chassis', 'value', rigs.chassis), json_object('trait_type', 'Wheels', 'value', rigs.wheels), json_object('trait_type', 'Background', 'value', rigs.background), json_object('trait_type', (select name from badges_2 where badges.rig_id = rigs.id and position = 1 limit 1), 'value', (select image from badges_2 where badges.rig_id = rigs.id and position = 1 limit 1)))) from rigs_1`, // nolint
 			expErrType: nil,
 		},
 
@@ -892,163 +876,6 @@ func TestWriteStatementAddReturningClause(t *testing.T) {
 		err = ws.AddReturningClause()
 		require.ErrorAs(t, err, &parsing.ErrCantAddReturningOnDELETE)
 	})
-}
-
-func TestCustomFunctionResolveReadQuery(t *testing.T) {
-	t.Parallel()
-
-	type testCase struct {
-		name     string
-		query    string
-		mustFail bool
-		expQuery string
-	}
-
-	rqr := newReadQueryResolver(map[tableland.ChainID]int64{
-		tableland.ChainID(1337): 1001,
-		tableland.ChainID(1338): 1002,
-		tableland.ChainID(1339): 1003,
-	})
-	tests := []testCase{
-		{
-			name:     "select with block_num(*)",
-			query:    "select block_num(1337), block_num(1338) from foo_1337_1 where a = block_num(1339)",
-			expQuery: "select 1001, 1002 from foo_1337_1 where a = 1003",
-		},
-		{
-			name:     "select with block_num(*) for chainID that doesn't exist",
-			query:    "select block_num(1337) from foo_1337_1 where a = block_num(1336)",
-			mustFail: true,
-		},
-	}
-
-	for _, it := range tests {
-		t.Run(it.name, func(tc testCase) func(t *testing.T) {
-			return func(t *testing.T) {
-				t.Parallel()
-
-				parser := newParser(t, []string{"system_", "registry"})
-				stmt, err := parser.ValidateReadQuery(tc.query)
-				require.NoError(t, err)
-
-				q, err := stmt.GetQuery(rqr)
-				if tc.mustFail {
-					require.Error(t, err)
-					return
-				}
-				require.Equal(t, tc.expQuery, q)
-			}
-		}(it))
-	}
-}
-
-func TestCustomFunctionResolveWriteQuery(t *testing.T) {
-	t.Parallel()
-
-	type testCase struct {
-		name       string
-		query      string
-		mustFail   bool
-		expQueries []string
-	}
-
-	wqr := newWriteQueryResolver("0xDEADBEEF", 100)
-	tests := []testCase{
-		{
-			name:       "insert with custom functions",
-			query:      "insert into foo_1337_1 values (txn_hash(), block_num())",
-			expQueries: []string{"insert into foo_1337_1 values ('0xDEADBEEF', 100)"},
-		},
-		{
-			name:       "update with custom functions",
-			query:      "update foo_1337_1 SET a=txn_hash(), b=block_num() where c in (block_num(), block_num()+1)",
-			expQueries: []string{"update foo_1337_1 SET a='0xDEADBEEF', b=100 where c in (100, 100+1)"},
-		},
-		{
-			name:       "delete with custom functions",
-			query:      "delete from foo_1337_1 where a=block_num() and b=txn_hash()",
-			expQueries: []string{"delete from foo_1337_1 where a=100 and b='0xDEADBEEF'"},
-		},
-		{
-			name:  "multiple queries",
-			query: "insert into foo_1337_1 values (txn_hash()); delete from foo_1337_1 where a=block_num()",
-			expQueries: []string{
-				"insert into foo_1337_1 values ('0xDEADBEEF')",
-				"delete from foo_1337_1 where a=100",
-			},
-		},
-		{
-			name:     "block_num() with integer argument",
-			query:    "delete from foo_1337_1 where a=block_num(1337)",
-			mustFail: true,
-		},
-		{
-			name:     "block_num() with string argument",
-			query:    "delete from foo_1337_1 where a=block_num('foo')",
-			mustFail: true,
-		},
-		{
-			name:     "txn_hash() with an integer argument",
-			query:    "insert into foo_1337_1 values (txn_hash(1))",
-			mustFail: true,
-		},
-		{
-			name:     "txn_hash() with a string argument",
-			query:    "insert into foo_1337_1 values (txn_hash('foo'))",
-			mustFail: true,
-		},
-	}
-
-	for _, it := range tests {
-		t.Run(it.name, func(tc testCase) func(t *testing.T) {
-			return func(t *testing.T) {
-				t.Parallel()
-
-				parser := newParser(t, []string{"system_", "registry"})
-				mutStmts, err := parser.ValidateMutatingQuery(tc.query, tableland.ChainID(100))
-				require.NoError(t, err)
-
-				for i, stmt := range mutStmts {
-					q, err := stmt.GetQuery(wqr)
-					if tc.mustFail {
-						require.Error(t, err)
-						return
-					}
-					require.Equal(t, tc.expQueries[i], q)
-				}
-			}
-		}(it))
-	}
-}
-
-type writeQueryResolver struct {
-	txnHash     string
-	blockNumber int64
-}
-
-func newWriteQueryResolver(txnHash string, blockNumber int64) *writeQueryResolver {
-	return &writeQueryResolver{txnHash: txnHash, blockNumber: blockNumber}
-}
-
-func (wqr *writeQueryResolver) GetTxnHash() string {
-	return wqr.txnHash
-}
-
-func (wqr *writeQueryResolver) GetBlockNumber() int64 {
-	return wqr.blockNumber
-}
-
-type readQueryResolver struct {
-	chainBlockNumbers map[tableland.ChainID]int64
-}
-
-func newReadQueryResolver(chainBlockNumbers map[tableland.ChainID]int64) *readQueryResolver {
-	return &readQueryResolver{chainBlockNumbers: chainBlockNumbers}
-}
-
-func (wqr *readQueryResolver) GetBlockNumber(chainID tableland.ChainID) (int64, bool) {
-	blockNumber, ok := wqr.chainBlockNumbers[chainID]
-	return blockNumber, ok
 }
 
 func newParser(t *testing.T, prefixes []string, opts ...parsing.Option) parsing.SQLValidator {
