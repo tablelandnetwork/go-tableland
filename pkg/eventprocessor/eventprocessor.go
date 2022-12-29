@@ -1,7 +1,6 @@
 package eventprocessor
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -67,7 +66,7 @@ func WithHashCalcStep(step int64) Option {
 
 // EventProcessor processes events from a smart-contract.
 type EventProcessor interface {
-	GetLastExecutedBlockNumber(context.Context) (int64, error)
+	GetLastExecutedBlockNumber() int64
 	Start() error
 	Stop()
 }

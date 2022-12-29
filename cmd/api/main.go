@@ -35,6 +35,7 @@ import (
 	nonceimpl "github.com/textileio/go-tableland/pkg/nonce/impl"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
+	"github.com/textileio/go-tableland/pkg/readstatementresolver"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
@@ -94,7 +95,11 @@ func main() {
 	}
 
 	// User store.
-	userStore, err := user.New(databaseURL)
+	eps := make(map[tableland.ChainID]eventprocessor.EventProcessor, len(chainStacks))
+	for chainID, stack := range chainStacks {
+		eps[chainID] = stack.EventProcessor
+	}
+	userStore, err := user.New(databaseURL, readstatementresolver.New(eps))
 	if err != nil {
 		log.Fatal().Err(err).Msg("creating user store")
 	}

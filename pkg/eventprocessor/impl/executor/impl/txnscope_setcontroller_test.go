@@ -20,7 +20,7 @@ func TestSetController(t *testing.T) {
 
 	t.Run("controller is not set default", func(t *testing.T) {
 		t.Parallel()
-		_, dbURI := newExecutorWithTable(t, 0)
+		_, dbURI := newExecutorWithIntegerTable(t, 0)
 
 		// Let's test first that the controller is not set (it's the default behavior)
 		db, err := sql.Open("sqlite3", dbURI)
@@ -31,7 +31,7 @@ func TestSetController(t *testing.T) {
 
 	t.Run("foreign key constraint", func(t *testing.T) {
 		t.Parallel()
-		ex, _ := newExecutorWithTable(t, 0)
+		ex, _ := newExecutorWithIntegerTable(t, 0)
 
 		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
@@ -47,7 +47,7 @@ func TestSetController(t *testing.T) {
 
 	t.Run("set unset controller", func(t *testing.T) {
 		t.Parallel()
-		ex, dbURI := newExecutorWithTable(t, 0)
+		ex, dbURI := newExecutorWithIntegerTable(t, 0)
 
 		// sets
 		bs, err := ex.NewBlockScope(ctx, 0)
@@ -77,7 +77,7 @@ func TestSetController(t *testing.T) {
 
 	t.Run("upsert", func(t *testing.T) {
 		t.Parallel()
-		ex, dbURI := newExecutorWithTable(t, 0)
+		ex, dbURI := newExecutorWithIntegerTable(t, 0)
 
 		{
 			bs, err := ex.NewBlockScope(ctx, 0)

@@ -26,7 +26,7 @@ func TestReceiptExists(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
-	ex, _ := newExecutorWithTable(t, 0)
+	ex, _ := newExecutorWithIntegerTable(t, 0)
 
 	txnHash := "0x0000000000000000000000000000000000000000000000000000000000001234"
 
@@ -148,27 +148,41 @@ func TestMultiEventTxnBlock(t *testing.T) {
 	{
 		// Check 1) and 3).
 		require.True(t, existsTableWithName(t, dbURI, "bar_1337_100"))
-		require.Equal(t, 2, tableRowCountT100(t, dbURI, "select count(*) from bar_1337_100"))
+		require.Equal(t, 2, tableReadInteger(t, dbURI, "select count(*) from bar_1337_100"))
 
 		// Check 2).
 		require.False(t, existsTableWithName(t, dbURI, "foo_1337_101"))
 	}
 }
 
-func tableRowCountT100(t *testing.T, dbURI string, query string) int {
+func tableReadInteger(t *testing.T, dbURI string, query string) int {
 	t.Helper()
 
 	db, err := sql.Open("sqlite3", dbURI)
 	require.NoError(t, err)
 
 	row := db.QueryRowContext(context.Background(), query)
-	var rowCount int
-	if err = row.Scan(&rowCount); err == sql.ErrNoRows {
+	var integer int
+	if err = row.Scan(&integer); err == sql.ErrNoRows {
 		return 0
 	}
 	require.NoError(t, err)
 
-	return rowCount
+	return integer
+}
+
+func tableReadString(t *testing.T, dbURI string, query string) string {
+	t.Helper()
+
+	db, err := sql.Open("sqlite3", dbURI)
+	require.NoError(t, err)
+
+	row := db.QueryRowContext(context.Background(), query)
+
+	var str string
+	require.NoError(t, row.Scan(&str))
+
+	return str
 }
 
 func existsTableWithName(t *testing.T, dbURI string, tableName string) bool {
@@ -205,7 +219,15 @@ func newExecutor(t *testing.T, rowsLimit int) (*Executor, string) {
 	return exec, dbURI
 }
 
-func newExecutorWithTable(t *testing.T, rowsLimit int) (*Executor, string) {
+func newExecutorWithStringTable(t *testing.T, rowsLimit int) (*Executor, string) {
+	return newExecutorWithTable(t, rowsLimit, "create table foo_1337 (zar text)")
+}
+
+func newExecutorWithIntegerTable(t *testing.T, rowsLimit int) (*Executor, string) { //nolint
+	return newExecutorWithTable(t, rowsLimit, "create table foo_1337 (zar int)")
+}
+
+func newExecutorWithTable(t *testing.T, rowsLimit int, createStmt string) (*Executor, string) {
 	t.Helper()
 
 	ex, dbURI := newExecutor(t, rowsLimit)
@@ -225,7 +247,7 @@ func newExecutorWithTable(t *testing.T, rowsLimit int) (*Executor, string) {
 			&ethereum.ContractCreateTable{
 				Owner:     common.HexToAddress("0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF"),
 				TableId:   id.ToBigInt(),
-				Statement: "create table foo_1337 (zar text)",
+				Statement: createStmt,
 			},
 		},
 	})

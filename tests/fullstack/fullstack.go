@@ -19,6 +19,7 @@ import (
 	systemimpl "github.com/textileio/go-tableland/internal/system/impl"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/internal/tableland/impl"
+	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
 	epimpl "github.com/textileio/go-tableland/pkg/eventprocessor/impl"
@@ -26,6 +27,7 @@ import (
 	nonceimpl "github.com/textileio/go-tableland/pkg/nonce/impl"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
+	rsresolver "github.com/textileio/go-tableland/pkg/readstatementresolver"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	sqlstoreimplsystem "github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
@@ -84,12 +86,6 @@ func CreateFullStack(t *testing.T, deps Deps) FullStack {
 		require.NoError(t, err)
 	}
 
-	userStore := deps.UserStore
-	if userStore == nil {
-		userStore, err = user.New(dbURI)
-		require.NoError(t, err)
-	}
-
 	backend, addr, contract, transactOpts, sk := testutil.Setup(t)
 
 	wallet, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(sk)))
@@ -104,16 +100,57 @@ func CreateFullStack(t *testing.T, deps Deps) FullStack {
 	)
 	require.NoError(t, err)
 
+	db, err := sql.Open("sqlite3", dbURI)
+	require.NoError(t, err)
+	db.SetMaxOpenConns(1)
+
+	acl := deps.ACL
+	if acl == nil {
+		acl = &aclHalfMock{systemStore}
+	}
+
+	ex, err := executor.NewExecutor(1337, db, parser, 0, acl)
+	require.NoError(t, err)
+	// Spin up dependencies needed for the EventProcessor.
+	// i.e: Executor, Parser, and EventFeed (connected to the EVM chain)
+	ef, err := efimpl.New(
+		systemStore,
+		ChainID,
+		backend,
+		addr,
+		eventfeed.WithNewHeadPollFreq(time.Millisecond),
+		eventfeed.WithMinBlockDepth(0))
+	require.NoError(t, err)
+
+	// Create EventProcessor for our test.
+	ep, err := epimpl.New(parser, ex, ef, 1337)
+	require.NoError(t, err)
+
+	err = ep.Start()
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		ep.Stop()
+	})
+
 	chainStacks := map[tableland.ChainID]chains.ChainStack{
 		1337: {
 			Store:                 systemStore,
 			Registry:              registry,
 			AllowTransactionRelay: true,
+			EventProcessor:        ep,
 		},
 	}
 
 	tbl := deps.Tableland
 	if tbl == nil {
+		userStore := deps.UserStore
+		if userStore == nil {
+			userStore, err = user.New(
+				dbURI,
+				rsresolver.New(map[tableland.ChainID]eventprocessor.EventProcessor{1337: ep}),
+			)
+			require.NoError(t, err)
+		}
 		tbl = impl.NewTablelandMesa(parser, userStore, chainStacks)
 		tbl, err = impl.NewInstrumentedTablelandMesa(tbl)
 		require.NoError(t, err)
@@ -137,44 +174,11 @@ func CreateFullStack(t *testing.T, deps Deps) FullStack {
 		require.NoError(t, err)
 	}
 
-	acl := deps.ACL
-	if acl == nil {
-		acl = &aclHalfMock{systemStore}
-	}
-
-	db, err := sql.Open("sqlite3", dbURI)
-	require.NoError(t, err)
-	db.SetMaxOpenConns(1)
-
-	ex, err := executor.NewExecutor(1337, db, parser, 0, acl)
-	require.NoError(t, err)
-
 	router, err := router.ConfiguredRouter(tbl, systemService, 10, time.Second, []tableland.ChainID{ChainID})
 	require.NoError(t, err)
 
 	server := httptest.NewServer(router.Handler())
-
-	// Spin up dependencies needed for the EventProcessor.
-	// i.e: Executor, Parser, and EventFeed (connected to the EVM chain)
-	ef, err := efimpl.New(
-		systemStore,
-		ChainID,
-		backend,
-		addr,
-		eventfeed.WithNewHeadPollFreq(time.Millisecond),
-		eventfeed.WithMinBlockDepth(0))
-	require.NoError(t, err)
-
-	// Create EventProcessor for our test.
-	ep, err := epimpl.New(parser, ex, ef, 1337)
-	require.NoError(t, err)
-
-	err = ep.Start()
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		ep.Stop()
-		server.Close()
-	})
+	t.Cleanup(server.Close)
 
 	return FullStack{
 		Backend:           backend,

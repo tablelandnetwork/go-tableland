@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/rs/zerolog"
+	"github.com/tablelandnetwork/sqlparser"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor"
@@ -34,7 +35,9 @@ func (e *errQueryExecution) Error() string {
 type txnScope struct {
 	log zerolog.Logger
 
-	parser    parsing.SQLValidator
+	parser            parsing.SQLValidator
+	statementResolver sqlparser.WriteStatementResolver
+
 	acl       tableland.ACL
 	scopeVars scopeVars
 

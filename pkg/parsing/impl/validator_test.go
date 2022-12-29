@@ -45,7 +45,7 @@ func TestReadRunSQL(t *testing.T) {
 		// Allow joins and sub-queries
 		{
 			name:       "with join",
-			query:      "select * from foo_1 join bar_2 on a=b",
+			query:      "select * from foo_1 join bar_2 on a = b",
 			expErrType: nil,
 		},
 		{
@@ -59,24 +59,8 @@ func TestReadRunSQL(t *testing.T) {
 			expErrType: nil,
 		},
 		{
-			name: "select with complex subqueries in function arguments",
-			query: `select
-				json_object(
-				  'name', '#' || rigs.id,
-				  'external_url', 'https://rigs.tableland.xyz/' || rigs.id,
-				  'attributes', json_array(
-					  json_object('trait_type', 'Fleet', 'value', rigs.fleet),
-					  json_object('trait_type', 'Chassis', 'value', rigs.chassis),
-					  json_object('trait_type', 'Wheels', 'value', rigs.wheels),
-					  json_object('trait_type', 'Background', 'value', rigs.background),
-					  json_object('trait_type', (
-						select name from badges_2 where badges.rig_id = rigs.id and position = 1 limit 1
-					  ), 'value', (
-						select image from badges_2 where badges.rig_id = rigs.id and position = 1 limit 1
-					  ))
-				  )
-			  )
-			  from rigs_1;`,
+			name:       "select with complex subqueries in function arguments",
+			query:      `select json_object('name', '#' || rigs.id, 'external_url', 'https://rigs.tableland.xyz/' || rigs.id, 'attributes', json_array(json_object('trait_type', 'Fleet', 'value', rigs.fleet), json_object('trait_type', 'Chassis', 'value', rigs.chassis), json_object('trait_type', 'Wheels', 'value', rigs.wheels), json_object('trait_type', 'Background', 'value', rigs.background), json_object('trait_type', (select name from badges_2 where badges.rig_id = rigs.id and position = 1 limit 1), 'value', (select image from badges_2 where badges.rig_id = rigs.id and position = 1 limit 1)))) from rigs_1`, // nolint
 			expErrType: nil,
 		},
 
@@ -116,7 +100,7 @@ func TestReadRunSQL(t *testing.T) {
 				if tc.expErrType == nil {
 					require.NoError(t, err)
 					require.NotNil(t, rs)
-					q, err := rs.GetQuery()
+					q, err := rs.GetQuery(nil)
 					require.NoError(t, err)
 					require.Equal(t, tc.query, q)
 					return
@@ -728,7 +712,7 @@ func TestGetWriteStatements(t *testing.T) {
 				require.NoError(t, err)
 
 				for i := range stmts {
-					query, err := stmts[i].GetQuery()
+					query, err := stmts[i].GetQuery(nil)
 					require.NoError(t, err)
 					require.Equal(t, tc.expectedStmts[i], query)
 				}
@@ -779,7 +763,7 @@ func TestGetGrantStatementRolesAndPrivileges(t *testing.T) {
 				for i := range stmts {
 					gs, ok := stmts[i].(parsing.GrantStmt)
 					require.True(t, ok)
-					q, err := gs.GetQuery()
+					q, err := gs.GetQuery(nil)
 					require.NoError(t, err)
 					require.Equal(t, tc.expectedStmt, q)
 					require.Equal(t, tc.roles, gs.GetRoles())
@@ -793,12 +777,13 @@ func TestGetGrantStatementRolesAndPrivileges(t *testing.T) {
 func TestWriteStatementAddWhereClause(t *testing.T) {
 	t.Parallel()
 
-	testCase := []struct {
+	type subTest struct {
 		name        string
 		query       string
 		whereClause string
 		expQuery    string
-	}{
+	}
+	testCase := []subTest{
 		{
 			name:        "no-where-clause",
 			query:       "UPDATE foo_1337_10 SET id = 1",
@@ -814,24 +799,26 @@ func TestWriteStatementAddWhereClause(t *testing.T) {
 	}
 
 	for _, tc := range testCase {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
+		t.Run(tc.name, func(tc subTest) func(t *testing.T) {
+			return func(t *testing.T) {
+				t.Parallel()
 
-			parser := newParser(t, []string{"system_", "registry"})
-			mss, err := parser.ValidateMutatingQuery(tc.query, 1337)
-			require.NoError(t, err)
-			require.Len(t, mss, 1)
+				parser := newParser(t, []string{"system_", "registry"})
+				mss, err := parser.ValidateMutatingQuery(tc.query, 1337)
+				require.NoError(t, err)
+				require.Len(t, mss, 1)
 
-			ws, ok := mss[0].(parsing.WriteStmt)
-			require.True(t, ok)
+				ws, ok := mss[0].(parsing.WriteStmt)
+				require.True(t, ok)
 
-			err = ws.AddWhereClause(tc.whereClause)
-			require.NoError(t, err)
+				err = ws.AddWhereClause(tc.whereClause)
+				require.NoError(t, err)
 
-			sql, err := ws.GetQuery()
-			require.NoError(t, err)
-			require.Equal(t, tc.expQuery, sql)
-		})
+				sql, err := ws.GetQuery(nil)
+				require.NoError(t, err)
+				require.Equal(t, tc.expQuery, sql)
+			}
+		}(tc))
 	}
 }
 
@@ -851,7 +838,7 @@ func TestWriteStatementAddReturningClause(t *testing.T) {
 		err = ws.AddReturningClause()
 		require.NoError(t, err)
 
-		sql, err := ws.GetQuery()
+		sql, err := ws.GetQuery(nil)
 		require.NoError(t, err)
 		require.Equal(t, "insert into foo_1337_1 values ('bar') returning (rowid)", sql)
 	})
@@ -870,7 +857,7 @@ func TestWriteStatementAddReturningClause(t *testing.T) {
 		err = ws.AddReturningClause()
 		require.NoError(t, err)
 
-		sql, err := ws.GetQuery()
+		sql, err := ws.GetQuery(nil)
 		require.NoError(t, err)
 		require.Equal(t, "update foo_1337_1 set foo = 'bar' returning (rowid)", sql)
 	})
