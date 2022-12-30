@@ -245,7 +245,10 @@ func (ts *txnScope) executeWriteStmt(
 	if policy.WithCheck() == "" {
 		query, err := ws.GetQuery(ts.statementResolver)
 		if err != nil {
-			return fmt.Errorf("get query query: %s", err)
+			return &errQueryExecution{
+				Code: "QUERY_RESOLUTION",
+				Msg:  err.Error(),
+			}
 		}
 		cmdTag, err := ts.txn.ExecContext(ctx, query)
 		if err != nil {
@@ -283,7 +286,10 @@ func (ts *txnScope) executeWriteStmt(
 
 	query, err := ws.GetQuery(ts.statementResolver)
 	if err != nil {
-		return fmt.Errorf("get query: %s", err)
+		return &errQueryExecution{
+			Code: "QUERY_RESOLUTION",
+			Msg:  err.Error(),
+		}
 	}
 
 	affectedRowIDs, err := ts.executeQueryAndGetAffectedRows(ctx, query)
