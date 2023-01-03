@@ -67,7 +67,7 @@ jobs:
         with:
           # TODO: I think we will need a token with greater permission than this,
           #       maybe TEXTILEIO_MACHINE_ACCESS_TOKEN will work?
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.TEXTILEIO_MACHINE_ACCESS_TOKEN }}
           script: |
             await github.rest.actions.createWorkflowDispatch({
               owner: 'tablelandnetwork',
