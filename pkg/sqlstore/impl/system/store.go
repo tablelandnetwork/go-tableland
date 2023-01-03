@@ -246,6 +246,10 @@ func (s *SystemStore) GetSchemaByTableName(ctx context.Context, name string) (sq
 		return sqlstore.TableSchema{}, fmt.Errorf("failed to get the table: %s", err)
 	}
 
+	if strings.Contains(strings.ToLower(createStmt), "autoincrement") {
+		createStmt = strings.Replace(createStmt, "autoincrement", "", -1)
+	}
+
 	index := strings.LastIndex(strings.ToLower(createStmt), "strict")
 	ast, err := sqlparser.Parse(createStmt[:index])
 	if err != nil {
