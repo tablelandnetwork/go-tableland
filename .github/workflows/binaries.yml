@@ -61,25 +61,48 @@ jobs:
           platforms: linux/amd64, linux/arm64
   js-release:
     runs-on: ubuntu-latest
+    if: ${{ success() }}
+    needs: [binaries]
     steps:
+      - run: echo "release_version ${{ github.ref_name }}"
+
       - name: PR to publish this release via the npm package
         uses: actions/github-script@v6
         with:
-          # TODO: I think we will need a token with greater permission than this,
-          #       maybe TEXTILEIO_MACHINE_ACCESS_TOKEN will work?
           github-token: ${{ secrets.TEXTILEIO_MACHINE_ACCESS_TOKEN }}
           script: |
-            await github.rest.actions.createWorkflowDispatch({
-              owner: 'tablelandnetwork',
-              repo: 'js-validator',
-              workflow_id: 'release-pr.yml',
-              ref: 'main',
-              inputs: {
-                release_version: ${{ github.ref_name }}
+            // This triggers the release-pr workflow in the js-validator repo
+            // which will create a pull request in that repo to update the binaries
+            // on npm with this release
+            try {
+              // TODO: switch back to 'tablelandnetwork'
+              const ownerOrg = 'joewagner';
+
+              // if the tag/release has a preceeding "v" we want to remove
+              // it and match standard symantics in the js ecosystem
+              let version = '${{ github.ref_name }}';
+              if (/^v[0-9]/.test(version)) {
+                version = version.slice(1);
               }
-            }).catch(error => error).then(response => {
-              core.debug(response);
+
+              const options = {
+                owner: ownerOrg,
+                repo: 'js-validator',
+                workflow_id: 'release-pr.yml',
+                ref: 'main',
+                inputs: {
+                  release_version: version
+                }
+              };
+
+              console.log(options);
+
+              const response = await github.rest.actions.createWorkflowDispatch(options);
+
               if (response.status !== 204) {
                 core.setFailed(`create workflow_dispatch received status code ${response.status}`);
               }
-            });
+            } catch(err) {
+              console.log(err);
+              core.setFailed(err.message);
+            }
