@@ -75,8 +75,7 @@ jobs:
             // which will create a pull request in that repo to update the binaries
             // on npm with this release
             try {
-              // TODO: switch back to 'tablelandnetwork'
-              const ownerOrg = 'joewagner';
+              const ownerOrg = 'tablelandnetwork';
 
               // if the tag/release has a preceeding "v" we want to remove
               // it and match standard symantics in the js ecosystem
