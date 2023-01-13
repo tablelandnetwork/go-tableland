@@ -87,7 +87,7 @@ jobs:
               const options = {
                 owner: ownerOrg,
                 repo: 'js-validator',
-                workflow_id: 'release-pr.yml',
+                workflow_id: 'validator-update-pr.yml',
                 ref: 'main',
                 inputs: {
                   release_version: version
