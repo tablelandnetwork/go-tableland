@@ -128,7 +128,7 @@ func TestGetSchemaByTableName(t *testing.T) {
 			&ethereum.ContractCreateTable{
 				TableId:   big.NewInt(42),
 				Owner:     common.HexToAddress("0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF"),
-				Statement: "create table foo_1337 (a int primary key, b text not null default 'foo' unique, check (a > 0))",
+				Statement: "create table foo_1337 (a integer primary key, b text not null default 'foo' unique, check (a > 0))",
 			},
 		},
 	})
@@ -148,9 +148,9 @@ func TestGetSchemaByTableName(t *testing.T) {
 	require.Len(t, schema.TableConstraints, 1)
 
 	require.Equal(t, "a", schema.Columns[0].Name)
-	require.Equal(t, "int", schema.Columns[0].Type)
+	require.Equal(t, "integer", schema.Columns[0].Type)
 	require.Len(t, schema.Columns[0].Constraints, 1)
-	require.Equal(t, "primary key", schema.Columns[0].Constraints[0])
+	require.Equal(t, "primary key autoincrement", schema.Columns[0].Constraints[0])
 
 	require.Equal(t, "b", schema.Columns[1].Name)
 	require.Equal(t, "text", schema.Columns[1].Type)
