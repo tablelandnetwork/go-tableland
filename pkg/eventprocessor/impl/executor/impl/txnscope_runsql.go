@@ -243,9 +243,12 @@ func (ts *txnScope) executeWriteStmt(
 	}
 
 	if policy.WithCheck() == "" {
-		query, err := ws.GetQuery()
+		query, err := ws.GetQuery(ts.statementResolver)
 		if err != nil {
-			return fmt.Errorf("get query query: %s", err)
+			return &errQueryExecution{
+				Code: "QUERY_RESOLUTION",
+				Msg:  err.Error(),
+			}
 		}
 		cmdTag, err := ts.txn.ExecContext(ctx, query)
 		if err != nil {
@@ -281,9 +284,12 @@ func (ts *txnScope) executeWriteStmt(
 		ts.log.Warn().Err(err).Msg("add returning clause called on delete")
 	}
 
-	query, err := ws.GetQuery()
+	query, err := ws.GetQuery(ts.statementResolver)
 	if err != nil {
-		return fmt.Errorf("get query: %s", err)
+		return &errQueryExecution{
+			Code: "QUERY_RESOLUTION",
+			Msg:  err.Error(),
+		}
 	}
 
 	affectedRowIDs, err := ts.executeQueryAndGetAffectedRows(ctx, query)
@@ -322,7 +328,6 @@ func (ts *txnScope) checkAffectedRowsAgainstAuditingQuery(
 		}
 		return fmt.Errorf("checking affected rows query exec: %s", err)
 	}
-
 	if count != affectedRowsCount {
 		return &errQueryExecution{
 			Code: "POLICY_WITH_CHECK",

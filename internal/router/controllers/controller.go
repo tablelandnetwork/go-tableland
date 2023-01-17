@@ -6,13 +6,18 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/gorilla/mux"
 	"github.com/hetiansu5/urlquery"
 	"github.com/rs/zerolog/log"
+	"github.com/textileio/go-tableland/buildinfo"
 	"github.com/textileio/go-tableland/internal/formatter"
+	"github.com/textileio/go-tableland/internal/router/controllers/apiv1"
 	"github.com/textileio/go-tableland/internal/router/middlewares"
+	"github.com/textileio/go-tableland/internal/system"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/errors"
 	"github.com/textileio/go-tableland/pkg/tables"
@@ -24,14 +29,18 @@ type SQLRunner interface {
 	RunReadQuery(ctx context.Context, stmt string) (*tableland.TableData, error)
 }
 
-// UserController defines the HTTP handlers for interacting with user tables.
-type UserController struct {
-	runner SQLRunner
+// Controller defines the HTTP handlers for interacting with user tables.
+type Controller struct {
+	runner        SQLRunner
+	systemService system.SystemService
 }
 
-// NewUserController creates a new UserController.
-func NewUserController(runner SQLRunner) *UserController {
-	return &UserController{runner}
+// NewController creates a new Controller.
+func NewController(runner SQLRunner, svc system.SystemService) *Controller {
+	return &Controller{
+		runner:        runner,
+		systemService: svc,
+	}
 }
 
 // MetadataConfig defines columns should be mapped to erc721 metadata
@@ -128,7 +137,8 @@ func userRowToMap(cols []tableland.Column, row []*tableland.ColumnValue) map[str
 
 // GetTableRow handles the GET /chain/{chainID}/tables/{id}/{key}/{value} call.
 // Use format=erc721 query param to generate JSON for ERC721 metadata.
-func (c *UserController) GetTableRow(rw http.ResponseWriter, r *http.Request) {
+// TODO(json-rpc): delete method when dropping support.
+func (c *Controller) GetTableRow(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-Type", "application/json")
 	vars := mux.Vars(r)
 	format := r.URL.Query().Get("format")
@@ -209,12 +219,305 @@ func (c *UserController) GetTableRow(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Version returns git information of the running binary.
+func (c *Controller) Version(rw http.ResponseWriter, _ *http.Request) {
+	rw.Header().Set("Content-type", "application/json")
+	summary := buildinfo.GetSummary()
+	rw.WriteHeader(http.StatusOK)
+
+	_ = json.NewEncoder(rw).Encode(apiv1.VersionInfo{
+		Version:       int32(summary.Version),
+		GitCommit:     summary.GitCommit,
+		GitBranch:     summary.GitBranch,
+		GitState:      summary.GitState,
+		GitSummary:    summary.GitSummary,
+		BuildDate:     summary.BuildDate,
+		BinaryVersion: summary.BinaryVersion,
+	})
+}
+
+// GetReceiptByTransactionHash handles request asking for a transaction receipt.
+func (c *Controller) GetReceiptByTransactionHash(rw http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	paramTxnHash := mux.Vars(r)["transactionHash"]
+	if _, err := common.ParseHexOrString(paramTxnHash); err != nil {
+		rw.Header().Set("Content-Type", "application/json")
+		rw.WriteHeader(http.StatusBadRequest)
+		log.Ctx(ctx).Error().Err(err).Msg("invalid transaction hash")
+		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Invalid transaction hash"})
+		return
+	}
+	txnHash := common.HexToHash(paramTxnHash)
+
+	receipt, exists, err := c.systemService.GetReceiptByTransactionHash(ctx, txnHash)
+	if err != nil {
+		rw.Header().Set("Content-Type", "application/json")
+		rw.WriteHeader(http.StatusBadRequest)
+		log.Ctx(ctx).Error().Err(err).Msg("get receipt by transaction hash")
+		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Get receipt by transaction hash failed"})
+		return
+	}
+	if !exists {
+		rw.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	receiptResponse := apiv1.TransactionReceipt{
+		TransactionHash: paramTxnHash,
+		BlockNumber:     receipt.BlockNumber,
+		ChainId:         int32(receipt.ChainID),
+	}
+	if receipt.TableID != nil {
+		receiptResponse.TableId = receipt.TableID.String()
+	}
+	if receipt.Error != nil {
+		receiptResponse.Error_ = *receipt.Error
+		receiptResponse.ErrorEventIdx = int32(*receipt.ErrorEventIdx)
+	}
+
+	rw.Header().Set("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(rw).Encode(receiptResponse)
+}
+
+// GetTable handles the GET /chain/{chainID}/tables/{tableId} call.
+func (c *Controller) GetTable(rw http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+
+	id, err := tables.NewTableID(vars["tableId"])
+	if err != nil {
+		rw.Header().Set("Content-type", "application/json")
+		rw.WriteHeader(http.StatusBadRequest)
+		log.Ctx(ctx).
+			Error().
+			Err(err).
+			Msg("invalid id format")
+
+		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Invalid id format"})
+		return
+	}
+
+	isAPIV1 := strings.HasPrefix(r.RequestURI, "/api/v1/tables")
+
+	metadata, err := c.systemService.GetTableMetadata(ctx, id)
+	if err == system.ErrTableNotFound {
+		if !isAPIV1 {
+			rw.Header().Set("Content-type", "application/json")
+			rw.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(rw).Encode(metadata)
+			return
+		}
+		rw.WriteHeader(http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		rw.Header().Set("Content-type", "application/json")
+		rw.WriteHeader(http.StatusInternalServerError)
+		log.Ctx(ctx).
+			Error().
+			Err(err).
+			Str("id", id.String()).
+			Msg("failed to fetch metadata")
+
+		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Failed to fetch metadata"})
+		return
+	}
+
+	metadataV1 := apiv1.Table{
+		Name:         metadata.Name,
+		ExternalUrl:  metadata.ExternalURL,
+		AnimationUrl: metadata.AnimationURL,
+		Image:        metadata.Image,
+		Attributes:   make([]apiv1.TableAttributes, len(metadata.Attributes)),
+		Schema: &apiv1.Schema{
+			Columns:          make([]apiv1.Column, len(metadata.Schema.Columns)),
+			TableConstraints: make([]string, len(metadata.Schema.TableConstraints)),
+		},
+	}
+	for i, attr := range metadata.Attributes {
+		metadataV1.Attributes[i] = apiv1.TableAttributes{
+			DisplayType: attr.DisplayType,
+			TraitType:   attr.TraitType,
+			Value:       attr.Value,
+		}
+	}
+	for i, schemaColumn := range metadata.Schema.Columns {
+		metadataV1.Schema.Columns[i] = apiv1.Column{
+			Name:        schemaColumn.Name,
+			Type_:       schemaColumn.Type,
+			Constraints: make([]string, len(schemaColumn.Constraints)),
+		}
+		copy(metadataV1.Schema.Columns[i].Constraints, schemaColumn.Constraints)
+	}
+	copy(metadataV1.Schema.TableConstraints, metadata.Schema.TableConstraints)
+
+	rw.Header().Set("Content-type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	enc := json.NewEncoder(rw)
+	enc.SetEscapeHTML(false)
+	_ = enc.Encode(metadataV1)
+}
+
+// GetTablesByController handles the GET /chain/{chainID}/tables/controller/{address} call.
+// TODO(json-rpc): delete when dropping support.
+func (c *Controller) GetTablesByController(rw http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	rw.Header().Set("Content-type", "application/json")
+	vars := mux.Vars(r)
+
+	controller := vars["address"]
+	tables, err := c.systemService.GetTablesByController(ctx, controller)
+	if err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		log.Ctx(ctx).
+			Error().
+			Err(err).
+			Str("request_address", controller).
+			Msg("failed to fetch tables")
+
+		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Failed to fetch tables"})
+		return
+	}
+
+	// This struct is used since we don't want to return an ID field.
+	// The Name will be {optional-prefix}_{chainId}_{tableId}.
+	// Not doing `omitempty` in tableland.Table since
+	// that feels hacky. Looks safer to define a separate type here at the handler level.
+	type tableNameIDUnified struct {
+		Controller string `json:"controller"`
+		Name       string `json:"name"`
+		Structure  string `json:"structure"`
+	}
+	retTables := make([]tableNameIDUnified, len(tables))
+	for i, t := range tables {
+		retTables[i] = tableNameIDUnified{
+			Controller: t.Controller,
+			Name:       t.Name(),
+			Structure:  t.Structure,
+		}
+	}
+
+	rw.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(rw).Encode(retTables)
+}
+
+// GetTablesByStructureHash handles the GET /chain/{id}/tables/structure/{hash} call.
+// TODO(json-rpc): delete when dropping support.
+func (c *Controller) GetTablesByStructureHash(rw http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	rw.Header().Set("Content-type", "application/json")
+	vars := mux.Vars(r)
+
+	hash := vars["hash"]
+	tables, err := c.systemService.GetTablesByStructure(ctx, hash)
+	if err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		log.Ctx(ctx).
+			Error().
+			Err(err).
+			Str("hash", hash).
+			Msg("failed to fetch tables")
+
+		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Failed to fetch tables"})
+		return
+	}
+
+	type tableNameIDUnified struct {
+		Controller string `json:"controller"`
+		Name       string `json:"name"`
+		Structure  string `json:"structure"`
+	}
+	retTables := make([]tableNameIDUnified, len(tables))
+	for i, t := range tables {
+		retTables[i] = tableNameIDUnified{
+			Controller: t.Controller,
+			Name:       t.Name(),
+			Structure:  t.Structure,
+		}
+	}
+
+	rw.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(rw).Encode(retTables)
+}
+
+// GetSchemaByTableName handles the GET /schema/{table_name} call.
+// TODO(json-rpc): delete when droppping support.
+func (c *Controller) GetSchemaByTableName(rw http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	rw.Header().Set("Content-type", "application/json")
+	vars := mux.Vars(r)
+
+	name := vars["table_name"]
+	schema, err := c.systemService.GetSchemaByTableName(ctx, name)
+	if err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		log.Ctx(ctx).
+			Error().
+			Err(err).
+			Str("table_name", name).
+			Msg("failed to fetch tables")
+
+		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Failed to get schema from table"})
+		return
+	}
+
+	if len(schema.Columns) == 0 {
+		rw.WriteHeader(http.StatusInternalServerError)
+		log.Ctx(ctx).
+			Warn().
+			Str("name", name).
+			Msg("table does not exist")
+
+		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Table does not exist"})
+		return
+	}
+
+	type Column struct {
+		Name        string   `json:"name"`
+		Type        string   `json:"type"`
+		Constraints []string `json:"constraints"`
+	}
+
+	type response struct {
+		Columns          []Column `json:"columns"`
+		TableConstraints []string `json:"table_constraints"`
+	}
+
+	columns := make([]Column, len(schema.Columns))
+	for i, col := range schema.Columns {
+		columns[i] = Column{
+			Name:        col.Name,
+			Type:        col.Type,
+			Constraints: col.Constraints,
+		}
+	}
+
+	rw.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(rw).Encode(response{
+		Columns:          columns,
+		TableConstraints: schema.TableConstraints,
+	})
+}
+
+// HealthHandler serves health check requests.
+func HealthHandler(w http.ResponseWriter, _ *http.Request) {
+	w.WriteHeader(http.StatusOK)
+}
+
 // GetTableQuery handles the GET /query?s=[statement] call.
 // Use mode=columns|rows|json|lines query param to control output format.
-func (c *UserController) GetTableQuery(rw http.ResponseWriter, r *http.Request) {
+func (c *Controller) GetTableQuery(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-Type", "application/json")
 
-	stm := r.URL.Query().Get("s")
+	stm := r.URL.Query().Get("s") // TODO(json-rpc): remove query parameter "s" when dropping support.
+	if stm == "" {
+		stm = r.URL.Query().Get("statement")
+	}
+
 	start := time.Now()
 	res, ok := c.runReadRequest(r.Context(), stm, rw)
 	if !ok {
@@ -248,7 +551,7 @@ func (c *UserController) GetTableQuery(rw http.ResponseWriter, r *http.Request) 
 	_, _ = rw.Write(formatted)
 }
 
-func (c *UserController) runReadRequest(
+func (c *Controller) runReadRequest(
 	ctx context.Context,
 	stm string,
 	rw http.ResponseWriter,
@@ -299,7 +602,11 @@ type formatterParams struct {
 
 func getFormatterParams(r *http.Request) (formatterParams, error) {
 	c := formatterParams{}
-	output := r.URL.Query().Get("output")
+	output := r.URL.Query().Get("output") // TODO(json-rpc): drop "output" when dropping support.
+	if output == "" {
+		output = r.URL.Query().Get("format")
+	}
+
 	extract := r.URL.Query().Get("extract")
 	unwrap := r.URL.Query().Get("unwrap")
 	if output != "" {

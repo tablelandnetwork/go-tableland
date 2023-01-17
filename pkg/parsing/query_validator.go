@@ -5,20 +5,14 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/tablelandnetwork/sqlparser"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/tables"
 )
 
-// Stmt represents any valid read or mutating query.
-type Stmt interface {
-	GetQuery() (string, error)
-}
-
 // MutatingStmt represents mutating statement, that is either
 // a SugaredWriteStmt or a SugaredGrantStmt.
 type MutatingStmt interface {
-	Stmt
-
 	// GetPrefix returns the prefix of the table, if any.  e.g: "insert into foo_4_100" -> "foo".
 	// Since the prefix is optional, it can return "".
 	GetPrefix() string
@@ -30,6 +24,9 @@ type MutatingStmt interface {
 
 	// GetDBTableName returns the database table name.
 	GetDBTableName() string
+
+	// GetQuery returns an executable stringification of a mutating statements with resolved custom functions.
+	GetQuery(sqlparser.WriteStatementResolver) (string, error)
 }
 
 // ReadStmt is an already parsed read statement that satisfies all
@@ -37,7 +34,8 @@ type MutatingStmt interface {
 // with correct assumptions about parsing validity and being a read statement
 // (select).
 type ReadStmt interface {
-	Stmt
+	// GetQuery returns an executable stringification of a mutating statements with resolved custom functions.
+	GetQuery(sqlparser.ReadStatementResolver) (string, error)
 }
 
 // WriteStmt is an already parsed write statement that satisfies all
@@ -202,6 +200,17 @@ type ErrWriteQueryTooLong struct {
 func (e *ErrWriteQueryTooLong) Error() string {
 	return fmt.Sprintf("write query size is too long (has %d, max %d)",
 		e.Length, e.MaxAllowed)
+}
+
+// ErrInsertWithSelectChainMistmatch is an error returned there is a mismatch of chains in a insert with select.
+type ErrInsertWithSelectChainMistmatch struct {
+	InsertChainID int64
+	SelectChainID int64
+}
+
+func (e *ErrInsertWithSelectChainMistmatch) Error() string {
+	return fmt.Sprintf(
+		"insert with select chain mismatch (insert chain %d, select chain %d)", e.InsertChainID, e.SelectChainID)
 }
 
 // Config contains configuration parameters for tableland.

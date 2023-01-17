@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"math/big"
-	"strconv"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -47,46 +46,6 @@ var gasPriceBumperCmd = &cobra.Command{
 			log.Fatalf("bumpint txn fee: %s", err)
 		}
 		fmt.Printf("The new transaction hash is: %s\n", newTxnHash)
-
-		return nil
-	},
-}
-
-var replaceNonceRangeCmd = &cobra.Command{
-	Use:   "replacenoncerange",
-	Short: "Sends transactions to replace a nonce range",
-	Long:  "Sends transactions to replace a nonce range",
-	Args:  cobra.ExactArgs(2),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		privateKey, err := cmd.Flags().GetString("privatekey")
-		if err != nil {
-			return errors.New("failed to parse privatekey")
-		}
-		gatewayEndpoint, err := cmd.Flags().GetString("gateway")
-		if err != nil {
-			return errors.New("failed to parse gateway")
-		}
-
-		start, err := strconv.ParseUint(args[0], 10, 64)
-		if err != nil {
-			return fmt.Errorf("invalid nonce start: %s", err)
-		}
-		end, err := strconv.ParseUint(args[1], 10, 64)
-		if err != nil {
-			return fmt.Errorf("invalid nonce end: %s", err)
-		}
-
-		conn, err := ethclient.Dial(gatewayEndpoint)
-		if err != nil {
-			log.Fatalf("failed to connect to ethereum endpoint: %s", err)
-		}
-		pk, err := crypto.HexToECDSA(privateKey)
-		if err != nil {
-			log.Fatalf("decoding private key: %s", err)
-		}
-		if err := replaceNonceRange(conn, pk, start, end); err != nil {
-			log.Fatalf("bumpint txn fee: %s", err)
-		}
 
 		return nil
 	},
@@ -146,46 +105,4 @@ func bumpTxnFee(
 	}
 
 	return txn.Hash(), nil
-}
-
-func replaceNonceRange(
-	conn *ethclient.Client,
-	pk *ecdsa.PrivateKey,
-	start, end uint64,
-) error {
-	for nonce := start; nonce <= end; nonce++ {
-		ctx := context.Background()
-
-		candidateGasPriceSuggested, err := conn.SuggestGasPrice(ctx)
-		if err != nil {
-			return fmt.Errorf("get suggested gas price: %s", err)
-		}
-		newGasPrice := candidateGasPriceSuggested.Mul(candidateGasPriceSuggested, big.NewInt(125))
-		newGasPrice = newGasPrice.Div(newGasPrice, big.NewInt(100))
-		fmt.Printf("**New gas price: %s**\n", newGasPrice)
-
-		targetAddress := common.HexToAddress("0xb468b686d190937905b0138c9f5746e9325be121")
-		ltxn := &types.LegacyTx{
-			Nonce:    nonce,
-			GasPrice: newGasPrice,
-			Gas:      21000,
-			To:       &targetAddress,
-			Value:    big.NewInt(0),
-		}
-
-		chainID, err := conn.ChainID(ctx)
-		if err != nil {
-			return fmt.Errorf("get chain id: %s", err)
-		}
-		signer := types.NewLondonSigner(chainID)
-		txn, err := types.SignTx(types.NewTx(ltxn), signer, pk)
-		if err != nil {
-			return fmt.Errorf("signing txn: %s", err)
-		}
-		if err := conn.SendTransaction(ctx, txn); err != nil {
-			return fmt.Errorf("sending txn: %s", err)
-		}
-	}
-
-	return nil
 }

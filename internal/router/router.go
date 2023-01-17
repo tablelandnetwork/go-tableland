@@ -1,109 +1,154 @@
 package router
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/gorilla/mux"
-	"github.com/rs/zerolog/log"
-	"github.com/textileio/go-tableland/internal/chains"
 	"github.com/textileio/go-tableland/internal/router/controllers"
+	"github.com/textileio/go-tableland/internal/router/controllers/apiv1"
+	"github.com/textileio/go-tableland/internal/router/controllers/legacy"
 	"github.com/textileio/go-tableland/internal/router/middlewares"
-	"github.com/textileio/go-tableland/internal/router/rpcservice"
-	systemimpl "github.com/textileio/go-tableland/internal/system/impl"
+	"github.com/textileio/go-tableland/internal/system"
 	"github.com/textileio/go-tableland/internal/tableland"
-	"github.com/textileio/go-tableland/internal/tableland/impl"
-	"github.com/textileio/go-tableland/pkg/parsing"
-	"github.com/textileio/go-tableland/pkg/sqlstore"
-	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
-	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
 )
 
 // ConfiguredRouter returns a fully configured Router that can be used as an http handler.
 func ConfiguredRouter(
-	extURLPrefix string,
-	metadataRendererURI string,
-	animationRendererURI string,
+	tableland tableland.Tableland,
+	systemService system.SystemService,
 	maxRPI uint64,
 	rateLimInterval time.Duration,
-	parser parsing.SQLValidator,
-	userStore *user.UserStore,
-	chainStacks map[tableland.ChainID]chains.ChainStack,
-) *Router {
-	instrUserStore, err := sqlstoreimpl.NewInstrumentedUserStore(userStore)
-	if err != nil {
-		log.Fatal().Err(err).Msg("creating instrumented user store")
-	}
-
-	mesaService := impl.NewTablelandMesa(parser, instrUserStore, chainStacks)
-	mesaService, err = impl.NewInstrumentedTablelandMesa(mesaService)
-	if err != nil {
-		log.Fatal().Err(err).Msg("instrumenting mesa")
-	}
-	rpcService := rpcservice.NewRPCService(mesaService)
-	userController := controllers.NewUserController(mesaService)
-
+	supportedChainIDs []tableland.ChainID,
+) (*Router, error) {
+	rpcService := legacy.NewRPCService(tableland)
 	server := rpc.NewServer()
 	if err := server.RegisterName("tableland", rpcService); err != nil {
-		log.Fatal().Err(err).Msg("failed to register a json-rpc service")
+		return nil, fmt.Errorf("failed to register a json-rpc service: %s", err)
 	}
-	infraController := controllers.NewInfraController()
-
-	stores := make(map[tableland.ChainID]sqlstore.SystemStore, len(chainStacks))
-	for chainID, stack := range chainStacks {
-		stores[chainID] = stack.Store
-	}
-	sysStore, err := systemimpl.NewSystemSQLStoreService(stores, extURLPrefix, metadataRendererURI, animationRendererURI)
-	if err != nil {
-		log.Fatal().Err(err).Msg("creating system store")
-	}
-	systemService, err := systemimpl.NewInstrumentedSystemSQLStoreService(sysStore)
-	if err != nil {
-		log.Fatal().Err(err).Msg("instrumenting system sql store")
-	}
-	systemController := controllers.NewSystemController(systemService)
 
 	// General router configuration.
-	router := NewRouter()
-	router.Use(middlewares.CORS, middlewares.TraceID)
+	router := newRouter()
+	router.use(middlewares.CORS, middlewares.TraceID)
 
-	// RPC configuration.
 	cfg := middlewares.RateLimiterConfig{
 		Default: middlewares.RateLimiterRouteConfig{
 			MaxRPI:   maxRPI,
 			Interval: rateLimInterval,
 		},
-		JSONRPCRoute: "/rpc",
+		JSONRPCRoute: "/rpc", // TODO(json-rpc): remove this feature in the rate-limiter when we drop support.
 	}
 	rateLim, err := middlewares.RateLimitController(cfg)
 	if err != nil {
-		log.Fatal().Err(err).Msg("creating rate limit controller middleware")
+		return nil, fmt.Errorf("creating rate limit controller middleware: %s", err)
 	}
 
-	router.Post("/rpc", func(rw http.ResponseWriter, r *http.Request) {
+	ctrl := controllers.NewController(tableland, systemService)
+
+	// TODO(json-rpc): remove this when dropping support.
+	// APIs Legacy (REST + JSON-RPC)
+	configureLegacyRoutes(router, server, supportedChainIDs, rateLim, ctrl)
+
+	// APIs V1
+	if err := configureAPIV1Routes(router, supportedChainIDs, rateLim, ctrl); err != nil {
+		return nil, fmt.Errorf("configuring API v1: %s", err)
+	}
+
+	return router, nil
+}
+
+func configureLegacyRoutes(
+	router *Router,
+	server *rpc.Server,
+	supportedChainIDs []tableland.ChainID,
+	rateLim mux.MiddlewareFunc,
+	ctrl *controllers.Controller,
+) {
+	router.post("/rpc", func(rw http.ResponseWriter, r *http.Request) {
 		server.ServeHTTP(rw, r)
 	}, middlewares.WithLogging, middlewares.OtelHTTP("rpc"), middlewares.Authentication, rateLim)
 
 	// Gateway configuration.
-	router.Get("/chain/{chainID}/tables/{id}", systemController.GetTable, middlewares.WithLogging, middlewares.OtelHTTP("GetTable"), middlewares.RESTChainID, rateLim)                                             // nolint
-	router.Get("/chain/{chainID}/tables/{id}/{key}/{value}", userController.GetTableRow, middlewares.WithLogging, middlewares.OtelHTTP("GetTableRow"), middlewares.RESTChainID, rateLim)                           // nolint
-	router.Get("/chain/{chainID}/tables/controller/{address}", systemController.GetTablesByController, middlewares.WithLogging, middlewares.OtelHTTP("GetTablesByController"), middlewares.RESTChainID, rateLim)   // nolint
-	router.Get("/chain/{chainID}/tables/structure/{hash}", systemController.GetTablesByStructureHash, middlewares.WithLogging, middlewares.OtelHTTP("GetTablesByStructureHash"), middlewares.RESTChainID, rateLim) // nolint
-	router.Get("/schema/{table_name}", systemController.GetSchemaByTableName, middlewares.WithLogging, middlewares.OtelHTTP("GetSchemaFromTableName"), rateLim)                                                    // nolint
+	router.get("/chain/{chainId}/tables/{tableId}", ctrl.GetTable, middlewares.WithLogging, middlewares.OtelHTTP("GetTable"), middlewares.RESTChainID(supportedChainIDs), rateLim)                                        // nolint
+	router.get("/chain/{chainId}/tables/{id}/{key}/{value}", ctrl.GetTableRow, middlewares.WithLogging, middlewares.OtelHTTP("GetTableRow"), middlewares.RESTChainID(supportedChainIDs), rateLim)                         // nolint
+	router.get("/chain/{chainId}/tables/controller/{address}", ctrl.GetTablesByController, middlewares.WithLogging, middlewares.OtelHTTP("GetTablesByController"), middlewares.RESTChainID(supportedChainIDs), rateLim)   // nolint
+	router.get("/chain/{chainId}/tables/structure/{hash}", ctrl.GetTablesByStructureHash, middlewares.WithLogging, middlewares.OtelHTTP("GetTablesByStructureHash"), middlewares.RESTChainID(supportedChainIDs), rateLim) // nolint
+	router.get("/schema/{table_name}", ctrl.GetSchemaByTableName, middlewares.WithLogging, middlewares.OtelHTTP("GetSchemaFromTableName"), rateLim)                                                                       // nolint
 
-	router.Get("/query", userController.GetTableQuery, middlewares.WithLogging, middlewares.OtelHTTP("GetTableQuery"), rateLim) // nolint
-	router.Get("/version", infraController.Version, middlewares.WithLogging, middlewares.OtelHTTP("Version"), rateLim)          // nolint
+	router.get("/query", ctrl.GetTableQuery, middlewares.WithLogging, middlewares.OtelHTTP("GetTableQuery"), rateLim) // nolint
+	router.get("/version", ctrl.Version, middlewares.WithLogging, middlewares.OtelHTTP("Version"), rateLim)           // nolint
 
 	// Health endpoint configuration.
-	router.Get("/healthz", healthHandler)
-	router.Get("/health", healthHandler)
-
-	return router
+	router.get("/healthz", controllers.HealthHandler)
+	router.get("/health", controllers.HealthHandler)
 }
 
-func healthHandler(w http.ResponseWriter, _ *http.Request) {
-	w.WriteHeader(http.StatusOK)
+func configureAPIV1Routes(
+	router *Router,
+	supportedChainIDs []tableland.ChainID,
+	rateLim mux.MiddlewareFunc,
+	userCtrl *controllers.Controller,
+) error {
+	handlers := map[string]struct {
+		handler     http.HandlerFunc
+		middlewares []mux.MiddlewareFunc
+	}{
+		"QueryByStatement": {
+			userCtrl.GetTableQuery,
+			[]mux.MiddlewareFunc{middlewares.WithLogging, rateLim},
+		},
+		"ReceiptByTransactionHash": {
+			userCtrl.GetReceiptByTransactionHash,
+			[]mux.MiddlewareFunc{middlewares.WithLogging, middlewares.RESTChainID(supportedChainIDs), rateLim},
+		},
+		"GetTableById": {
+			userCtrl.GetTable,
+			[]mux.MiddlewareFunc{middlewares.WithLogging, middlewares.RESTChainID(supportedChainIDs), rateLim},
+		},
+		"Version": {
+			userCtrl.Version,
+			[]mux.MiddlewareFunc{middlewares.WithLogging, rateLim},
+		},
+		"Health": {
+			controllers.HealthHandler,
+			[]mux.MiddlewareFunc{middlewares.WithLogging, rateLim},
+		},
+	}
+
+	var specRoutesCount int
+	if err := apiv1.NewRouter().Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
+		routeName := route.GetName()
+		// Ignore the "Index" API that OpenAPI 3.0 code generator always create for the base `/` route.
+		if routeName == "Index" {
+			return nil
+		}
+
+		specRoutesCount++
+		endpoint, ok := handlers[routeName]
+		if !ok {
+			return fmt.Errorf("route with name %s not found in handler", routeName)
+		}
+		pathTemplate, err := route.GetPathTemplate()
+		if err != nil {
+			return fmt.Errorf("get path template: %s", err)
+		}
+
+		router.get(
+			pathTemplate,
+			endpoint.handler,
+			append(endpoint.middlewares, middlewares.OtelHTTP(routeName))...,
+		)
+		return nil
+	}); err != nil {
+		return fmt.Errorf("configuring api v1 router: %s", err)
+	}
+	if specRoutesCount != len(handlers) {
+		return fmt.Errorf("the spec has less defined routes than expected handlers to be used")
+	}
+
+	return nil
 }
 
 // Router provides a nice api around mux.Router.
@@ -111,36 +156,29 @@ type Router struct {
 	r *mux.Router
 }
 
-// NewRouter is a Mux HTTP router constructor.
-func NewRouter() *Router {
+// newRouter is a Mux HTTP router constructor.
+func newRouter() *Router {
 	r := mux.NewRouter()
 	r.PathPrefix("/").Methods(http.MethodOptions) // accept OPTIONS on all routes and do nothing
 	return &Router{r: r}
 }
 
-// Get creates a subroute on the specified URI that only accepts GET. You can provide specific middlewares.
-func (r *Router) Get(uri string, f func(http.ResponseWriter, *http.Request), mid ...mux.MiddlewareFunc) {
+// get creates a subroute on the specified URI that only accepts GET. You can provide specific middlewares.
+func (r *Router) get(uri string, f http.HandlerFunc, mid ...mux.MiddlewareFunc) {
 	sub := r.r.Path(uri).Subrouter()
 	sub.HandleFunc("", f).Methods(http.MethodGet)
 	sub.Use(mid...)
 }
 
-// Post creates a subroute on the specified URI that only accepts POST. You can provide specific middlewares.
-func (r *Router) Post(uri string, f func(http.ResponseWriter, *http.Request), mid ...mux.MiddlewareFunc) {
+// post creates a subroute on the specified URI that only accepts POST. You can provide specific middlewares.
+func (r *Router) post(uri string, f func(http.ResponseWriter, *http.Request), mid ...mux.MiddlewareFunc) {
 	sub := r.r.Path(uri).Subrouter()
 	sub.HandleFunc("", f).Methods(http.MethodPost)
 	sub.Use(mid...)
 }
 
-// Delete creates a subroute on the specified URI that only accepts DELETE. You can provide specific middlewares.
-func (r *Router) Delete(uri string, f func(http.ResponseWriter, *http.Request), mid ...mux.MiddlewareFunc) {
-	sub := r.r.Path(uri).Subrouter()
-	sub.HandleFunc("", f).Methods(http.MethodDelete)
-	sub.Use(mid...)
-}
-
-// Use adds middlewares to all routes. Should be used when a middleware should be execute all all routes (e.g. CORS).
-func (r *Router) Use(mid ...mux.MiddlewareFunc) {
+// use adds middlewares to all routes. Should be used when a middleware should be execute all all routes (e.g. CORS).
+func (r *Router) use(mid ...mux.MiddlewareFunc) {
 	r.r.Use(mid...)
 }
 

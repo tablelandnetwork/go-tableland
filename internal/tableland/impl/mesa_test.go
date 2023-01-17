@@ -23,6 +23,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/chains"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
 	epimpl "github.com/textileio/go-tableland/pkg/eventprocessor/impl"
@@ -30,6 +31,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/nonce/impl"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
+	rsresolver "github.com/textileio/go-tableland/pkg/readstatementresolver"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
@@ -62,27 +64,6 @@ func TestTodoAppWorkflow(t *testing.T) {
 	require.NoError(t, err)
 
 	processCSV(ctx, t, chainID, caller, tbld, "testdata/todoapp_queries.csv", backend)
-}
-
-func TestAny(t *testing.T) {
-	t.Parallel()
-
-	setup := newTablelandSetupBuilder().
-		withAllowTransactionRelay(true).
-		build(t)
-	tablelandClient := setup.newTablelandClient(t)
-
-	ctx, chainID, backend, sc := setup.ctx, setup.chainID, setup.ethClient, setup.contract
-	tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
-
-	caller := txOpts.From
-	_, err := sc.CreateTable(txOpts, caller,
-		`CREATE TABLE any_1337 (
-			wild ANY
-		  );`)
-	require.NoError(t, err)
-
-	processCSV(ctx, t, chainID, caller, tbld, "testdata/any_queries.csv", backend)
 }
 
 func TestInsertOnConflict(t *testing.T) {
@@ -979,13 +960,14 @@ func (b *tablelandSetupBuilder) build(t *testing.T) *tablelandSetup {
 	require.NoError(t, err)
 	t.Cleanup(func() { ep.Stop() })
 
-	userStore, err := user.New(dbURI)
+	userStore, err := user.New(
+		dbURI, rsresolver.New(map[tableland.ChainID]eventprocessor.EventProcessor{1337: ep}))
 	require.NoError(t, err)
 
 	return &tablelandSetup{
 		ctx: ctx,
 
-		chainID: tableland.ChainID(1337),
+		chainID: 1337,
 
 		// ethereum client
 		ethClient: backend,

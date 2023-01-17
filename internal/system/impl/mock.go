@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/textileio/go-tableland/internal/system"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
@@ -20,6 +21,20 @@ func NewSystemMockService() system.SystemService {
 	return &SystemMockService{}
 }
 
+// GetReceiptByTransactionHash implements system.SystemService.
+func (*SystemMockService) GetReceiptByTransactionHash(context.Context, common.Hash) (sqlstore.Receipt, bool, error) {
+	tableID, _ := tables.NewTableID("10")
+	return sqlstore.Receipt{
+		ChainID:       1337,
+		BlockNumber:   10,
+		IndexInBlock:  1,
+		TxnHash:       "0xDEADBEEF",
+		TableID:       &tableID,
+		Error:         nil,
+		ErrorEventIdx: nil,
+	}, true, nil
+}
+
 // GetTableMetadata returns a fixed value for testing and demo purposes.
 func (*SystemMockService) GetTableMetadata(_ context.Context, id tables.TableID) (sqlstore.TableMetadata, error) {
 	return sqlstore.TableMetadata{
@@ -32,6 +47,9 @@ func (*SystemMockService) GetTableMetadata(_ context.Context, id tables.TableID)
 				TraitType:   "created",
 				Value:       1546360800,
 			},
+		},
+		Schema: sqlstore.TableSchema{
+			Columns: []sqlstore.ColumnSchema{{Name: "foo", Type: "text"}},
 		},
 	}, nil
 }
@@ -107,6 +125,11 @@ type SystemMockErrService struct{}
 // NewSystemMockErrService creates a new SystemMockErrService.
 func NewSystemMockErrService() system.SystemService {
 	return &SystemMockErrService{}
+}
+
+// GetReceiptByTransactionHash implements system.SystemService.
+func (*SystemMockErrService) GetReceiptByTransactionHash(context.Context, common.Hash) (sqlstore.Receipt, bool, error) {
+	return sqlstore.Receipt{}, false, nil
 }
 
 // GetTableMetadata returns a fixed value for testing and demo purposes.

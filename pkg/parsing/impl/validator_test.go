@@ -45,7 +45,7 @@ func TestReadRunSQL(t *testing.T) {
 		// Allow joins and sub-queries
 		{
 			name:       "with join",
-			query:      "select * from foo_1 join bar_2 on a=b",
+			query:      "select * from foo_1 join bar_2 on a = b",
 			expErrType: nil,
 		},
 		{
@@ -59,24 +59,8 @@ func TestReadRunSQL(t *testing.T) {
 			expErrType: nil,
 		},
 		{
-			name: "select with complex subqueries in function arguments",
-			query: `select
-				json_object(
-				  'name', '#' || rigs.id,
-				  'external_url', 'https://rigs.tableland.xyz/' || rigs.id,
-				  'attributes', json_array(
-					  json_object('trait_type', 'Fleet', 'value', rigs.fleet),
-					  json_object('trait_type', 'Chassis', 'value', rigs.chassis),
-					  json_object('trait_type', 'Wheels', 'value', rigs.wheels),
-					  json_object('trait_type', 'Background', 'value', rigs.background),
-					  json_object('trait_type', (
-						select name from badges_2 where badges.rig_id = rigs.id and position = 1 limit 1
-					  ), 'value', (
-						select image from badges_2 where badges.rig_id = rigs.id and position = 1 limit 1
-					  ))
-				  )
-			  )
-			  from rigs_1;`,
+			name:       "select with complex subqueries in function arguments",
+			query:      `select json_object('name', '#' || rigs.id, 'external_url', 'https://rigs.tableland.xyz/' || rigs.id, 'attributes', json_array(json_object('trait_type', 'Fleet', 'value', rigs.fleet), json_object('trait_type', 'Chassis', 'value', rigs.chassis), json_object('trait_type', 'Wheels', 'value', rigs.wheels), json_object('trait_type', 'Background', 'value', rigs.background), json_object('trait_type', (select name from badges_2 where badges.rig_id = rigs.id and position = 1 limit 1), 'value', (select image from badges_2 where badges.rig_id = rigs.id and position = 1 limit 1)))) from rigs_1`, // nolint
 			expErrType: nil,
 		},
 
@@ -116,7 +100,7 @@ func TestReadRunSQL(t *testing.T) {
 				if tc.expErrType == nil {
 					require.NoError(t, err)
 					require.NotNil(t, rs)
-					q, err := rs.GetQuery()
+					q, err := rs.GetQuery(nil)
 					require.NoError(t, err)
 					require.Equal(t, tc.query, q)
 					return
@@ -166,7 +150,7 @@ func TestWriteQuery(t *testing.T) {
 		{
 			name:       "table id or chain id is missing",
 			query:      "delete from Hello_4 where a=2",
-			expErrType: ptr2ErrInvalidTableName(),
+			expErrType: ptr2ErrWrongFormatTableName(),
 		},
 		{
 			name:       "unprefixed table is missing underscore",
@@ -176,12 +160,12 @@ func TestWriteQuery(t *testing.T) {
 		{
 			name:       "non-numeric table id",
 			query:      "delete from person_4_wrong where a=2",
-			expErrType: ptr2ErrInvalidTableName(),
+			expErrType: ptr2ErrWrongFormatTableName(),
 		},
 		{
 			name:       "non-numeric chain id",
 			query:      "delete from _wrong_4 where a=2",
-			expErrType: ptr2ErrInvalidTableName(),
+			expErrType: ptr2ErrWrongFormatTableName(),
 		},
 
 		// Valid insert and updates.
@@ -265,12 +249,14 @@ func TestWriteQuery(t *testing.T) {
 			expErrType: ptr2ErrInvalidSyntax(),
 		},
 
-		// Disallow JOINs and sub-queries
+		// insert with select chain mismatch
 		{
-			name:       "insert subquery",
-			query:      "insert into foo select * from bar",
-			expErrType: ptr2ErrInvalidSyntax(),
+			name:       "insert subquery chain mismatch",
+			query:      "insert into foo_1_1 select * from bar_2_1",
+			expErrType: ptr2ErrInsertWithSelectChainMistmatch(),
 		},
+
+		// Disallow JOINs and sub-queries
 		{
 			name:       "update join",
 			query:      "update foo set a=1 from bar",
@@ -455,7 +441,7 @@ func TestCreateTableChecks(t *testing.T) {
 			name:       "missing chain id",
 			query:      "create table Hello (foo int)",
 			chainID:    68,
-			expErrType: ptr2ErrInvalidTableName(),
+			expErrType: ptr2ErrWrongFormatTableName(),
 		},
 		{
 			name:       "missing underscore",
@@ -588,9 +574,9 @@ func TestCreateTableResult(t *testing.T) {
 			// echo -n bar:INT | shasum -a 256
 			expStructureHash: "5d70b398f938650871dd0d6d421e8d1d0c89fe9ed6c8a817c97e951186da7172",
 			expRawQueries: []rawQueryTableID{
-				{id: 1, rawQuery: "CREATE TABLE my_10_nth_table_1337_1 (bar INT) STRICT"},
-				{id: 42, rawQuery: "CREATE TABLE my_10_nth_table_1337_42 (bar INT) STRICT"},
-				{id: 2929392, rawQuery: "CREATE TABLE my_10_nth_table_1337_2929392 (bar INT) STRICT"},
+				{id: 1, rawQuery: "create table my_10_nth_table_1337_1 (bar int) strict"},
+				{id: 42, rawQuery: "create table my_10_nth_table_1337_42 (bar int) strict"},
+				{id: 2929392, rawQuery: "create table my_10_nth_table_1337_2929392 (bar int) strict"},
 			},
 		},
 		{
@@ -602,8 +588,8 @@ func TestCreateTableResult(t *testing.T) {
 			// echo -n bar:INT | shasum -a 256
 			expStructureHash: "5d70b398f938650871dd0d6d421e8d1d0c89fe9ed6c8a817c97e951186da7172",
 			expRawQueries: []rawQueryTableID{
-				{id: 1, rawQuery: "CREATE TABLE _1337_1 (bar INT) STRICT"},
-				{id: 42, rawQuery: "CREATE TABLE _1337_42 (bar INT) STRICT"},
+				{id: 1, rawQuery: "create table _1337_1 (bar int) strict"},
+				{id: 42, rawQuery: "create table _1337_42 (bar int) strict"},
 			},
 		},
 		{
@@ -617,9 +603,9 @@ func TestCreateTableResult(t *testing.T) {
 			// echo -n name:TEXT,age:INT,fav_color:TEXT | shasum -a 256
 			expStructureHash: "f45023b189891ad781070ac05374d4e7d7ec7ae007cfd836791c36d609ba7ddd",
 			expRawQueries: []rawQueryTableID{
-				{id: 1, rawQuery: "CREATE TABLE person_1337_1 (name TEXT, age INT, fav_color TEXT) STRICT"},
-				{id: 42, rawQuery: "CREATE TABLE person_1337_42 (name TEXT, age INT, fav_color TEXT) STRICT"},
-				{id: 2929392, rawQuery: "CREATE TABLE person_1337_2929392 (name TEXT, age INT, fav_color TEXT) STRICT"},
+				{id: 1, rawQuery: "create table person_1337_1 (name text, age int, fav_color text) strict"},
+				{id: 42, rawQuery: "create table person_1337_42 (name text, age int, fav_color text) strict"},
+				{id: 2929392, rawQuery: "create table person_1337_2929392 (name text, age int, fav_color text) strict"},
 			},
 		},
 	}
@@ -726,7 +712,7 @@ func TestGetWriteStatements(t *testing.T) {
 				require.NoError(t, err)
 
 				for i := range stmts {
-					query, err := stmts[i].GetQuery()
+					query, err := stmts[i].GetQuery(nil)
 					require.NoError(t, err)
 					require.Equal(t, tc.expectedStmts[i], query)
 				}
@@ -777,7 +763,7 @@ func TestGetGrantStatementRolesAndPrivileges(t *testing.T) {
 				for i := range stmts {
 					gs, ok := stmts[i].(parsing.GrantStmt)
 					require.True(t, ok)
-					q, err := gs.GetQuery()
+					q, err := gs.GetQuery(nil)
 					require.NoError(t, err)
 					require.Equal(t, tc.expectedStmt, q)
 					require.Equal(t, tc.roles, gs.GetRoles())
@@ -791,12 +777,13 @@ func TestGetGrantStatementRolesAndPrivileges(t *testing.T) {
 func TestWriteStatementAddWhereClause(t *testing.T) {
 	t.Parallel()
 
-	testCase := []struct {
+	type subTest struct {
 		name        string
 		query       string
 		whereClause string
 		expQuery    string
-	}{
+	}
+	testCase := []subTest{
 		{
 			name:        "no-where-clause",
 			query:       "UPDATE foo_1337_10 SET id = 1",
@@ -812,24 +799,26 @@ func TestWriteStatementAddWhereClause(t *testing.T) {
 	}
 
 	for _, tc := range testCase {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
+		t.Run(tc.name, func(tc subTest) func(t *testing.T) {
+			return func(t *testing.T) {
+				t.Parallel()
 
-			parser := newParser(t, []string{"system_", "registry"})
-			mss, err := parser.ValidateMutatingQuery(tc.query, 1337)
-			require.NoError(t, err)
-			require.Len(t, mss, 1)
+				parser := newParser(t, []string{"system_", "registry"})
+				mss, err := parser.ValidateMutatingQuery(tc.query, 1337)
+				require.NoError(t, err)
+				require.Len(t, mss, 1)
 
-			ws, ok := mss[0].(parsing.WriteStmt)
-			require.True(t, ok)
+				ws, ok := mss[0].(parsing.WriteStmt)
+				require.True(t, ok)
 
-			err = ws.AddWhereClause(tc.whereClause)
-			require.NoError(t, err)
+				err = ws.AddWhereClause(tc.whereClause)
+				require.NoError(t, err)
 
-			sql, err := ws.GetQuery()
-			require.NoError(t, err)
-			require.Equal(t, tc.expQuery, sql)
-		})
+				sql, err := ws.GetQuery(nil)
+				require.NoError(t, err)
+				require.Equal(t, tc.expQuery, sql)
+			}
+		}(tc))
 	}
 }
 
@@ -849,7 +838,7 @@ func TestWriteStatementAddReturningClause(t *testing.T) {
 		err = ws.AddReturningClause()
 		require.NoError(t, err)
 
-		sql, err := ws.GetQuery()
+		sql, err := ws.GetQuery(nil)
 		require.NoError(t, err)
 		require.Equal(t, "insert into foo_1337_1 values ('bar') returning (rowid)", sql)
 	})
@@ -868,7 +857,7 @@ func TestWriteStatementAddReturningClause(t *testing.T) {
 		err = ws.AddReturningClause()
 		require.NoError(t, err)
 
-		sql, err := ws.GetQuery()
+		sql, err := ws.GetQuery(nil)
 		require.NoError(t, err)
 		require.Equal(t, "update foo_1337_1 set foo = 'bar' returning (rowid)", sql)
 	})
@@ -942,6 +931,11 @@ func ptr2ErrInvalidTableName() **parsing.ErrInvalidTableName {
 	return &e
 }
 
+func ptr2ErrWrongFormatTableName() **sqlparser.ErrTableNameWrongFormat {
+	var e *sqlparser.ErrTableNameWrongFormat
+	return &e
+}
+
 func ptr2ErrPrefixTableName() **parsing.ErrPrefixTableName {
 	var e *parsing.ErrPrefixTableName
 	return &e
@@ -954,5 +948,10 @@ func ptr2ErrStatementIsNotSupported() **parsing.ErrStatementIsNotSupported {
 
 func ptr2ErrRoleIsNotAnEthAddress() **parsing.ErrRoleIsNotAnEthAddress {
 	var e *parsing.ErrRoleIsNotAnEthAddress
+	return &e
+}
+
+func ptr2ErrInsertWithSelectChainMistmatch() **parsing.ErrInsertWithSelectChainMistmatch {
+	var e *parsing.ErrInsertWithSelectChainMistmatch
 	return &e
 }

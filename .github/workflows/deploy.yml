@@ -14,7 +14,7 @@ on:
 
 jobs:
   deploy:
-    if: github.event_name == 'release' || github.ref == 'refs/heads/main' || contains(github.event.head_commit.message, '[stagingdeploy]') || contains(github.event.head_commit.message, '[testnetdeploy]')
+    if: github.event_name == 'release' || github.ref == 'refs/heads/main' || contains(github.event.head_commit.message, '[stagingdeploy]') || contains(github.event.head_commit.message, '[testnetdeploy]') || contains(github.event.head_commit.message, '[mainnetdeploy]')
     name: Deploy
     runs-on: ubuntu-latest
     steps:
@@ -25,14 +25,6 @@ jobs:
         shell: bash
         id: prep
         run: |
-          if [[ ${{ github.ref }} == refs/heads/main ]] || [[ "${{github.event.head_commit.message}}" == *"[testnetdeploy]"* ]]; then
-            echo "::set-output name=deployment::testnet" 
-            echo "::set-output name=vm_host::${{ secrets.TESTNET_VM_HOST }}"
-          else
-            echo "::set-output name=deployment::staging"
-            echo "::set-output name=vm_host::${{ secrets.STAGING_VM_HOST }}"
-          fi
-
           # This is the official way to setup secret values that are multi-line, such as an SSH private key.
           echo 'vm_ssh_key<<EOF' >> $GITHUB_ENV
           echo "${{ secrets.VM_SSH_KEY }}" >> $GITHUB_ENV
@@ -40,10 +32,11 @@ jobs:
 
           echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
 
-      - name: Connect via SSH, update the repo and run
+      - if: contains(github.event.head_commit.message, '[stagingdeploy]')
+        name: Deploy staging
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ steps.prep.outputs.vm_host }}
+          host: ${{ secrets.STAGING_VM_HOST }}
           username: validator
           key: ${{ env.vm_ssh_key }}
           port: 22
@@ -53,12 +46,57 @@ jobs:
             cd go-tableland
             git fetch && git checkout -f ${{ github.sha }}
             cd docker
-            
-            HEALTHBOT_ENABLED=true make ${{ steps.prep.outputs.deployment }}-up
+
+            HEALTHBOT_ENABLED=true make staging-up
 
             # Wait to start and double-check we're running the expected version.
             # This helps having a green check in the GH Action be high-signal that everything is fine.
             sleep 5;
-            for i in 1 2 3 4; do [ $(curl --insecure --silent https://127.0.0.1/version | jq .git_commit) = "\"${{ steps.prep.outputs.sha_short}}\"" ] && break || (if [ $i = 4 ]; then exit -1; else sleep 5; fi ) done 
+            for i in 1 2 3 4; do [ $(curl --insecure --silent https://127.0.0.1/api/v1/version | jq .git_commit) = "\"${{ steps.prep.outputs.sha_short}}\"" ] && break || (if [ $i = 4 ]; then exit -1; else sleep 5; fi ) done 
             echo "All healthy!"
 
+      - if: github.ref == 'refs/heads/main' || contains(github.event.head_commit.message, '[testnetdeploy]')
+        name: Deploy testnet
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.TESTNET_V2_VM_HOST }}
+          username: validator
+          key: ${{ env.vm_ssh_key }}
+          port: 22
+          script_stop: true
+          command_timeout: 30m
+          script: |
+            cd go-tableland
+            git fetch && git checkout -f ${{ github.sha }}
+            cd docker
+
+            make testnet-up
+
+            # Wait to start and double-check we're running the expected version.
+            # This helps having a green check in the GH Action be high-signal that everything is fine.
+            sleep 5;
+            for i in 1 2 3 4; do [ $(curl --insecure --silent https://127.0.0.1/api/v1/version | jq .git_commit) = "\"${{ steps.prep.outputs.sha_short}}\"" ] && break || (if [ $i = 4 ]; then exit -1; else sleep 5; fi ) done 
+            echo "All healthy!"
+
+      - if: github.event_name == 'release' || contains(github.event.head_commit.message, '[mainnetdeploy]')
+        name: Deploy mainnet
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.MAINNET_VM_HOST }}
+          username: validator
+          key: ${{ env.vm_ssh_key }}
+          port: 22
+          script_stop: true
+          command_timeout: 30m
+          script: |
+            cd go-tableland
+            git fetch && git checkout -f ${{ github.sha }}
+            cd docker
+
+            make mainnet-up
+
+            # Wait to start and double-check we're running the expected version.
+            # This helps having a green check in the GH Action be high-signal that everything is fine.
+            sleep 5;
+            for i in 1 2 3 4; do [ $(curl --insecure --silent https://127.0.0.1/api/v1/version | jq .git_commit) = "\"${{ steps.prep.outputs.sha_short}}\"" ] && break || (if [ $i = 4 ]; then exit -1; else sleep 5; fi ) done 
+            echo "All healthy!"

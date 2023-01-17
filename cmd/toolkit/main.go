@@ -24,7 +24,6 @@ func init() {
 	rootCmd.AddCommand(scCmd)
 	rootCmd.AddCommand(walletCmd)
 	rootCmd.AddCommand(gasPriceBumperCmd)
-	rootCmd.AddCommand(replaceNonceRangeCmd)
 
 	siweCreateCmd.Flags().Duration("duration", time.Hour*24*365*100, "validity duration")
 	siweCreateCmd.Flags().Int("chain-id", 69, "chain id")
@@ -43,7 +42,4 @@ func init() {
 
 	gasPriceBumperCmd.PersistentFlags().String("privatekey", "", "the private key used to make the contract calls")
 	gasPriceBumperCmd.PersistentFlags().String("gateway", "", "URL of an Ethereum node API (i.e: Alchemy/Infura)")
-
-	replaceNonceRangeCmd.PersistentFlags().String("privatekey", "", "the private key used to make the contract calls")
-	replaceNonceRangeCmd.PersistentFlags().String("gateway", "", "URL of an Ethereum node API (i.e: Alchemy/Infura)")
 }

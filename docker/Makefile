@@ -1,16 +1,11 @@
 local-up:
-	touch local/api/.env_validator
 	PLATFORM=$(shell uname -m) \
 	ENVIRONMENT=local \
 	COMPOSE_DOCKER_CLI_BUILD=1 \
-	BOOTSTRAP_BACKUP_URL= \
 	docker compose -f docker-compose.yml -f local/docker-compose.override.yml up --build
 .PHONY: local-up
 
 local-down:
-	PLATFORM=$(shell uname -m) \
-	ENVIRONMENT=local \
-	BOOTSTRAP_BACKUP_URL= \
 	docker compose -f docker-compose.yml -f local/docker-compose.override.yml down
 .PHONY: local-down
 
@@ -47,3 +42,19 @@ testnet-down:
 	ENVIRONMENT=deployed/testnet \
 	docker compose -f docker-compose.yml -f deployed/docker-compose.observability.yml $(HEALTHBOT_OVERRIDE)  down
 .PHONY: testnet-down
+
+mainnet-up:
+	PLATFORM=$(shell uname -m) \
+	USER=$(shell id -u) \
+	ENVIRONMENT=deployed/mainnet \
+	COMPOSE_DOCKER_CLI_BUILD=1 \
+	BOOTSTRAP_BACKUP_URL=${BOOTSTRAP_BACKUP_URL} \
+	docker compose -f docker-compose.yml -f deployed/docker-compose.observability.yml $(HEALTHBOT_OVERRIDE) up --build --remove-orphans --detach
+.PHONY: mainnet-up
+
+mainnet-down:
+	PLATFORM=$(shell uname -m) \
+	USER=$(shell id -u) \
+	ENVIRONMENT=deployed/mainnet \
+	docker compose -f docker-compose.yml -f deployed/docker-compose.observability.yml $(HEALTHBOT_OVERRIDE)  down
+.PHONY: mainnet-down

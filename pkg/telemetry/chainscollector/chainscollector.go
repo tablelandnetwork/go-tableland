@@ -47,11 +47,7 @@ func (cc *ChainsCollector) Start(ctx context.Context) {
 				LastProcessedBlockNumbers: make(map[tableland.ChainID]int64, len(cc.chainStacks)),
 			}
 			for chainID, chainStack := range cc.chainStacks {
-				blockNumber, err := chainStack.EventProcessor.GetLastExecutedBlockNumber(ctx)
-				if err != nil {
-					cc.log.Error().Err(err).Msg("get last executed block number")
-					continue
-				}
+				blockNumber := chainStack.EventProcessor.GetLastExecutedBlockNumber()
 				metric.LastProcessedBlockNumbers[chainID] = blockNumber
 			}
 			if err := telemetry.Collect(ctx, metric); err != nil {

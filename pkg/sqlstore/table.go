@@ -44,6 +44,7 @@ type TableMetadata struct {
 	Message      string                   `json:"message,omitempty"`
 	AnimationURL string                   `json:"animation_url,omitempty"`
 	Attributes   []TableMetadataAttribute `json:"attributes,omitempty"`
+	Schema       TableSchema              `json:"schema"`
 }
 
 // TableMetadataAttribute represents the table metadata attribute.
@@ -61,4 +62,16 @@ type SystemACL struct {
 	Privileges tableland.Privileges
 	CreatedAt  time.Time
 	UpdatedAt  *time.Time
+}
+
+// Receipt represents a Tableland receipt.
+type Receipt struct {
+	ChainID      tableland.ChainID
+	BlockNumber  int64
+	IndexInBlock int64
+	TxnHash      string
+
+	TableID       *tables.TableID
+	Error         *string
+	ErrorEventIdx *int
 }

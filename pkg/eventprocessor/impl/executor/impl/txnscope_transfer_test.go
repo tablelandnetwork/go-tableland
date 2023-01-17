@@ -17,10 +17,10 @@ func TestTransfer(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
-	ex, dbURI := newExecutorWithTable(t, 0)
+	ex, dbURI := newExecutorWithIntegerTable(t, 0)
 
 	require.Equal(t, 1,
-		tableRowCountT100(
+		tableReadInteger(
 			t,
 			dbURI,
 			fmt.Sprintf(
@@ -43,7 +43,7 @@ func TestTransfer(t *testing.T) {
 	require.NoError(t, ex.Close(ctx))
 
 	require.Equal(t, 1,
-		tableRowCountT100(
+		tableReadInteger(
 			t,
 			dbURI,
 			fmt.Sprintf(

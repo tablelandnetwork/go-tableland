@@ -6,41 +6,40 @@
         "Human": false,
         "Debug": true
     },
-    "Target": "https://testnet.tableland.network/rpc",
     "Chains": [
         {
-            "Name": "arbitrum-goerli",
+            "Name": 421613,
+            "WalletPrivateKey": "${HEALTHBOT_ARBITRUM_GOERLI_PRIVATE_KEY}",
             "Probe": {
                 "CheckInterval": "360s",
                 "ReceiptTimeout": "25s",
-                "SIWE": "${HEALTHBOT_ARBITRUM_GOERLI_SIWE}",
                 "Tablename": "${HEALTHBOT_ARBITRUM_GOERLI_TABLE}"
             }
         },
         {
-            "Name": "ethereum-goerli",
+            "ChainID": 5,
+            "WalletPrivateKey": "${HEALTHBOT_ETHEREUM_GOERLI_PRIVATE_KEY}",
             "Probe": {
                 "CheckInterval": "1h",
                 "ReceiptTimeout": "90s",
-                "SIWE": "${HEALTHBOT_ETHEREUM_GOERLI_SIWE}",
                 "Tablename": "${HEALTHBOT_ETHEREUM_GOERLI_TABLE}"
             }
         },
         {
-            "Name": "polygon-mumbai",
+            "ChainID": 80001,
+            "WalletPrivateKey": "${HEALTHBOT_POLYGON_MUMBAI_PRIVATE_KEY}",
             "Probe": {
                 "CheckInterval": "240s",
                 "ReceiptTimeout": "40s",
-                "SIWE": "${HEALTHBOT_POLYGON_MUMBAI_SIWE}",
                 "Tablename": "${HEALTHBOT_POLYGON_MUMBAI_TABLE}"
             }
         },
         {
-            "Name": "optimism-goerli",
+            "ChainID": 420,
+            "WalletPrivateKey": "${HEALTHBOT_OPTIMISM_GOERLI_PRIVATE_KEY}",
             "Probe": {
                 "CheckInterval": "360s",
                 "ReceiptTimeout": "25s",
-                "SIWE": "${HEALTHBOT_OPTIMISM_GOERLI_SIWE}",
                 "Tablename": "${HEALTHBOT_OPTIMISM_GOERLI_TABLE}"
             }
         }

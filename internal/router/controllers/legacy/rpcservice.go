@@ -1,4 +1,4 @@
-package rpcservice
+package legacy
 
 import (
 	"context"

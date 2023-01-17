@@ -8,6 +8,7 @@ import (
 	"github.com/XSAM/otelsql"
 	_ "github.com/mattn/go-sqlite3" // sqlite3 driver
 	logger "github.com/rs/zerolog/log"
+	"github.com/tablelandnetwork/sqlparser"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/metrics"
 	"github.com/textileio/go-tableland/pkg/parsing"
@@ -18,11 +19,12 @@ var log = logger.With().Str("component", "userstore").Logger()
 
 // UserStore provides access to the db store.
 type UserStore struct {
-	db *sql.DB
+	db       *sql.DB
+	resolver sqlparser.ReadStatementResolver
 }
 
 // New creates a new UserStore.
-func New(dbURI string) (*UserStore, error) {
+func New(dbURI string, resolver sqlparser.ReadStatementResolver) (*UserStore, error) {
 	attrs := append([]attribute.KeyValue{attribute.String("name", "userstore")}, metrics.BaseAttrs...)
 	db, err := otelsql.Open("sqlite3", dbURI, otelsql.WithAttributes(attrs...))
 	if err != nil {
@@ -32,13 +34,14 @@ func New(dbURI string) (*UserStore, error) {
 		return nil, fmt.Errorf("registering dbstats: %s", err)
 	}
 	return &UserStore{
-		db: db,
+		db:       db,
+		resolver: resolver,
 	}, nil
 }
 
 // Read executes a read statement on the db.
 func (db *UserStore) Read(ctx context.Context, rq parsing.ReadStmt) (*tableland.TableData, error) {
-	query, err := rq.GetQuery()
+	query, err := rq.GetQuery(db.resolver)
 	if err != nil {
 		return nil, fmt.Errorf("get query: %s", err)
 	}

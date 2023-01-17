@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/router/middlewares"
+	sys "github.com/textileio/go-tableland/internal/system"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	executor "github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor/impl"
@@ -127,7 +128,7 @@ func TestGetSchemaByTableName(t *testing.T) {
 			&ethereum.ContractCreateTable{
 				TableId:   big.NewInt(42),
 				Owner:     common.HexToAddress("0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF"),
-				Statement: "create table foo_1337 (a int primary key, b text not null default 'foo' unique, check (a > 0))",
+				Statement: "create table foo_1337 (a integer primary key, b text not null default 'foo' unique, check (a > 0))",
 			},
 		},
 	})
@@ -147,18 +148,18 @@ func TestGetSchemaByTableName(t *testing.T) {
 	require.Len(t, schema.TableConstraints, 1)
 
 	require.Equal(t, "a", schema.Columns[0].Name)
-	require.Equal(t, "int", schema.Columns[0].Type)
+	require.Equal(t, "integer", schema.Columns[0].Type)
 	require.Len(t, schema.Columns[0].Constraints, 1)
-	require.Equal(t, "PRIMARY KEY", schema.Columns[0].Constraints[0])
+	require.Equal(t, "primary key autoincrement", schema.Columns[0].Constraints[0])
 
 	require.Equal(t, "b", schema.Columns[1].Name)
 	require.Equal(t, "text", schema.Columns[1].Type)
 	require.Len(t, schema.Columns[1].Constraints, 3)
-	require.Equal(t, "NOT NULL", schema.Columns[1].Constraints[0])
-	require.Equal(t, "DEFAULT 'foo'", schema.Columns[1].Constraints[1])
-	require.Equal(t, "UNIQUE", schema.Columns[1].Constraints[2])
+	require.Equal(t, "not null", schema.Columns[1].Constraints[0])
+	require.Equal(t, "default 'foo'", schema.Columns[1].Constraints[1])
+	require.Equal(t, "unique", schema.Columns[1].Constraints[2])
 
-	require.Equal(t, "CHECK(a > 0)", schema.TableConstraints[0])
+	require.Equal(t, "check(a > 0)", schema.TableConstraints[0])
 }
 
 func TestGetMetadata(t *testing.T) {
@@ -270,8 +271,7 @@ func TestGetMetadata(t *testing.T) {
 		require.NoError(t, err)
 
 		metadata, err := svc.GetTableMetadata(ctx, id)
-		require.NoError(t, err)
-
+		require.ErrorIs(t, err, sys.ErrTableNotFound)
 		require.Equal(t, fmt.Sprintf("https://tableland.network/tables/chain/%d/tables/%s", 1337, id), metadata.ExternalURL)
 		require.Equal(t, "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0nNTEyJyBoZWlnaHQ9JzUxMicgeG1sbnM9J2h0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnJz48cmVjdCB3aWR0aD0nNTEyJyBoZWlnaHQ9JzUxMicgZmlsbD0nIzAwMCcvPjwvc3ZnPg==", metadata.Image) // nolint
 		require.Equal(t, "Table not found", metadata.Message)
