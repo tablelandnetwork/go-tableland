@@ -64,7 +64,7 @@ jobs:
     if: ${{ success() }}
     needs: [binaries]
     steps:
-      - run: echo "release_version ${{ github.ref_name }}"
+      - run: echo "validator_version ${{ github.ref_name }}"
 
       - name: PR to publish this release via the npm package
         uses: actions/github-script@v6
@@ -90,7 +90,7 @@ jobs:
                 workflow_id: 'validator-update-pr.yml',
                 ref: 'main',
                 inputs: {
-                  release_version: version
+                  validator_version: version
                 }
               };
 
