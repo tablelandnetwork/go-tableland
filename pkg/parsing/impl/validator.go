@@ -32,7 +32,7 @@ func New(systemTablePrefixes []string, opts ...parsing.Option) (parsing.SQLValid
 		}
 	}
 
-	tablePrefixRegex := "([A-Za-z]+[A-Za-z0-9_]*)"
+	tablePrefixRegex := "^([A-Za-z]+[A-Za-z0-9_]*)"
 	queryTableNameRegEx, _ := regexp.Compile(fmt.Sprintf("%s*_[0-9]+_[0-9]+$", tablePrefixRegex))
 	createTableNameRegEx, _ := regexp.Compile(fmt.Sprintf("%s*_[0-9]+$", tablePrefixRegex))
 
