@@ -97,7 +97,7 @@ func TestGetTableByID(t *testing.T) {
 
 		table := calls.getTableByID(id)
 		require.NotEmpty(t, fullName, table.Name)
-		require.Equal(t, "https://testnet.tableland.network/chain/1337/tables/1", table.ExternalUrl)
+		require.Equal(t, "https://testnets.tableland.network/chain/1337/tables/1", table.ExternalUrl)
 		require.Equal(t, "https://render.tableland.xyz/anim/?chain=1337&id=1", table.AnimationUrl)
 		require.Equal(t, "https://render.tableland.xyz/1337/1", table.Image)
 
