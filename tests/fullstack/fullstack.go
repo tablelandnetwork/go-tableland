@@ -165,7 +165,7 @@ func CreateFullStack(t *testing.T, deps Deps) FullStack {
 	if systemService == nil {
 		systemService, err = systemimpl.NewSystemSQLStoreService(
 			stores,
-			"https://testnet.tableland.network",
+			"https://testnets.tableland.network",
 			"https://render.tableland.xyz",
 			"https://render.tableland.xyz/anim",
 		)
