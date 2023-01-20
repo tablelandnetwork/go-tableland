@@ -1,1 +1,6 @@
-docker
+docker/**/*.db*
+docker/**/backups
+docker/deployed/**/prometheus
+docker/deployed/**/grafana/data/**
+!docker/deployed/**/grafana/data/.gitkeep
+
