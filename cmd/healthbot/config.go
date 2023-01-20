@@ -29,6 +29,7 @@ type config struct {
 type ChainConfig struct {
 	ChainID          int
 	WalletPrivateKey string
+	AlchemyAPIKey    string
 	Probe            struct {
 		CheckInterval  string `default:"15s"`
 		ReceiptTimeout string `default:"20s"`
