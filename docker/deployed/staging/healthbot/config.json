@@ -8,8 +8,9 @@
     },
     "Chains": [
         {
-            "ChainID": 5,
+            "ChainID": 420,
             "WalletPrivateKey": "${HEALTHBOT_OPTIMISM_GOERLI_PRIVATE_KEY}",
+            "AlchemyAPIKey": "${HEALTHBOT_OPTIMISM_GOERLI_API_KEY}",
             "Probe": {
                 "CheckInterval": "360s",
                 "ReceiptTimeout": "20s",
