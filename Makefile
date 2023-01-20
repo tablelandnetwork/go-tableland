@@ -77,7 +77,7 @@ test-replayhistory:
 
 # Lint
 lint:
-	go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.49.0 run
+	go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.50.1 run
 .PHONY: lint
 
 # OpenAPI

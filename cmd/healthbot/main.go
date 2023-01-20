@@ -49,7 +49,8 @@ func main() {
 			log.Fatal().Int("chain_id", chainCfg.ChainID).Msg("the chain id isn't supported in the Tableland client")
 		}
 
-		client, err := clientV1.NewClient(ctx, wallet, clientV1.NewClientChain(chain), clientV1.NewClientAlchemyAPIKey(chainCfg.AlchemyAPIKey))
+		client, err := clientV1.NewClient(
+			ctx, wallet, clientV1.NewClientChain(chain), clientV1.NewClientAlchemyAPIKey(chainCfg.AlchemyAPIKey))
 		if err != nil {
 			log.Fatal().Err(err).Msg("error creating tbl client")
 		}
