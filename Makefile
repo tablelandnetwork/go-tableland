@@ -50,6 +50,10 @@ generate-history-db:
 	zstd -f ${EVM_EVENTS_TARGET}
 	rm ${EVM_EVENTS_TARGET}
 
+print-govvv:
+	echo "${GOVVV_FLAGS}"
+.PHONY: .print-govvv
+
 # Build 
 build-api:
 	go build -ldflags="${GOVVV_FLAGS}" ./cmd/api

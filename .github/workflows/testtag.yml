@@ -1,0 +1,20 @@
+name: TestTag
+
+on:
+  push:
+    branches:
+      - jsign/testgittag
+  pull_request:
+
+jobs:
+  print:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Print
+        run: make print-govvv
