@@ -1,6 +1,6 @@
 services:
   prometheus:
-    image: prom/prometheus:v2.39.1
+    image: prom/prometheus:v2.41.0
     container_name: prometheus
     volumes:
       - ${PWD}/observability/prometheus:/etc/prometheus
@@ -12,7 +12,7 @@ services:
     restart: unless-stopped
 
   grafana:
-    image: grafana/grafana:9.2.2
+    image: grafana/grafana:9.3.2
     container_name: grafana
     volumes:
       - ${PWD}/observability/grafana/provisioning:/etc/grafana/provisioning
