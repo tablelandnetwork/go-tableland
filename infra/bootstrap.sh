@@ -69,7 +69,7 @@ sudo -u validator  -i bash <<-'EOF'
 export TBLENV=$(uname -n | cut -d '-' -f 3)
 
 git clone https://github.com/tablelandnetwork/go-tableland.git ~/go-tableland
-cd ~/go-tableland && git checkout jsign/testnetmainnetsplit
+cd ~/go-tableland && git checkout main
 
 cat /tmp/.env_validator > ~/go-tableland/docker/deployed/${TBLENV}/api/.env_validator
 cat /tmp/.env_grafana > ~/go-tableland/docker/deployed/${TBLENV}/grafana/.env_grafana

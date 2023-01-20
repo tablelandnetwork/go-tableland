@@ -35,6 +35,10 @@ type ChainConfig struct {
 		ReceiptTimeout string `default:"20s"`
 		Tablename      string `default:""`
 	}
+	OverrideClient struct {
+		GatewayEndpoint string
+		ContractAddr    string
+	}
 }
 
 func setupConfig() *config {
