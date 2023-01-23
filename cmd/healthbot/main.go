@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/buildinfo"
 	"github.com/textileio/go-tableland/cmd/healthbot/counterprobe"
@@ -49,8 +50,19 @@ func main() {
 			log.Fatal().Int("chain_id", chainCfg.ChainID).Msg("the chain id isn't supported in the Tableland client")
 		}
 
+		if chainCfg.OverrideClient.GatewayEndpoint != "" {
+			chain.Endpoint = chainCfg.OverrideClient.GatewayEndpoint
+		}
+
+		if chainCfg.OverrideClient.ContractAddr != "" {
+			chain.ContractAddr = common.HexToAddress(chainCfg.OverrideClient.ContractAddr)
+		}
+
 		client, err := clientV1.NewClient(
-			ctx, wallet, clientV1.NewClientChain(chain), clientV1.NewClientAlchemyAPIKey(chainCfg.AlchemyAPIKey))
+			ctx, wallet,
+			clientV1.NewClientChain(chain),
+			clientV1.NewClientAlchemyAPIKey(chainCfg.AlchemyAPIKey),
+		)
 		if err != nil {
 			log.Fatal().Err(err).Msg("error creating tbl client")
 		}

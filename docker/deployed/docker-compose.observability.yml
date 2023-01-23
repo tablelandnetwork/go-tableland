@@ -9,7 +9,6 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
     restart: unless-stopped
     user: root
-    restart: unless-stopped
 
   grafana:
     image: grafana/grafana:9.3.2

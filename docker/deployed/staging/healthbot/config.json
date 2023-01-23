@@ -15,6 +15,10 @@
                 "CheckInterval": "360s",
                 "ReceiptTimeout": "20s",
                 "Tablename": "${HEALTHBOT_OPTIMISM_GOERLI_TABLE}"
+            },
+            "OverrideClient" : {
+                "GatewayEndpoint": "https://staging.tableland.network",
+                "ContractAddr": "0xfe79824f6E5894a3DD86908e637B7B4AF57eEE28"
             }
         }
     ]
