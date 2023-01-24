@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/rs/zerolog/log"
 	"github.com/sethvargo/go-limiter/httplimit"
 	"github.com/sethvargo/go-limiter/memorystore"
 	"github.com/textileio/go-tableland/pkg/errors"
@@ -86,6 +87,7 @@ func RateLimitController(cfg RateLimiterConfig) (mux.MiddlewareFunc, error) {
 					_ = json.NewEncoder(w).Encode(errors.ServiceError{Message: "reading request body"})
 					return
 				}
+				log.Warn().Str("body", string(fullBody)).Msg("call to legacy RPC")
 				var rpcMethod struct {
 					Method string `json:"method"`
 				}
