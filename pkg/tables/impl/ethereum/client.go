@@ -113,10 +113,10 @@ func (c *Client) RunSQL(
 	if err != nil {
 		return nil, fmt.Errorf("suggest gas price: %s", err)
 	}
-	log.Debug().Int64("suggested_gas_price", gasPrice.Int64()).Msg("suggested gas price")
+	log.Debug().Int64("chain_id", int64(c.chainID)).Int64("sugg_gas_price", gasPrice.Int64()).Msg("suggested gas price")
 	gasPrice.Mul(gasPrice, big.NewInt(int64(conf.SuggestedGasPriceMultiplier*100)))
 	gasPrice.Div(gasPrice, big.NewInt(100))
-	log.Debug().Int64("adjusted_gas_price", gasPrice.Int64()).Msg("adjusted gas price")
+	log.Debug().Int64("chain_id", int64(c.chainID)).Int64("adjusted_gas_price", gasPrice.Int64()).Msg("adjusted gas price")
 
 	auth, err := bind.NewKeyedTransactorWithChainID(c.wallet.PrivateKey(), big.NewInt(int64(c.chainID)))
 	if err != nil {
