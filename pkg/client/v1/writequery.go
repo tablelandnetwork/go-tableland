@@ -70,14 +70,51 @@ func (c *Client) Create(ctx context.Context, schema string, opts ...CreateOption
 }
 
 // Write initiates a write query, returning the txn hash.
-func (c *Client) Write(ctx context.Context, query string) (string, error) {
+func (c *Client) Write(ctx context.Context, query string, opts ...WriteOption) (string, error) {
+	config := defaultWriteConfig
+	for _, opt := range opts {
+		if err := opt(&config); err != nil {
+			return "", fmt.Errorf("applying client write option: %s", err)
+		}
+	}
+
 	tableID, err := c.Validate(query)
 	if err != nil {
 		return "", fmt.Errorf("calling Validate: %v", err)
 	}
-	res, err := c.tblContract.RunSQL(ctx, c.wallet.Address(), tables.TableID(tableID), query)
+	res, err := c.tblContract.RunSQL(
+		ctx,
+		c.wallet.Address(),
+		tables.TableID(tableID),
+		query,
+		tables.WithSuggestedPriceMultiplier(config.suggestedGasPriceMultiplier))
 	if err != nil {
 		return "", fmt.Errorf("calling RunSQL: %v", err)
 	}
 	return res.Hash().Hex(), nil
+}
+
+// WriteOption changes the behavior of the Write method.
+type WriteOption func(*WriteConfig) error
+
+// WriteConfig contains configuration attributes to call Write.
+type WriteConfig struct {
+	suggestedGasPriceMultiplier float64
+}
+
+var defaultWriteConfig = WriteConfig{
+	suggestedGasPriceMultiplier: 1.0,
+}
+
+// WithSuggestedPriceMultiplier allows to modify the gas priced to be used with respect with the suggested gas price.
+// For example, if `m=1.2` then the gas price to be used will be `suggestedGasPrice * 1.2`.
+func WithSuggestedPriceMultiplier(m float64) WriteOption {
+	return func(wc *WriteConfig) error {
+		if m <= 0 {
+			return fmt.Errorf("multiplier should be positive")
+		}
+		wc.suggestedGasPriceMultiplier = m
+
+		return nil
+	}
 }
