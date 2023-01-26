@@ -38,7 +38,7 @@ type ChainConfig struct {
 	OverrideClient struct {
 		GatewayEndpoint             string
 		ContractAddr                string
-		SuggestedGasPriceMultiplier float64 `default:"1.0"`
+		SuggestedGasPriceMultiplier float64
 	}
 }
 
