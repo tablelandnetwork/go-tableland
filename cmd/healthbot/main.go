@@ -72,7 +72,9 @@ func main() {
 			client,
 			chainCfg.Probe.Tablename,
 			checkInterval,
-			receiptTimeout)
+			receiptTimeout,
+			chainCfg.OverrideClient.SuggestedGasPriceMultiplier,
+		)
 		if err != nil {
 			log.Fatal().Err(err).Msg("initializing counter-probe")
 		}

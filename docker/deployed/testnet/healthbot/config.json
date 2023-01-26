@@ -25,6 +25,9 @@
                 "CheckInterval": "1h",
                 "ReceiptTimeout": "90s",
                 "Tablename": "${HEALTHBOT_ETHEREUM_GOERLI_TABLE}"
+            },
+            "OverrideClient": {
+                "SuggestedGasPriceMultiplier": 1.2
             }
         },
         {
