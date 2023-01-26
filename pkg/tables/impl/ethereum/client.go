@@ -100,11 +100,23 @@ func (c *Client) RunSQL(
 	addr common.Address,
 	table tables.TableID,
 	statement string,
+	opts ...tables.RunSQLOption,
 ) (tables.Transaction, error) {
+	conf := tables.DefaultRunSQLConfig
+	for _, opt := range opts {
+		if err := opt(&conf); err != nil {
+			return nil, fmt.Errorf("applying RunSQL option: %s", err)
+		}
+	}
+
 	gasPrice, err := c.backend.SuggestGasPrice(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("suggest gas price: %s", err)
 	}
+	log.Debug().Int64("suggested_gas_price", gasPrice.Int64()).Msg("suggested gas price")
+	gasPrice.Mul(gasPrice, big.NewInt(int64(conf.SuggestedGasPriceMultiplier*100)))
+	gasPrice.Div(gasPrice, big.NewInt(100))
+	log.Debug().Int64("adjusted_gas_price", gasPrice.Int64()).Msg("adjusted gas price")
 
 	auth, err := bind.NewKeyedTransactorWithChainID(c.wallet.PrivateKey(), big.NewInt(int64(c.chainID)))
 	if err != nil {

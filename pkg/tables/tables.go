@@ -58,8 +58,34 @@ type TablelandTables interface {
 	IsOwner(context.Context, common.Address, *big.Int) (bool, error)
 
 	// RunSQL sends a transaction with a SQL statement to the Tabeland Smart Contract.
-	RunSQL(context.Context, common.Address, TableID, string) (Transaction, error)
+	RunSQL(context.Context, common.Address, TableID, string, ...RunSQLOption) (Transaction, error)
 
 	// SetController sends a transaction that sets the controller for a token id in Smart Contract.
 	SetController(context.Context, common.Address, TableID, common.Address) (Transaction, error)
+}
+
+// RunSQLOption changes the behavior of the Write method.
+type RunSQLOption func(*RunSQLConfig) error
+
+// RunSQLConfig contains configuration attributes to call Write.
+type RunSQLConfig struct {
+	SuggestedGasPriceMultiplier float64
+}
+
+// DefaultRunSQLConfig is the default configuration for RunSQL if no options are passed.
+var DefaultRunSQLConfig = RunSQLConfig{
+	SuggestedGasPriceMultiplier: 1.0,
+}
+
+// WithSuggestedPriceMultiplier allows to modify the gas priced to be used with respect with the suggested gas price.
+// For example, if `m=1.2` then the gas price to be used will be `suggestedGasPrice * 1.2`.
+func WithSuggestedPriceMultiplier(m float64) RunSQLOption {
+	return func(wc *RunSQLConfig) error {
+		if m <= 0 {
+			return fmt.Errorf("multiplier should be positive")
+		}
+		wc.SuggestedGasPriceMultiplier = m
+
+		return nil
+	}
 }
