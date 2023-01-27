@@ -102,6 +102,7 @@ func (c *Client) RunSQL(
 	statement string,
 	opts ...tables.RunSQLOption,
 ) (tables.Transaction, error) {
+	var err error
 	conf := tables.DefaultRunSQLConfig
 	for _, opt := range opts {
 		if err := opt(&conf); err != nil {
@@ -109,14 +110,17 @@ func (c *Client) RunSQL(
 		}
 	}
 
-	gasPrice, err := c.backend.SuggestGasPrice(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("suggest gas price: %s", err)
+	var gasTipCap *big.Int
+	if conf.SuggestedGasPriceMultiplier != 1 {
+		gasTipCap, err = c.backend.SuggestGasTipCap(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("suggest gas price: %s", err)
+		}
+		log.Debug().Int64("chain_id", int64(c.chainID)).Int64("gastipcap", gasTipCap.Int64()).Msg("suggested tip")
+		gasTipCap.Mul(gasTipCap, big.NewInt(int64(conf.SuggestedGasPriceMultiplier*100)))
+		gasTipCap.Div(gasTipCap, big.NewInt(100))
+		log.Debug().Int64("chain_id", int64(c.chainID)).Int64("adjusted_gastipcap", gasTipCap.Int64()).Msg("adjusted tip")
 	}
-	log.Debug().Int64("chain_id", int64(c.chainID)).Int64("sugg_gas_price", gasPrice.Int64()).Msg("suggested gas price")
-	gasPrice.Mul(gasPrice, big.NewInt(int64(conf.SuggestedGasPriceMultiplier*100)))
-	gasPrice.Div(gasPrice, big.NewInt(100))
-	log.Debug().Int64("chain_id", int64(c.chainID)).Int64("adjusted_gas_price", gasPrice.Int64()).Msg("adjusted gas price")
 
 	auth, err := bind.NewKeyedTransactorWithChainID(c.wallet.PrivateKey(), big.NewInt(int64(c.chainID)))
 	if err != nil {
@@ -128,11 +132,11 @@ func (c *Client) RunSQL(
 		defer unlock()
 
 		opts := &bind.TransactOpts{
-			Context:  ctx,
-			Signer:   auth.Signer,
-			From:     auth.From,
-			Nonce:    big.NewInt(0).SetInt64(nonce),
-			GasPrice: gasPrice,
+			Context:   ctx,
+			Signer:    auth.Signer,
+			From:      auth.From,
+			Nonce:     big.NewInt(0).SetInt64(nonce),
+			GasTipCap: gasTipCap,
 		}
 
 		tx, err := c.contract.RunSQL(opts, addr, table.ToBigInt(), statement)
