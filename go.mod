@@ -17,7 +17,7 @@ require (
 	github.com/omeid/uconfig v1.2.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.14.0
-	github.com/rs/zerolog v1.28.0
+	github.com/rs/zerolog v1.29.0
 	github.com/sethvargo/go-limiter v0.7.2
 	github.com/spf13/cobra v1.6.1
 	github.com/spruceid/siwe-go v0.2.1-0.20220804171946-fc1b0374f4ff
