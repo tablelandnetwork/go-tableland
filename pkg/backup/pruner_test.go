@@ -14,10 +14,12 @@ func TestPruner(t *testing.T) {
 
 	for n := 1; n <= 10; n++ {
 		for keep := 1; keep <= 5; keep++ {
-			t.Run(fmt.Sprintf("%d-%d", n, keep), func(t *testing.T) {
-				t.Parallel()
-				testPruner(t, n, keep)
-			})
+			func(keep int) {
+				t.Run(fmt.Sprintf("%d-%d", n, keep), func(t *testing.T) {
+					t.Parallel()
+					testPruner(t, n, keep)
+				})
+			}(keep)
 		}
 	}
 }
