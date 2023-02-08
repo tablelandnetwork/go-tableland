@@ -71,6 +71,14 @@ type SystemPendingTx struct {
 	UpdatedAt      sql.NullInt64
 }
 
+type SystemTreeLeaves struct {
+	Prefix      string
+	ChainID     int64
+	TableID     int64
+	BlockNumber int64
+	Leaves      []byte
+}
+
 type SystemTxnProcessor struct {
 	ChainID     int64
 	BlockNumber int64

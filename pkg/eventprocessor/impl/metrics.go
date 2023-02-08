@@ -29,11 +29,16 @@ func (ep *EventProcessor) initMetrics(chainID tableland.ChainID) error {
 	if err != nil {
 		return fmt.Errorf("creating hash calculation elapsed time gauge: %s", err)
 	}
+	mTreeLeavesCalculationElapsedTime, err := meter.Int64ObservableGauge("tableland.eventprocessor.leaves.calculation.elapsed.time") // nolint
+	if err != nil {
+		return fmt.Errorf("creating leaves calculation elapsed time gauge: %s", err)
+	}
 	_, err = meter.RegisterCallback(
 		func(ctx context.Context, o metric.Observer) error {
 			o.ObserveInt64(mExecutionRound, ep.mExecutionRound.Load(), ep.mBaseLabels...)
 			o.ObserveInt64(mLastProcessedHeight, ep.mLastProcessedHeight.Load(), ep.mBaseLabels...)
 			o.ObserveInt64(mHashCalculationElapsedTime, ep.mHashCalculationElapsedTime.Load(), ep.mBaseLabels...)
+			o.ObserveInt64(mTreeLeavesCalculationElapsedTime, ep.mTreeLeavesCalculationElapsedTime.Load(), ep.mBaseLabels...)
 			return nil
 		}, []instrument.Asynchronous{
 			mExecutionRound, mLastProcessedHeight, mHashCalculationElapsedTime,

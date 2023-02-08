@@ -9,6 +9,8 @@
 // migrations/003_evm_events.up.sql
 // migrations/004_system_id.down.sql
 // migrations/004_system_id.up.sql
+// migrations/005_system_tree_leaves.down.sql
+// migrations/005_system_tree_leaves.up.sql
 package migrations
 
 import (
@@ -245,6 +247,46 @@ func _004_system_idUpSql() (*asset, error) {
 	return a, nil
 }
 
+var __005_system_tree_leavesDownSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\x09\xf2\x0f\x50\x08\x71\x74\xf2\x71\x55\x28\xae\x2c\x2e\x49\xcd\x8d\x2f\x29\x4a\x4d\x8d\xcf\x49\x4d\x2c\x4b\x2d\xb6\x06\x04\x00\x00\xff\xff\x6d\x49\xa7\x48\x1e\x00\x00\x00")
+
+func _005_system_tree_leavesDownSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__005_system_tree_leavesDownSql,
+		"005_system_tree_leaves.down.sql",
+	)
+}
+
+func _005_system_tree_leavesDownSql() (*asset, error) {
+	bytes, err := _005_system_tree_leavesDownSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "005_system_tree_leaves.down.sql", size: 30, mode: os.FileMode(420), modTime: time.Unix(1675717451, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __005_system_tree_leavesUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x74\xce\xc1\xca\x82\x40\x14\x05\xe0\xbd\x4f\x71\x96\x0a\xbe\xc1\xbf\xd2\x9f\x5b\x0c\x4d\x1a\xe3\x0d\x74\x35\xa8\xdd\x48\x52\x0b\xb5\xa8\xb7\x0f\x86\x0a\x12\xdc\x9c\xcd\x77\xe0\x9c\x7f\x43\x11\x13\x38\x8a\x35\x41\xad\x90\xa4\x0c\xca\x55\xc6\x19\xc6\xe7\x38\x49\x67\xa7\x41\xc4\xb6\x52\xde\x65\x84\xef\x01\xc0\x75\x90\x63\xf3\x00\x53\xce\xae\x9f\xec\xb5\x0e\x9d\xd4\xa7\xb2\xe9\x6d\x73\x80\x4a\x98\xd6\x64\x66\x3c\x95\x55\x2b\xcb\x5c\xb5\x97\xfa\x6c\xfb\x5b\x57\xc9\xb0\x50\x79\xff\x88\x75\x1a\xcf\xc4\xc5\xce\xa8\x6d\x64\x0a\x6c\xa8\xf0\x3f\x5f\xc2\xef\x6c\xf8\xb3\x10\x78\xc1\x9f\xf7\x0a\x00\x00\xff\xff\xbe\xae\xd4\x16\xff\x00\x00\x00")
+
+func _005_system_tree_leavesUpSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__005_system_tree_leavesUpSql,
+		"005_system_tree_leaves.up.sql",
+	)
+}
+
+func _005_system_tree_leavesUpSql() (*asset, error) {
+	bytes, err := _005_system_tree_leavesUpSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "005_system_tree_leaves.up.sql", size: 255, mode: os.FileMode(420), modTime: time.Unix(1675793098, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
 // Asset loads and returns the asset for the given name.
 // It returns an error if the asset could not be found or
 // could not be loaded.
@@ -297,14 +339,16 @@ func AssetNames() []string {
 
 // _bindata is a table, holding each asset generator, mapped to its name.
 var _bindata = map[string]func() (*asset, error){
-	"001_init.down.sql":            _001_initDownSql,
-	"001_init.up.sql":              _001_initUpSql,
-	"002_receipterroridx.down.sql": _002_receipterroridxDownSql,
-	"002_receipterroridx.up.sql":   _002_receipterroridxUpSql,
-	"003_evm_events.down.sql":      _003_evm_eventsDownSql,
-	"003_evm_events.up.sql":        _003_evm_eventsUpSql,
-	"004_system_id.down.sql":       _004_system_idDownSql,
-	"004_system_id.up.sql":         _004_system_idUpSql,
+	"001_init.down.sql":               _001_initDownSql,
+	"001_init.up.sql":                 _001_initUpSql,
+	"002_receipterroridx.down.sql":    _002_receipterroridxDownSql,
+	"002_receipterroridx.up.sql":      _002_receipterroridxUpSql,
+	"003_evm_events.down.sql":         _003_evm_eventsDownSql,
+	"003_evm_events.up.sql":           _003_evm_eventsUpSql,
+	"004_system_id.down.sql":          _004_system_idDownSql,
+	"004_system_id.up.sql":            _004_system_idUpSql,
+	"005_system_tree_leaves.down.sql": _005_system_tree_leavesDownSql,
+	"005_system_tree_leaves.up.sql":   _005_system_tree_leavesUpSql,
 }
 
 // AssetDir returns the file names below a certain
@@ -348,14 +392,16 @@ type bintree struct {
 }
 
 var _bintree = &bintree{nil, map[string]*bintree{
-	"001_init.down.sql":            &bintree{_001_initDownSql, map[string]*bintree{}},
-	"001_init.up.sql":              &bintree{_001_initUpSql, map[string]*bintree{}},
-	"002_receipterroridx.down.sql": &bintree{_002_receipterroridxDownSql, map[string]*bintree{}},
-	"002_receipterroridx.up.sql":   &bintree{_002_receipterroridxUpSql, map[string]*bintree{}},
-	"003_evm_events.down.sql":      &bintree{_003_evm_eventsDownSql, map[string]*bintree{}},
-	"003_evm_events.up.sql":        &bintree{_003_evm_eventsUpSql, map[string]*bintree{}},
-	"004_system_id.down.sql":       &bintree{_004_system_idDownSql, map[string]*bintree{}},
-	"004_system_id.up.sql":         &bintree{_004_system_idUpSql, map[string]*bintree{}},
+	"001_init.down.sql":               &bintree{_001_initDownSql, map[string]*bintree{}},
+	"001_init.up.sql":                 &bintree{_001_initUpSql, map[string]*bintree{}},
+	"002_receipterroridx.down.sql":    &bintree{_002_receipterroridxDownSql, map[string]*bintree{}},
+	"002_receipterroridx.up.sql":      &bintree{_002_receipterroridxUpSql, map[string]*bintree{}},
+	"003_evm_events.down.sql":         &bintree{_003_evm_eventsDownSql, map[string]*bintree{}},
+	"003_evm_events.up.sql":           &bintree{_003_evm_eventsUpSql, map[string]*bintree{}},
+	"004_system_id.down.sql":          &bintree{_004_system_idDownSql, map[string]*bintree{}},
+	"004_system_id.up.sql":            &bintree{_004_system_idUpSql, map[string]*bintree{}},
+	"005_system_tree_leaves.down.sql": &bintree{_005_system_tree_leavesDownSql, map[string]*bintree{}},
+	"005_system_tree_leaves.up.sql":   &bintree{_005_system_tree_leavesUpSql, map[string]*bintree{}},
 }}
 
 // RestoreAsset restores an asset under the given directory

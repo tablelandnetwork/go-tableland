@@ -46,13 +46,14 @@ type EventProcessor struct {
 	daemonCanceled chan struct{}
 
 	// Metrics
-	mBaseLabels                 []attribute.KeyValue
-	mExecutionRound             atomic.Int64
-	mLastProcessedHeight        atomic.Int64
-	mBlockExecutionLatency      instrument.Int64Histogram
-	mEventExecutionCounter      instrument.Int64Counter
-	mTxnExecutionLatency        instrument.Int64Histogram
-	mHashCalculationElapsedTime atomic.Int64
+	mBaseLabels                       []attribute.KeyValue
+	mExecutionRound                   atomic.Int64
+	mLastProcessedHeight              atomic.Int64
+	mBlockExecutionLatency            instrument.Int64Histogram
+	mEventExecutionCounter            instrument.Int64Counter
+	mTxnExecutionLatency              instrument.Int64Histogram
+	mHashCalculationElapsedTime       atomic.Int64
+	mTreeLeavesCalculationElapsedTime atomic.Int64
 }
 
 // New returns a new EventProcessor.
@@ -220,6 +221,11 @@ func (ep *EventProcessor) executeBlock(ctx context.Context, block eventfeed.Bloc
 		if err := ep.calculateHash(ctx, bs); err != nil {
 			return fmt.Errorf("calculate hash: %s", err)
 		}
+
+		if err := ep.calculateTreeLeaves(ctx, bs, block.BlockNumber); err != nil {
+			return fmt.Errorf("calculate tree leaves: %s", err)
+		}
+
 		ep.nextHashCalcBlockNumber = nextMultipleOf(block.BlockNumber, ep.config.HashCalcStep)
 	}
 
@@ -308,13 +314,38 @@ func (ep *EventProcessor) calculateHash(ctx context.Context, bs executor.BlockSc
 		Int64("elapsed_time", elapsedTime).
 		Msg("state hash")
 
-	ep.mHashCalculationElapsedTime.Store(elapsedTime)
+	ep.mTreeLeavesCalculationElapsedTime.Store(elapsedTime)
 
 	if err := telemetry.Collect(ctx, telemetry.StateHashMetric{
 		Version:     telemetry.StateHashMetricV1,
 		ChainID:     int64(stateHash.ChainID),
 		BlockNumber: stateHash.BlockNumber,
 		Hash:        stateHash.Hash,
+	}); err != nil {
+		return fmt.Errorf("calculating hash for current block: %s", err)
+	}
+
+	return nil
+}
+
+func (ep *EventProcessor) calculateTreeLeaves(ctx context.Context, bs executor.BlockScope, blockNumber int64) error {
+	startTime := time.Now()
+	if err := bs.CalculateTreeLeaves(ctx, ep.chainID); err != nil {
+		return fmt.Errorf("calculate tree leaves: %s", err)
+	}
+	elapsedTime := time.Since(startTime).Milliseconds()
+	ep.log.Info().
+		Int64("block_number", blockNumber).
+		Int64("chain_id", int64(ep.chainID)).
+		Int64("elapsed_time", elapsedTime).
+		Msg("state hash")
+
+	ep.mTreeLeavesCalculationElapsedTime.Store(elapsedTime)
+
+	if err := telemetry.Collect(ctx, telemetry.StateHashMetric{
+		Version:     telemetry.StateHashMetricV1,
+		ChainID:     int64(ep.chainID),
+		BlockNumber: blockNumber,
 	}); err != nil {
 		return fmt.Errorf("calculating hash for current block: %s", err)
 	}

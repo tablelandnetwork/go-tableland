@@ -15,6 +15,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor"
 	"github.com/textileio/go-tableland/pkg/parsing"
+	"golang.org/x/crypto/sha3"
 )
 
 type blockScope struct {
@@ -213,6 +214,84 @@ func (bs *blockScope) StateHash(ctx context.Context, chainID tableland.ChainID) 
 	}
 
 	return executor.NewStateHash(chainID, bs.scopeVars.BlockNumber, hash), nil
+}
+
+func (bs *blockScope) CalculateTreeLeaves(ctx context.Context, chainID tableland.ChainID) error {
+	rows, err := bs.txn.QueryContext(ctx, "select prefix, id from registry where chain_id = ?1 ORDER BY rowid", chainID)
+	if err != nil {
+		return fmt.Errorf("fetching tables from registry: %s", err)
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	for rows.Next() {
+		var tablePrefix string
+		var tableID int
+		if err := rows.Scan(&tablePrefix, &tableID); err != nil {
+			return fmt.Errorf("scanning table name: %s", err)
+		}
+
+		if err := bs.calculateTreeLeavesForTable(ctx, chainID, tablePrefix, tableID); err != nil {
+			return fmt.Errorf("calculate leaves for table: %s", err)
+		}
+	}
+
+	return nil
+}
+
+func (bs *blockScope) calculateTreeLeavesForTable(
+	ctx context.Context,
+	chainID tableland.ChainID,
+	tablePrefix string,
+	tableID int,
+) error {
+	tableName := fmt.Sprintf("%s_%d_%d", tablePrefix, chainID, tableID)
+	tableRows, err := bs.txn.QueryContext(ctx, fmt.Sprintf("SELECT * FROM %s", tableName))
+	if err != nil {
+		return fmt.Errorf("fetching rows from %s: %s", tableName, err)
+	}
+	defer func() {
+		_ = tableRows.Close()
+	}()
+
+	cols, err := tableRows.Columns()
+	if err != nil {
+		return fmt.Errorf("getting the columns of row: %s", err)
+	}
+
+	rawBuffer := make([]sql.RawBytes, len(cols))
+	scanCallArgs := make([]interface{}, len(rawBuffer))
+	for i := range rawBuffer {
+		scanCallArgs[i] = &rawBuffer[i]
+	}
+
+	leaves := []byte{}
+	for tableRows.Next() {
+		if err := tableRows.Scan(scanCallArgs...); err != nil {
+			return fmt.Errorf("table row scan: %s", err)
+		}
+
+		rowHash := sha3.New256()
+		for _, col := range rawBuffer {
+			rowHash.Write(col)
+		}
+
+		leaves = append(leaves, rowHash.Sum(nil)...)
+	}
+
+	if _, err := bs.txn.ExecContext(ctx,
+		"INSERT INTO system_tree_leaves (prefix, chain_id, table_id, block_number, leaves) VALUES (?1, ?2, ?3, ?4, ?5)",
+		tablePrefix,
+		bs.scopeVars.ChainID,
+		tableID,
+		bs.scopeVars.BlockNumber,
+		leaves,
+	); err != nil {
+		return fmt.Errorf("inserting leaves %s: %s", tableName, err)
+	}
+
+	return nil
 }
 
 // Close closes gracefully the block scope.
