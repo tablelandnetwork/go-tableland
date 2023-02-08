@@ -342,14 +342,6 @@ func (ep *EventProcessor) calculateTreeLeaves(ctx context.Context, bs executor.B
 
 	ep.mTreeLeavesCalculationElapsedTime.Store(elapsedTime)
 
-	if err := telemetry.Collect(ctx, telemetry.StateHashMetric{
-		Version:     telemetry.StateHashMetricV1,
-		ChainID:     int64(ep.chainID),
-		BlockNumber: blockNumber,
-	}); err != nil {
-		return fmt.Errorf("calculating hash for current block: %s", err)
-	}
-
 	return nil
 }
 
