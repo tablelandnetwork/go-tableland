@@ -79,37 +79,6 @@ func (t *TablelandMesa) ValidateWriteQuery(
 	return tableID, nil
 }
 
-// RelayWriteQuery allows the user to rely on the validator wrapping the query in a chain transaction.
-func (t *TablelandMesa) RelayWriteQuery(
-	ctx context.Context,
-	chainID tableland.ChainID,
-	caller common.Address,
-	statement string,
-) (tables.Transaction, error) {
-	stack, ok := t.chainStacks[chainID]
-	if !ok {
-		return nil, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
-	}
-
-	if !stack.AllowTransactionRelay {
-		return nil,
-			fmt.Errorf("chain id %d does not suppport relaying of transactions", chainID)
-	}
-
-	mutatingStmts, err := t.parser.ValidateMutatingQuery(statement, chainID)
-	if err != nil {
-		return nil, fmt.Errorf("validating query: %s", err)
-	}
-
-	tableID := mutatingStmts[0].GetTableID()
-	tx, err := stack.Registry.RunSQL(ctx, caller, tableID, statement)
-	if err != nil {
-		return nil, fmt.Errorf("sending tx: %s", err)
-	}
-
-	return tx, nil
-}
-
 // RunReadQuery allows the user to run SQL.
 func (t *TablelandMesa) RunReadQuery(ctx context.Context, statement string) (*tableland.TableData, error) {
 	readStmt, err := t.parser.ValidateReadQuery(statement)
@@ -168,31 +137,6 @@ func (t *TablelandMesa) GetReceipt(
 	}
 
 	return ok, ret, nil
-}
-
-// SetController allows users to the controller for a token id.
-func (t *TablelandMesa) SetController(
-	ctx context.Context,
-	chainID tableland.ChainID,
-	caller common.Address,
-	controller common.Address,
-	tableID tables.TableID,
-) (tables.Transaction, error) {
-	stack, ok := t.chainStacks[chainID]
-	if !ok {
-		return nil, fmt.Errorf("chain id %d isn't supported in the validator", chainID)
-	}
-
-	if !stack.AllowTransactionRelay {
-		return nil, fmt.Errorf("chain id %d does not suppport relaying of transactions", chainID)
-	}
-
-	tx, err := stack.Registry.SetController(ctx, caller, tableID, controller)
-	if err != nil {
-		return nil, fmt.Errorf("sending tx: %s", err)
-	}
-
-	return tx, nil
 }
 
 func (t *TablelandMesa) runSelect(

@@ -1,8 +1,6 @@
 package main
 
 import (
-	"time"
-
 	"github.com/spf13/cobra"
 )
 
@@ -20,15 +18,10 @@ func main() {
 }
 
 func init() {
-	rootCmd.AddCommand(siweCmd)
 	rootCmd.AddCommand(scCmd)
 	rootCmd.AddCommand(walletCmd)
 	rootCmd.AddCommand(gasPriceBumperCmd)
 	rootCmd.AddCommand(replaceNonceRangeCmd)
-
-	siweCreateCmd.Flags().Duration("duration", time.Hour*24*365*100, "validity duration")
-	siweCreateCmd.Flags().Int("chain-id", 69, "chain id")
-	siweCmd.AddCommand(siweCreateCmd)
 
 	scCmd.PersistentFlags().String("contract-address", "", "the smart contract address")
 	scCmd.PersistentFlags().Int("chain-id", 69, "chain id")

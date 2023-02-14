@@ -5,11 +5,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/gorilla/mux"
 	"github.com/textileio/go-tableland/internal/router/controllers"
 	"github.com/textileio/go-tableland/internal/router/controllers/apiv1"
-	"github.com/textileio/go-tableland/internal/router/controllers/legacy"
 	"github.com/textileio/go-tableland/internal/router/middlewares"
 	"github.com/textileio/go-tableland/internal/system"
 	"github.com/textileio/go-tableland/internal/tableland"
@@ -23,12 +21,6 @@ func ConfiguredRouter(
 	rateLimInterval time.Duration,
 	supportedChainIDs []tableland.ChainID,
 ) (*Router, error) {
-	rpcService := legacy.NewRPCService(tableland)
-	server := rpc.NewServer()
-	if err := server.RegisterName("tableland", rpcService); err != nil {
-		return nil, fmt.Errorf("failed to register a json-rpc service: %s", err)
-	}
-
 	// General router configuration.
 	router := newRouter()
 	router.use(middlewares.CORS, middlewares.TraceID)
@@ -38,7 +30,6 @@ func ConfiguredRouter(
 			MaxRPI:   maxRPI,
 			Interval: rateLimInterval,
 		},
-		JSONRPCRoute: "/rpc", // TODO(json-rpc): remove this feature in the rate-limiter when we drop support.
 	}
 	rateLim, err := middlewares.RateLimitController(cfg)
 	if err != nil {
@@ -47,42 +38,12 @@ func ConfiguredRouter(
 
 	ctrl := controllers.NewController(tableland, systemService)
 
-	// TODO(json-rpc): remove this when dropping support.
-	// APIs Legacy (REST + JSON-RPC)
-	configureLegacyRoutes(router, server, supportedChainIDs, rateLim, ctrl)
-
 	// APIs V1
 	if err := configureAPIV1Routes(router, supportedChainIDs, rateLim, ctrl); err != nil {
 		return nil, fmt.Errorf("configuring API v1: %s", err)
 	}
 
 	return router, nil
-}
-
-func configureLegacyRoutes(
-	router *Router,
-	server *rpc.Server,
-	supportedChainIDs []tableland.ChainID,
-	rateLim mux.MiddlewareFunc,
-	ctrl *controllers.Controller,
-) {
-	router.post("/rpc", func(rw http.ResponseWriter, r *http.Request) {
-		server.ServeHTTP(rw, r)
-	}, middlewares.WithLogging, middlewares.OtelHTTP("rpc"), middlewares.Authentication, rateLim)
-
-	// Gateway configuration.
-	router.get("/chain/{chainId}/tables/{tableId}", ctrl.GetTable, middlewares.WithLogging, middlewares.OtelHTTP("GetTable"), middlewares.RESTChainID(supportedChainIDs), rateLim)                                        // nolint
-	router.get("/chain/{chainId}/tables/{id}/{key}/{value}", ctrl.GetTableRow, middlewares.WithLogging, middlewares.OtelHTTP("GetTableRow"), middlewares.RESTChainID(supportedChainIDs), rateLim)                         // nolint
-	router.get("/chain/{chainId}/tables/controller/{address}", ctrl.GetTablesByController, middlewares.WithLogging, middlewares.OtelHTTP("GetTablesByController"), middlewares.RESTChainID(supportedChainIDs), rateLim)   // nolint
-	router.get("/chain/{chainId}/tables/structure/{hash}", ctrl.GetTablesByStructureHash, middlewares.WithLogging, middlewares.OtelHTTP("GetTablesByStructureHash"), middlewares.RESTChainID(supportedChainIDs), rateLim) // nolint
-	router.get("/schema/{table_name}", ctrl.GetSchemaByTableName, middlewares.WithLogging, middlewares.OtelHTTP("GetSchemaFromTableName"), rateLim)                                                                       // nolint
-
-	router.get("/query", ctrl.GetTableQuery, middlewares.WithLogging, middlewares.OtelHTTP("GetTableQuery"), rateLim) // nolint
-	router.get("/version", ctrl.Version, middlewares.WithLogging, middlewares.OtelHTTP("Version"), rateLim)           // nolint
-
-	// Health endpoint configuration.
-	router.get("/healthz", controllers.HealthHandler)
-	router.get("/health", controllers.HealthHandler)
 }
 
 func configureAPIV1Routes(
@@ -167,13 +128,6 @@ func newRouter() *Router {
 func (r *Router) get(uri string, f http.HandlerFunc, mid ...mux.MiddlewareFunc) {
 	sub := r.r.Path(uri).Subrouter()
 	sub.HandleFunc("", f).Methods(http.MethodGet)
-	sub.Use(mid...)
-}
-
-// post creates a subroute on the specified URI that only accepts POST. You can provide specific middlewares.
-func (r *Router) post(uri string, f func(http.ResponseWriter, *http.Request), mid ...mux.MiddlewareFunc) {
-	sub := r.r.Path(uri).Subrouter()
-	sub.HandleFunc("", f).Methods(http.MethodPost)
 	sub.Use(mid...)
 }
 

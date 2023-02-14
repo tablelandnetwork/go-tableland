@@ -94,20 +94,7 @@ type Tableland interface {
 	RunReadQuery(ctx context.Context, stmt string) (*TableData, error)
 	ValidateCreateTable(ctx context.Context, chainID ChainID, stmt string) (string, error)
 	ValidateWriteQuery(ctx context.Context, chainID ChainID, stmt string) (tables.TableID, error)
-	RelayWriteQuery(
-		ctx context.Context,
-		chainID ChainID,
-		caller common.Address,
-		stmt string,
-	) (tables.Transaction, error)
 	GetReceipt(ctx context.Context, chainID ChainID, txnHash string) (bool, *TxnReceipt, error)
-	SetController(
-		ctx context.Context,
-		chainID ChainID,
-		caller common.Address,
-		controller common.Address,
-		tableID tables.TableID,
-	) (tables.Transaction, error)
 }
 
 // ChainID is a supported EVM chain identifier.
