@@ -96,10 +96,9 @@ type QueryConstraints struct {
 
 // ChainConfig contains all the chain execution stack configuration for a particular EVM chain.
 type ChainConfig struct {
-	Name                  string            `default:""`
-	ChainID               tableland.ChainID `default:"0"`
-	AllowTransactionRelay bool              `default:"false"`
-	Registry              struct {
+	Name     string            `default:""`
+	ChainID  tableland.ChainID `default:"0"`
+	Registry struct {
 		EthEndpoint     string `default:"eth_endpoint"`
 		ContractAddress string `default:"contract_address"`
 	}

@@ -82,55 +82,6 @@ func (_c *Tableland_GetReceipt_Call) Return(_a0 bool, _a1 *tableland.TxnReceipt,
 	return _c
 }
 
-// RelayWriteQuery provides a mock function with given fields: ctx, chainID, caller, stmt
-func (_m *Tableland) RelayWriteQuery(ctx context.Context, chainID tableland.ChainID, caller common.Address, stmt string) (tables.Transaction, error) {
-	ret := _m.Called(ctx, chainID, caller, stmt)
-
-	var r0 tables.Transaction
-	if rf, ok := ret.Get(0).(func(context.Context, tableland.ChainID, common.Address, string) tables.Transaction); ok {
-		r0 = rf(ctx, chainID, caller, stmt)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(tables.Transaction)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, tableland.ChainID, common.Address, string) error); ok {
-		r1 = rf(ctx, chainID, caller, stmt)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// Tableland_RelayWriteQuery_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RelayWriteQuery'
-type Tableland_RelayWriteQuery_Call struct {
-	*mock.Call
-}
-
-// RelayWriteQuery is a helper method to define mock.On call
-//   - ctx context.Context
-//   - chainID tableland.ChainID
-//   - caller common.Address
-//   - stmt string
-func (_e *Tableland_Expecter) RelayWriteQuery(ctx interface{}, chainID interface{}, caller interface{}, stmt interface{}) *Tableland_RelayWriteQuery_Call {
-	return &Tableland_RelayWriteQuery_Call{Call: _e.mock.On("RelayWriteQuery", ctx, chainID, caller, stmt)}
-}
-
-func (_c *Tableland_RelayWriteQuery_Call) Run(run func(ctx context.Context, chainID tableland.ChainID, caller common.Address, stmt string)) *Tableland_RelayWriteQuery_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(tableland.ChainID), args[2].(common.Address), args[3].(string))
-	})
-	return _c
-}
-
-func (_c *Tableland_RelayWriteQuery_Call) Return(_a0 tables.Transaction, _a1 error) *Tableland_RelayWriteQuery_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
 // RunReadQuery provides a mock function with given fields: ctx, stmt
 func (_m *Tableland) RunReadQuery(ctx context.Context, stmt string) (*tableland.TableData, error) {
 	ret := _m.Called(ctx, stmt)

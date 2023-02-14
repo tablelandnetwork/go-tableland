@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/metrics"
 	"github.com/textileio/go-tableland/pkg/tables"
@@ -81,21 +80,6 @@ func (t *InstrumentedTablelandMesa) RunReadQuery(ctx context.Context, stmt strin
 	return resp, err
 }
 
-// RelayWriteQuery allows the user to rely on the validator to wrap a write-query in a chain transaction.
-func (t *InstrumentedTablelandMesa) RelayWriteQuery(
-	ctx context.Context,
-	chainID tableland.ChainID,
-	caller common.Address,
-	stmt string,
-) (tables.Transaction, error) {
-	start := time.Now()
-	resp, err := t.tableland.RelayWriteQuery(ctx, chainID, caller, stmt)
-	latency := time.Since(start).Milliseconds()
-
-	t.record(ctx, recordData{"RelayWriteQuery", caller.Hex(), "", err == nil, latency, chainID})
-	return resp, err
-}
-
 // GetReceipt returns the receipt for a txn hash.
 func (t *InstrumentedTablelandMesa) GetReceipt(
 	ctx context.Context,
@@ -108,22 +92,6 @@ func (t *InstrumentedTablelandMesa) GetReceipt(
 
 	t.record(ctx, recordData{"GetReceipt", "", "", err == nil, latency, chainID})
 	return ok, resp, err
-}
-
-// SetController allows users to the controller for a token id.
-func (t *InstrumentedTablelandMesa) SetController(
-	ctx context.Context,
-	chainID tableland.ChainID,
-	caller common.Address,
-	controller common.Address,
-	tableID tables.TableID,
-) (tables.Transaction, error) {
-	start := time.Now()
-	resp, err := t.tableland.SetController(ctx, chainID, caller, controller, tableID)
-	latency := time.Since(start).Milliseconds()
-
-	t.record(ctx, recordData{"SetController", controller.Hex(), "", err == nil, latency, chainID})
-	return resp, err
 }
 
 func (t *InstrumentedTablelandMesa) record(ctx context.Context, data recordData) {

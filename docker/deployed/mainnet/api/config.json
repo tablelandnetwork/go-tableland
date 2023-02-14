@@ -54,7 +54,6 @@
         {
             "Name": "Ethereum Mainnet",
             "ChainID": 1,
-            "AllowTransactionRelay": false,
             "Registry": {
                 "EthEndpoint": "wss://eth-mainnet.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_ETHEREUM_MAINNET_API_KEY}",
                 "ContractAddress": "0x012969f7e3439a9B04025b5a049EB9BAD82A8C12"
@@ -82,7 +81,6 @@
         {
             "Name": "Arbitrum Mainnet",
             "ChainID": 42161,
-            "AllowTransactionRelay": false,
             "Registry": {
                 "EthEndpoint": "https://arb-mainnet.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_ARBITRUM_MAINNET_API_KEY}",
                 "ContractAddress": "0x9aBd75E8640871A5a20d3B4eE6330a04c962aFfd"
@@ -110,7 +108,6 @@
         {
             "Name": "Polygon Mainnet",
             "ChainID": 137,
-            "AllowTransactionRelay": false,
             "Registry": {
                 "EthEndpoint": "wss://polygon-mainnet.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_POLYGON_MAINNET_API_KEY}",
                 "ContractAddress": "0x5c4e6A9e5C1e1BF445A062006faF19EA6c49aFeA"
@@ -138,7 +135,6 @@
         {
             "Name": "Optimism Mainnet",
             "ChainID": 10,
-            "AllowTransactionRelay": false,
             "Registry": {
                 "EthEndpoint": "wss://opt-mainnet.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_OPTIMISM_MAINNET_API_KEY}",
                 "ContractAddress": "0xfad44BF5B843dE943a09D4f3E84949A11d3aa3e6"

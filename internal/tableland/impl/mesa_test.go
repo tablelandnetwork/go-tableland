@@ -46,11 +46,10 @@ func TestTodoAppWorkflow(t *testing.T) {
 	t.Parallel()
 
 	setup := newTablelandSetupBuilder().
-		withAllowTransactionRelay(true).
 		build(t)
 	tablelandClient := setup.newTablelandClient(t)
 
-	ctx, chainID, backend, sc := setup.ctx, setup.chainID, setup.ethClient, setup.contract
+	ctx, backend, sc := setup.ctx, setup.ethClient, setup.contract
 	tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
 
 	caller := txOpts.From
@@ -63,7 +62,7 @@ func TestTodoAppWorkflow(t *testing.T) {
 		  );`)
 	require.NoError(t, err)
 
-	processCSV(ctx, t, chainID, caller, tbld, "testdata/todoapp_queries.csv", backend)
+	processCSV(ctx, t, sc, txOpts, caller, tbld, "testdata/todoapp_queries.csv", backend)
 }
 
 func TestInsertOnConflict(t *testing.T) {
@@ -73,7 +72,6 @@ func TestInsertOnConflict(t *testing.T) {
 	t.SkipNow()
 
 	setup := newTablelandSetupBuilder().
-		withAllowTransactionRelay(true).
 		build(t)
 	tablelandClient := setup.newTablelandClient(t)
 
@@ -91,10 +89,10 @@ func TestInsertOnConflict(t *testing.T) {
 
 	var txnHashes []string
 	for i := 0; i < 10; i++ {
-		txn, err := tbld.RelayWriteQuery(
-			ctx,
-			chainID,
+		txn, err := sc.RunSQL(
+			txOpts,
 			caller,
+			big.NewInt(1),
 			`INSERT INTO foo_1337_1 VALUES ('bar', 0) ON CONFLICT (name) DO UPDATE SET count=_1.count+1`,
 		)
 		require.NoError(t, err)
@@ -115,7 +113,6 @@ func TestMultiStatement(t *testing.T) {
 	t.Parallel()
 
 	setup := newTablelandSetupBuilder().
-		withAllowTransactionRelay(true).
 		build(t)
 	tablelandClient := setup.newTablelandClient(t)
 
@@ -129,12 +126,13 @@ func TestMultiStatement(t *testing.T) {
 		);`)
 	require.NoError(t, err)
 
-	r, err := tbld.RelayWriteQuery(
-		ctx,
-		chainID,
+	r, err := sc.RunSQL(
+		txOpts,
 		caller,
+		big.NewInt(1),
 		`INSERT INTO foo_1337_1 values ('bar'); UPDATE foo_1337_1 SET name='zoo'`,
 	)
+
 	require.NoError(t, err)
 	backend.Commit()
 
@@ -151,7 +149,6 @@ func TestReadSystemTable(t *testing.T) {
 	t.Parallel()
 
 	setup := newTablelandSetupBuilder().
-		withAllowTransactionRelay(true).
 		build(t)
 	tablelandClient := setup.newTablelandClient(t)
 
@@ -172,18 +169,17 @@ func TestJSON(t *testing.T) {
 	t.Parallel()
 
 	setup := newTablelandSetupBuilder().
-		withAllowTransactionRelay(true).
 		build(t)
 	tablelandClient := setup.newTablelandClient(t)
 
-	ctx, chainID, backend, sc := setup.ctx, setup.chainID, setup.ethClient, setup.contract
+	ctx, backend, sc := setup.ctx, setup.ethClient, setup.contract
 	tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
 	caller := txOpts.From
 
 	_, err := sc.CreateTable(txOpts, caller, `CREATE TABLE foo_1337 (myjson TEXT);`)
 	require.NoError(t, err)
 
-	processCSV(ctx, t, chainID, caller, tbld, "testdata/json_queries.csv", backend)
+	processCSV(ctx, t, sc, txOpts, caller, tbld, "testdata/json_queries.csv", backend)
 }
 
 func TestCheckInsertPrivileges(t *testing.T) {
@@ -212,14 +208,13 @@ func TestCheckInsertPrivileges(t *testing.T) {
 				t.Parallel()
 
 				setup := newTablelandSetupBuilder().
-					withAllowTransactionRelay(true).
 					build(t)
 
 				granterSetup := setup.newTablelandClient(t)
 				granteeSetup := setup.newTablelandClient(t)
 
 				ctx, chainID, backend, sc := setup.ctx, setup.chainID, setup.ethClient, setup.contract
-				tbldGranter, txOptsGranter := granterSetup.tableland, granterSetup.txOpts
+				txOptsGranter := granterSetup.txOpts
 				tbldGrantee, txOptsGrantee := granteeSetup.tableland, granteeSetup.txOpts
 
 				granter := txOptsGranter.From
@@ -238,13 +233,13 @@ func TestCheckInsertPrivileges(t *testing.T) {
 
 					// execute grant statement according to test case
 					grantQuery := fmt.Sprintf("GRANT %s ON foo_1337_1 TO '%s'", strings.Join(privileges, ","), grantee)
-					txn, err := relayWriteQuery(ctx, t, chainID, tbldGranter, grantQuery, granter)
+					txn, err := helpTestWriteQuery(t, sc, txOptsGranter, granter, grantQuery)
 					require.NoError(t, err)
 					backend.Commit()
 					successfulTxnHashes = append(successfulTxnHashes, txn.Hash().Hex())
 				}
 
-				txn, err := relayWriteQuery(ctx, t, chainID, tbldGrantee, test.query, grantee)
+				txn, err := helpTestWriteQuery(t, sc, txOptsGrantee, grantee, test.query)
 				require.NoError(t, err)
 				backend.Commit()
 
@@ -293,14 +288,13 @@ func TestCheckUpdatePrivileges(t *testing.T) {
 				t.Parallel()
 
 				setup := newTablelandSetupBuilder().
-					withAllowTransactionRelay(true).
 					build(t)
 
 				granterSetup := setup.newTablelandClient(t)
 				granteeSetup := setup.newTablelandClient(t)
 
 				ctx, chainID, backend, sc := setup.ctx, setup.chainID, setup.ethClient, setup.contract
-				tbldGranter, txOptsGranter := granterSetup.tableland, granterSetup.txOpts
+				txOptsGranter := granterSetup.txOpts
 				tbldGrantee, txOptsGrantee := granteeSetup.tableland, granteeSetup.txOpts
 
 				granter := txOptsGranter.From
@@ -312,7 +306,7 @@ func TestCheckUpdatePrivileges(t *testing.T) {
 				var successfulTxnHashes []string
 
 				// we initilize the table with a row to be updated
-				txn, err := relayWriteQuery(ctx, t, chainID, tbldGranter, "INSERT INTO foo_1337_1 (bar) VALUES ('Hello')", granter) // nolint
+				txn, err := helpTestWriteQuery(t, sc, txOptsGranter, granter, "INSERT INTO foo_1337_1 (bar) VALUES ('Hello')")
 				require.NoError(t, err)
 				backend.Commit()
 				successfulTxnHashes = append(successfulTxnHashes, txn.Hash().Hex())
@@ -325,13 +319,13 @@ func TestCheckUpdatePrivileges(t *testing.T) {
 
 					// execute grant statement according to test case
 					grantQuery := fmt.Sprintf("GRANT %s ON foo_1337_1 TO '%s'", strings.Join(privileges, ","), grantee)
-					txn, err := relayWriteQuery(ctx, t, chainID, tbldGranter, grantQuery, granter)
+					txn, err := helpTestWriteQuery(t, sc, txOptsGranter, granter, grantQuery)
 					require.NoError(t, err)
 					backend.Commit()
 					successfulTxnHashes = append(successfulTxnHashes, txn.Hash().Hex())
 				}
 
-				txn, err = relayWriteQuery(ctx, t, chainID, tbldGrantee, test.query, grantee)
+				txn, err = helpTestWriteQuery(t, sc, txOptsGrantee, grantee, test.query)
 				require.NoError(t, err)
 				backend.Commit()
 
@@ -380,14 +374,13 @@ func TestCheckDeletePrivileges(t *testing.T) {
 				t.Parallel()
 
 				setup := newTablelandSetupBuilder().
-					withAllowTransactionRelay(true).
 					build(t)
 
 				granterSetup := setup.newTablelandClient(t)
 				granteeSetup := setup.newTablelandClient(t)
 
 				ctx, chainID, backend, sc := setup.ctx, setup.chainID, setup.ethClient, setup.contract
-				tbldGranter, txOptsGranter := granterSetup.tableland, granterSetup.txOpts
+				txOptsGranter := granterSetup.txOpts
 				tbldGrantee, txOptsGrantee := granteeSetup.tableland, granteeSetup.txOpts
 
 				granter := txOptsGranter.From
@@ -398,7 +391,7 @@ func TestCheckDeletePrivileges(t *testing.T) {
 				var successfulTxnHashes []string
 
 				// we initilize the table with a row to be delete
-				_, err = relayWriteQuery(ctx, t, chainID, tbldGranter, "INSERT INTO foo_1337_1 (bar) VALUES ('Hello')", granter) // nolint
+				_, err = helpTestWriteQuery(t, sc, txOptsGranter, granter, "INSERT INTO foo_1337_1 (bar) VALUES ('Hello')")
 				require.NoError(t, err)
 				backend.Commit()
 
@@ -410,13 +403,13 @@ func TestCheckDeletePrivileges(t *testing.T) {
 
 					// execute grant statement according to test case
 					grantQuery := fmt.Sprintf("GRANT %s ON foo_1337_1 TO '%s'", strings.Join(privileges, ","), grantee)
-					txn, err := relayWriteQuery(ctx, t, chainID, tbldGranter, grantQuery, granter)
+					txn, err := helpTestWriteQuery(t, sc, txOptsGranter, granter, grantQuery)
 					require.NoError(t, err)
 					backend.Commit()
 					successfulTxnHashes = append(successfulTxnHashes, txn.Hash().Hex())
 				}
 
-				txn, err := relayWriteQuery(ctx, t, chainID, tbldGrantee, test.query, grantee)
+				txn, err := helpTestWriteQuery(t, sc, txOptsGrantee, grantee, test.query)
 				require.NoError(t, err)
 				backend.Commit()
 
@@ -442,7 +435,6 @@ func TestOwnerRevokesItsPrivilegeInsideMultipleStatements(t *testing.T) {
 	t.Parallel()
 
 	setup := newTablelandSetupBuilder().
-		withAllowTransactionRelay(true).
 		build(t)
 	tablelandClient := setup.newTablelandClient(t)
 
@@ -459,7 +451,7 @@ func TestOwnerRevokesItsPrivilegeInsideMultipleStatements(t *testing.T) {
 		REVOKE update ON foo_1337_1 FROM '` + caller.Hex() + `';
 		UPDATE foo_1337_1 SET bar = 'Hello 3';
 	`
-	txn, err := relayWriteQuery(ctx, t, chainID, tbld, multiStatements, caller)
+	txn, err := helpTestWriteQuery(t, sc, txOpts, caller, multiStatements)
 	require.NoError(t, err)
 	backend.Commit()
 
@@ -473,7 +465,6 @@ func TestTransferTable(t *testing.T) {
 	t.Parallel()
 
 	setup := newTablelandSetupBuilder().
-		withAllowTransactionRelay(true).
 		build(t)
 
 	owner1Setup := setup.newTablelandClient(t)
@@ -492,12 +483,12 @@ func TestTransferTable(t *testing.T) {
 
 	// we'll execute one insert with owner1 and one insert with owner2
 	query1 := "INSERT INTO foo_1337_1 (bar) VALUES ('Hello')"
-	txn1, err := relayWriteQuery(ctx, t, chainID, tbldOwner1, query1, txOptsOwner1.From)
+	txn1, err := helpTestWriteQuery(t, sc, txOptsOwner1, txOptsOwner1.From, query1)
 	require.NoError(t, err)
 	backend.Commit()
 
 	query2 := "INSERT INTO foo_1337_1 (bar) VALUES ('Hello2')"
-	txn2, err := relayWriteQuery(ctx, t, chainID, tbldOwner2, query2, txOptsOwner2.From)
+	txn2, err := helpTestWriteQuery(t, sc, txOptsOwner2, txOptsOwner2.From, query2)
 	require.NoError(t, err)
 	backend.Commit()
 
@@ -541,25 +532,17 @@ func TestQueryConstraints(t *testing.T) {
 		}
 
 		setup := newTablelandSetupBuilder().
-			withAllowTransactionRelay(true).
 			withParsingOpts(parsingOpts...).
 			build(t)
 		tablelandClient := setup.newTablelandClient(t)
 
-		ctx, chainID, backend, sc := setup.ctx, setup.chainID, setup.ethClient, setup.contract
-		tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
-		caller := txOpts.From
-
-		_, err := sc.CreateTable(txOpts, caller, `CREATE TABLE foo_1337 (bar text);`)
-		require.NoError(t, err)
-		backend.Commit()
-
-		_, err = tbld.RelayWriteQuery(
+		chainID, ctx := setup.chainID, setup.ctx
+		_, err := tablelandClient.tableland.ValidateCreateTable(
 			ctx,
 			chainID,
-			caller,
-			"INSERT INTO foo_1337_1 (bar) VALUES ('hello')", // length of 45 bytes
-		)
+			"CREATE TABLE foo_1337 (bar text);",
+		) // length of 46 bytes
+
 		require.NoError(t, err)
 	})
 
@@ -570,21 +553,17 @@ func TestQueryConstraints(t *testing.T) {
 			parsing.WithMaxWriteQuerySize(45),
 		}
 		setup := newTablelandSetupBuilder().
-			withAllowTransactionRelay(true).
 			withParsingOpts(parsingOpts...).
 			build(t)
 		tablelandClient := setup.newTablelandClient(t)
 
-		ctx, chainID := setup.ctx, setup.chainID
-		tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
-		caller := txOpts.From
-
-		_, err := tbld.RelayWriteQuery(
+		chainID, ctx := setup.chainID, setup.ctx
+		_, err := tablelandClient.tableland.ValidateWriteQuery(
 			ctx,
 			chainID,
-			caller,
-			"INSERT INTO foo_1337_1 (bar) VALUES ('hello2')", // length of 46 bytes
-		)
+			"INSERT INTO foo_1337_1 (bar) VALUES ('hello2')",
+		) // length of 46 bytes
+
 		require.Error(t, err)
 		require.ErrorContains(t, err, "write query size is too long")
 	})
@@ -597,7 +576,6 @@ func TestQueryConstraints(t *testing.T) {
 		}
 
 		setup := newTablelandSetupBuilder().
-			withAllowTransactionRelay(true).
 			withParsingOpts(parsingOpts...).
 			build(t)
 		tablelandClient := setup.newTablelandClient(t)
@@ -628,7 +606,6 @@ func TestQueryConstraints(t *testing.T) {
 		}
 
 		setup := newTablelandSetupBuilder().
-			withAllowTransactionRelay(true).
 			withParsingOpts(parsingOpts...).
 			build(t)
 		tablelandClient := setup.newTablelandClient(t)
@@ -642,34 +619,11 @@ func TestQueryConstraints(t *testing.T) {
 	})
 }
 
-func TestAllowTransactionRelayConfig(t *testing.T) {
-	t.Parallel()
-
-	setup := newTablelandSetupBuilder().
-		withAllowTransactionRelay(false).
-		build(t)
-
-	tablelandClient := setup.newTablelandClient(t)
-
-	ctx, chainID, tbld, txOpts := setup.ctx, setup.chainID, tablelandClient.tableland, tablelandClient.txOpts
-
-	t.Run("relay write query", func(t *testing.T) {
-		_, err := relayWriteQuery(ctx, t, chainID, tbld, "INSERT INTO foo_1337_1 VALUES ('bar', 0)", txOpts.From)
-		require.Error(t, err)
-		require.ErrorContains(t, err, "chain id 1337 does not suppport relaying of transactions")
-	})
-
-	t.Run("set controller", func(t *testing.T) {
-		_, err := setController(ctx, t, chainID, tbld, txOpts.From, common.Address{}, "1") // values don't matter
-		require.Error(t, err)
-		require.ErrorContains(t, err, "chain id 1337 does not suppport relaying of transactions")
-	})
-}
-
 func processCSV(
 	ctx context.Context,
 	t *testing.T,
-	chainID tableland.ChainID,
+	sc *ethereum.Contract,
+	txOpts *bind.TransactOpts,
 	caller common.Address,
 	tbld tableland.Tableland,
 	csvPath string,
@@ -682,7 +636,7 @@ func processCSV(
 		if record[0] == "r" {
 			require.Eventually(t, jsonEq(ctx, t, tbld, record[1], record[2]), time.Second*5, time.Millisecond*100)
 		} else {
-			_, err := tbld.RelayWriteQuery(ctx, chainID, caller, record[1])
+			_, err := sc.RunSQL(txOpts, caller, big.NewInt(1), record[1])
 			require.NoError(t, err)
 			backend.Commit()
 		}
@@ -765,34 +719,16 @@ func runReadQuery(
 	return tbld.RunReadQuery(ctx, sql)
 }
 
-func relayWriteQuery(
-	ctx context.Context,
+func helpTestWriteQuery(
 	t *testing.T,
-	chainID tableland.ChainID,
-	tbld tableland.Tableland,
+	sc *ethereum.Contract,
+	txOpts *bind.TransactOpts,
+	caller common.Address,
 	sql string,
-	caller common.Address,
 ) (tables.Transaction, error) {
 	t.Helper()
 
-	return tbld.RelayWriteQuery(ctx, chainID, caller, sql)
-}
-
-func setController(
-	ctx context.Context,
-	t *testing.T,
-	chainID tableland.ChainID,
-	tbld tableland.Tableland,
-	caller common.Address,
-	controller common.Address,
-	tokenID string,
-) (tables.Transaction, error) {
-	t.Helper()
-
-	tableID, err := tables.NewTableID(tokenID)
-	require.NoError(t, err)
-
-	return tbld.SetController(ctx, chainID, caller, controller, tableID)
+	return sc.RunSQL(txOpts, caller, big.NewInt(1), sql)
 }
 
 func readCsvFile(t *testing.T, filePath string) [][]string {
@@ -904,17 +840,11 @@ func requireTxn(
 }
 
 type tablelandSetupBuilder struct {
-	allowTransactionRelay bool
-	parsingOpts           []parsing.Option
+	parsingOpts []parsing.Option
 }
 
 func newTablelandSetupBuilder() *tablelandSetupBuilder {
 	return &tablelandSetupBuilder{}
-}
-
-func (b *tablelandSetupBuilder) withAllowTransactionRelay(v bool) *tablelandSetupBuilder {
-	b.allowTransactionRelay = v
-	return b
 }
 
 func (b *tablelandSetupBuilder) withParsingOpts(opts ...parsing.Option) *tablelandSetupBuilder {
@@ -984,9 +914,6 @@ func (b *tablelandSetupBuilder) build(t *testing.T) *tablelandSetup {
 		parser:      parser,
 		userStore:   userStore,
 		systemStore: store,
-
-		// configs
-		allowTransactionRelay: b.allowTransactionRelay,
 	}
 }
 
@@ -1010,9 +937,6 @@ type tablelandSetup struct {
 	parser      parsing.SQLValidator
 	userStore   *user.UserStore
 	systemStore *system.SystemStore
-
-	// configs
-	allowTransactionRelay bool
 }
 
 func (s *tablelandSetup) newTablelandClient(t *testing.T) *tablelandClient {
@@ -1046,9 +970,8 @@ func (s *tablelandSetup) newTablelandClient(t *testing.T) *tablelandClient {
 		s.userStore,
 		map[tableland.ChainID]chains.ChainStack{
 			1337: {
-				Store:                 s.systemStore,
-				Registry:              registry,
-				AllowTransactionRelay: s.allowTransactionRelay,
+				Store:    s.systemStore,
+				Registry: registry,
 			},
 		})
 

@@ -134,10 +134,9 @@ func CreateFullStack(t *testing.T, deps Deps) FullStack {
 
 	chainStacks := map[tableland.ChainID]chains.ChainStack{
 		1337: {
-			Store:                 systemStore,
-			Registry:              registry,
-			AllowTransactionRelay: true,
-			EventProcessor:        ep,
+			Store:          systemStore,
+			Registry:       registry,
+			EventProcessor: ep,
 		},
 	}
 

@@ -1,9 +1,7 @@
 package middlewares
 
 import (
-	"bytes"
 	"context"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -38,7 +36,6 @@ func TestLimit1Addr(t *testing.T) {
 						MaxRPI:   uint64(tc.limitRPS),
 						Interval: time.Second,
 					},
-					JSONRPCRoute: "/rpc",
 				}
 				rlcm, err := RateLimitController(cfg)
 				require.NoError(t, err)
@@ -56,73 +53,6 @@ func TestLimit1Addr(t *testing.T) {
 				// - If callRPS > limitRPS, we eventually should see a 429.
 				assertFunc := require.Eventually
 				if tc.callRPS < tc.limitRPS {
-					assertFunc = require.Never
-				}
-				assertFunc(t, func() bool {
-					rlc.ServeHTTP(res, r)
-					return res.Code == 429
-				}, time.Second*5, time.Second/time.Duration(tc.callRPS))
-			}
-		}(tc))
-	}
-}
-
-func TestCustomRPCLimits(t *testing.T) {
-	t.Parallel()
-
-	cfg := RateLimiterConfig{
-		Default: RateLimiterRouteConfig{
-			MaxRPI:   uint64(10000),
-			Interval: time.Second,
-		},
-		JSONRPCRoute: "/rpc",
-		JSONRPCMethodLimits: map[string]RateLimiterRouteConfig{
-			"tableland_runSQLQuery": {
-				MaxRPI:   100,
-				Interval: time.Second,
-			},
-			"tableland_relayWriteQuery": {
-				MaxRPI:   10,
-				Interval: time.Second,
-			},
-		},
-	}
-
-	type testCase struct {
-		name      string
-		rpcMethod string
-		callRPS   int
-		success   bool
-	}
-
-	tests := []testCase{
-		{name: "success", rpcMethod: "tableland_runSQLQuery", callRPS: 90, success: true},
-		{name: "success", rpcMethod: "tableland_relayWriteQuery", callRPS: 8, success: true},
-
-		{name: "blocked", rpcMethod: "tableland_runSQLQuery", callRPS: 110, success: false},
-		{name: "blocked", rpcMethod: "tableland_relayWriteQuery", callRPS: 11, success: false},
-	}
-
-	for _, tc := range tests {
-		t.Run(fmt.Sprintf("%s-%s", tc.rpcMethod, tc.name), func(tc testCase) func(t *testing.T) {
-			return func(t *testing.T) {
-				t.Parallel()
-
-				rlcm, err := RateLimitController(cfg)
-				require.NoError(t, err)
-				rlc := rlcm(dummyHandler{})
-
-				ctx := context.WithValue(context.Background(), ContextKeyAddress, "0xdeadbeef")
-
-				reqBody := fmt.Sprintf(`{"method": "%s"}`, tc.rpcMethod)
-				body := bytes.NewReader([]byte(reqBody))
-				r, err := http.NewRequestWithContext(ctx, "POST", cfg.JSONRPCRoute, body)
-				require.NoError(t, err)
-
-				res := httptest.NewRecorder()
-
-				assertFunc := require.Eventually
-				if tc.success {
 					assertFunc = require.Never
 				}
 				assertFunc(t, func() bool {
@@ -162,7 +92,6 @@ func TestLimit1IP(t *testing.T) {
 						MaxRPI:   uint64(tc.limitRPS),
 						Interval: time.Second,
 					},
-					JSONRPCRoute: "/rpc",
 				}
 				rlcm, err := RateLimitController(cfg)
 				require.NoError(t, err)
@@ -206,7 +135,6 @@ func TestRateLim10Addresses(t *testing.T) {
 			MaxRPI:   150,
 			Interval: time.Second,
 		},
-		JSONRPCRoute: "/rpc",
 	}
 	rlcm, err := RateLimitController(cfg)
 	require.NoError(t, err)
@@ -236,7 +164,6 @@ func TestRateLim10IPs(t *testing.T) {
 			MaxRPI:   100,
 			Interval: time.Second,
 		},
-		JSONRPCRoute: "/rpc",
 	}
 	rlcm, err := RateLimitController(cfg)
 	require.NoError(t, err)
