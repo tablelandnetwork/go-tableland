@@ -144,6 +144,8 @@ func TestRateLim10Addresses(t *testing.T) {
 	// we never get a 429 status response. The request per second being done is
 	// clearly more than 10 per second, but from different addresses which should be fine.
 	for i := 0; i < 1000; i++ {
+		// TODO: I'm not sure how to handle this test now that the JSON-RPC API is removed
+		//		 and the SIWE token is never being included. -JW
 		ctx := context.WithValue(context.Background(), ContextKeyAddress, strconv.Itoa(i%10))
 		r, err := http.NewRequestWithContext(ctx, "", "", nil)
 		require.NoError(t, err)
