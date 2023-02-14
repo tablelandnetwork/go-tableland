@@ -63,7 +63,6 @@ The `cmd/toolkit` is a CLI which contain useful commands:
 
 - `gaspricebump`: Bumps gas price for a stuck transaction
 - `sc`: Offers smart sontract calls
-- `siwe`: SIWE utilities
 - `wallet`: Offers wallet utilites
 
 # Contributing
