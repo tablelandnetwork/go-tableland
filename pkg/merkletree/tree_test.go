@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"sort"
 	"strconv"
+	"strings"
 	"testing"
 	"testing/quick"
 
@@ -70,7 +71,7 @@ func TestNewTree(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, test.merkleRoot, tree.MerkleRoot())
 
-			require.True(t, tree.VerifyTree())
+			require.True(t, tree.verifyTree())
 		})
 	}
 
@@ -217,10 +218,11 @@ func TestProperties(t *testing.T) {
 
 				tree, err := NewTree(leaves, hashFunc)
 				if err != nil {
-					return false
+					// ignore check when leaf is empty
+					return strings.Contains(err.Error(), "leaf cannot be empty")
 				}
 
-				return tree.VerifyTree()
+				return tree.verifyTree()
 			}
 			require.NoError(t, quick.Check(property, nil))
 		}
@@ -237,7 +239,8 @@ func TestProperties(t *testing.T) {
 
 				tree, err := NewTree(leaves, hashFunc)
 				if err != nil {
-					return false
+					// ignore check when leaf is empty
+					return strings.Contains(err.Error(), "leaf cannot be empty")
 				}
 
 				return sort.SliceIsSorted(tree.leaves, func(i, j int) bool {
@@ -258,7 +261,8 @@ func TestProperties(t *testing.T) {
 
 				tree, err := NewTree(leaves, hashFunc)
 				if err != nil {
-					return false
+					// ignore check when leaf is empty
+					return strings.Contains(err.Error(), "leaf cannot be empty")
 				}
 
 				return heightOfTree(tree.root) == expectedHeight(len(leaves))
@@ -277,7 +281,8 @@ func TestProperties(t *testing.T) {
 
 				tree, err := NewTree(leaves, hashFunc)
 				if err != nil {
-					return false
+					// ignore check when leaf is empty
+					return strings.Contains(err.Error(), "leaf cannot be empty")
 				}
 
 				return len(tree.leaves) == len(leaves)+1 &&
@@ -297,7 +302,8 @@ func TestProperties(t *testing.T) {
 
 				tree, err := NewTree(leaves, hashFunc)
 				if err != nil {
-					return false
+					// ignore check when leaf is empty
+					return strings.Contains(err.Error(), "leaf cannot be empty")
 				}
 
 				for _, leaf := range tree.leaves {

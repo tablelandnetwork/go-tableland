@@ -5,34 +5,44 @@ This package implements a Merkle Tree. It is used to calculate the Merkle Root o
 ## Design characteristics
 
 - It was designed to work with [OpenZepellin MerkeProof verifier](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/260e082ed10e86e5870c4e5859750a8271eeb2b9/contracts/utils/cryptography/MerkleProof.sol#L27-L29). That requires leaves and hash pairs to be sorted. The sorting simplifies the proof verification by removing the need to include information about the order of the proof piece.
-- It duplicates the last leaf node in case the number of leaves is odd. This is a common approach but vunerable to a forgery attack because two trees can produce the same Merkle Root, e.g. `MerkleRoot(a, b, c) = MerkleRoot(a, b, c, c)`. Not sure that will be a problem in our usecase.
+- It duplicates the last leaf node in case the number of leaves is odd. This is a common approach but vunerable to a forgery attack because two trees can produce the same Merkle Root, e.g. `MerkleRoot(a, b, c) = MerkleRoot(a, b, c, c)`. But that is not a problem in our use case.
 
 ## Usage
 
 ```go
-leaves := [][]byte{}
-leaves = append(leaves, []byte("A"))
-leaves = append(leaves, []byte("B"))
-leaves = append(leaves, []byte("C"))
-leaves = append(leaves, []byte("D"))
-leaves = append(leaves, []byte("E"))
-leaves = append(leaves, []byte("F"))
+    leaves := [][]byte{}
+    leaves = append(leaves, []byte("A"))
+    leaves = append(leaves, []byte("B"))
+    leaves = append(leaves, []byte("C"))
+    leaves = append(leaves, []byte("D"))
+    leaves = append(leaves, []byte("E"))
+    leaves = append(leaves, []byte("F"))
+    tree, _ := merkletree.NewTree(leaves, crypto.Keccak256)
 
-tree, _ := merkletree.NewTree(leaves, crypto.Keccak256)
-fmt.Printf("ROOT: %s\n\n", hex.EncodeToString(tree.MerkleRoot()))
+    // Getting the root
+    root := tree.MerkleRoot()
+    fmt.Printf("ROOT: %s\n\n", hex.EncodeToString(root))
 
-proof := tree.GetProof(crypto.Keccak256([]byte("D")))
-for i, part := range proof {
-    fmt.Printf("PROOF (%d): 0x%s\n", i, hex.EncodeToString(part))
-}
+    // Getting the proof for a given leaf
+    leaf := crypto.Keccak256([]byte("D"))
+    proof := tree.GetProof(leaf)
+    for i, part := range proof {
+        fmt.Printf("PROOF (%d): 0x%s\n", i, hex.EncodeToString(part))
+    }
+
+    // Verifying the proof
+    ok := merkletree.VerifyProof(root, proof, leaf, crypto.Keccak256)
+    fmt.Printf("\nVERIFICATION RESULT: %t\n", ok)
 ```
 
 ```bash
-ROOT: 8550ee72696375131758acb925f2aac02f94a06c7f796d9560df9aeb72f222d1
+ROOT: 5b4f920caf9a50816be944fd3626945ebaed5fcd1f041fa864027d4eaad29cf6
 
-PROOF (0): 0x017e667f4b8c174291d1543c466717566e206df1bfd6f30271055ddafdb18f72
-PROOF (1): 0x69de756fea16daddbbdccf85c849315f51c0b50d111e3d2063cab451803324a0
-PROOF (2): 0x7f61b8bf6780bd017acc22aebf6e14d93aaca4d8b7d0b8fdbb22de1d8cc08126
+PROOF (0): 0xe61d9a3d3848fb2cdd9a2ab61e2f21a10ea431275aed628a0557f9dee697c37a
+PROOF (1): 0x324d51074ba12c3b56f59e6a9dd606351316426b7f7d924b1fc9efa7f261b476
+PROOF (2): 0xd8c26fda8cf7503459d00730efe60ff9ec19bf97b7a26b6aa42fa8d8337efe78
+
+VERIFICATION RESULT: true
 ```
 
 ## Things to explore

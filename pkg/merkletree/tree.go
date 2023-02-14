@@ -3,6 +3,7 @@ package merkletree
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"sort"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -43,20 +44,26 @@ func NewTree(leaves [][]byte, hashFunc func(...[]byte) []byte) (*MerkleTree, err
 		return nil, errors.New("no leaves")
 	}
 
-	tree.buildTree(leaves)
+	if err := tree.buildTree(leaves); err != nil {
+		return nil, fmt.Errorf("building the tree: %s", err)
+	}
 	return tree, nil
 }
 
-func (t *MerkleTree) buildTree(leaves [][]byte) {
+func (t *MerkleTree) buildTree(leaves [][]byte) error {
 	t.leaves = make([]*Node, len(leaves))
 	for i, leaf := range leaves {
+		if len(leaf) == 0 {
+			return errors.New("leaf cannot be empty")
+		}
+
 		t.leaves[i] = &Node{
 			hash: t.hashFunc(leaf),
 		}
 	}
 
 	// leaves are sortable
-	sort.SliceStable(t.leaves, func(i, j int) bool {
+	sort.Slice(t.leaves, func(i, j int) bool {
 		return bytes.Compare(t.leaves[i].hash, t.leaves[j].hash) == -1
 	})
 
@@ -68,6 +75,8 @@ func (t *MerkleTree) buildTree(leaves [][]byte) {
 	}
 
 	t.buildInternalNodes(t.leaves)
+
+	return nil
 }
 
 func (t *MerkleTree) buildInternalNodes(nodes []*Node) {
@@ -87,7 +96,7 @@ func (t *MerkleTree) buildInternalNodes(nodes []*Node) {
 		}
 
 		// hash pair needs to be sorted
-		l, r := hashPair(nodes[left].hash, nodes[right].hash)
+		l, r := sortPair(nodes[left].hash, nodes[right].hash)
 
 		parent := &Node{
 			hash:  t.hashFunc(l, r),
@@ -101,8 +110,8 @@ func (t *MerkleTree) buildInternalNodes(nodes []*Node) {
 	t.buildInternalNodes(parentNodes)
 }
 
-// VerifyTree calculates the merkle root again by traversing the tree and verify if it's the same it holds.
-func (t *MerkleTree) VerifyTree() bool {
+// verifyTree calculates the merkle root again by traversing the tree and verify if it's the same it holds.
+func (t *MerkleTree) verifyTree() bool {
 	merkleRoot := t.verify(t.root)
 	return bytes.Equal(t.root.hash, merkleRoot)
 }
@@ -120,24 +129,25 @@ func (t *MerkleTree) verify(node *Node) []byte {
 }
 
 // GetProof gets the proof for a particular content.
-func (t *MerkleTree) GetProof(content []byte) [][]byte {
+// It returns `nil` if the leaf is not present in the tree.
+func (t *MerkleTree) GetProof(leaf []byte) [][]byte {
 	index, found := sort.Find(len(t.leaves), func(i int) int {
-		return bytes.Compare(content, t.leaves[i].hash)
+		return bytes.Compare(leaf, t.leaves[i].hash)
 	})
 	if !found {
 		return nil
 	}
 
-	leaf := t.leaves[index]
+	l := t.leaves[index]
 	var proof [][]byte
-	parent := leaf.parent
+	parent := l.parent
 	for parent != nil {
-		if bytes.Equal(parent.left.hash, leaf.hash) {
+		if bytes.Equal(parent.left.hash, l.hash) {
 			proof = append(proof, parent.right.hash)
 		} else {
 			proof = append(proof, parent.left.hash)
 		}
-		leaf, parent = parent, parent.parent
+		l, parent = parent, parent.parent
 	}
 	return proof
 }
@@ -150,7 +160,7 @@ func VerifyProof(root []byte, proof [][]byte, leaf []byte, hashFunc func(data ..
 
 	computedHash := leaf
 	for i := 0; i < len(proof); i++ {
-		left, right := hashPair(computedHash, proof[i])
+		left, right := sortPair(computedHash, proof[i])
 		computedHash = hashFunc(left, right)
 	}
 	return bytes.Equal(root, computedHash)
@@ -164,7 +174,7 @@ func (t *MerkleTree) MerkleRoot() []byte {
 	return t.root.hash
 }
 
-func hashPair(a []byte, b []byte) ([]byte, []byte) {
+func sortPair(a []byte, b []byte) ([]byte, []byte) {
 	if bytes.Compare(a, b) > 0 {
 		return b, a
 	}

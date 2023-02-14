@@ -222,7 +222,7 @@ func (ep *EventProcessor) executeBlock(ctx context.Context, block eventfeed.Bloc
 			return fmt.Errorf("calculate hash: %s", err)
 		}
 
-		if err := ep.calculateTreeLeaves(ctx, bs, block.BlockNumber); err != nil {
+		if err := ep.snapshotTreeLeaves(ctx, bs, block.BlockNumber); err != nil {
 			return fmt.Errorf("calculate tree leaves: %s", err)
 		}
 
@@ -314,7 +314,7 @@ func (ep *EventProcessor) calculateHash(ctx context.Context, bs executor.BlockSc
 		Int64("elapsed_time", elapsedTime).
 		Msg("state hash")
 
-	ep.mTreeLeavesCalculationElapsedTime.Store(elapsedTime)
+	ep.mHashCalculationElapsedTime.Store(elapsedTime)
 
 	if err := telemetry.Collect(ctx, telemetry.StateHashMetric{
 		Version:     telemetry.StateHashMetricV1,
@@ -328,17 +328,17 @@ func (ep *EventProcessor) calculateHash(ctx context.Context, bs executor.BlockSc
 	return nil
 }
 
-func (ep *EventProcessor) calculateTreeLeaves(ctx context.Context, bs executor.BlockScope, blockNumber int64) error {
+func (ep *EventProcessor) snapshotTreeLeaves(ctx context.Context, bs executor.BlockScope, blockNumber int64) error {
 	startTime := time.Now()
-	if err := bs.CalculateTreeLeaves(ctx, ep.chainID); err != nil {
-		return fmt.Errorf("calculate tree leaves: %s", err)
+	if err := bs.SnapshotTableLeaves(ctx); err != nil {
+		return fmt.Errorf("snapshot tree leaves: %s", err)
 	}
 	elapsedTime := time.Since(startTime).Milliseconds()
 	ep.log.Info().
 		Int64("block_number", blockNumber).
 		Int64("chain_id", int64(ep.chainID)).
 		Int64("elapsed_time", elapsedTime).
-		Msg("state hash")
+		Msg("tree leaves snapshotting")
 
 	ep.mTreeLeavesCalculationElapsedTime.Store(elapsedTime)
 

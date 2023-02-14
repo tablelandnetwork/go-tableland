@@ -1,9 +1,12 @@
 package impl
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"fmt"
+	"hash/fnv"
+	"sort"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -15,7 +18,6 @@ import (
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor"
 	"github.com/textileio/go-tableland/pkg/parsing"
-	"golang.org/x/crypto/sha3"
 )
 
 type blockScope struct {
@@ -216,13 +218,15 @@ func (bs *blockScope) StateHash(ctx context.Context, chainID tableland.ChainID) 
 	return executor.NewStateHash(chainID, bs.scopeVars.BlockNumber, hash), nil
 }
 
-func (bs *blockScope) CalculateTreeLeaves(ctx context.Context, chainID tableland.ChainID) error {
-	rows, err := bs.txn.QueryContext(ctx, "select prefix, id from registry where chain_id = ?1 ORDER BY rowid", chainID)
+func (bs *blockScope) SnapshotTableLeaves(ctx context.Context) error {
+	rows, err := bs.txn.QueryContext(ctx, "select prefix, id from registry where chain_id = ?1", bs.scopeVars.ChainID)
 	if err != nil {
 		return fmt.Errorf("fetching tables from registry: %s", err)
 	}
 	defer func() {
-		_ = rows.Close()
+		if err := rows.Close(); err != nil {
+			bs.log.Error().Err(err).Msg("closing the rows")
+		}
 	}()
 
 	for rows.Next() {
@@ -232,52 +236,72 @@ func (bs *blockScope) CalculateTreeLeaves(ctx context.Context, chainID tableland
 			return fmt.Errorf("scanning table name: %s", err)
 		}
 
-		if err := bs.calculateTreeLeavesForTable(ctx, chainID, tablePrefix, tableID); err != nil {
-			return fmt.Errorf("calculate leaves for table: %s", err)
+		if err := bs.snapshotTreeLeavesForTable(ctx, bs.scopeVars.ChainID, tablePrefix, tableID); err != nil {
+			return fmt.Errorf("snapshot leaves for table: %s", err)
 		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("encountered error during iteration: %s", err)
 	}
 
 	return nil
 }
 
-func (bs *blockScope) calculateTreeLeavesForTable(
+func (bs *blockScope) snapshotTreeLeavesForTable(
 	ctx context.Context,
 	chainID tableland.ChainID,
 	tablePrefix string,
 	tableID int,
 ) error {
 	tableName := fmt.Sprintf("%s_%d_%d", tablePrefix, chainID, tableID)
+
+	// we don't need to sort the rows here because they will be sorted later inside the Merkle Tree library
 	tableRows, err := bs.txn.QueryContext(ctx, fmt.Sprintf("SELECT * FROM %s", tableName))
 	if err != nil {
 		return fmt.Errorf("fetching rows from %s: %s", tableName, err)
 	}
 	defer func() {
-		_ = tableRows.Close()
+		if err := tableRows.Close(); err != nil {
+			bs.log.Error().Err(err).Msg("closing the rows")
+		}
 	}()
 
-	cols, err := tableRows.Columns()
+	columns, err := tableRows.Columns()
 	if err != nil {
 		return fmt.Errorf("getting the columns of row: %s", err)
 	}
 
-	rawBuffer := make([]sql.RawBytes, len(cols))
-	scanCallArgs := make([]interface{}, len(rawBuffer))
-	for i := range rawBuffer {
-		scanCallArgs[i] = &rawBuffer[i]
+	columnValues := make([]sql.RawBytes, len(columns))
+	args := make([]interface{}, len(columnValues))
+	for i := range columnValues {
+		args[i] = &columnValues[i]
 	}
 
 	leaves := []byte{}
+	// using a non-cryptographic hash that outputs a hash of 16 bytes
+	rowHash := fnv.New128a()
 	for tableRows.Next() {
-		if err := tableRows.Scan(scanCallArgs...); err != nil {
+		if err := tableRows.Scan(args...); err != nil {
 			return fmt.Errorf("table row scan: %s", err)
 		}
 
-		rowHash := sha3.New256()
-		for _, col := range rawBuffer {
+		// We sort the column values to have a deterministic order of columns,
+		// because we cannot trust the order of 'SELECT *'.
+		sort.Slice(columnValues, func(i, j int) bool {
+			return bytes.Compare(columnValues[i], columnValues[j]) == -1
+		})
+
+		for _, col := range columnValues {
 			rowHash.Write(col)
 		}
 
 		leaves = append(leaves, rowHash.Sum(nil)...)
+		rowHash.Reset()
+	}
+
+	if err := tableRows.Err(); err != nil {
+		return fmt.Errorf("encountered error during iteration: %s", err)
 	}
 
 	if _, err := bs.txn.ExecContext(ctx,
@@ -288,7 +312,7 @@ func (bs *blockScope) calculateTreeLeavesForTable(
 		bs.scopeVars.BlockNumber,
 		leaves,
 	); err != nil {
-		return fmt.Errorf("inserting leaves %s: %s", tableName, err)
+		return fmt.Errorf("inserting tree leaves %s: %s", tableName, err)
 	}
 
 	return nil

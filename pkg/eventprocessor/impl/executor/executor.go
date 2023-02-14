@@ -45,8 +45,8 @@ type BlockScope interface {
 	// StateHash calculates the hash of some state of the database.
 	StateHash(ctx context.Context, chainID tableland.ChainID) (StateHash, error)
 
-	// CalculateTreeLeaves calculates the leaves for each table for future Merkle Tree building.
-	CalculateTreeLeaves(ctx context.Context, chainID tableland.ChainID) error
+	// SnapshotTableLeaves takes a snapshot of the leaves of each table for future Merkle Tree building.
+	SnapshotTableLeaves(ctx context.Context) error
 
 	// Commit commits all the changes that happened in  previously successful ExecuteTxnEvents(...) calls.
 	Commit() error
