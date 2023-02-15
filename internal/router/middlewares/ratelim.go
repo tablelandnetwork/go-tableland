@@ -26,20 +26,10 @@ type RateLimiterRouteConfig struct {
 
 // RateLimitController creates a new middleware to rate limit requests.
 // It applies a priority based rate limiting key for the rate limiting:
-// 1. A "chain-address" was detected (i.e: via a signed SIWE).
-// 2. If 1. isn't present, it will use an existing X-Forwarded-For IP included by a load-balancer in the infrastructure.
-// 3. If 2. isn't present, it will use the connection remote address.
+// 1. If found, use an existing X-Forwarded-For IP included by a load-balancer in the infrastructure.
+// 2. If 1. isn't present, it will use the connection remote address.
 func RateLimitController(cfg RateLimiterConfig) (mux.MiddlewareFunc, error) {
 	keyFunc := func(r *http.Request) (string, error) {
-		// Use a chain address if present.
-		// TODO: Based on the comment above I think we can remove this, but tests fail if I do that.
-		//		 See comment in ratelim_test.go for more details. -JW
-		address := r.Context().Value(ContextKeyAddress)
-		ctrlAddress, ok := address.(string)
-		if ok && ctrlAddress != "" {
-			return ctrlAddress, nil
-		}
-
 		ip, err := extractClientIP(r)
 		if err != nil {
 			return "", fmt.Errorf("extract client ip: %s", err)
