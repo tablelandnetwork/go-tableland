@@ -52,7 +52,7 @@
   "Chains": [
     {
       "Name": "Optimism Goerli",
-      "AllowTransactionRelay": true,
+      "AllowTransactionRelay": false,
       "ChainID": 420,
       "Registry": {
         "EthEndpoint": "wss://opt-goerli.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_OPTIMISM_GOERLI_API_KEY}",
