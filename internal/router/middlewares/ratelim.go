@@ -53,13 +53,7 @@ func RateLimitController(cfg RateLimiterConfig) (mux.MiddlewareFunc, error) {
 	}
 
 	return func(next http.Handler) http.Handler {
-		defaultRLHandler := defaultRL.Handle(next)
-
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// TODO: how does golang context work in this case?
-			//		 Can I just do `return http.HandlerFunc(defaultRL.Handle(next))`
-			defaultRLHandler.ServeHTTP(w, r)
-		})
+		return http.HandlerFunc(defaultRL.Handle(next).ServeHTTP)
 	}, nil
 }
 
