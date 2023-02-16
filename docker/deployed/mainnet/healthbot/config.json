@@ -6,6 +6,6 @@
         "Human": false,
         "Debug": true
     },
-    "Target": "https://tableland.network/rpc",
+    "Target": "https://tableland.network/",
     "Chains": []
 }
