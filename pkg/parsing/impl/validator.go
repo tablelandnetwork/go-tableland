@@ -201,7 +201,7 @@ func (pp *QueryValidator) ValidateReadQuery(query string) (parsing.ReadStmt, err
 		return nil, fmt.Errorf("empty-statement check: %w", err)
 	}
 
-	if _, ok := ast.Statements[0].(*sqlparser.Select); !ok {
+	if _, ok := ast.Statements[0].(sqlparser.ReadStatement); !ok {
 		return nil, errors.New("the query isn't a read-query")
 	}
 
