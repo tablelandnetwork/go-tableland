@@ -10,7 +10,6 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.15.2
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
-	github.com/hetiansu5/urlquery v1.2.7
 	github.com/json-iterator/go v1.1.12
 	github.com/klauspost/compress v1.16.3
 	github.com/mattn/go-sqlite3 v1.14.16

@@ -81,10 +81,6 @@
         {
             "Name": "Polygon Mumbai",
             "ChainID": 80001,
-<<<<<<< HEAD
-            "AllowTransactionRelay": false,
-=======
->>>>>>> 722617b (wip: remove transaction relays and json-rpc api)
             "Registry": {
                 "EthEndpoint": "wss://polygon-mumbai.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_POLYGON_MUMBAI_API_KEY}",
                 "ContractAddress": "0x4b48841d4b32C4650E4ABc117A03FE8B51f38F68"
@@ -112,10 +108,6 @@
         {
             "Name": "Arbitrum Goerli",
             "ChainID": 421613,
-<<<<<<< HEAD
-            "AllowTransactionRelay": false,
-=======
->>>>>>> 722617b (wip: remove transaction relays and json-rpc api)
             "Registry": {
                 "EthEndpoint": "wss://arb-goerli.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_ARBITRUM_GOERLI_API_KEY}",
                 "ContractAddress": "0x033f69e8d119205089Ab15D340F5b797732f646b"
@@ -142,10 +134,6 @@
         },
         {
             "Name": "Optimism Goerli",
-<<<<<<< HEAD
-            "AllowTransactionRelay": false,
-=======
->>>>>>> 722617b (wip: remove transaction relays and json-rpc api)
             "ChainID": 420,
             "Registry": {
                 "EthEndpoint": "wss://opt-goerli.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_OPTIMISM_GOERLI_API_KEY}",
