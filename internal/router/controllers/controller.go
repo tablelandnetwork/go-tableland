@@ -234,7 +234,7 @@ func HealthHandler(w http.ResponseWriter, _ *http.Request) {
 }
 
 // GetTableQuery handles the GET /query?statement=[statement] call.
-// Use mode=columns|rows|json|lines query param to control output format.
+// Use format=objects|table query param to control output format.
 func (c *Controller) GetTableQuery(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-Type", "application/json")
 
@@ -349,17 +349,6 @@ func getFormatterParams(r *http.Request) (formatterParams, error) {
 			return formatterParams{}, err
 		}
 		c.unwrap = &unwrap
-	}
-
-	// Special handling for old mode param
-	mode := r.URL.Query().Get("mode")
-	if mode == "list" {
-		v := true
-		c.unwrap = &v
-		c.extract = &v
-	} else if mode == "json" {
-		v := formatter.Objects
-		c.output = &v
 	}
 
 	return c, nil
