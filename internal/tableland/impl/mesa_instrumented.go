@@ -7,7 +7,6 @@ import (
 
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/metrics"
-	"github.com/textileio/go-tableland/pkg/tables"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/metric/instrument"
@@ -44,32 +43,6 @@ func NewInstrumentedTablelandMesa(t tableland.Tableland) (tableland.Tableland, e
 	return &InstrumentedTablelandMesa{t, callCount, latencyHistogram}, nil
 }
 
-// ValidateCreateTable validates a CREATE TABLE statement and returns its structure hash.
-func (t *InstrumentedTablelandMesa) ValidateCreateTable(
-	ctx context.Context,
-	chainID tableland.ChainID,
-	stmt string,
-) (string, error) {
-	start := time.Now()
-	resp, err := t.tableland.ValidateCreateTable(ctx, chainID, stmt)
-	latency := time.Since(start).Milliseconds()
-	t.record(ctx, recordData{"ValidateCreateTable", "", "", err == nil, latency, chainID})
-	return resp, err
-}
-
-// ValidateWriteQuery validates a statement that would mutate a table and returns the table ID.
-func (t *InstrumentedTablelandMesa) ValidateWriteQuery(
-	ctx context.Context,
-	chainID tableland.ChainID,
-	stmt string,
-) (tables.TableID, error) {
-	start := time.Now()
-	resp, err := t.tableland.ValidateWriteQuery(ctx, chainID, stmt)
-	latency := time.Since(start).Milliseconds()
-	t.record(ctx, recordData{"ValidateWriteQuery", "", "", err == nil, latency, chainID})
-	return resp, err
-}
-
 // RunReadQuery allows the user to run SQL.
 func (t *InstrumentedTablelandMesa) RunReadQuery(ctx context.Context, stmt string) (*tableland.TableData, error) {
 	start := time.Now()
@@ -78,20 +51,6 @@ func (t *InstrumentedTablelandMesa) RunReadQuery(ctx context.Context, stmt strin
 
 	t.record(ctx, recordData{"RunReadQuery", "", "", err == nil, latency, 0})
 	return resp, err
-}
-
-// GetReceipt returns the receipt for a txn hash.
-func (t *InstrumentedTablelandMesa) GetReceipt(
-	ctx context.Context,
-	chainID tableland.ChainID,
-	txnHash string,
-) (bool, *tableland.TxnReceipt, error) {
-	start := time.Now()
-	ok, resp, err := t.tableland.GetReceipt(ctx, chainID, txnHash)
-	latency := time.Since(start).Milliseconds()
-
-	t.record(ctx, recordData{"GetReceipt", "", "", err == nil, latency, chainID})
-	return ok, resp, err
 }
 
 func (t *InstrumentedTablelandMesa) record(ctx context.Context, data recordData) {

@@ -365,8 +365,7 @@ func getFormatterParams(r *http.Request) (formatterParams, error) {
 	return c, nil
 }
 
-// CollectReadQueryMetric collects read query metric.
-// It is used for JSON-RPC service. When that is deleted we can make this private.
+// collectReadQueryMetric collects read query metric.
 func collectReadQueryMetric(ctx context.Context, statement string, config formatter.FormatConfig, took time.Duration) {
 	value := ctx.Value(middlewares.ContextIPAddress)
 	ipAddress, ok := value.(string)
