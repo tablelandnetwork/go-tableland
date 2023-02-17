@@ -75,7 +75,7 @@ func TestInsertOnConflict(t *testing.T) {
 		build(t)
 	tablelandClient := setup.newTablelandClient(t)
 
-	ctx, chainID, backend, sc := setup.ctx, setup.chainID, setup.ethClient, setup.contract
+	ctx, backend, sc, store := setup.ctx, setup.ethClient, setup.contract, setup.systemStore
 	tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
 
 	caller := txOpts.From
@@ -106,7 +106,7 @@ func TestInsertOnConflict(t *testing.T) {
 		time.Second*5,
 		time.Millisecond*100,
 	)
-	requireReceipts(ctx, t, tbld, chainID, txnHashes, true)
+	requireReceipts(ctx, t, store, txnHashes, true)
 }
 
 func TestMultiStatement(t *testing.T) {
@@ -116,7 +116,7 @@ func TestMultiStatement(t *testing.T) {
 		build(t)
 	tablelandClient := setup.newTablelandClient(t)
 
-	ctx, chainID, backend, sc := setup.ctx, setup.chainID, setup.ethClient, setup.contract
+	ctx, backend, sc, store := setup.ctx, setup.ethClient, setup.contract, setup.systemStore
 	tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
 	caller := txOpts.From
 
@@ -142,7 +142,7 @@ func TestMultiStatement(t *testing.T) {
 		time.Second*5,
 		time.Millisecond*100,
 	)
-	requireReceipts(ctx, t, tbld, chainID, []string{r.Hash().Hex()}, true)
+	requireReceipts(ctx, t, store, []string{r.Hash().Hex()}, true)
 }
 
 func TestReadSystemTable(t *testing.T) {
@@ -213,7 +213,7 @@ func TestCheckInsertPrivileges(t *testing.T) {
 				granterSetup := setup.newTablelandClient(t)
 				granteeSetup := setup.newTablelandClient(t)
 
-				ctx, chainID, backend, sc := setup.ctx, setup.chainID, setup.ethClient, setup.contract
+				ctx, backend, sc, store := setup.ctx, setup.ethClient, setup.contract, setup.systemStore
 				txOptsGranter := granterSetup.txOpts
 				tbldGrantee, txOptsGrantee := granteeSetup.tableland, granteeSetup.txOpts
 
@@ -251,11 +251,11 @@ func TestCheckInsertPrivileges(t *testing.T) {
 						100*time.Millisecond,
 					)
 					successfulTxnHashes = append(successfulTxnHashes, txn.Hash().Hex())
-					requireReceipts(ctx, t, tbldGrantee, chainID, successfulTxnHashes, true)
+					requireReceipts(ctx, t, store, successfulTxnHashes, true)
 				} else {
 					require.Never(t, runSQLCountEq(ctx, t, tbldGrantee, testQuery, 1), 5*time.Second, 100*time.Millisecond)
-					requireReceipts(ctx, t, tbldGrantee, chainID, successfulTxnHashes, true)
-					requireReceipts(ctx, t, tbldGrantee, chainID, []string{txn.Hash().Hex()}, false)
+					requireReceipts(ctx, t, store, successfulTxnHashes, true)
+					requireReceipts(ctx, t, store, []string{txn.Hash().Hex()}, false)
 				}
 			}
 		}(test))
@@ -293,7 +293,7 @@ func TestCheckUpdatePrivileges(t *testing.T) {
 				granterSetup := setup.newTablelandClient(t)
 				granteeSetup := setup.newTablelandClient(t)
 
-				ctx, chainID, backend, sc := setup.ctx, setup.chainID, setup.ethClient, setup.contract
+				ctx, backend, sc, store := setup.ctx, setup.ethClient, setup.contract, setup.systemStore
 				txOptsGranter := granterSetup.txOpts
 				tbldGrantee, txOptsGrantee := granteeSetup.tableland, granteeSetup.txOpts
 
@@ -337,11 +337,11 @@ func TestCheckUpdatePrivileges(t *testing.T) {
 						100*time.Millisecond,
 					)
 					successfulTxnHashes = append(successfulTxnHashes, txn.Hash().Hex())
-					requireReceipts(ctx, t, tbldGrantee, chainID, successfulTxnHashes, true)
+					requireReceipts(ctx, t, store, successfulTxnHashes, true)
 				} else {
 					require.Never(t, runSQLCountEq(ctx, t, tbldGrantee, testQuery, 1), 5*time.Second, 100*time.Millisecond)
-					requireReceipts(ctx, t, tbldGrantee, chainID, successfulTxnHashes, true)
-					requireReceipts(ctx, t, tbldGrantee, chainID, []string{txn.Hash().Hex()}, false)
+					requireReceipts(ctx, t, store, successfulTxnHashes, true)
+					requireReceipts(ctx, t, store, []string{txn.Hash().Hex()}, false)
 				}
 			}
 		}(test))
@@ -379,7 +379,7 @@ func TestCheckDeletePrivileges(t *testing.T) {
 				granterSetup := setup.newTablelandClient(t)
 				granteeSetup := setup.newTablelandClient(t)
 
-				ctx, chainID, backend, sc := setup.ctx, setup.chainID, setup.ethClient, setup.contract
+				ctx, backend, sc, store := setup.ctx, setup.ethClient, setup.contract, setup.systemStore
 				txOptsGranter := granterSetup.txOpts
 				tbldGrantee, txOptsGrantee := granteeSetup.tableland, granteeSetup.txOpts
 
@@ -421,10 +421,10 @@ func TestCheckDeletePrivileges(t *testing.T) {
 						100*time.Millisecond,
 					)
 					successfulTxnHashes = append(successfulTxnHashes, txn.Hash().Hex())
-					requireReceipts(ctx, t, tbldGrantee, chainID, successfulTxnHashes, true)
+					requireReceipts(ctx, t, store, successfulTxnHashes, true)
 				} else {
 					require.Never(t, runSQLCountEq(ctx, t, tbldGrantee, testQuery, 0), 5*time.Second, 100*time.Millisecond)
-					requireReceipts(ctx, t, tbldGrantee, chainID, []string{txn.Hash().Hex()}, false)
+					requireReceipts(ctx, t, store, []string{txn.Hash().Hex()}, false)
 				}
 			}
 		}(test))
@@ -438,7 +438,7 @@ func TestOwnerRevokesItsPrivilegeInsideMultipleStatements(t *testing.T) {
 		build(t)
 	tablelandClient := setup.newTablelandClient(t)
 
-	ctx, chainID, backend, sc := setup.ctx, setup.chainID, setup.ethClient, setup.contract
+	ctx, backend, sc, store := setup.ctx, setup.ethClient, setup.contract, setup.systemStore
 	tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
 	caller := txOpts.From
 
@@ -458,7 +458,7 @@ func TestOwnerRevokesItsPrivilegeInsideMultipleStatements(t *testing.T) {
 	testQuery := "SELECT * FROM foo_1337_1;"
 	cond := runSQLCountEq(ctx, t, tbld, testQuery, 1)
 	require.Never(t, cond, 5*time.Second, 100*time.Millisecond)
-	requireReceipts(ctx, t, tbld, chainID, []string{txn.Hash().Hex()}, false)
+	requireReceipts(ctx, t, store, []string{txn.Hash().Hex()}, false)
 }
 
 func TestTransferTable(t *testing.T) {
@@ -470,7 +470,7 @@ func TestTransferTable(t *testing.T) {
 	owner1Setup := setup.newTablelandClient(t)
 	owner2Setup := setup.newTablelandClient(t)
 
-	ctx, chainID, backend, sc := setup.ctx, setup.chainID, setup.ethClient, setup.contract
+	ctx, backend, sc, store := setup.ctx, setup.ethClient, setup.contract, setup.systemStore
 	tbldOwner1, txOptsOwner1 := owner1Setup.tableland, owner1Setup.txOpts
 	tbldOwner2, txOptsOwner2 := owner2Setup.tableland, owner2Setup.txOpts
 
@@ -498,7 +498,7 @@ func TestTransferTable(t *testing.T) {
 		5*time.Second,
 		100*time.Millisecond,
 	)
-	requireReceipts(ctx, t, tbldOwner1, chainID, []string{txn1.Hash().Hex()}, false)
+	requireReceipts(ctx, t, store, []string{txn1.Hash().Hex()}, false)
 
 	// insert from owner2 will EVENTUALLY go through
 	require.Eventually(t,
@@ -506,7 +506,7 @@ func TestTransferTable(t *testing.T) {
 		5*time.Second,
 		100*time.Millisecond,
 	)
-	requireReceipts(ctx, t, tbldOwner2, chainID, []string{txn2.Hash().Hex()}, true)
+	requireReceipts(ctx, t, store, []string{txn2.Hash().Hex()}, true)
 
 	// check registry table new ownership
 	require.Eventually(t,
@@ -523,50 +523,6 @@ func TestTransferTable(t *testing.T) {
 
 func TestQueryConstraints(t *testing.T) {
 	t.Parallel()
-
-	t.Run("write-query-size-ok", func(t *testing.T) {
-		t.Parallel()
-
-		parsingOpts := []parsing.Option{
-			parsing.WithMaxWriteQuerySize(45),
-		}
-
-		setup := newTablelandSetupBuilder().
-			withParsingOpts(parsingOpts...).
-			build(t)
-		tablelandClient := setup.newTablelandClient(t)
-
-		chainID, ctx := setup.chainID, setup.ctx
-		_, err := tablelandClient.tableland.ValidateCreateTable(
-			ctx,
-			chainID,
-			"CREATE TABLE foo_1337 (bar text);",
-		) // length of 46 bytes
-
-		require.NoError(t, err)
-	})
-
-	t.Run("write-query-size-nok", func(t *testing.T) {
-		t.Parallel()
-
-		parsingOpts := []parsing.Option{
-			parsing.WithMaxWriteQuerySize(45),
-		}
-		setup := newTablelandSetupBuilder().
-			withParsingOpts(parsingOpts...).
-			build(t)
-		tablelandClient := setup.newTablelandClient(t)
-
-		chainID, ctx := setup.chainID, setup.ctx
-		_, err := tablelandClient.tableland.ValidateWriteQuery(
-			ctx,
-			chainID,
-			"INSERT INTO foo_1337_1 (bar) VALUES ('hello2')",
-		) // length of 46 bytes
-
-		require.Error(t, err)
-		require.ErrorContains(t, err, "write query size is too long")
-	})
 
 	t.Run("read-query-size-ok", func(t *testing.T) {
 		t.Parallel()
@@ -771,15 +727,16 @@ func (acl *aclHalfMock) IsOwner(_ context.Context, _ common.Address, _ tables.Ta
 func requireReceipts(
 	ctx context.Context,
 	t *testing.T,
-	tbld tableland.Tableland,
-	chainID tableland.ChainID,
+	store *system.SystemStore,
 	txnHashes []string,
 	ok bool,
 ) {
 	t.Helper()
 
 	for _, txnHash := range txnHashes {
-		found, receipt, err := tbld.GetReceipt(ctx, chainID, txnHash)
+		// TODO: GetReceipt is only used by the tests, we can use system service instead
+
+		receipt, found, err := store.GetReceipt(ctx, txnHash)
 		require.NoError(t, err)
 		require.True(t, found)
 		require.NotNil(t, receipt)

@@ -92,9 +92,6 @@ type TxnReceipt struct {
 // Tableland defines the interface of Tableland.
 type Tableland interface {
 	RunReadQuery(ctx context.Context, stmt string) (*TableData, error)
-	ValidateCreateTable(ctx context.Context, chainID ChainID, stmt string) (string, error)
-	ValidateWriteQuery(ctx context.Context, chainID ChainID, stmt string) (tables.TableID, error)
-	GetReceipt(ctx context.Context, chainID ChainID, txnHash string) (bool, *TxnReceipt, error)
 }
 
 // ChainID is a supported EVM chain identifier.
