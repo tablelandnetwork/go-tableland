@@ -1665,7 +1665,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "sum by (http_server_name) (\n  rate(http_server_request_count_total{service_name=\"tableland:api\", http_server_name!=\"rpc\"}[5m])\n)",
+          "expr": "sum by (http_server_name) (\n  rate(http_server_request_count_total{service_name=\"tableland:api\"}[5m])\n)",
           "interval": "",
           "legendFormat": "__auto",
           "range": true,
@@ -1760,7 +1760,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "histogram_quantile(0.95, sum(rate(http_server_duration_bucket{http_server_name!=\"rpc\"}[5m])) by (http_server_name, le))",
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_duration_bucket{}[5m])) by (http_server_name, le))",
           "interval": "",
           "legendFormat": "__auto",
           "range": true,
@@ -1879,199 +1879,6 @@
         }
       ],
       "title": "API Response bytes/s ",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "reqps"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 6,
-        "x": 6,
-        "y": 46
-      },
-      "id": 6,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
-          },
-          "editorMode": "code",
-          "exemplar": true,
-          "expr": "sum by (method) (rate(tableland_mesa_call_latency_count{service_name=\"tableland:api\"}[5m]))\n",
-          "interval": "",
-          "legendFormat": "{{method}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "JSON-RPC req/s",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
-      },
-      "description": "The latency of 95% tile. Note that CreateTable is a long running request since requires sending a txn to Ethereum. The rest should have low-ish latencies.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "log": 2,
-              "type": "log"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "ms"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 6,
-        "x": 12,
-        "y": 46
-      },
-      "id": 56,
-      "maxDataPoints": 25,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
-          },
-          "exemplar": false,
-          "expr": "histogram_quantile(0.95, sum(rate(tableland_mesa_call_latency_bucket{service_name=\"tableland:api\"}[10m])) by (le, method))",
-          "format": "time_series",
-          "instant": false,
-          "interval": "",
-          "legendFormat": "{{method}}",
-          "refId": "A"
-        }
-      ],
-      "title": "JSON-RPC 95-th latency",
       "type": "timeseries"
     },
     {

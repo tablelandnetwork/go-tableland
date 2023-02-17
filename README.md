@@ -36,7 +36,7 @@ To understand better the usual work mechanics of the validator, let’s go throu
 
 6- The validators will detect the new event and execute the mutating query in the corresponding table.
 
-7- The user can query the RPC endpoint of the validator to execute read-queries (e.g: `SELECT * FROM ...`), to see the materialized result of its interaction with the SC.
+7- The user can query the `/query?statement=...` REST endpoint of the validator to execute read-queries (e.g: `SELECT * FROM ...`), to see the materialized result of its interaction with the SC.
 
 > 💡 The description above is optimized to understand the general mechanics of the validator. Minting tables, and executing mutating statements also imply more work both at the SC and validator levels (e.g: ACL enforcing); we’re skipping them here.
 
