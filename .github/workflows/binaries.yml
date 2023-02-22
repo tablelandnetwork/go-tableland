@@ -11,7 +11,7 @@ jobs:
           - os: ubuntu-latest
             asset_name: api-linux-amd64.tar.gz
             compress_cmd: tar -czvf
-            build_cmd: docker run -v $PWD:/data golang:1.19 bash -c "cd /data && go build ./cmd/api"
+            build_cmd: docker run -v $PWD:/data golang:1.19 bash -c "git config --global --add safe.directory /data && cd /data && go build ./cmd/api"
           - os: windows-latest
             asset_name: api-windows-amd64.zip
             compress_cmd: tar.exe -a -c -f
