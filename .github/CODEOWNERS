@@ -2,7 +2,7 @@
 # the repo. Unless a later match takes precedence.
 # By convention in @tablelandnetwork repos, the first listed
 # CODEOWNER is the repo DRI (directly responsible individual)
-*           @jsign @brunocalza
+*           @avichalp @brunocalza
 
 
 # Client SDK
