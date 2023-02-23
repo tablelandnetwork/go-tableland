@@ -47,6 +47,9 @@ import (
 	"github.com/textileio/go-tableland/pkg/telemetry/storage"
 	"github.com/textileio/go-tableland/pkg/wallet"
 	"go.opentelemetry.io/otel/attribute"
+
+	merklepublisher "github.com/textileio/go-tableland/pkg/merkletree/publisher"
+	merklepublisherimpl "github.com/textileio/go-tableland/pkg/merkletree/publisher/impl"
 )
 
 type moduleCloser func(ctx context.Context) error
@@ -69,6 +72,11 @@ func main() {
 		"file://%s?_busy_timeout=5000&_foreign_keys=on&_journal_mode=WAL",
 		path.Join(dirPath, "database.db"),
 	)
+
+	db, err := sqlstoreimpl.NewSQLiteDB(databaseURL)
+	if err != nil {
+		log.Fatal().Err(err).Msg("configuring telemetry")
+	}
 
 	// Restore provided backup (if configured).
 	if config.BootstrapBackupURL != "" {
@@ -119,6 +127,9 @@ func main() {
 		}
 	}
 
+	// Merkle Tree publisher.
+	closeMerkleTreePublisherModule := configureMerkleTreePublisher(db)
+
 	// Telemetry
 	closeTelemetryModule, err := configureTelemetry(dirPath, chainStacks, config.TelemetryPublisher)
 	if err != nil {
@@ -150,6 +161,15 @@ func main() {
 		// Close user store.
 		if err := userStore.Close(); err != nil {
 			log.Error().Err(err).Msg("closing user store")
+		}
+
+		if err := db.Close(); err != nil {
+			log.Error().Err(err).Msg("closing sqlite db")
+		}
+
+		// Close merkle tree publisher.
+		if err := closeMerkleTreePublisherModule(ctx); err != nil {
+			log.Error().Err(err).Msg("closing merkle tree publisher module")
 		}
 
 		// Close telemetry.
@@ -287,6 +307,21 @@ func createChainIDStack(
 			return nil
 		},
 	}, nil
+}
+
+func configureMerkleTreePublisher(db *sqlstoreimpl.SQLiteDB) moduleCloser {
+	store := merklepublisherimpl.NewLeavesStore(db)
+	p := merklepublisher.NewMerkleRootPublisher(
+		store,
+		merklepublisherimpl.NewMerkleRootRegistryLogger(log.Logger),
+		time.Second,
+	)
+	p.Start()
+
+	return func(_ context.Context) error {
+		p.Close()
+		return nil
+	}
 }
 
 func configureTelemetry(

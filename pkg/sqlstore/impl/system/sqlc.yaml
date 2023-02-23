@@ -8,7 +8,7 @@ sql:
     gen:
       go:
         package: "db"
-        out: "./internal/db"
+        out: "./db"
         emit_prepared_queries: true
         emit_interface: false
         emit_exact_table_names: false

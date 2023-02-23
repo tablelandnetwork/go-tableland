@@ -25,7 +25,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/metrics"
 	"github.com/textileio/go-tableland/pkg/nonce"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
-	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system/internal/db"
+	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system/db"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system/migrations"
 	"github.com/textileio/go-tableland/pkg/tables"
 )

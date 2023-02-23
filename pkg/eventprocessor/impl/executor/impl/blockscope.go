@@ -231,7 +231,7 @@ func (bs *blockScope) SnapshotTableLeaves(ctx context.Context) error {
 
 	for rows.Next() {
 		var tablePrefix string
-		var tableID int
+		var tableID int64
 		if err := rows.Scan(&tablePrefix, &tableID); err != nil {
 			return fmt.Errorf("scanning table name: %s", err)
 		}
@@ -252,7 +252,7 @@ func (bs *blockScope) snapshotTreeLeavesForTable(
 	ctx context.Context,
 	chainID tableland.ChainID,
 	tablePrefix string,
-	tableID int,
+	tableID int64,
 ) error {
 	tableName := fmt.Sprintf("%s_%d_%d", tablePrefix, chainID, tableID)
 
@@ -302,6 +302,11 @@ func (bs *blockScope) snapshotTreeLeavesForTable(
 
 	if err := tableRows.Err(); err != nil {
 		return fmt.Errorf("encountered error during iteration: %s", err)
+	}
+
+	if len(leaves) == 0 {
+		bs.log.Warn().Int64("chain_id", int64(bs.scopeVars.ChainID)).Int64("table_id", tableID).Msg("empty row")
+		return nil
 	}
 
 	if _, err := bs.txn.ExecContext(ctx,

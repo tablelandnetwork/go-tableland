@@ -30,6 +30,15 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.deletePendingTxByHashStmt, err = db.PrepareContext(ctx, deletePendingTxByHash); err != nil {
 		return nil, fmt.Errorf("error preparing query DeletePendingTxByHash: %w", err)
 	}
+	if q.deleteProcessingStmt, err = db.PrepareContext(ctx, deleteProcessing); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteProcessing: %w", err)
+	}
+	if q.fetchChainIDAndBlockNumberStmt, err = db.PrepareContext(ctx, fetchChainIDAndBlockNumber); err != nil {
+		return nil, fmt.Errorf("error preparing query FetchChainIDAndBlockNumber: %w", err)
+	}
+	if q.fetchLeavesByChainIDAndBlockNumberStmt, err = db.PrepareContext(ctx, fetchLeavesByChainIDAndBlockNumber); err != nil {
+		return nil, fmt.Errorf("error preparing query FetchLeavesByChainIDAndBlockNumber: %w", err)
+	}
 	if q.getAclByTableAndControllerStmt, err = db.PrepareContext(ctx, getAclByTableAndController); err != nil {
 		return nil, fmt.Errorf("error preparing query GetAclByTableAndController: %w", err)
 	}
@@ -94,6 +103,21 @@ func (q *Queries) Close() error {
 	if q.deletePendingTxByHashStmt != nil {
 		if cerr := q.deletePendingTxByHashStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deletePendingTxByHashStmt: %w", cerr)
+		}
+	}
+	if q.deleteProcessingStmt != nil {
+		if cerr := q.deleteProcessingStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteProcessingStmt: %w", cerr)
+		}
+	}
+	if q.fetchChainIDAndBlockNumberStmt != nil {
+		if cerr := q.fetchChainIDAndBlockNumberStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing fetchChainIDAndBlockNumberStmt: %w", cerr)
+		}
+	}
+	if q.fetchLeavesByChainIDAndBlockNumberStmt != nil {
+		if cerr := q.fetchLeavesByChainIDAndBlockNumberStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing fetchLeavesByChainIDAndBlockNumberStmt: %w", cerr)
 		}
 	}
 	if q.getAclByTableAndControllerStmt != nil {
@@ -222,6 +246,9 @@ type Queries struct {
 	tx                                         *sql.Tx
 	areEVMEventsPersistedStmt                  *sql.Stmt
 	deletePendingTxByHashStmt                  *sql.Stmt
+	deleteProcessingStmt                       *sql.Stmt
+	fetchChainIDAndBlockNumberStmt             *sql.Stmt
+	fetchLeavesByChainIDAndBlockNumberStmt     *sql.Stmt
 	getAclByTableAndControllerStmt             *sql.Stmt
 	getBlockExtraInfoStmt                      *sql.Stmt
 	getBlocksMissingExtraInfoStmt              *sql.Stmt
@@ -243,13 +270,16 @@ type Queries struct {
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 	return &Queries{
-		db:                             tx,
-		tx:                             tx,
-		areEVMEventsPersistedStmt:      q.areEVMEventsPersistedStmt,
-		deletePendingTxByHashStmt:      q.deletePendingTxByHashStmt,
-		getAclByTableAndControllerStmt: q.getAclByTableAndControllerStmt,
-		getBlockExtraInfoStmt:          q.getBlockExtraInfoStmt,
-		getBlocksMissingExtraInfoStmt:  q.getBlocksMissingExtraInfoStmt,
+		db:                                     tx,
+		tx:                                     tx,
+		areEVMEventsPersistedStmt:              q.areEVMEventsPersistedStmt,
+		deletePendingTxByHashStmt:              q.deletePendingTxByHashStmt,
+		deleteProcessingStmt:                   q.deleteProcessingStmt,
+		fetchChainIDAndBlockNumberStmt:         q.fetchChainIDAndBlockNumberStmt,
+		fetchLeavesByChainIDAndBlockNumberStmt: q.fetchLeavesByChainIDAndBlockNumberStmt,
+		getAclByTableAndControllerStmt:         q.getAclByTableAndControllerStmt,
+		getBlockExtraInfoStmt:                  q.getBlockExtraInfoStmt,
+		getBlocksMissingExtraInfoStmt:          q.getBlocksMissingExtraInfoStmt,
 		getBlocksMissingExtraInfoByBlockNumberStmt: q.getBlocksMissingExtraInfoByBlockNumberStmt,
 		getEVMEventsStmt:           q.getEVMEventsStmt,
 		getIdStmt:                  q.getIdStmt,
