@@ -86,11 +86,12 @@ APIV1=${PWD}/internal/router/controllers/apiv1
 gen-api-v1:
 	mkdir -p ${APIV1}
 	curl -s ${SPEC_URL} > ${APIV1}/tableland-openapi-spec.yaml
-	docker run -w /gen -e GEN_DIR=/gen -v ${APIV1}:/gen swaggerapi/swagger-codegen-cli-v3:3.0.36 \
-	   generate --lang go-server -o /gen -i tableland-openapi-spec.yaml --additional-properties=packageName=apiv1 
+	docker run -w /gen -e GEN_DIR=/gen -v ${APIV1}:/gen --entrypoint /bin/sh bcalza/swagger-codegen-cli:3.0.41 -lc \
+	"   java -jar /opt/swagger-codegen-cli/swagger-codegen-cli.jar generate --lang go-server -o /gen -i tableland-openapi-spec.yaml --additional-properties=packageName=apiv1 \
+		&& cd /gen \
+		&& mv go/* . \
+		&& rm -rf go main.go Dockerfile README.md api .swagger-codegen .swagger-codegen-ignore *.yaml \
+		&& sed -i 's/\*OneOfTableAttributesValue/interface{}/' model_table_attributes.go \
+	"
 	sudo chown -R ${USER} ${APIV1} 
-	cd ${APIV1} && \
-	   mv go/* . && \
-	   rm -rf go main.go Dockerfile README.md api .swagger-codegen .swagger-codegen-ignore *.yaml
-	sed -i 's/\*OneOfTableAttributesValue/interface{}/' internal/router/controllers/apiv1/model_table_attributes.go
 .PHONY: gen-api-v1
