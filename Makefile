@@ -86,7 +86,7 @@ APIV1=${PWD}/internal/router/controllers/apiv1
 gen-api-v1:
 	mkdir -p ${APIV1}
 	curl -s ${SPEC_URL} > ${APIV1}/tableland-openapi-spec.yaml
-	docker run -w /gen -e GEN_DIR=/gen -v ${APIV1}:/gen --entrypoint /bin/sh bcalza/swagger-codegen-cli:3.0.41 -lc \
+	docker run -w /gen -e GEN_DIR=/gen -v ${APIV1}:/gen --entrypoint /bin/sh textile/swagger-codegen-cli:3.0.41 -lc \
 	"   java -jar /opt/swagger-codegen-cli/swagger-codegen-cli.jar generate --lang go-server -o /gen -i tableland-openapi-spec.yaml --additional-properties=packageName=apiv1 \
 		&& cd /gen \
 		&& mv go/* . \
