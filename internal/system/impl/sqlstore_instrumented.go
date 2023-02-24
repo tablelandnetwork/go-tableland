@@ -14,24 +14,24 @@ import (
 	"github.com/textileio/go-tableland/pkg/tables"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/global"
-	"go.opentelemetry.io/otel/metric/instrument/syncint64"
+	"go.opentelemetry.io/otel/metric/instrument"
 )
 
 // InstrumentedSystemSQLStoreService implements the SystemService interface using SQLStore.
 type InstrumentedSystemSQLStoreService struct {
 	system           system.SystemService
-	callCount        syncint64.Counter
-	latencyHistogram syncint64.Histogram
+	callCount        instrument.Int64Counter
+	latencyHistogram instrument.Int64Histogram
 }
 
 // NewInstrumentedSystemSQLStoreService creates a new InstrumentedSystemSQLStoreService.
 func NewInstrumentedSystemSQLStoreService(system system.SystemService) (system.SystemService, error) {
 	meter := global.MeterProvider().Meter("tableland")
-	callCount, err := meter.SyncInt64().Counter("tableland.system.call.count")
+	callCount, err := meter.Int64Counter("tableland.system.call.count")
 	if err != nil {
 		return &InstrumentedSystemSQLStoreService{}, fmt.Errorf("registering call counter: %s", err)
 	}
-	latencyHistogram, err := meter.SyncInt64().Histogram("tableland.system.call.latency")
+	latencyHistogram, err := meter.Int64Histogram("tableland.system.call.latency")
 	if err != nil {
 		return &InstrumentedSystemSQLStoreService{}, fmt.Errorf("registering latency histogram: %s", err)
 	}

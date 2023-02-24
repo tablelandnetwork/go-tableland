@@ -17,7 +17,7 @@ import (
 	noncepkg "github.com/textileio/go-tableland/pkg/nonce"
 	"github.com/textileio/go-tableland/pkg/wallet"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric/instrument/syncint64"
+	"go.opentelemetry.io/otel/metric/instrument"
 )
 
 const maxGasBumpAttempts = 3
@@ -51,8 +51,8 @@ type LocalTracker struct {
 
 	// metrics
 	mBaseLabels              []attribute.KeyValue
-	mUnconfirmedTxnDeletions syncint64.Counter
-	mGasBump                 syncint64.Counter
+	mUnconfirmedTxnDeletions instrument.Int64Counter
+	mGasBump                 instrument.Int64Counter
 }
 
 // NewLocalTracker creates a new local tracker. The provided context is used only for initialization

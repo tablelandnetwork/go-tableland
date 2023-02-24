@@ -24,7 +24,7 @@ import (
 	tbleth "github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/telemetry"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric/instrument/syncint64"
+	"go.opentelemetry.io/otel/metric/instrument"
 	"go.uber.org/atomic"
 )
 
@@ -45,7 +45,7 @@ type EventFeed struct {
 
 	// Metrics
 	mBaseLabels       []attribute.KeyValue
-	mEventTypeCounter syncint64.Counter
+	mEventTypeCounter instrument.Int64Counter
 	mCurrentHeight    atomic.Int64
 }
 

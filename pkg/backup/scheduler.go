@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 	logger "github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/pkg/metrics"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/metric/instrument"
 )
@@ -125,16 +126,18 @@ func (s *Scheduler) backup() error {
 
 func (s *Scheduler) initMetrics() error {
 	meter := global.MeterProvider().Meter("tableland")
-	mLastExecution, err := meter.AsyncInt64().Gauge("tableland.backup.last_execution")
+	mLastExecution, err := meter.Int64ObservableGauge("tableland.backup.last_execution")
 	if err != nil {
 		return fmt.Errorf("registering last execution gauge: %s", err)
 	}
 
-	if err := meter.RegisterCallback([]instrument.Asynchronous{mLastExecution}, func(ctx context.Context) {
-		if !s.mLastExecution.IsZero() {
-			mLastExecution.Observe(ctx, s.mLastExecution.Unix(), metrics.BaseAttrs...)
-		}
-	}); err != nil {
+	if _, err := meter.RegisterCallback(
+		func(ctx context.Context, o metric.Observer) error {
+			if !s.mLastExecution.IsZero() {
+				o.ObserveInt64(mLastExecution, s.mLastExecution.Unix(), metrics.BaseAttrs...)
+			}
+			return nil
+		}, []instrument.Asynchronous{mLastExecution}...); err != nil {
 		return fmt.Errorf("registering callback on instruments: %s", err)
 	}
 

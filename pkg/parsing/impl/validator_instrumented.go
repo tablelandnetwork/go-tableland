@@ -11,25 +11,25 @@ import (
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/global"
-	"go.opentelemetry.io/otel/metric/instrument/syncint64"
+	"go.opentelemetry.io/otel/metric/instrument"
 )
 
 // InstrumentedSQLValidator implements an instrumented Parsing interface.
 type InstrumentedSQLValidator struct {
 	parser           parsing.SQLValidator
-	callCount        syncint64.Counter
-	latencyHistogram syncint64.Histogram
+	callCount        instrument.Int64Counter
+	latencyHistogram instrument.Int64Histogram
 }
 
 // NewInstrumentedSQLValidator returns creates a wrapped QueryValidator for registering metrics.
 func NewInstrumentedSQLValidator(p parsing.SQLValidator) (parsing.SQLValidator, error) {
 	meter := global.MeterProvider().Meter("tableland")
 
-	callCount, err := meter.SyncInt64().Counter("tableland.sqlvalidator.call.count")
+	callCount, err := meter.Int64Counter("tableland.sqlvalidator.call.count")
 	if err != nil {
 		return &InstrumentedSQLValidator{}, fmt.Errorf("registering call counter: %s", err)
 	}
-	latencyHistogram, err := meter.SyncInt64().Histogram("tableland.sqlvalidator.call.latency")
+	latencyHistogram, err := meter.Int64Histogram("tableland.sqlvalidator.call.latency")
 	if err != nil {
 		return &InstrumentedSQLValidator{}, fmt.Errorf("registering latency histogram: %s", err)
 	}

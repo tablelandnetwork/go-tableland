@@ -16,7 +16,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/telemetry"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric/instrument/syncint64"
+	"go.opentelemetry.io/otel/metric/instrument"
 	"go.uber.org/atomic"
 )
 
@@ -49,9 +49,9 @@ type EventProcessor struct {
 	mBaseLabels                 []attribute.KeyValue
 	mExecutionRound             atomic.Int64
 	mLastProcessedHeight        atomic.Int64
-	mBlockExecutionLatency      syncint64.Histogram
-	mEventExecutionCounter      syncint64.Counter
-	mTxnExecutionLatency        syncint64.Histogram
+	mBlockExecutionLatency      instrument.Int64Histogram
+	mEventExecutionCounter      instrument.Int64Counter
+	mTxnExecutionLatency        instrument.Int64Histogram
 	mHashCalculationElapsedTime atomic.Int64
 }
 
