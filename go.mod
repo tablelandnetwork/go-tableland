@@ -1,6 +1,6 @@
 module github.com/textileio/go-tableland
 
-go 1.19
+go 1.18
 
 require (
 	cloud.google.com/go/bigquery v1.45.0
