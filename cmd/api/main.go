@@ -157,6 +157,8 @@ func main() {
 			log.Error().Err(err).Msg("closing telemetry module")
 		}
 	})
+
+	log.Print("tableland is ready (temp log, remove later)")
 }
 
 func createChainIDStack(
