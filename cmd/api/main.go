@@ -125,6 +125,8 @@ func main() {
 		log.Fatal().Err(err).Msg("configuring telemetry")
 	}
 
+	log.Info().Msg("tableland is ready (temp log, remove later)")
+
 	cli.HandleInterrupt(func() {
 		// Close HTTP server.
 		ctx, cls := context.WithTimeout(context.Background(), time.Second*10)
@@ -157,8 +159,6 @@ func main() {
 			log.Error().Err(err).Msg("closing telemetry module")
 		}
 	})
-
-	log.Info().Msg("tableland is ready (temp log, remove later)")
 }
 
 func createChainIDStack(
