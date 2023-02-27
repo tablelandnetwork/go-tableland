@@ -158,7 +158,7 @@ func main() {
 		}
 	})
 
-	log.Print("tableland is ready (temp log, remove later)")
+	log.Info().Msg("tableland is ready (temp log, remove later)")
 }
 
 func createChainIDStack(
