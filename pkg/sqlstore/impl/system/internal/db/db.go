@@ -45,6 +45,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getEVMEventsStmt, err = db.PrepareContext(ctx, getEVMEvents); err != nil {
 		return nil, fmt.Errorf("error preparing query GetEVMEvents: %w", err)
 	}
+	if q.getExampleIdStmt, err = db.PrepareContext(ctx, getExampleId); err != nil {
+		return nil, fmt.Errorf("error preparing query GetExampleId: %w", err)
+	}
 	if q.getIdStmt, err = db.PrepareContext(ctx, getId); err != nil {
 		return nil, fmt.Errorf("error preparing query GetId: %w", err)
 	}
@@ -68,6 +71,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.insertEVMEventStmt, err = db.PrepareContext(ctx, insertEVMEvent); err != nil {
 		return nil, fmt.Errorf("error preparing query InsertEVMEvent: %w", err)
+	}
+	if q.insertExampleStmt, err = db.PrepareContext(ctx, insertExample); err != nil {
+		return nil, fmt.Errorf("error preparing query InsertExample: %w", err)
 	}
 	if q.insertIdStmt, err = db.PrepareContext(ctx, insertId); err != nil {
 		return nil, fmt.Errorf("error preparing query InsertId: %w", err)
@@ -121,6 +127,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getEVMEventsStmt: %w", cerr)
 		}
 	}
+	if q.getExampleIdStmt != nil {
+		if cerr := q.getExampleIdStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getExampleIdStmt: %w", cerr)
+		}
+	}
 	if q.getIdStmt != nil {
 		if cerr := q.getIdStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getIdStmt: %w", cerr)
@@ -159,6 +170,11 @@ func (q *Queries) Close() error {
 	if q.insertEVMEventStmt != nil {
 		if cerr := q.insertEVMEventStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing insertEVMEventStmt: %w", cerr)
+		}
+	}
+	if q.insertExampleStmt != nil {
+		if cerr := q.insertExampleStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing insertExampleStmt: %w", cerr)
 		}
 	}
 	if q.insertIdStmt != nil {
@@ -227,6 +243,7 @@ type Queries struct {
 	getBlocksMissingExtraInfoStmt              *sql.Stmt
 	getBlocksMissingExtraInfoByBlockNumberStmt *sql.Stmt
 	getEVMEventsStmt                           *sql.Stmt
+	getExampleIdStmt                           *sql.Stmt
 	getIdStmt                                  *sql.Stmt
 	getReceiptStmt                             *sql.Stmt
 	getSchemaByTableNameStmt                   *sql.Stmt
@@ -235,6 +252,7 @@ type Queries struct {
 	getTablesByStructureStmt                   *sql.Stmt
 	insertBlockExtraInfoStmt                   *sql.Stmt
 	insertEVMEventStmt                         *sql.Stmt
+	insertExampleStmt                          *sql.Stmt
 	insertIdStmt                               *sql.Stmt
 	insertPendingTxStmt                        *sql.Stmt
 	listPendingTxStmt                          *sql.Stmt
@@ -252,6 +270,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getBlocksMissingExtraInfoStmt:  q.getBlocksMissingExtraInfoStmt,
 		getBlocksMissingExtraInfoByBlockNumberStmt: q.getBlocksMissingExtraInfoByBlockNumberStmt,
 		getEVMEventsStmt:           q.getEVMEventsStmt,
+		getExampleIdStmt:           q.getExampleIdStmt,
 		getIdStmt:                  q.getIdStmt,
 		getReceiptStmt:             q.getReceiptStmt,
 		getSchemaByTableNameStmt:   q.getSchemaByTableNameStmt,
@@ -260,6 +279,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getTablesByStructureStmt:   q.getTablesByStructureStmt,
 		insertBlockExtraInfoStmt:   q.insertBlockExtraInfoStmt,
 		insertEVMEventStmt:         q.insertEVMEventStmt,
+		insertExampleStmt:          q.insertExampleStmt,
 		insertIdStmt:               q.insertIdStmt,
 		insertPendingTxStmt:        q.insertPendingTxStmt,
 		listPendingTxStmt:          q.listPendingTxStmt,
