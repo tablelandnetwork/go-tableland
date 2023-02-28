@@ -11,14 +11,14 @@ import (
 	"github.com/textileio/go-tableland/pkg/tables"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/global"
-	"go.opentelemetry.io/otel/metric/instrument/syncint64"
+	"go.opentelemetry.io/otel/metric/instrument"
 )
 
 // InstrumentedTablelandMesa is the main implementation of Tableland spec with instrumentaion.
 type InstrumentedTablelandMesa struct {
 	tableland        tableland.Tableland
-	callCount        syncint64.Counter
-	latencyHistogram syncint64.Histogram
+	callCount        instrument.Int64Counter
+	latencyHistogram instrument.Int64Histogram
 }
 
 type recordData struct {
@@ -33,11 +33,11 @@ type recordData struct {
 // NewInstrumentedTablelandMesa creates a new InstrumentedTablelandMesa.
 func NewInstrumentedTablelandMesa(t tableland.Tableland) (tableland.Tableland, error) {
 	meter := global.MeterProvider().Meter("tableland")
-	callCount, err := meter.SyncInt64().Counter("tableland.mesa.call.count")
+	callCount, err := meter.Int64Counter("tableland.mesa.call.count")
 	if err != nil {
 		return &InstrumentedTablelandMesa{}, fmt.Errorf("registering call counter: %s", err)
 	}
-	latencyHistogram, err := meter.SyncInt64().Histogram("tableland.mesa.call.latency")
+	latencyHistogram, err := meter.Int64Histogram("tableland.mesa.call.latency")
 	if err != nil {
 		return &InstrumentedTablelandMesa{}, fmt.Errorf("registering latency histogram: %s", err)
 	}

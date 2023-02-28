@@ -16,25 +16,25 @@ import (
 	"github.com/textileio/go-tableland/pkg/tables"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/global"
-	"go.opentelemetry.io/otel/metric/instrument/syncint64"
+	"go.opentelemetry.io/otel/metric/instrument"
 )
 
 // InstrumentedSystemStore implements a instrumented SQLStore.
 type InstrumentedSystemStore struct {
 	chainID          tableland.ChainID
 	store            sqlstore.SystemStore
-	callCount        syncint64.Counter
-	latencyHistogram syncint64.Histogram
+	callCount        instrument.Int64Counter
+	latencyHistogram instrument.Int64Histogram
 }
 
 // NewInstrumentedSystemStore creates a new db pool and instantiate both the user and system stores.
 func NewInstrumentedSystemStore(chainID tableland.ChainID, store sqlstore.SystemStore) (sqlstore.SystemStore, error) {
 	meter := global.MeterProvider().Meter("tableland")
-	callCount, err := meter.SyncInt64().Counter("tableland.sqlstore.call.count")
+	callCount, err := meter.Int64Counter("tableland.sqlstore.call.count")
 	if err != nil {
 		return &InstrumentedSystemStore{}, fmt.Errorf("registering call counter: %s", err)
 	}
-	latencyHistogram, err := meter.SyncInt64().Histogram("tableland.sqlstore.call.latency")
+	latencyHistogram, err := meter.Int64Histogram("tableland.sqlstore.call.latency")
 	if err != nil {
 		return &InstrumentedSystemStore{}, fmt.Errorf("registering latency histogram: %s", err)
 	}

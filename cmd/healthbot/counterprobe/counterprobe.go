@@ -11,7 +11,7 @@ import (
 	logger "github.com/rs/zerolog/log"
 	clientV1 "github.com/textileio/go-tableland/pkg/client/v1"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric/instrument/syncint64"
+	"go.opentelemetry.io/otel/metric/instrument"
 )
 
 const (
@@ -33,7 +33,7 @@ type CounterProbe struct {
 	mLastCounterValue    int64
 	mLastCheck           time.Time
 	mLastSuccessfulCheck time.Time
-	mLatencyHist         syncint64.Histogram
+	mLatencyHist         instrument.Int64Histogram
 	mBaseLabels          []attribute.KeyValue
 }
 

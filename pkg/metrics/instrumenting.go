@@ -10,12 +10,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/otel/attribute"
 	otelprom "go.opentelemetry.io/otel/exporters/prometheus"
-	"go.opentelemetry.io/otel/metric/unit"
-
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/metric/instrument"
-	"go.opentelemetry.io/otel/metric/instrument/asyncint64"
-	"go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/metric/unit"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/aggregation"
 )
 
@@ -31,7 +30,7 @@ func SetupInstrumentation(prometheusAddr string, serviceName string) error {
 		return fmt.Errorf("creating prometheus exporter: %s", err)
 	}
 
-	provider := metric.NewMeterProvider(metric.WithReader(exporter))
+	provider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(exporter))
 	global.SetMeterProvider(provider)
 
 	http.Handle("/metrics", promhttp.Handler())
@@ -53,7 +52,7 @@ func SetupInstrumentation(prometheusAddr string, serviceName string) error {
 func startCollectingRuntimeMetrics() error {
 	meter := global.MeterProvider().Meter("runtime")
 
-	uptime, err := meter.AsyncInt64().Gauge(
+	uptime, err := meter.Int64ObservableGauge(
 		"runtime.uptime",
 		instrument.WithUnit(unit.Milliseconds),
 		instrument.WithDescription("Milliseconds since application was initialized"),
@@ -62,7 +61,7 @@ func startCollectingRuntimeMetrics() error {
 		return fmt.Errorf("creating runtime uptime: %s", err)
 	}
 
-	goroutines, err := meter.AsyncInt64().Gauge(
+	goroutines, err := meter.Int64ObservableGauge(
 		"process.runtime.go.goroutines",
 		instrument.WithDescription("Number of goroutines that currently exist"),
 	)
@@ -70,7 +69,7 @@ func startCollectingRuntimeMetrics() error {
 		return fmt.Errorf("creating runtime goroutines: %s", err)
 	}
 
-	cgoCalls, err := meter.AsyncInt64().Counter(
+	cgoCalls, err := meter.Int64ObservableCounter(
 		"process.runtime.go.cgo.calls",
 		instrument.WithDescription("Number of cgo calls made by the current process"),
 	)
@@ -79,17 +78,18 @@ func startCollectingRuntimeMetrics() error {
 	}
 
 	startTime := time.Now()
-	err = meter.RegisterCallback(
+	_, err = meter.RegisterCallback(
+		func(ctx context.Context, o metric.Observer) error {
+			o.ObserveInt64(uptime, time.Since(startTime).Milliseconds(), BaseAttrs...)
+			o.ObserveInt64(goroutines, int64(runtime.NumGoroutine()), BaseAttrs...)
+			o.ObserveInt64(cgoCalls, runtime.NumCgoCall(), BaseAttrs...)
+			return nil
+		},
 		[]instrument.Asynchronous{
 			uptime,
 			goroutines,
 			cgoCalls,
-		},
-		func(ctx context.Context) {
-			uptime.Observe(ctx, time.Since(startTime).Milliseconds(), BaseAttrs...)
-			goroutines.Observe(ctx, int64(runtime.NumGoroutine()), BaseAttrs...)
-			cgoCalls.Observe(ctx, runtime.NumCgoCall(), BaseAttrs...)
-		},
+		}...,
 	)
 	if err != nil {
 		return fmt.Errorf("registering callback: %s", err)
@@ -102,16 +102,16 @@ func startCollectingMemoryMetrics() error {
 	var (
 		err error
 
-		heapInuse   asyncint64.UpDownCounter
-		liveObjects asyncint64.UpDownCounter
-		gcCount     asyncint64.Counter
+		heapInuse   instrument.Int64ObservableUpDownCounter
+		liveObjects instrument.Int64ObservableUpDownCounter
+		gcCount     instrument.Int64ObservableCounter
 
 		lastMemStats time.Time
 		memStats     runtime.MemStats
 	)
 
 	meter := global.MeterProvider().Meter("runtime")
-	if heapInuse, err = meter.AsyncInt64().Gauge(
+	if heapInuse, err = meter.Int64ObservableGauge(
 		"process.runtime.go.mem.heap_inuse",
 		instrument.WithUnit(unit.Bytes),
 		instrument.WithDescription("Bytes in in-use spans"),
@@ -119,49 +119,51 @@ func startCollectingMemoryMetrics() error {
 		return fmt.Errorf("creating heap in use: %s", err)
 	}
 
-	if liveObjects, err = meter.AsyncInt64().Gauge(
+	if liveObjects, err = meter.Int64ObservableGauge(
 		"process.runtime.go.mem.live_objects",
 		instrument.WithDescription("Number of live objects is the number of cumulative Mallocs - Frees"),
 	); err != nil {
 		return fmt.Errorf("creating heap live objects: %s", err)
 	}
 
-	if gcCount, err = meter.AsyncInt64().Gauge(
+	if gcCount, err = meter.Int64ObservableGauge(
 		"process.runtime.go.gc.count",
 		instrument.WithDescription("Number of completed garbage collection cycles"),
 	); err != nil {
 		return fmt.Errorf("creating gc count: %s", err)
 	}
 
-	if err := meter.RegisterCallback(
-		[]instrument.Asynchronous{
-			heapInuse,
-			liveObjects,
-			gcCount,
-		}, func(ctx context.Context) {
+	if _, err := meter.RegisterCallback(
+		func(ctx context.Context, o metric.Observer) error {
 			now := time.Now()
 			if now.Sub(lastMemStats) >= time.Second*15 {
 				runtime.ReadMemStats(&memStats)
 				lastMemStats = now
 			}
 
-			heapInuse.Observe(ctx, int64(memStats.HeapInuse), BaseAttrs...)
-			liveObjects.Observe(ctx, int64(memStats.Mallocs-memStats.Frees), BaseAttrs...)
-			gcCount.Observe(ctx, int64(memStats.NumGC), BaseAttrs...)
-		}); err != nil {
+			o.ObserveInt64(heapInuse, int64(memStats.HeapInuse), BaseAttrs...)
+			o.ObserveInt64(liveObjects, int64(memStats.Mallocs-memStats.Frees), BaseAttrs...)
+			o.ObserveInt64(gcCount, int64(memStats.NumGC), BaseAttrs...)
+
+			return nil
+		}, []instrument.Asynchronous{
+			heapInuse,
+			liveObjects,
+			gcCount,
+		}...); err != nil {
 		return fmt.Errorf("registering callback: %s", err)
 	}
 	return nil
 }
 
-func aggregatorSelector(ik metric.InstrumentKind) aggregation.Aggregation {
+func aggregatorSelector(ik sdkmetric.InstrumentKind) aggregation.Aggregation {
 	switch ik {
-	case metric.InstrumentKindSyncCounter, metric.InstrumentKindSyncUpDownCounter,
-		metric.InstrumentKindAsyncCounter, metric.InstrumentKindAsyncUpDownCounter:
+	case sdkmetric.InstrumentKindCounter, sdkmetric.InstrumentKindUpDownCounter,
+		sdkmetric.InstrumentKindObservableCounter, sdkmetric.InstrumentKindObservableUpDownCounter:
 		return aggregation.Sum{}
-	case metric.InstrumentKindAsyncGauge:
+	case sdkmetric.InstrumentKindObservableGauge:
 		return aggregation.LastValue{}
-	case metric.InstrumentKindSyncHistogram:
+	case sdkmetric.InstrumentKindHistogram:
 		return aggregation.ExplicitBucketHistogram{
 			Boundaries: []float64{0.5, 1, 2, 4, 10, 50, 100, 500, 1000, 5000},
 			NoMinMax:   false,
