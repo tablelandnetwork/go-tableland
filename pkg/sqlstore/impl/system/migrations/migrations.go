@@ -9,6 +9,8 @@
 // migrations/003_evm_events.up.sql
 // migrations/004_system_id.down.sql
 // migrations/004_system_id.up.sql
+// migrations/005_example.down.sql
+// migrations/005_example.up.sql
 package migrations
 
 import (
@@ -245,6 +247,46 @@ func _004_system_idUpSql() (*asset, error) {
 	return a, nil
 }
 
+var __005_exampleDownSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\x09\xf2\x0f\x50\x08\x71\x74\xf2\x71\x55\x48\xad\x48\xcc\x2d\xc8\x49\xb5\x06\x04\x00\x00\xff\xff\xa3\x94\xeb\xf6\x13\x00\x00\x00")
+
+func _005_exampleDownSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__005_exampleDownSql,
+		"005_example.down.sql",
+	)
+}
+
+func _005_exampleDownSql() (*asset, error) {
+	bytes, err := _005_exampleDownSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "005_example.down.sql", size: 19, mode: os.FileMode(420), modTime: time.Unix(1677662187, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __005_exampleUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\x0e\x72\x75\x0c\x71\x55\x08\x71\x74\xf2\x71\x55\xf0\x74\x53\xf0\xf3\x0f\x51\x70\x8d\xf0\x0c\x0e\x09\x56\x48\xad\x48\xcc\x2d\xc8\x49\x55\xd0\xe0\x52\x50\x50\x50\xc8\x4c\x51\x08\x71\x8d\x08\x01\x2b\xf0\x0b\xf5\xf1\xd1\x01\x8b\x06\x04\x79\xfa\x3a\x06\x45\x2a\x78\xbb\x46\x6a\x64\xa6\x68\x72\x69\x5a\x03\x02\x00\x00\xff\xff\xf1\x3b\x6c\x60\x51\x00\x00\x00")
+
+func _005_exampleUpSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__005_exampleUpSql,
+		"005_example.up.sql",
+	)
+}
+
+func _005_exampleUpSql() (*asset, error) {
+	bytes, err := _005_exampleUpSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "005_example.up.sql", size: 81, mode: os.FileMode(420), modTime: time.Unix(1677662185, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
 // Asset loads and returns the asset for the given name.
 // It returns an error if the asset could not be found or
 // could not be loaded.
@@ -305,6 +347,8 @@ var _bindata = map[string]func() (*asset, error){
 	"003_evm_events.up.sql":        _003_evm_eventsUpSql,
 	"004_system_id.down.sql":       _004_system_idDownSql,
 	"004_system_id.up.sql":         _004_system_idUpSql,
+	"005_example.down.sql":         _005_exampleDownSql,
+	"005_example.up.sql":           _005_exampleUpSql,
 }
 
 // AssetDir returns the file names below a certain
@@ -356,6 +400,8 @@ var _bintree = &bintree{nil, map[string]*bintree{
 	"003_evm_events.up.sql":        &bintree{_003_evm_eventsUpSql, map[string]*bintree{}},
 	"004_system_id.down.sql":       &bintree{_004_system_idDownSql, map[string]*bintree{}},
 	"004_system_id.up.sql":         &bintree{_004_system_idUpSql, map[string]*bintree{}},
+	"005_example.down.sql":         &bintree{_005_exampleDownSql, map[string]*bintree{}},
+	"005_example.up.sql":           &bintree{_005_exampleUpSql, map[string]*bintree{}},
 }}
 
 // RestoreAsset restores an asset under the given directory

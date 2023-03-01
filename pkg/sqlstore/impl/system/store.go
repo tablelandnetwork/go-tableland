@@ -526,9 +526,13 @@ func (s *SystemStore) executeMigration(dbURI string, as *bindata.AssetSource) er
 		Msg("database migration executed")
 
 	if err := m.Migrate(4); err != nil && err != migrate.ErrNoChange {
-		return fmt.Errorf("running migration up: %s", err)
+		return fmt.Errorf("running migration to 4: %s", err)
 	}
 
+	/* if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return fmt.Errorf("running migration up: %s", err)
+	}
+	*/
 	return nil
 }
 

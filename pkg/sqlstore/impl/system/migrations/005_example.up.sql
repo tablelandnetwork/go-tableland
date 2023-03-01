@@ -1,0 +1,4 @@
+CREATE TABLE IF NOT EXISTS example (
+    id TEXT NOT NULL,
+    PRIMARY KEY(id)
+);
