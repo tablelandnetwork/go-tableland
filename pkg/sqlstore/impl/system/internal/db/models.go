@@ -8,10 +8,6 @@ import (
 	"database/sql"
 )
 
-type Example struct {
-	ID string
-}
-
 type Registry struct {
 	ID         int64
 	Structure  string

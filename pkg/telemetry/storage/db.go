@@ -237,7 +237,7 @@ func (db *TelemetryDatabase) executeMigration(dbURI string, as *bindata.AssetSou
 		Err(err).
 		Msg("database migration executed")
 
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+	if err := m.Migrate(4); err != nil && err != migrate.ErrNoChange {
 		return fmt.Errorf("running migration up: %s", err)
 	}
 
