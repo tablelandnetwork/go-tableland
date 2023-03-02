@@ -48,6 +48,8 @@ const (
 	SetController = "SetController"
 	// TransferTable is a TransferTable event fired by the SC.
 	TransferTable = "TransferTable"
+	// PublishFunction is a PublishFunction event fired by the SC.
+	PublishFunction = "PublishFunction"
 )
 
 // SupportedEvents contains a map from **all** EventType values
@@ -59,10 +61,11 @@ const (
 // IMPORTANT: we should *always* have a mapping for all EventType
 // values.
 var SupportedEvents = map[EventType]reflect.Type{
-	RunSQL:        reflect.TypeOf(tbleth.ContractRunSQL{}),
-	CreateTable:   reflect.TypeOf(tbleth.ContractCreateTable{}),
-	SetController: reflect.TypeOf(tbleth.ContractSetController{}),
-	TransferTable: reflect.TypeOf(tbleth.ContractTransferTable{}),
+	RunSQL:          reflect.TypeOf(tbleth.ContractRunSQL{}),
+	CreateTable:     reflect.TypeOf(tbleth.ContractCreateTable{}),
+	SetController:   reflect.TypeOf(tbleth.ContractSetController{}),
+	TransferTable:   reflect.TypeOf(tbleth.ContractTransferTable{}),
+	PublishFunction: reflect.TypeOf(tbleth.ContractPublishFunction{}),
 }
 
 // Config contains configuration parameters for an event feed.

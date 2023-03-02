@@ -27,6 +27,7 @@ var eventTypes = []eventfeed.EventType{
 	eventfeed.CreateTable,
 	eventfeed.SetController,
 	eventfeed.TransferTable,
+	eventfeed.PublishFunction,
 }
 
 // EventProcessor processes new events detected by an event feed.

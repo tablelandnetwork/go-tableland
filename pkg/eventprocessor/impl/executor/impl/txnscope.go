@@ -94,6 +94,13 @@ func (ts *txnScope) executeTxnEvents(
 			if err != nil {
 				return executor.TxnExecutionResult{}, fmt.Errorf("executing transfer event: %s", err)
 			}
+		case *ethereum.ContractPublishFunction:
+			ts.log.Debug().Str("cid", event.Cid).Msgf("executing publish-function event")
+
+			res, err = ts.executePublishFunctionEvent(ctx, event)
+			if err != nil {
+				return executor.TxnExecutionResult{}, fmt.Errorf("executing publish-function event: %s", err)
+			}
 		default:
 			return executor.TxnExecutionResult{}, fmt.Errorf("unknown event type %t", event)
 		}
