@@ -13,7 +13,6 @@ import (
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/metric/instrument"
-	"go.opentelemetry.io/otel/metric/unit"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/aggregation"
 )
@@ -54,7 +53,7 @@ func startCollectingRuntimeMetrics() error {
 
 	uptime, err := meter.Int64ObservableGauge(
 		"runtime.uptime",
-		instrument.WithUnit(unit.Milliseconds),
+		instrument.WithUnit("ms"),
 		instrument.WithDescription("Milliseconds since application was initialized"),
 	)
 	if err != nil {
@@ -113,7 +112,7 @@ func startCollectingMemoryMetrics() error {
 	meter := global.MeterProvider().Meter("runtime")
 	if heapInuse, err = meter.Int64ObservableGauge(
 		"process.runtime.go.mem.heap_inuse",
-		instrument.WithUnit(unit.Bytes),
+		instrument.WithUnit("By"),
 		instrument.WithDescription("Bytes in in-use spans"),
 	); err != nil {
 		return fmt.Errorf("creating heap in use: %s", err)
