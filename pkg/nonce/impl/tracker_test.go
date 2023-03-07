@@ -2,7 +2,6 @@ package impl
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -23,7 +22,6 @@ import (
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
-	"github.com/textileio/go-tableland/pkg/tables/impl/testutil"
 	"github.com/textileio/go-tableland/pkg/wallet"
 	"github.com/textileio/go-tableland/tests"
 )
@@ -481,15 +479,15 @@ func setup(ctx context.Context, t *testing.T) (
 ) {
 	url := tests.Sqlite3URI(t)
 
-	backend, _, contract, txOptsFrom, sk := testutil.Setup(t)
-
-	key, err := crypto.GenerateKey()
+	// Spin up the EVM chain with the contract.
+	simulatedChain := tests.NewSimulatedChain(t)
+	contract, err := simulatedChain.DeployContract(t, ethereum.Deploy)
 	require.NoError(t, err)
+
+	key := simulatedChain.CreateAccountWithBalance(t)
 
 	txOptsTo, err := bind.NewKeyedTransactorWithChainID(key, big.NewInt(1337)) // nolint
 	require.NoError(t, err)
-
-	requireTxn(t, backend, sk, txOptsFrom.From, txOptsTo.From, big.NewInt(1000000000000000000))
 
 	wallet, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(key)))
 	require.NoError(t, err)
@@ -501,54 +499,12 @@ func setup(ctx context.Context, t *testing.T) (
 		ctx,
 		wallet,
 		&NonceStore{sqlstore},
-		1337,
-		backend,
+		tableland.ChainID(simulatedChain.ChainID),
+		simulatedChain.Backend,
 		500*time.Millisecond,
 		0,
 		10*time.Minute)
 	require.NoError(t, err)
 
-	return tracker, backend, contract, txOptsTo, wallet, sqlstore
-}
-
-func requireTxn(
-	t *testing.T,
-	backend *backends.SimulatedBackend,
-	key *ecdsa.PrivateKey,
-	from common.Address,
-	to common.Address,
-	amt *big.Int,
-) {
-	nonce, err := backend.PendingNonceAt(context.Background(), from)
-	require.NoError(t, err)
-
-	gasLimit := uint64(21000)
-	gasPrice, err := backend.SuggestGasPrice(context.Background())
-	require.NoError(t, err)
-
-	var data []byte
-	txnData := &types.LegacyTx{
-		Nonce:    nonce,
-		GasPrice: gasPrice,
-		Gas:      gasLimit,
-		To:       &to,
-		Data:     data,
-		Value:    amt,
-	}
-	tx := types.NewTx(txnData)
-	signedTx, err := types.SignTx(tx, types.HomesteadSigner{}, key)
-	require.NoError(t, err)
-
-	bal, err := backend.BalanceAt(context.Background(), from, nil)
-	require.NoError(t, err)
-	require.NotZero(t, bal)
-
-	err = backend.SendTransaction(context.Background(), signedTx)
-	require.NoError(t, err)
-
-	backend.Commit()
-
-	receipt, err := backend.TransactionReceipt(context.Background(), signedTx.Hash())
-	require.NoError(t, err)
-	require.NotNil(t, receipt)
+	return tracker, simulatedChain.Backend, contract.Contract.(*ethereum.Contract), txOptsTo, wallet, sqlstore
 }

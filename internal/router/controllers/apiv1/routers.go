@@ -63,6 +63,13 @@ var routes = Routes{
 	},
 
 	Route{
+		"QueryProof",
+		strings.ToUpper("Get"),
+		"/api/v1/proof/{chainId}/{tableId}/{row}",
+		QueryProof,
+	},
+
+	Route{
 		"QueryByStatement",
 		strings.ToUpper("Get"),
 		"/api/v1/query",

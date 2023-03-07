@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/rs/zerolog/log"
@@ -220,4 +221,21 @@ func (c *Client) callWithRetry(ctx context.Context, f func() (*types.Transaction
 	}
 
 	return tx, nil
+}
+
+// Deploy deploys the contract to a simulated backend.
+var Deploy = func(auth *bind.TransactOpts, sb *backends.SimulatedBackend) (
+	address common.Address, contract interface{}, err error,
+) {
+	addr, _, c, err := DeployContract(auth, sb)
+	if err != nil {
+		return common.Address{}, nil, err
+	}
+
+	_, err = c.Initialize(auth, "https://foo.xyz")
+	if err != nil {
+		return common.Address{}, nil, err
+	}
+
+	return addr, c, nil
 }

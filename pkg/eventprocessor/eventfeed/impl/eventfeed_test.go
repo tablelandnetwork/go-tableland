@@ -16,7 +16,6 @@ import (
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
-	"github.com/textileio/go-tableland/pkg/tables/impl/testutil"
 	"github.com/textileio/go-tableland/tests"
 )
 
@@ -29,31 +28,37 @@ func TestRunSQLEvents(t *testing.T) {
 	systemStore, err := system.New(dbURI, tableland.ChainID(1337))
 	require.NoError(t, err)
 
-	backend, addr, sc, authOpts, _ := testutil.Setup(t)
+	// Spin up the EVM chain with the contract.
+	simulatedChain := tests.NewSimulatedChain(t)
+	contract, err := simulatedChain.DeployContract(t, ethereum.Deploy)
+	require.NoError(t, err)
+
 	ef, err := New(
 		systemStore,
 		1337,
-		backend,
-		addr,
+		simulatedChain.Backend,
+		contract.ContractAddr,
 		eventfeed.WithNewHeadPollFreq(time.Millisecond),
 		eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
 
 	// Create the table
-	ctrl := authOpts.From
-	_, err = sc.CreateTable(
-		authOpts,
+	ctrl := simulatedChain.DeployerTransactOpts.From
+	_, err = contract.Contract.(*ethereum.Contract).CreateTable(
+		simulatedChain.DeployerTransactOpts,
 		ctrl,
 		"CREATE TABLE foo (bar int)")
 	require.NoError(t, err)
 
 	// Make one call before start listening.
-	_, err = sc.RunSQL(authOpts, ctrl, big.NewInt(1), "stmt-1")
+	_, err = contract.Contract.(*ethereum.Contract).RunSQL(
+		simulatedChain.DeployerTransactOpts, ctrl, big.NewInt(1), "stmt-1",
+	)
 	require.NoError(t, err)
-	backend.Commit()
+	simulatedChain.Backend.Commit()
 
 	// Start listening to Logs for the contract from the next block.
-	currBlockNumber := backend.Blockchain().CurrentHeader().Number.Int64()
+	currBlockNumber := simulatedChain.Backend.Blockchain().CurrentHeader().Number.Int64()
 	ch := make(chan eventfeed.BlockEvents)
 	go func() {
 		err := ef.Start(context.Background(), currBlockNumber+1, ch, []eventfeed.EventType{eventfeed.RunSQL})
@@ -71,9 +76,11 @@ func TestRunSQLEvents(t *testing.T) {
 	}
 
 	// Make a second call, that should be detected as a new event next.
-	_, err = sc.RunSQL(authOpts, ctrl, big.NewInt(1), "stmt-2")
+	_, err = contract.Contract.(*ethereum.Contract).RunSQL(
+		simulatedChain.DeployerTransactOpts, ctrl, big.NewInt(1), "stmt-2",
+	)
 	require.NoError(t, err)
-	backend.Commit()
+	simulatedChain.Backend.Commit()
 	select {
 	case bes := <-ch:
 		require.Len(t, bes.Txns, 1)
@@ -84,12 +91,16 @@ func TestRunSQLEvents(t *testing.T) {
 	}
 
 	// Try making two calls in a single block now, and assert we receive things correctly.
-	_, err = sc.RunSQL(authOpts, ctrl, big.NewInt(1), "stmt-3")
+	_, err = contract.Contract.(*ethereum.Contract).RunSQL(
+		simulatedChain.DeployerTransactOpts, ctrl, big.NewInt(1), "stmt-3",
+	)
 	require.NoError(t, err)
-	_, err = sc.RunSQL(authOpts, ctrl, big.NewInt(1), "stmt-4")
+	_, err = contract.Contract.(*ethereum.Contract).RunSQL(
+		simulatedChain.DeployerTransactOpts, ctrl, big.NewInt(1), "stmt-4",
+	)
 
 	require.NoError(t, err)
-	backend.Commit()
+	simulatedChain.Backend.Commit()
 	select {
 	case bes := <-ch:
 		require.Len(t, bes.Txns, 2)
@@ -109,13 +120,17 @@ func TestAllEvents(t *testing.T) {
 	systemStore, err := system.New(dbURI, tableland.ChainID(1337))
 	require.NoError(t, err)
 
-	backend, addr, sc, authOpts, _ := testutil.Setup(t)
+	// Spin up the EVM chain with the contract.
+	simulatedChain := tests.NewSimulatedChain(t)
+	contract, err := simulatedChain.DeployContract(t, ethereum.Deploy)
+	require.NoError(t, err)
+
 	fetchBlockExtraInfoDelay = time.Millisecond
 	ef, err := New(
 		systemStore,
 		1337,
-		backend,
-		addr,
+		simulatedChain.Backend,
+		contract.ContractAddr,
 		eventfeed.WithNewHeadPollFreq(time.Millisecond),
 		eventfeed.WithMinBlockDepth(0),
 		eventfeed.WithEventPersistence(true),
@@ -145,33 +160,35 @@ func TestAllEvents(t *testing.T) {
 		require.Error(t, err)
 	}
 
-	ctrl := authOpts.From
+	ctrl := simulatedChain.DeployerTransactOpts.From
 	// Make four calls to different functions emitting different events
-	txn1, err := sc.CreateTable(
-		authOpts,
+	txn1, err := contract.Contract.(*ethereum.Contract).CreateTable(
+		simulatedChain.DeployerTransactOpts,
 		ctrl,
 		"CREATE TABLE foo (bar int)")
 	require.NoError(t, err)
 
-	txn2, err := sc.RunSQL(authOpts, ctrl, big.NewInt(1), "stmt-2")
+	txn2, err := contract.Contract.(*ethereum.Contract).RunSQL(
+		simulatedChain.DeployerTransactOpts, ctrl, big.NewInt(1), "stmt-2",
+	)
 	require.NoError(t, err)
 
-	txn3, err := sc.SetController(
-		authOpts,
+	txn3, err := contract.Contract.(*ethereum.Contract).SetController(
+		simulatedChain.DeployerTransactOpts,
 		ctrl,
 		big.NewInt(1),
 		common.HexToAddress("0xB0Cf943Cf94E7B6A2657D15af41c5E06c2BFEA3E"),
 	)
 	require.NoError(t, err)
 
-	txn4, err := sc.TransferFrom(
-		authOpts,
+	txn4, err := contract.Contract.(*ethereum.Contract).TransferFrom(
+		simulatedChain.DeployerTransactOpts,
 		ctrl,
 		common.HexToAddress("0xB0Cf943Cf94E7B6A2657D15af41c5E06c2BFEA3E"),
 		big.NewInt(1),
 	)
 	require.NoError(t, err)
-	backend.Commit()
+	simulatedChain.Backend.Commit()
 
 	select {
 	case bes := <-ch:

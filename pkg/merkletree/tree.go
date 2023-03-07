@@ -2,22 +2,28 @@ package merkletree
 
 import (
 	"bytes"
+	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"hash"
 	"sort"
 
-	"github.com/ethereum/go-ethereum/crypto"
+	"golang.org/x/crypto/sha3"
 )
 
-// DefaultHashFunc is the default hash function in case none is passed.
-var DefaultHashFunc = crypto.Keccak256
+// DefaultHasher is the default hash function in case none is passed.
+var DefaultHasher = sha3.NewLegacyKeccak256
+
+// EncodingSchemaNLBytes indicates the number of bytes of the number of leaves in the encoding schema.
+const EncodingSchemaNLBytes = 4
 
 // MerkleTree is a binary Merkle Tree implemenation.
 type MerkleTree struct {
 	root   *Node
 	leaves []*Node
 
-	hashFunc func(...[]byte) []byte
+	h hash.Hash
 }
 
 // Node represents a Node of MerkleTree.
@@ -26,18 +32,31 @@ type Node struct {
 	hash                []byte
 }
 
+// Proof represents a proof.
+type Proof [][]byte
+
+// Hex is a hex encoded representation of a proof.
+func (p Proof) Hex() []string {
+	pieces := make([]string, len(p))
+	for i, part := range p {
+		pieces[i] = hex.EncodeToString(part)
+	}
+
+	return pieces
+}
+
 func (n *Node) isLeaf() bool {
 	return n.left == nil && n.right == nil
 }
 
 // NewTree builds a new Merkle Tree.
-func NewTree(leaves [][]byte, hashFunc func(...[]byte) []byte) (*MerkleTree, error) {
-	if hashFunc == nil {
-		hashFunc = DefaultHashFunc
+func NewTree(leaves [][]byte, hasher func() hash.Hash) (*MerkleTree, error) {
+	if hasher == nil {
+		hasher = DefaultHasher
 	}
 
 	tree := &MerkleTree{
-		hashFunc: hashFunc,
+		h: hasher(),
 	}
 
 	if len(leaves) == 0 {
@@ -129,13 +148,12 @@ func (t *MerkleTree) verify(node *Node) []byte {
 }
 
 // GetProof gets the proof for a particular content.
-// It returns `nil` if the leaf is not present in the tree.
-func (t *MerkleTree) GetProof(leaf []byte) [][]byte {
+func (t *MerkleTree) GetProof(leaf []byte) (bool, Proof) {
 	index, found := sort.Find(len(t.leaves), func(i int) int {
 		return bytes.Compare(leaf, t.leaves[i].hash)
 	})
 	if !found {
-		return nil
+		return false, nil
 	}
 
 	l := t.leaves[index]
@@ -149,21 +167,7 @@ func (t *MerkleTree) GetProof(leaf []byte) [][]byte {
 		}
 		l, parent = parent, parent.parent
 	}
-	return proof
-}
-
-// VerifyProof verifies a given proof for a leaf.
-func VerifyProof(root []byte, proof [][]byte, leaf []byte, hashFunc func(data ...[]byte) []byte) bool {
-	if hashFunc == nil {
-		hashFunc = DefaultHashFunc
-	}
-
-	computedHash := leaf
-	for i := 0; i < len(proof); i++ {
-		left, right := sortPair(computedHash, proof[i])
-		computedHash = hashFunc(left, right)
-	}
-	return bytes.Equal(root, computedHash)
+	return true, proof
 }
 
 // MerkleRoot returns the merkle root of the tree.
@@ -172,6 +176,143 @@ func (t *MerkleTree) MerkleRoot() []byte {
 		return nil
 	}
 	return t.root.hash
+}
+
+// VerifyProof verifies a given proof for a leaf.
+func VerifyProof(proof Proof, root []byte, leaf []byte, hasher func() hash.Hash) bool {
+	if hasher == nil {
+		hasher = DefaultHasher
+	}
+	h := hasher()
+
+	computedHash := leaf
+	for i := 0; i < len(proof); i++ {
+		left, right := sortPair(computedHash, proof[i])
+		_, _ = h.Write(left)
+		_, _ = h.Write(right)
+		computedHash = h.Sum(nil)
+		h.Reset()
+	}
+	return bytes.Equal(root, computedHash)
+}
+
+// Marshal serializes the tree.
+//
+// The encoding schema is such that the first 4 bytes we store the number of leaves (NL),
+// and then the nodes' hashes are put one next to the order starting from the root
+// on a level order traversal.
+//
+// 0       4 <----------------------- HashSize ------------------------->|
+// |-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|
+// |   NL  |                            root                             |  ...
+// |-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|.
+func (t *MerkleTree) Marshal() []byte {
+	// we start by filling the first 4 bytes with the leaves length
+	data := make([]byte, EncodingSchemaNLBytes)
+	binary.LittleEndian.PutUint32(data, uint32(len(t.leaves)))
+
+	var node *Node
+	queue := []*Node{t.root}
+	for len(queue) > 0 {
+		node, queue = queue[0], queue[1:]
+		data = append(data, node.hash...)
+
+		if node.left != nil {
+			queue = append(queue, node.left)
+		}
+
+		// the second condition is for the case the node's children point to the same node
+		// we don't want to duplicate the node
+		if node.right != nil && node.right != node.left {
+			queue = append(queue, node.right)
+		}
+	}
+
+	return data
+}
+
+// Unmarshal deserializes the tree.
+func Unmarshal(data []byte, hasher func() hash.Hash) (*MerkleTree, error) {
+	if hasher == nil {
+		hasher = DefaultHasher
+	}
+	h := hasher()
+	hSize := h.Size()
+
+	numberOfLeavesInBytes, data := data[0:EncodingSchemaNLBytes], data[EncodingSchemaNLBytes:]
+	numberOfLeaves := int(binary.LittleEndian.Uint32(numberOfLeavesInBytes))
+
+	if len(data)%hSize != 0 {
+		return nil, errors.New("leaves data is not multiple of hash size")
+	}
+
+	// we start with an pointer p pointing to the end
+	p := len(data)
+
+	// build the leaves
+	leaves := make([]*Node, numberOfLeaves)
+	for i := 0; i < numberOfLeaves; i++ {
+		leaves[numberOfLeaves-i-1] = &Node{
+			hash: data[p-hSize*(1+i) : p-hSize*i],
+		}
+	}
+
+	// adjust pointer position
+	p = p - hSize*len(leaves)
+
+	// build next levels
+	previousLevelNodes := leaves
+	var root *Node
+	for {
+		currentLevelNodes := make([]*Node, len(previousLevelNodes)/2)
+		l, r := len(previousLevelNodes)-2, len(previousLevelNodes)-1
+
+		// adjust according to length of previous level
+		if len(previousLevelNodes)%2 != 0 {
+			currentLevelNodes = append(currentLevelNodes, nil)
+			l = r
+		}
+
+		for i := 0; i < len(currentLevelNodes); i++ {
+			n := &Node{
+				left:  previousLevelNodes[l],
+				right: previousLevelNodes[r],
+				hash:  data[p-hSize*(1+i) : p-hSize*i],
+			}
+			currentLevelNodes[len(currentLevelNodes)-i-1] = n
+			previousLevelNodes[l].parent, previousLevelNodes[r].parent = n, n
+
+			// adjust according to the length of previous level only on first iteration
+			if i == 0 && len(previousLevelNodes)%2 != 0 {
+				l, r = l-2, r-1
+			} else {
+				l, r = l-2, r-2
+			}
+		}
+
+		// we are at the root
+		if len(currentLevelNodes) == 1 {
+			root = currentLevelNodes[0]
+			break
+		}
+
+		p = p - hSize*len(currentLevelNodes)
+		previousLevelNodes = currentLevelNodes
+	}
+
+	return &MerkleTree{
+		root:   root,
+		leaves: leaves,
+		h:      h,
+	}, nil
+}
+
+func (t *MerkleTree) hashFunc(data ...[]byte) []byte {
+	t.h.Reset()
+	for _, part := range data {
+		_, _ = t.h.Write(part)
+	}
+	return t.h.Sum(nil)
 }
 
 func sortPair(a []byte, b []byte) ([]byte, []byte) {

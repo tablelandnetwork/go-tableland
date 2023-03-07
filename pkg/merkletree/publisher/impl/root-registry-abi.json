@@ -1,0 +1,49 @@
+[
+	{
+		"inputs": [
+			{
+				"internalType": "uint256[]",
+				"name": "tableIds",
+				"type": "uint256[]"
+			},
+			{
+				"internalType": "bytes32[]",
+				"name": "roots",
+				"type": "bytes32[]"
+			}
+		],
+		"name": "setRoots",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "tableId",
+				"type": "uint256"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "row",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "bytes32[]",
+				"name": "proof",
+				"type": "bytes32[]"
+			}
+		],
+		"name": "verifyRowInclusion",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+]

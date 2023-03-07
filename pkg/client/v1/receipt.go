@@ -55,6 +55,11 @@ func (c *Client) getReceipt(ctx context.Context, txnHash string) (*apiv1.Transac
 	if response.StatusCode == http.StatusNotFound {
 		return nil, false, nil
 	}
+
+	if response.StatusCode == http.StatusLocked {
+		return nil, false, nil
+	}
+
 	if response.StatusCode != http.StatusOK {
 		msg, _ := io.ReadAll(response.Body)
 		return nil, false, fmt.Errorf("failed call (status: %d, body: %s)", response.StatusCode, msg)

@@ -2,8 +2,10 @@ package controllers
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"net/http"
 	"strconv"
 	"strings"
@@ -20,6 +22,7 @@ import (
 	"github.com/textileio/go-tableland/internal/system"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/errors"
+	"github.com/textileio/go-tableland/pkg/merkletree"
 	"github.com/textileio/go-tableland/pkg/tables"
 	"github.com/textileio/go-tableland/pkg/telemetry"
 )
@@ -29,15 +32,22 @@ type SQLRunner interface {
 	RunReadQuery(ctx context.Context, stmt string) (*tableland.TableData, error)
 }
 
+// MerkleTreeGetter defines the API for fetching a merkle tree.
+type MerkleTreeGetter interface {
+	Get(chainID int64, tableID *big.Int, blockNumber int64) (*merkletree.MerkleTree, error)
+}
+
 // Controller defines the HTTP handlers for interacting with user tables.
 type Controller struct {
+	treeStore     MerkleTreeGetter
 	runner        SQLRunner
 	systemService system.SystemService
 }
 
 // NewController creates a new Controller.
-func NewController(runner SQLRunner, svc system.SystemService) *Controller {
+func NewController(runner SQLRunner, svc system.SystemService, treeStore MerkleTreeGetter) *Controller {
 	return &Controller{
+		treeStore:     treeStore,
 		runner:        runner,
 		systemService: svc,
 	}
@@ -253,8 +263,15 @@ func (c *Controller) GetReceiptByTransactionHash(rw http.ResponseWriter, r *http
 	receipt, exists, err := c.systemService.GetReceiptByTransactionHash(ctx, txnHash)
 	if err != nil {
 		rw.Header().Set("Content-Type", "application/json")
-		rw.WriteHeader(http.StatusBadRequest)
 		log.Ctx(ctx).Error().Err(err).Msg("get receipt by transaction hash")
+
+		if strings.Contains(err.Error(), "database table is locked") ||
+			strings.Contains(err.Error(), "database schema is locked") {
+			rw.WriteHeader(http.StatusLocked)
+		} else {
+			rw.WriteHeader(http.StatusBadRequest)
+		}
+
 		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Get receipt by transaction hash failed"})
 		return
 	}
@@ -549,6 +566,42 @@ func (c *Controller) GetTableQuery(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Set("Content-Type", "application/jsonl+json")
 	}
 	_, _ = rw.Write(formatted)
+}
+
+// GetProof handles the GET /proof/{chainId}/{tableId}/{row} call.
+func (c *Controller) GetProof(rw http.ResponseWriter, r *http.Request) {
+	rw.Header().Set("Content-Type", "application/json")
+
+	vars := mux.Vars(r)
+	chainID, tableID, encodedRow := vars["chainId"], vars["tableId"], vars["row"]
+
+	row, err := hex.DecodeString(encodedRow)
+	if err != nil {
+		return
+	}
+
+	chainIDInt, err := strconv.ParseInt(chainID, 10, 0)
+	if err != nil {
+		return
+	}
+
+	tableIDInt, err := strconv.ParseInt(tableID, 10, 0)
+	if err != nil {
+		return
+	}
+
+	tree, err := c.treeStore.Get(chainIDInt, big.NewInt(tableIDInt), 0)
+	if err != nil {
+		return
+	}
+
+	found, proof := tree.GetProof(row)
+	if !found {
+		rw.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	_ = json.NewEncoder(rw).Encode(apiv1.Proof{Proof: proof.Hex()})
 }
 
 func (c *Controller) runReadRequest(

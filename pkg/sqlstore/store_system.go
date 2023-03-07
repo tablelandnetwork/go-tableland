@@ -8,6 +8,7 @@ import (
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/nonce"
+	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system/db"
 	"github.com/textileio/go-tableland/pkg/tables"
 )
 
@@ -39,5 +40,6 @@ type SystemStore interface {
 
 	Begin(context.Context) (*sql.Tx, error)
 	WithTx(tx *sql.Tx) SystemStore
+	Queries() *db.Queries
 	Close() error
 }

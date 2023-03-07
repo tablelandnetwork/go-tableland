@@ -41,7 +41,7 @@ func (ep *EventProcessor) initMetrics(chainID tableland.ChainID) error {
 			o.ObserveInt64(mTreeLeavesCalculationElapsedTime, ep.mTreeLeavesCalculationElapsedTime.Load(), ep.mBaseLabels...)
 			return nil
 		}, []instrument.Asynchronous{
-			mExecutionRound, mLastProcessedHeight, mHashCalculationElapsedTime,
+			mExecutionRound, mLastProcessedHeight, mHashCalculationElapsedTime, mTreeLeavesCalculationElapsedTime,
 		}...)
 	if err != nil {
 		return fmt.Errorf("registering async metric callback: %s", err)

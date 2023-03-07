@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -228,6 +229,11 @@ func (rs *RPCService) GetReceipt(
 	}
 	ok, receipt, err := rs.tbl.GetReceipt(ctx, chainID, req.TxnHash)
 	if err != nil {
+		if strings.Contains(err.Error(), "database table is locked") ||
+			strings.Contains(err.Error(), "database schema is locked") {
+			ret := GetReceiptResponse{Ok: ok}
+			return ret, nil
+		}
 		return GetReceiptResponse{}, fmt.Errorf("calling GetReceipt: %v", err)
 	}
 	ret := GetReceiptResponse{Ok: ok}

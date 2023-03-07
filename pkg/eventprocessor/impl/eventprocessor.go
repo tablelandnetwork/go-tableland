@@ -217,18 +217,6 @@ func (ep *EventProcessor) executeBlock(ctx context.Context, block eventfeed.Bloc
 		}
 	}()
 
-	if block.BlockNumber >= ep.nextHashCalcBlockNumber {
-		if err := ep.calculateHash(ctx, bs); err != nil {
-			return fmt.Errorf("calculate hash: %s", err)
-		}
-
-		if err := ep.snapshotTreeLeaves(ctx, bs, block.BlockNumber); err != nil {
-			return fmt.Errorf("calculate tree leaves: %s", err)
-		}
-
-		ep.nextHashCalcBlockNumber = nextMultipleOf(block.BlockNumber, ep.config.HashCalcStep)
-	}
-
 	receipts := make([]eventprocessor.Receipt, 0, len(block.Txns))
 	for idxInBlock, txnEvents := range block.Txns {
 		if ep.config.DedupExecutedTxns {
@@ -286,6 +274,18 @@ func (ep *EventProcessor) executeBlock(ctx context.Context, block eventfeed.Bloc
 		return fmt.Errorf("set new processed height %d: %s", block.BlockNumber, err)
 	}
 
+	if block.BlockNumber >= ep.nextHashCalcBlockNumber {
+		if err := ep.calculateHash(ctx, bs); err != nil {
+			return fmt.Errorf("calculate hash: %s", err)
+		}
+
+		if err := ep.snapshotTreeLeaves(ctx, bs, block.BlockNumber); err != nil {
+			return fmt.Errorf("calculate tree leaves: %s", err)
+		}
+
+		ep.nextHashCalcBlockNumber = nextMultipleOf(block.BlockNumber, ep.config.HashCalcStep)
+	}
+
 	if err := bs.Commit(); err != nil {
 		return fmt.Errorf("committing changes: %s", err)
 	}
@@ -336,7 +336,6 @@ func (ep *EventProcessor) snapshotTreeLeaves(ctx context.Context, bs executor.Bl
 	elapsedTime := time.Since(startTime).Milliseconds()
 	ep.log.Info().
 		Int64("block_number", blockNumber).
-		Int64("chain_id", int64(ep.chainID)).
 		Int64("elapsed_time", elapsedTime).
 		Msg("tree leaves snapshotting")
 

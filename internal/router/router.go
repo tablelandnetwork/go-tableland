@@ -13,12 +13,14 @@ import (
 	"github.com/textileio/go-tableland/internal/router/middlewares"
 	"github.com/textileio/go-tableland/internal/system"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/merkletree/publisher/impl"
 )
 
 // ConfiguredRouter returns a fully configured Router that can be used as an http handler.
 func ConfiguredRouter(
 	tableland tableland.Tableland,
 	systemService system.SystemService,
+	treeStore *impl.MerkleTreeStore,
 	maxRPI uint64,
 	rateLimInterval time.Duration,
 	supportedChainIDs []tableland.ChainID,
@@ -45,7 +47,7 @@ func ConfiguredRouter(
 		return nil, fmt.Errorf("creating rate limit controller middleware: %s", err)
 	}
 
-	ctrl := controllers.NewController(tableland, systemService)
+	ctrl := controllers.NewController(tableland, systemService, treeStore)
 
 	// TODO(json-rpc): remove this when dropping support.
 	// APIs Legacy (REST + JSON-RPC)
@@ -97,6 +99,10 @@ func configureAPIV1Routes(
 	}{
 		"QueryByStatement": {
 			userCtrl.GetTableQuery,
+			[]mux.MiddlewareFunc{middlewares.WithLogging, rateLim},
+		},
+		"QueryProof": {
+			userCtrl.GetProof,
 			[]mux.MiddlewareFunc{middlewares.WithLogging, rateLim},
 		},
 		"ReceiptByTransactionHash": {

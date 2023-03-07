@@ -37,7 +37,6 @@ import (
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
 	"github.com/textileio/go-tableland/pkg/tables"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
-	"github.com/textileio/go-tableland/pkg/tables/impl/testutil"
 	"github.com/textileio/go-tableland/pkg/wallet"
 	"github.com/textileio/go-tableland/tests"
 )
@@ -940,14 +939,17 @@ func (b *tablelandSetupBuilder) build(t *testing.T) *tablelandSetup {
 	ex, err := executor.NewExecutor(1337, db, parser, 0, &aclHalfMock{store})
 	require.NoError(t, err)
 
-	backend, addr, sc, auth, sk := testutil.Setup(t)
+	// Spin up the EVM chain with the contract.
+	simulatedChain := tests.NewSimulatedChain(t)
+	contract, err := simulatedChain.DeployContract(t, ethereum.Deploy)
+	require.NoError(t, err)
 
 	// Spin up dependencies needed for the EventProcessor.
 	// i.e: Executor, Parser, and EventFeed (connected to the EVM chain)
 	ef, err := efimpl.New(store,
 		1337,
-		backend,
-		addr,
+		simulatedChain.Backend,
+		contract.ContractAddr,
 		eventfeed.WithNewHeadPollFreq(time.Millisecond),
 		eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
@@ -970,15 +972,15 @@ func (b *tablelandSetupBuilder) build(t *testing.T) *tablelandSetup {
 		chainID: 1337,
 
 		// ethereum client
-		ethClient: backend,
+		ethClient: simulatedChain.Backend,
 
 		// contract bindings
-		contract:     sc,
-		contractAddr: addr,
+		contract:     contract.Contract.(*ethereum.Contract),
+		contractAddr: contract.ContractAddr,
 
 		// contract deployer
-		deployerPrivateKey: sk,
-		deployerTxOpts:     auth,
+		deployerPrivateKey: simulatedChain.DeployerPrivateKey,
+		deployerTxOpts:     simulatedChain.DeployerTransactOpts,
 
 		// common dependencies among mesa clients
 		parser:      parser,

@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"hash"
 	"hash/fnv"
 	"sort"
 	"strings"
@@ -278,26 +279,17 @@ func (bs *blockScope) snapshotTreeLeavesForTable(
 		args[i] = &columnValues[i]
 	}
 
-	leaves := []byte{}
+	leaves, cols := []byte{}, make([]string, len(columns))
 	// using a non-cryptographic hash that outputs a hash of 16 bytes
-	rowHash := fnv.New128a()
+	h := fnv.New128a()
 	for tableRows.Next() {
 		if err := tableRows.Scan(args...); err != nil {
 			return fmt.Errorf("table row scan: %s", err)
 		}
-
-		// We sort the column values to have a deterministic order of columns,
-		// because we cannot trust the order of 'SELECT *'.
-		sort.Slice(columnValues, func(i, j int) bool {
-			return bytes.Compare(columnValues[i], columnValues[j]) == -1
-		})
-
-		for _, col := range columnValues {
-			rowHash.Write(col)
-		}
-
-		leaves = append(leaves, rowHash.Sum(nil)...)
-		rowHash.Reset()
+		copy(cols, columns)
+		row := rowLeaf{columns: cols, columnValues: columnValues}
+		sort.Stable(row)
+		leaves = append(leaves, row.Encode(h)...)
 	}
 
 	if err := tableRows.Err(); err != nil {
@@ -362,4 +354,52 @@ func (wqr *writeStatmentResolver) GetTxnHash() string {
 
 func (wqr *writeStatmentResolver) GetBlockNumber() int64 {
 	return wqr.blockNumber
+}
+
+// rowLeaf is a sortable data structure that holds the columns and columns values.
+//
+// We sort the column values to have a deterministic order of columns,
+// because we cannot trust the order of 'SELECT *'.
+//
+// The downside of sorting is that different rows can be considered equal.
+// For example, consider the table below:
+// a | b
+// ------
+// 0 | 1
+// 1 | 0
+//
+// After sorting and hashing we would have the same hash for both rows,
+// but they are different and should have different hashes.
+//
+// To avoid that we have sort the columns with respect to column values sorting.
+// And encode the column together with the column value.
+type rowLeaf struct {
+	columnValues []sql.RawBytes
+	columns      []string
+}
+
+func (rl rowLeaf) Len() int {
+	return len(rl.columnValues)
+}
+
+func (rl rowLeaf) Swap(i, j int) {
+	rl.columnValues[i], rl.columnValues[j] = rl.columnValues[j], rl.columnValues[i]
+	rl.columns[i], rl.columns[j] = rl.columns[j], rl.columns[i]
+}
+
+func (rl rowLeaf) Less(i, j int) bool {
+	if len(rl.columnValues[i]) == len(rl.columnValues[j]) {
+		return bytes.Compare(rl.columnValues[i], rl.columnValues[j]) < 0
+	}
+
+	return len(rl.columnValues[i]) < len(rl.columnValues[j])
+}
+
+func (rl rowLeaf) Encode(h hash.Hash) []byte {
+	h.Reset()
+	for i := range rl.columnValues {
+		h.Write([]byte(rl.columns[i]))
+		h.Write(rl.columnValues[i])
+	}
+	return h.Sum(nil)
 }

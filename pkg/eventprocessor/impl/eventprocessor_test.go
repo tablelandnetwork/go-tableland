@@ -20,7 +20,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
 	"github.com/textileio/go-tableland/pkg/tables"
-	"github.com/textileio/go-tableland/pkg/tables/impl/testutil"
+	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 	"github.com/textileio/go-tableland/tests"
 )
 
@@ -309,7 +309,9 @@ func setup(t *testing.T) (
 	t.Helper()
 
 	// Spin up the EVM chain with the contract.
-	backend, addr, sc, authOpts, _ := testutil.Setup(t)
+	simulatedChain := tests.NewSimulatedChain(t)
+	contract, err := simulatedChain.DeployContract(t, ethereum.Deploy)
+	require.NoError(t, err)
 
 	// Spin up dependencies needed for the EventProcessor.
 	// i.e: Executor, Parser, and EventFeed (connected to the EVM chain)
@@ -328,8 +330,8 @@ func setup(t *testing.T) (
 	ef, err := efimpl.New(
 		systemStore,
 		chainID,
-		backend,
-		addr,
+		simulatedChain.Backend,
+		contract.ContractAddr,
 		eventfeed.WithNewHeadPollFreq(time.Millisecond),
 		eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
@@ -342,33 +344,41 @@ func setup(t *testing.T) (
 	contractSendRunSQL := func(queries []string) []common.Hash {
 		var txnHashes []common.Hash
 		for _, q := range queries {
-			txn, err := sc.RunSQL(authOpts, authOpts.From, big.NewInt(1), q)
+			txn, err := contract.Contract.(*ethereum.Contract).RunSQL(
+				simulatedChain.DeployerTransactOpts, simulatedChain.DeployerTransactOpts.From, big.NewInt(1), q,
+			)
 
 			require.NoError(t, err)
 			txnHashes = append(txnHashes, txn.Hash())
 		}
-		backend.Commit()
+		simulatedChain.Backend.Commit()
 		return txnHashes
 	}
 
 	contractSendSetController := func(controller common.Address) common.Hash {
-		txn, err := sc.SetController(authOpts, authOpts.From, big.NewInt(1), controller)
+		txn, err := contract.Contract.(*ethereum.Contract).SetController(
+			simulatedChain.DeployerTransactOpts, simulatedChain.DeployerTransactOpts.From, big.NewInt(1), controller,
+		)
 		require.NoError(t, err)
-		backend.Commit()
+		simulatedChain.Backend.Commit()
 		return txn.Hash()
 	}
 
 	mintTable := func(query string) common.Hash {
-		txn, err := sc.CreateTable(authOpts, authOpts.From, query)
+		txn, err := contract.Contract.(*ethereum.Contract).CreateTable(
+			simulatedChain.DeployerTransactOpts, simulatedChain.DeployerTransactOpts.From, query,
+		)
 		require.NoError(t, err)
-		backend.Commit()
+		simulatedChain.Backend.Commit()
 		return txn.Hash()
 	}
 
 	transferFrom := func(controller common.Address) common.Hash {
-		txn, err := sc.TransferFrom(authOpts, authOpts.From, controller, big.NewInt(1))
+		txn, err := contract.Contract.(*ethereum.Contract).TransferFrom(
+			simulatedChain.DeployerTransactOpts, simulatedChain.DeployerTransactOpts.From, controller, big.NewInt(1),
+		)
 		require.NoError(t, err)
-		backend.Commit()
+		simulatedChain.Backend.Commit()
 		return txn.Hash()
 	}
 

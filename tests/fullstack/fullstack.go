@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
@@ -24,6 +25,8 @@ import (
 	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
 	epimpl "github.com/textileio/go-tableland/pkg/eventprocessor/impl"
 	executor "github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor/impl"
+	merklepublisher "github.com/textileio/go-tableland/pkg/merkletree/publisher"
+	merklepublisherimpl "github.com/textileio/go-tableland/pkg/merkletree/publisher/impl"
 	nonceimpl "github.com/textileio/go-tableland/pkg/nonce/impl"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
@@ -33,7 +36,6 @@ import (
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
 	"github.com/textileio/go-tableland/pkg/tables"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
-	"github.com/textileio/go-tableland/pkg/tables/impl/testutil"
 	"github.com/textileio/go-tableland/pkg/wallet"
 	"github.com/textileio/go-tableland/tests"
 )
@@ -86,17 +88,20 @@ func CreateFullStack(t *testing.T, deps Deps) FullStack {
 		require.NoError(t, err)
 	}
 
-	backend, addr, contract, transactOpts, sk := testutil.Setup(t)
+	// Spin up the EVM chain with the contract.
+	simulatedChain := tests.NewSimulatedChain(t)
+	contract, err := simulatedChain.DeployContract(t, ethereum.Deploy)
+	require.NoError(t, err)
 
-	wallet, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(sk)))
+	wallet, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(simulatedChain.DeployerPrivateKey)))
 	require.NoError(t, err)
 
 	registry, err := ethereum.NewClient(
-		backend,
+		simulatedChain.Backend,
 		ChainID,
-		addr,
+		contract.ContractAddr,
 		wallet,
-		nonceimpl.NewSimpleTracker(wallet, backend),
+		nonceimpl.NewSimpleTracker(wallet, simulatedChain.Backend),
 	)
 	require.NoError(t, err)
 
@@ -116,21 +121,18 @@ func CreateFullStack(t *testing.T, deps Deps) FullStack {
 	ef, err := efimpl.New(
 		systemStore,
 		ChainID,
-		backend,
-		addr,
+		simulatedChain.Backend,
+		contract.ContractAddr,
 		eventfeed.WithNewHeadPollFreq(time.Millisecond),
 		eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
 
 	// Create EventProcessor for our test.
-	ep, err := epimpl.New(parser, ex, ef, 1337)
+	ep, err := epimpl.New(parser, ex, ef, 1337, eventprocessor.WithHashCalcStep(1))
 	require.NoError(t, err)
 
 	err = ep.Start()
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		ep.Stop()
-	})
 
 	chainStacks := map[tableland.ChainID]chains.ChainStack{
 		1337: {
@@ -174,17 +176,48 @@ func CreateFullStack(t *testing.T, deps Deps) FullStack {
 		require.NoError(t, err)
 	}
 
-	router, err := router.ConfiguredRouter(tbl, systemService, 10, time.Second, []tableland.ChainID{ChainID})
+	treeStore, err := merklepublisherimpl.NewMerkleTreeStore(tempfile(t))
+	require.NoError(t, err)
+
+	merkleRootContract, err := simulatedChain.DeployContract(t,
+		func(auth *bind.TransactOpts, sb *backends.SimulatedBackend) (common.Address, interface{}, error) {
+			addr, _, contract, err := merklepublisherimpl.DeployContract(auth, sb)
+			return addr, contract, err
+		})
+	require.NoError(t, err)
+
+	rootRegistry, err := merklepublisherimpl.NewMerkleRootRegistryEthereum(
+		simulatedChain.Backend,
+		merkleRootContract.ContractAddr,
+		wallet,
+		nonceimpl.NewSimpleTracker(wallet, simulatedChain.Backend),
+	)
+	require.NoError(t, err)
+
+	merkleRootPublisher := merklepublisher.NewMerkleRootPublisher(
+		merklepublisherimpl.NewLeavesStore(systemStore),
+		treeStore,
+		rootRegistry,
+		time.Second,
+	)
+	merkleRootPublisher.Start()
+
+	router, err := router.ConfiguredRouter(tbl, systemService, treeStore, 10, time.Second, []tableland.ChainID{ChainID})
 	require.NoError(t, err)
 
 	server := httptest.NewServer(router.Handler())
-	t.Cleanup(server.Close)
+
+	t.Cleanup(func() {
+		server.Close()
+		ep.Stop()
+		merkleRootPublisher.Close()
+	})
 
 	return FullStack{
-		Backend:           backend,
-		Address:           addr,
-		Contract:          contract,
-		TransactOpts:      transactOpts,
+		Backend:           simulatedChain.Backend,
+		Address:           contract.ContractAddr,
+		Contract:          contract.Contract.(*ethereum.Contract),
+		TransactOpts:      simulatedChain.DeployerTransactOpts,
 		Wallet:            wallet,
 		TblContractClient: registry,
 		Server:            server,
@@ -208,4 +241,15 @@ func (acl *aclHalfMock) CheckPrivileges(
 
 func (acl *aclHalfMock) IsOwner(_ context.Context, _ common.Address, _ tables.TableID) (bool, error) {
 	return true, nil
+}
+
+// tempfile returns a temporary file path.
+func tempfile(t *testing.T) string {
+	t.Helper()
+
+	f, err := os.CreateTemp(t.TempDir(), "bolt_*.db")
+	require.NoError(t, err)
+	require.NoError(t, f.Close())
+
+	return f.Name()
 }

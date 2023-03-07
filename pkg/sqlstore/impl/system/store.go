@@ -580,6 +580,11 @@ func aclFromSQLtoDTO(acl db.SystemAcl) (sqlstore.SystemACL, error) {
 	return systemACL, nil
 }
 
+// Queries is a temp hack to get direct access to db.Queries.
+func (s *SystemStore) Queries() *db.Queries {
+	return s.dbWithTx.queries()
+}
+
 func sanitizeAddress(address string) error {
 	if strings.ContainsAny(address, "%_") {
 		return errors.New("address contains invalid characters")

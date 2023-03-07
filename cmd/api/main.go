@@ -31,6 +31,7 @@ import (
 	epimpl "github.com/textileio/go-tableland/pkg/eventprocessor/impl"
 	executor "github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor/impl"
 	"github.com/textileio/go-tableland/pkg/logging"
+
 	"github.com/textileio/go-tableland/pkg/metrics"
 	nonceimpl "github.com/textileio/go-tableland/pkg/nonce/impl"
 	"github.com/textileio/go-tableland/pkg/parsing"
@@ -73,11 +74,6 @@ func main() {
 		path.Join(dirPath, "database.db"),
 	)
 
-	db, err := sqlstoreimpl.NewSQLiteDB(databaseURL)
-	if err != nil {
-		log.Fatal().Err(err).Msg("configuring telemetry")
-	}
-
 	// Restore provided backup (if configured).
 	if config.BootstrapBackupURL != "" {
 		if err := restoreBackup(databaseURL, config.BootstrapBackupURL); err != nil {
@@ -91,10 +87,18 @@ func main() {
 		log.Fatal().Err(err).Msg("creating parser")
 	}
 
+	// Wiring
+	treeDatabaseURL := path.Join(dirPath, "trees.db")
+	treeStore, err := merklepublisherimpl.NewMerkleTreeStore(treeDatabaseURL)
+	if err != nil {
+		log.Fatal().Err(err).Msg("creating new merkle tree store")
+	}
+
 	// Chain stacks.
 	chainStacks, closeChainStacks, err := createChainStacks(
 		databaseURL,
 		parser,
+		treeStore,
 		config.Chains,
 		config.TableConstraints,
 		config.Analytics.FetchExtraBlockInfo)
@@ -113,7 +117,7 @@ func main() {
 	}
 
 	// HTTP API server.
-	closeHTTPServer, err := createAPIServer(config.HTTP, config.Gateway, parser, userStore, chainStacks)
+	closeHTTPServer, err := createAPIServer(config.HTTP, config.Gateway, parser, userStore, treeStore, chainStacks)
 	if err != nil {
 		log.Fatal().Err(err).Msg("creating HTTP server")
 	}
@@ -126,9 +130,6 @@ func main() {
 			log.Fatal().Err(err).Msg("creating backuper")
 		}
 	}
-
-	// Merkle Tree publisher.
-	closeMerkleTreePublisherModule := configureMerkleTreePublisher(db)
 
 	// Telemetry
 	closeTelemetryModule, err := configureTelemetry(dirPath, chainStacks, config.TelemetryPublisher)
@@ -163,15 +164,6 @@ func main() {
 			log.Error().Err(err).Msg("closing user store")
 		}
 
-		if err := db.Close(); err != nil {
-			log.Error().Err(err).Msg("closing sqlite db")
-		}
-
-		// Close merkle tree publisher.
-		if err := closeMerkleTreePublisherModule(ctx); err != nil {
-			log.Error().Err(err).Msg("closing merkle tree publisher module")
-		}
-
 		// Close telemetry.
 		if err := closeTelemetryModule(ctx); err != nil {
 			log.Error().Err(err).Msg("closing telemetry module")
@@ -184,6 +176,7 @@ func createChainIDStack(
 	dbURI string,
 	executorsDB *sql.DB,
 	parser parsing.SQLValidator,
+	treeStore *merklepublisherimpl.MerkleTreeStore,
 	tableConstraints TableConstraints,
 	fetchExtraBlockInfo bool,
 ) (chains.ChainStack, error) {
@@ -288,6 +281,30 @@ func createChainIDStack(
 	if err := ep.Start(); err != nil {
 		return chains.ChainStack{}, fmt.Errorf("starting event processor: %s", err)
 	}
+
+	// starts Merkle Tree Publisher
+	var merkleRootPublisher *merklepublisher.MerkleRootPublisher
+	if config.MerkleTree.Enabled {
+		scAddress := common.HexToAddress(config.MerkleTree.RootRegistryContract)
+		rootRegistry, err := merklepublisherimpl.NewMerkleRootRegistryEthereum(conn, scAddress, wallet, tracker)
+		if err != nil {
+			return chains.ChainStack{}, fmt.Errorf("creating merkle root registry: %s", err)
+		}
+
+		merkleTreePublishingInterval, err := time.ParseDuration(config.MerkleTree.PublishingInterval)
+		if err != nil {
+			return chains.ChainStack{}, fmt.Errorf("parsing merkle tree publishing interval: %s", err)
+		}
+
+		merkleRootPublisher = merklepublisher.NewMerkleRootPublisher(
+			merklepublisherimpl.NewLeavesStore(systemStore),
+			treeStore,
+			rootRegistry,
+			merkleTreePublishingInterval,
+		)
+		merkleRootPublisher.Start()
+	}
+
 	return chains.ChainStack{
 		Store:          systemStore,
 		Registry:       registry,
@@ -304,24 +321,14 @@ func createChainIDStack(
 			if err := systemStore.Close(); err != nil {
 				return fmt.Errorf("closing system store for chain_id %d: %s", config.ChainID, err)
 			}
+
+			if config.MerkleTree.Enabled {
+				merkleRootPublisher.Close()
+			}
+
 			return nil
 		},
 	}, nil
-}
-
-func configureMerkleTreePublisher(db *sqlstoreimpl.SQLiteDB) moduleCloser {
-	store := merklepublisherimpl.NewLeavesStore(db)
-	p := merklepublisher.NewMerkleRootPublisher(
-		store,
-		merklepublisherimpl.NewMerkleRootRegistryLogger(log.Logger),
-		time.Second,
-	)
-	p.Start()
-
-	return func(_ context.Context) error {
-		p.Close()
-		return nil
-	}
 }
 
 func configureTelemetry(
@@ -449,6 +456,7 @@ func createParser(queryConstraints QueryConstraints) (parsing.SQLValidator, erro
 func createChainStacks(
 	databaseURL string,
 	parser parsing.SQLValidator,
+	treeStore *merklepublisherimpl.MerkleTreeStore,
 	chainsConfig []ChainConfig,
 	tableConstraintsConfig TableConstraints,
 	fetchExtraBlockInfo bool,
@@ -475,6 +483,7 @@ func createChainStacks(
 			databaseURL,
 			executorsDB,
 			parser,
+			treeStore,
 			tableConstraintsConfig,
 			fetchExtraBlockInfo)
 		if err != nil {
@@ -515,6 +524,7 @@ func createAPIServer(
 	gatewayConfig GatewayConfig,
 	parser parsing.SQLValidator,
 	userStore *user.UserStore,
+	treeStore *merklepublisherimpl.MerkleTreeStore,
 	chainStacks map[tableland.ChainID]chains.ChainStack,
 ) (moduleCloser, error) {
 	instrUserStore, err := sqlstoreimpl.NewInstrumentedUserStore(userStore)
@@ -554,6 +564,7 @@ func createAPIServer(
 	router, err := router.ConfiguredRouter(
 		mesaService,
 		systemService,
+		treeStore,
 		httpConfig.MaxRequestPerInterval,
 		rateLimInterval,
 		supportedChainIDs,

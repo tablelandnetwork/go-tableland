@@ -13,6 +13,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/metrics"
 	"github.com/textileio/go-tableland/pkg/nonce"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
+	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system/db"
 	"github.com/textileio/go-tableland/pkg/tables"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric/global"
@@ -410,4 +411,9 @@ func (s *InstrumentedSystemStore) GetID(ctx context.Context) (string, error) {
 	s.latencyHistogram.Record(ctx, latency, attributes...)
 
 	return id, err
+}
+
+// Queries is a temp hack to get direct access to db.Queries.
+func (s *InstrumentedSystemStore) Queries() *db.Queries {
+	return s.store.Queries()
 }

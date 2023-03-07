@@ -76,7 +76,13 @@
         "StuckInterval": "10m",
         "MinBlockDepth": 0
       },
-      "HashCalculationStep": 100
+      "HashCalculationStep": 100,
+      "MerkleTree": {
+        "Enabled" : true,
+        "LeavesSnapshottingStep" : 5,
+        "PublishingInterval" : "5m",
+        "RootRegistryContract" : "0x8065b18fDF17E6180614308bCFb798E877A4c291"
+      }
     }
   ]
 }

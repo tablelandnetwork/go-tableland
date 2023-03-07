@@ -122,6 +122,16 @@ type ChainConfig struct {
 		MinBlockDepth int    `default:"5"`
 	}
 	HashCalculationStep int64 `default:"1000"`
+	MerkleTree          struct {
+		Enabled bool `default:"false"`
+		// We aim to have a new root calculated every 30 min.
+		// That means that the step should be configured to LeavesSnapshottingStep = 30*60/chain_avg_block_time_in_seconds.
+		// e.g. In Ethereum, chain_avg_block_time_in_seconds = 12s, so LeavesSnapshottingStep for Ethereum is 30*60/12 = 150.
+		LeavesSnapshottingStep int64 `default:"1000"`
+		// We aim to have a new root calculated every 30 min. Setting the default to half of that.
+		PublishingInterval   string `default:"15m"`
+		RootRegistryContract string `default:""`
+	}
 }
 
 func setupConfig() (*config, string) {

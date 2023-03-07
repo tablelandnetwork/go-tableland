@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"hash/fnv"
+	"math/big"
 	"sync"
 	"time"
 
@@ -16,7 +17,7 @@ import (
 type TreeLeaves struct {
 	Leaves      []byte
 	ChainID     int64
-	TableID     int64
+	TableID     *big.Int
 	BlockNumber int64
 	TablePrefix string
 }
@@ -34,16 +35,22 @@ type LeavesStore interface {
 	DeleteProcessing(context.Context, int64, int64) error
 }
 
+// MerkleTreeStore defines the API for storing the merkle tree.
+type MerkleTreeStore interface {
+	Store(chainID int64, tableID *big.Int, blockNumber int64, tree *merkletree.MerkleTree) error
+}
+
 // MerkleRootRegistry defines the API for publishing root.
 type MerkleRootRegistry interface {
 	// Publish publishes the roots of multiple tables at a particular block.
-	Publish(ctx context.Context, chainID int64, blockNumber int64, tables []int64, roots [][]byte) error
+	Publish(ctx context.Context, chainID int64, blockNumber int64, tables []*big.Int, roots [][]byte) error
 }
 
 // MerkleRootPublisher is responsible for building Merkle Tree and publishing the root.
 type MerkleRootPublisher struct {
-	store    LeavesStore        // where leaves are stored
-	registry MerkleRootRegistry // where root will be published
+	leavesStore LeavesStore        // where leaves are stored
+	treeStore   MerkleTreeStore    // where trees are stored
+	registry    MerkleRootRegistry // where root will be published
 
 	// wallet   *wallet.Wallet
 	interval time.Duration
@@ -54,13 +61,15 @@ type MerkleRootPublisher struct {
 
 // NewMerkleRootPublisher creates a new publisher.
 func NewMerkleRootPublisher(
-	store LeavesStore,
+	leavesStore LeavesStore,
+	treeStore MerkleTreeStore,
 	registry MerkleRootRegistry,
 	interval time.Duration,
 ) *MerkleRootPublisher {
 	return &MerkleRootPublisher{
-		store:    store,
-		registry: registry,
+		leavesStore: leavesStore,
+		treeStore:   treeStore,
+		registry:    registry,
 
 		// wallet:   wallet,
 		interval: interval,
@@ -102,14 +111,14 @@ func (p *MerkleRootPublisher) Close() {
 }
 
 func (p *MerkleRootPublisher) publish(ctx context.Context) error {
-	chainIDBlockNumberPairs, err := p.store.FetchChainIDAndBlockNumber(ctx)
+	chainIDBlockNumberPairs, err := p.leavesStore.FetchChainIDAndBlockNumber(ctx)
 	if err != nil {
 		return fmt.Errorf("fetching block number and chain id pairs: %s", err)
 	}
 
 	// we do `n` publish calls, where n is the number of chains
 	for _, pair := range chainIDBlockNumberPairs {
-		tableLeaves, err := p.store.FetchLeavesByChainIDAndBlockNumber(ctx, pair.ChainID, pair.BlockNumber)
+		tableLeaves, err := p.leavesStore.FetchLeavesByChainIDAndBlockNumber(ctx, pair.ChainID, pair.BlockNumber)
 		if err != nil {
 			return fmt.Errorf("fetch unpublished metrics: %s", err)
 		}
@@ -118,7 +127,7 @@ func (p *MerkleRootPublisher) publish(ctx context.Context) error {
 			return nil
 		}
 
-		tableIDs, roots := make([]int64, len(tableLeaves)), make([][]byte, len(tableLeaves))
+		tableIDs, roots := make([]*big.Int, len(tableLeaves)), make([][]byte, len(tableLeaves))
 		for i, table := range tableLeaves {
 			if table.ChainID != pair.ChainID {
 				return fmt.Errorf("chain id mismatch (%d, %d)", table.ChainID, pair.ChainID)
@@ -140,13 +149,16 @@ func (p *MerkleRootPublisher) publish(ctx context.Context) error {
 			}
 
 			tableIDs[i], roots[i] = table.TableID, tree.MerkleRoot()
+			if err := p.treeStore.Store(pair.ChainID, table.TableID, pair.BlockNumber, tree); err != nil {
+				return fmt.Errorf("storing the tree chain: %d, table: %d): %s", pair.ChainID, table.TableID.Int64(), err)
+			}
 		}
 
 		if err := p.registry.Publish(ctx, pair.ChainID, pair.BlockNumber, tableIDs, roots); err != nil {
 			return fmt.Errorf("publishing root: %s", err)
 		}
 
-		if err := p.store.DeleteProcessing(ctx, pair.ChainID, pair.BlockNumber); err != nil {
+		if err := p.leavesStore.DeleteProcessing(ctx, pair.ChainID, pair.BlockNumber); err != nil {
 			return fmt.Errorf("delete processing: %s", err)
 		}
 	}

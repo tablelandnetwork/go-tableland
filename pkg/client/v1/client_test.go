@@ -2,10 +2,13 @@ package v1
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
+	"hash/fnv"
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/router/controllers/apiv1"
 	"github.com/textileio/go-tableland/pkg/client"
@@ -74,18 +77,63 @@ func TestGetReceipt(t *testing.T) {
 
 	t.Run("status 400", func(t *testing.T) {
 		calls := setup(t)
-		_ = requireCreate(t, calls)
-		_, _, err := calls.client.Receipt(context.Background(), "0xINVALIDHASH")
-		require.Error(t, err)
+		requireCreate(t, calls)
+
+		require.Eventually(t, func() bool {
+			_, _, err := calls.client.Receipt(context.Background(), "0xINVALIDHASH")
+			return err != nil
+		}, 10*time.Second, time.Second)
 	})
 
 	t.Run("status 404", func(t *testing.T) {
 		calls := setup(t)
-		_ = requireCreate(t, calls)
-		_, exists, err := calls.client.Receipt(context.Background(), "0x5c6f90e52284726a7276d6a20a3df94a4532a8fa4c921233a301e95673ad0255") //nolint
-		require.NoError(t, err)
-		require.False(t, exists)
+		requireCreate(t, calls)
+
+		require.Eventually(t, func() bool {
+			_, exists, err := calls.client.Receipt(context.Background(), "0x5c6f90e52284726a7276d6a20a3df94a4532a8fa4c921233a301e95673ad0255") //nolint
+			require.NoError(t, err)
+			return exists == false
+		}, 10*time.Second, time.Second)
 	})
+}
+
+func TestProof(t *testing.T) {
+	calls := setup(t)
+
+	id, tableName := calls.create("(foo text, bar int, baz blob)", WithPrefix("foo"), WithReceiptTimeout(time.Second*10))
+	require.Equal(t, "foo_1337_1", tableName)
+
+	hash := calls.write(
+		fmt.Sprintf("insert into %s (foo, bar, baz) values ('qux', 1, X'53514C697465'), (null, 2, null)", tableName),
+	)
+	require.NotEmpty(t, hash)
+	requireReceipt(t, calls, hash, WaitFor(time.Second*10))
+
+	h := fnv.New128a()
+	h.Write([]byte("bar"))
+	h.Write([]byte("1"))
+	h.Write([]byte("foo"))
+	h.Write([]byte("qux"))
+	h.Write([]byte("baz"))
+	byts, _ := hex.DecodeString("53514C697465")
+	h.Write(byts)
+	leaf1 := crypto.Keccak256(h.Sum(nil))
+
+	h = fnv.New128a()
+	h.Write([]byte("foo"))
+	h.Write([]byte{})
+	h.Write([]byte("baz"))
+	h.Write([]byte{})
+	h.Write([]byte("bar"))
+	h.Write([]byte("2"))
+	leaf2 := crypto.Keccak256(h.Sum(nil))
+
+	require.Eventually(t, func() bool {
+		proof1, found1, _ := calls.client.Proof(context.Background(), id, leaf1)
+		proof2, found2, _ := calls.client.Proof(context.Background(), id, leaf2)
+		return found1 && proof1[0] == hex.EncodeToString(leaf2) &&
+			found2 && proof2[0] == hex.EncodeToString(leaf1)
+	}, time.Second*10, time.Second)
 }
 
 func TestGetTableByID(t *testing.T) {

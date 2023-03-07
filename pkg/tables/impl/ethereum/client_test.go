@@ -2,9 +2,7 @@ package ethereum
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"encoding/hex"
-	"math"
 	"math/big"
 	"strings"
 	"testing"
@@ -14,8 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/tableland"
@@ -31,9 +27,12 @@ import (
 
 func TestCreateTable(t *testing.T) {
 	t.Parallel()
-	backend, _, fromAuth, _, client := setup(t)
+	simulatedChain, client, _ := setup(t)
+	backend := simulatedChain.Backend
 
-	txn, err := client.CreateTable(context.Background(), fromAuth.From, "CREATE TABLE foo (bar int)")
+	txn, err := client.CreateTable(
+		context.Background(), simulatedChain.DeployerTransactOpts.From, "CREATE TABLE foo (bar int)",
+	)
 	require.NoError(t, err)
 	backend.Commit()
 
@@ -49,10 +48,13 @@ func TestCreateTable(t *testing.T) {
 func TestIsOwner(t *testing.T) {
 	t.Parallel()
 
-	backend, key, fromAuth, contract, client := setup(t)
-	_, toAuth := requireNewAuth(t)
-	requireAuthGas(t, backend, toAuth)
-	requireTxn(t, backend, key, fromAuth.From, toAuth.From, big.NewInt(1000000000000000000))
+	simulatedChain, client, contract := setup(t)
+	backend, fromAuth := simulatedChain.Backend, simulatedChain.DeployerTransactOpts
+
+	key := simulatedChain.CreateAccountWithBalance(t)
+	toAuth, err := bind.NewKeyedTransactorWithChainID(key, big.NewInt(simulatedChain.ChainID))
+	require.NoError(t, err)
+
 	tokenID := requireMint(t, backend, contract, toAuth, toAuth.From)
 
 	owner, err := client.IsOwner(context.Background(), toAuth.From, tokenID)
@@ -67,7 +69,8 @@ func TestIsOwner(t *testing.T) {
 func TestRunSQL(t *testing.T) {
 	t.Parallel()
 
-	backend, _, txOpts, contract, client := setup(t)
+	simulatedChain, client, contract := setup(t)
+	backend, txOpts := simulatedChain.Backend, simulatedChain.DeployerTransactOpts
 
 	tokenID := requireMint(t, backend, contract, txOpts, txOpts.From)
 
@@ -108,8 +111,10 @@ func TestRunSQL(t *testing.T) {
 func TestSetController(t *testing.T) {
 	t.Parallel()
 
-	backend, _, txOpts, contract, client := setup(t)
-
+	simulatedChain, client, contract := setup(t)
+	backend, contract, txOpts := simulatedChain.Backend,
+		contract,
+		simulatedChain.DeployerTransactOpts
 	// You have to be the owner of the token to set the controller
 	tokenID := requireMint(t, backend, contract, txOpts, txOpts.From)
 
@@ -146,14 +151,15 @@ func TestSetController(t *testing.T) {
 func TestRunSQLWithPolicy(t *testing.T) {
 	t.Parallel()
 
-	backend, _, txOpts, contract, client := setup(t)
+	simulatedChain, client, contract := setup(t)
+	backend, txOpts := simulatedChain.Backend, simulatedChain.DeployerTransactOpts
 
 	// caller must be the sender
-	callerAddress := txOpts.From
+	callerAddress := simulatedChain.DeployerTransactOpts.From
 
 	// Deploy controller contract
 	controllerAddress, _, controllerContract, err := controller.DeployContract(
-		txOpts,
+		simulatedChain.DeployerTransactOpts,
 		backend,
 	)
 	require.NoError(t, err)
@@ -250,7 +256,8 @@ func TestNonceTooLow(t *testing.T) {
 	t.Run("run-sql", func(t *testing.T) {
 		t.Parallel()
 
-		backend, txOpts, contract, client := setupWithLocalTracker(t)
+		simulatedChain, client, contract := setupWithLocalTracker(t)
+		backend, txOpts := simulatedChain.Backend, simulatedChain.DeployerTransactOpts
 
 		tokenID := requireMint(t, backend, contract, txOpts, txOpts.From)
 
@@ -267,7 +274,8 @@ func TestNonceTooLow(t *testing.T) {
 	t.Run("set-controller", func(t *testing.T) {
 		t.Parallel()
 
-		backend, txOpts, contract, client := setupWithLocalTracker(t)
+		simulatedChain, client, contract := setupWithLocalTracker(t)
+		backend, txOpts := simulatedChain.Backend, simulatedChain.DeployerTransactOpts
 
 		tokenID := requireMint(t, backend, contract, txOpts, txOpts.From)
 
@@ -307,142 +315,32 @@ func requireMint(
 	return id
 }
 
-func requireTxn(
-	t *testing.T,
-	backend *backends.SimulatedBackend,
-	key *ecdsa.PrivateKey,
-	from common.Address,
-	to common.Address,
-	amt *big.Int,
-) {
-	nonce, err := backend.PendingNonceAt(context.Background(), from)
+func setup(t *testing.T) (*tests.SimulatedChain, *Client, *Contract) {
+	simulatedChain := tests.NewSimulatedChain(t)
+	contract, err := simulatedChain.DeployContract(t, Deploy)
 	require.NoError(t, err)
 
-	gasLimit := uint64(21000)
-	gasPrice, err := backend.SuggestGasPrice(context.Background())
+	w, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(simulatedChain.DeployerPrivateKey)))
 	require.NoError(t, err)
 
-	var data []byte
-	txnData := &types.LegacyTx{
-		Nonce:    nonce,
-		GasPrice: gasPrice,
-		Gas:      gasLimit,
-		To:       &to,
-		Data:     data,
-		Value:    amt,
-	}
-	tx := types.NewTx(txnData)
-	signedTx, err := types.SignTx(tx, types.HomesteadSigner{}, key)
-	require.NoError(t, err)
-
-	bal, err := backend.BalanceAt(context.Background(), from, nil)
-	require.NoError(t, err)
-	require.NotZero(t, bal)
-
-	err = backend.SendTransaction(context.Background(), signedTx)
-	require.NoError(t, err)
-
-	backend.Commit()
-
-	receipt, err := backend.TransactionReceipt(context.Background(), signedTx.Hash())
-	require.NoError(t, err)
-	require.NotNil(t, receipt)
-}
-
-func requireAuthGas(t *testing.T, backend *backends.SimulatedBackend, auth *bind.TransactOpts) {
-	gas, err := backend.SuggestGasPrice(context.Background())
-	require.NoError(t, err)
-	auth.GasPrice = gas
-}
-
-func requireNewAuth(t *testing.T) (*ecdsa.PrivateKey, *bind.TransactOpts) {
-	key, err := crypto.GenerateKey()
-	require.NoError(t, err)
-	auth, err := bind.NewKeyedTransactorWithChainID(key, big.NewInt(1337))
-
-	require.NoError(t, err)
-	return key, auth
-}
-
-func setup(t *testing.T) (*backends.SimulatedBackend, *ecdsa.PrivateKey, *bind.TransactOpts, *Contract, *Client) {
-	key, auth := requireNewAuth(t)
-
-	alloc := make(core.GenesisAlloc)
-	alloc[auth.From] = core.GenesisAccount{Balance: big.NewInt(math.MaxInt64)}
-	backend := backends.NewSimulatedBackend(alloc, math.MaxInt64)
-
-	requireAuthGas(t, backend, auth)
-
-	// Deploy contract
-	address, _, contract, err := DeployContract(
-		auth,
-		backend,
+	client, err := NewClient(
+		simulatedChain.Backend,
+		tableland.ChainID(simulatedChain.ChainID),
+		contract.ContractAddr,
+		w,
+		nonceimpl.NewSimpleTracker(w, simulatedChain.Backend),
 	)
-
-	// commit all pending transactions
-	backend.Commit()
-
 	require.NoError(t, err)
 
-	if len(address.Bytes()) == 0 {
-		t.Error("Expected a valid deployment address. Received empty address byte array instead")
-	}
-
-	// Initialize the contract
-	_, err = contract.Initialize(auth, "https://foo.xyz")
-
-	// commit all pending transactions
-	backend.Commit()
-
-	require.NoError(t, err)
-
-	w, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(key)))
-	require.NoError(t, err)
-
-	client, err := NewClient(backend, 1337, address, w, nonceimpl.NewSimpleTracker(w, backend))
-	require.NoError(t, err)
-
-	return backend, key, auth, contract, client
+	return simulatedChain, client, contract.Contract.(*Contract)
 }
 
-func setupWithLocalTracker(t *testing.T) (
-	*backends.SimulatedBackend,
-	*bind.TransactOpts,
-	*Contract,
-	*Client,
-) {
-	key, auth := requireNewAuth(t)
-
-	alloc := make(core.GenesisAlloc)
-	alloc[auth.From] = core.GenesisAccount{Balance: big.NewInt(math.MaxInt64)}
-	backend := backends.NewSimulatedBackend(alloc, math.MaxInt64)
-
-	requireAuthGas(t, backend, auth)
-
-	// Deploy contract
-	address, _, contract, err := DeployContract(
-		auth,
-		backend,
-	)
-
-	// commit all pending transactions
-	backend.Commit()
-
+func setupWithLocalTracker(t *testing.T) (*tests.SimulatedChain, *Client, *Contract) {
+	simulatedChain := tests.NewSimulatedChain(t)
+	contract, err := simulatedChain.DeployContract(t, Deploy)
 	require.NoError(t, err)
 
-	if len(address.Bytes()) == 0 {
-		t.Error("Expected a valid deployment address. Received empty address byte array instead")
-	}
-
-	// Initialize the contract
-	_, err = contract.Initialize(auth, "https://foo.xyz")
-
-	// commit all pending transactions
-	backend.Commit()
-
-	require.NoError(t, err)
-
-	w, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(key)))
+	w, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(simulatedChain.DeployerPrivateKey)))
 	require.NoError(t, err)
 
 	url := tests.Sqlite3URI(t)
@@ -455,15 +353,15 @@ func setupWithLocalTracker(t *testing.T) (
 		w,
 		nonceimpl.NewNonceStore(systemStore),
 		tableland.ChainID(1337),
-		backend,
+		simulatedChain.Backend,
 		5*time.Second,
 		0,
 		3*time.Microsecond,
 	)
 	require.NoError(t, err)
 
-	client, err := NewClient(backend, 1337, address, w, tracker)
+	client, err := NewClient(simulatedChain.Backend, 1337, contract.ContractAddr, w, tracker)
 	require.NoError(t, err)
 
-	return backend, auth, contract, client
+	return simulatedChain, client, contract.Contract.(*Contract)
 }

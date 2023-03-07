@@ -3,29 +3,31 @@ package impl
 import (
 	"context"
 	"fmt"
+	"math/big"
 
 	"github.com/rs/zerolog"
+	logger "github.com/rs/zerolog/log"
 
 	"github.com/textileio/go-tableland/pkg/merkletree/publisher"
-	"github.com/textileio/go-tableland/pkg/sqlstore/impl"
+	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system/db"
 )
 
 // LeavesStore responsible for interacting with system_tree_leaves table.
 type LeavesStore struct {
-	log zerolog.Logger
-	db  *impl.SQLiteDB
+	log         zerolog.Logger
+	systemStore sqlstore.SystemStore
 }
 
 // NewLeavesStore returns a new LeavesStore backed by database/sql.
-func NewLeavesStore(sqlite *impl.SQLiteDB) *LeavesStore {
-	log := sqlite.Log.With().
+func NewLeavesStore(systemStore sqlstore.SystemStore) *LeavesStore {
+	log := logger.With().
 		Str("component", "leavesstore").
 		Logger()
 
 	leavesstore := &LeavesStore{
-		log: log,
-		db:  sqlite,
+		log:         log,
+		systemStore: systemStore,
 	}
 
 	return leavesstore
@@ -37,10 +39,11 @@ func (s *LeavesStore) FetchLeavesByChainIDAndBlockNumber(
 	chainID int64,
 	blockNumber int64,
 ) ([]publisher.TreeLeaves, error) {
-	rows, err := s.db.Queries.FetchLeavesByChainIDAndBlockNumber(ctx, db.FetchLeavesByChainIDAndBlockNumberParams{
+	params := db.FetchLeavesByChainIDAndBlockNumberParams{
 		ChainID:     chainID,
 		BlockNumber: blockNumber,
-	})
+	}
+	rows, err := s.systemStore.Queries().FetchLeavesByChainIDAndBlockNumber(ctx, params)
 	if err != nil {
 		return []publisher.TreeLeaves{}, fmt.Errorf("fetching leaves by chain id and block number: %s", err)
 	}
@@ -50,7 +53,7 @@ func (s *LeavesStore) FetchLeavesByChainIDAndBlockNumber(
 		leaves[i] = publisher.TreeLeaves{
 			ChainID:     row.ChainID,
 			BlockNumber: row.BlockNumber,
-			TableID:     row.TableID,
+			TableID:     big.NewInt(row.TableID),
 			TablePrefix: row.Prefix,
 			Leaves:      row.Leaves,
 		}
@@ -61,7 +64,7 @@ func (s *LeavesStore) FetchLeavesByChainIDAndBlockNumber(
 
 // FetchChainIDAndBlockNumber fetches rows from leaves store by chain id and block number.
 func (s *LeavesStore) FetchChainIDAndBlockNumber(ctx context.Context) ([]publisher.ChainIDBlockNumberPair, error) {
-	rows, err := s.db.Queries.FetchChainIDAndBlockNumber(ctx)
+	rows, err := s.systemStore.Queries().FetchChainIDAndBlockNumber(ctx)
 	if err != nil {
 		return []publisher.ChainIDBlockNumberPair{}, fmt.Errorf("fetching chain id and block number: %s", err)
 	}
@@ -79,7 +82,7 @@ func (s *LeavesStore) FetchChainIDAndBlockNumber(ctx context.Context) ([]publish
 
 // DeleteProcessing deletes rows that are marked as processing.
 func (s *LeavesStore) DeleteProcessing(ctx context.Context, chainID int64, blockNumber int64) error {
-	if err := s.db.Queries.DeleteProcessing(ctx, db.DeleteProcessingParams{
+	if err := s.systemStore.Queries().DeleteProcessing(ctx, db.DeleteProcessingParams{
 		ChainID:     chainID,
 		BlockNumber: blockNumber,
 	}); err != nil {
