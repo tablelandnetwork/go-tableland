@@ -208,27 +208,26 @@ func VerifyProof(proof Proof, root []byte, leaf []byte, hasher func() hash.Hash)
 // |-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|-|.
 func (t *MerkleTree) Marshal() []byte {
 	// we start by filling the first 4 bytes with the leaves length
-	data := make([]byte, EncodingSchemaNLBytes)
-	binary.LittleEndian.PutUint32(data, uint32(len(t.leaves)))
+	buf := new(bytes.Buffer)
+	_ = binary.Write(buf, binary.LittleEndian, uint32(len(t.leaves)))
 
 	var node *Node
 	queue := []*Node{t.root}
 	for len(queue) > 0 {
 		node, queue = queue[0], queue[1:]
-		data = append(data, node.hash...)
-
 		if node.left != nil {
 			queue = append(queue, node.left)
 		}
-
 		// the second condition is for the case the node's children point to the same node
 		// we don't want to duplicate the node
 		if node.right != nil && node.right != node.left {
 			queue = append(queue, node.right)
 		}
+
+		buf.Write(node.hash)
 	}
 
-	return data
+	return buf.Bytes()
 }
 
 // Unmarshal deserializes the tree.
