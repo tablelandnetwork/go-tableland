@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"math"
 	"math/big"
 	"strings"
 
+	ethereum "github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -19,11 +22,12 @@ import (
 
 // Client is the Ethereum implementation of the registry client.
 type Client struct {
-	contract *Contract
-	backend  bind.ContractBackend
-	wallet   *wallet.Wallet
-	chainID  tableland.ChainID
-	tracker  nonce.NonceTracker
+	contract     *Contract
+	contractAddr common.Address
+	backend      bind.ContractBackend
+	wallet       *wallet.Wallet
+	chainID      tableland.ChainID
+	tracker      nonce.NonceTracker
 }
 
 // NewClient creates a new Client.
@@ -39,11 +43,12 @@ func NewClient(
 		return nil, fmt.Errorf("creating contract: %v", err)
 	}
 	return &Client{
-		contract: contract,
-		backend:  backend,
-		wallet:   wallet,
-		chainID:  chainID,
-		tracker:  tracker,
+		contract:     contract,
+		contractAddr: contractAddr,
+		backend:      backend,
+		wallet:       wallet,
+		chainID:      chainID,
+		tracker:      tracker,
 	}, nil
 }
 
@@ -127,6 +132,25 @@ func (c *Client) RunSQL(
 		return nil, fmt.Errorf("creating keyed transactor: %s", err)
 	}
 
+	tablesABI, err := abi.JSON(strings.NewReader(ContractABI))
+	if err != nil {
+		return nil, fmt.Errorf("parsing abi: %s", err)
+	}
+
+	data, err := tablesABI.Pack("runSQL", []interface{}{addr, table.ToBigInt(), statement}...)
+	if err != nil {
+		return nil, fmt.Errorf("abi packing: %s", err)
+	}
+
+	gas, err := c.backend.EstimateGas(ctx, ethereum.CallMsg{
+		From: addr,
+		To:   &c.contractAddr,
+		Data: data,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("gas estimate: %s", err)
+	}
+
 	tx, err := c.callWithRetry(ctx, func() (*types.Transaction, error) {
 		registerPendingTx, unlock, nonce := c.tracker.GetNonce(ctx)
 		defer unlock()
@@ -137,6 +161,7 @@ func (c *Client) RunSQL(
 			From:      auth.From,
 			Nonce:     big.NewInt(0).SetInt64(nonce),
 			GasTipCap: gasTipCap,
+			GasLimit:  uint64(math.Ceil(float64(gas) * 1.1)),
 		}
 
 		tx, err := c.contract.RunSQL(opts, addr, table.ToBigInt(), statement)
