@@ -161,7 +161,7 @@ func (c *Client) RunSQL(
 			From:      auth.From,
 			Nonce:     big.NewInt(0).SetInt64(nonce),
 			GasTipCap: gasTipCap,
-			GasLimit:  uint64(math.Ceil(float64(gas) * 1.1)),
+			GasLimit:  uint64(math.Ceil(float64(gas) * conf.EstimatedGasLimitMultiplier)),
 		}
 
 		tx, err := c.contract.RunSQL(opts, addr, table.ToBigInt(), statement)

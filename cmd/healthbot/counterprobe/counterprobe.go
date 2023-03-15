@@ -28,6 +28,7 @@ type CounterProbe struct {
 	receiptTimeout         time.Duration
 	tableName              string
 	suggGasPriceMultiplier float64
+	estGasLimitMultiplier  float64
 
 	lock                 sync.RWMutex
 	mLastCounterValue    int64
@@ -45,6 +46,7 @@ func New(
 	checkInterval time.Duration,
 	receiptTimeout time.Duration,
 	suggGasPriceMultiplier float64,
+	estGasLimitMultiplier float64,
 ) (*CounterProbe, error) {
 	log := logger.With().
 		Str("component", "healthbot").
@@ -65,6 +67,7 @@ func New(
 		tableName:              tableName,
 		receiptTimeout:         receiptTimeout,
 		suggGasPriceMultiplier: suggGasPriceMultiplier,
+		estGasLimitMultiplier:  estGasLimitMultiplier,
 	}
 	if err := cp.initMetrics(chainName); err != nil {
 		return nil, fmt.Errorf("initializing metrics: %s", err)
@@ -142,7 +145,8 @@ func (cp *CounterProbe) increaseCounterValue(ctx context.Context) error {
 	txnHash, err := cp.client.Write(
 		ctx,
 		fmt.Sprintf("update %s set counter=counter+1", cp.tableName),
-		clientV1.WithSuggestedPriceMultiplier(cp.suggGasPriceMultiplier))
+		clientV1.WithSuggestedPriceMultiplier(cp.suggGasPriceMultiplier),
+		clientV1.WithEstimatedGasLimitMultiplier(cp.estGasLimitMultiplier))
 	if err != nil {
 		return fmt.Errorf("calling client Write: %s", err)
 	}

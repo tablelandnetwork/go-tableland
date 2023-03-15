@@ -10,24 +10,25 @@ HTTP_PORT ?= 8080
 GO_BINDATA=go run github.com/go-bindata/go-bindata/v3/go-bindata@v3.1.3
 SQLC=go run github.com/kyleconroy/sqlc/cmd/sqlc@v1.15.0
 GOVVV=go run github.com/ahmetb/govvv@v0.3.0 
+ABIGEN=go run github.com/ethereum/go-ethereum/cmd/abigen@v1.11.4
 
 GOVVV_FLAGS=$(shell $(GOVVV) -flags -version $(BIN_VERSION) -pkg $(shell go list ./buildinfo))
 
 # Code generation
 ethereum: ethereum-testcontroller ethereum-testerc721 ethereum-testerc721a
-	go run github.com/ethereum/go-ethereum/cmd/abigen@v1.11.4 --abi ./pkg/tables/impl/ethereum/abi.json --pkg ethereum --type Contract --out pkg/tables/impl/ethereum/contract.go --bin pkg/tables/impl/ethereum/bytecode.bin
+	$(ABIGEN) --abi ./pkg/tables/impl/ethereum/abi.json --pkg ethereum --type Contract --out pkg/tables/impl/ethereum/contract.go --bin pkg/tables/impl/ethereum/bytecode.bin
 .PHONY: ethereum
 
 ethereum-testcontroller:
-	go run github.com/ethereum/go-ethereum/cmd/abigen@v1.11.4 --abi ./pkg/tables/impl/ethereum/test/controller/abi.json --pkg controller --type Contract --out pkg/tables/impl/ethereum/test/controller/controller.go --bin pkg/tables/impl/ethereum/test/controller/bytecode.bin
+	$(ABIGEN) --abi ./pkg/tables/impl/ethereum/test/controller/abi.json --pkg controller --type Contract --out pkg/tables/impl/ethereum/test/controller/controller.go --bin pkg/tables/impl/ethereum/test/controller/bytecode.bin
 .PHONY: ethereum-testcontroller
 
 ethereum-testerc721:
-	go run github.com/ethereum/go-ethereum/cmd/abigen@v1.11.4 --abi ./pkg/tables/impl/ethereum/test/erc721Enumerable/abi.json --pkg erc721Enumerable --type Contract --out pkg/tables/impl/ethereum/test/erc721Enumerable/erc721Enumerable.go --bin pkg/tables/impl/ethereum/test/erc721Enumerable/bytecode.bin
+	$(ABIGEN) --abi ./pkg/tables/impl/ethereum/test/erc721Enumerable/abi.json --pkg erc721Enumerable --type Contract --out pkg/tables/impl/ethereum/test/erc721Enumerable/erc721Enumerable.go --bin pkg/tables/impl/ethereum/test/erc721Enumerable/bytecode.bin
 .PHONY: ethereum-testerc721
 
 ethereum-testerc721a:
-	go run github.com/ethereum/go-ethereum/cmd/abigen@v1.11.4 --abi ./pkg/tables/impl/ethereum/test/erc721aQueryable/abi.json --pkg erc721aQueryable --type Contract --out pkg/tables/impl/ethereum/test/erc721aQueryable/erc721aQueryable.go --bin pkg/tables/impl/ethereum/test/erc721aQueryable/bytecode.bin
+	$(ABIGEN) --abi ./pkg/tables/impl/ethereum/test/erc721aQueryable/abi.json --pkg erc721aQueryable --type Contract --out pkg/tables/impl/ethereum/test/erc721aQueryable/erc721aQueryable.go --bin pkg/tables/impl/ethereum/test/erc721aQueryable/bytecode.bin
 .PHONY: ethereum-testerc721a
 
 system-sql-assets:

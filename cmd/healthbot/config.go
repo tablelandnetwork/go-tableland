@@ -39,6 +39,7 @@ type ChainConfig struct {
 		GatewayEndpoint             string
 		ContractAddr                string
 		SuggestedGasPriceMultiplier float64
+		EstimatedGasLimitMultiplier float64
 	}
 }
 

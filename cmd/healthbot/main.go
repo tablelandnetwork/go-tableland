@@ -71,6 +71,11 @@ func main() {
 		if chainCfg.OverrideClient.SuggestedGasPriceMultiplier > 0 {
 			suggestedGasPriceMultiplier = chainCfg.OverrideClient.SuggestedGasPriceMultiplier
 		}
+		estimatedGasLimitMultiplier := 1.0
+		if chainCfg.OverrideClient.EstimatedGasLimitMultiplier > 0 {
+			estimatedGasLimitMultiplier = chainCfg.OverrideClient.EstimatedGasLimitMultiplier
+		}
+
 		cp, err := counterprobe.New(
 			chain.Name,
 			client,
@@ -78,6 +83,7 @@ func main() {
 			checkInterval,
 			receiptTimeout,
 			suggestedGasPriceMultiplier,
+			estimatedGasLimitMultiplier,
 		)
 		if err != nil {
 			log.Fatal().Err(err).Msg("initializing counter-probe")
