@@ -6,13 +6,14 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/spf13/cobra"
 	systemimpl "github.com/textileio/go-tableland/internal/system/impl"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/nonce/impl"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
+	"github.com/textileio/go-tableland/pkg/tables"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/wallet"
 )
@@ -55,36 +56,9 @@ var runSQLCmd = &cobra.Command{
 			return fmt.Errorf("dial: %s", err)
 		}
 
-		gasPrice, err := conn.SuggestGasPrice(ctx)
-		if err != nil {
-			return fmt.Errorf("suggest gas price: %s", err)
-		}
-
 		wallet, err := wallet.NewWallet(privateKey)
 		if err != nil {
 			return fmt.Errorf("new wallet: %s", err)
-		}
-
-		auth, err := bind.NewKeyedTransactorWithChainID(wallet.PrivateKey(), big.NewInt(int64(chainID)))
-		if err != nil {
-			return fmt.Errorf("new keyed transactor with chain id: %s", err)
-		}
-
-		nonce, err := conn.PendingNonceAt(ctx, wallet.Address())
-		if err != nil {
-			return fmt.Errorf("pending nonce at: %s", err)
-		}
-		opts := &bind.TransactOpts{
-			Context:  ctx,
-			Signer:   auth.Signer,
-			From:     auth.From,
-			Nonce:    big.NewInt(0).SetUint64(nonce),
-			GasPrice: gasPrice,
-		}
-
-		contract, err := ethereum.NewContract(common.HexToAddress(contractAddress), conn)
-		if err != nil {
-			return fmt.Errorf("new contract: %s", err)
 		}
 
 		parser, err := parserimpl.New([]string{
@@ -102,9 +76,20 @@ var runSQLCmd = &cobra.Command{
 			return fmt.Errorf("validating mutating query: %s", err)
 		}
 
-		tx, err := contract.RunSQL(opts,
+		client, err := ethereum.NewClient(
+			conn,
+			tableland.ChainID(chainID),
+			common.HexToAddress(contractAddress),
+			wallet,
+			impl.NewSimpleTracker(wallet, conn),
+		)
+		if err != nil {
+			return fmt.Errorf("creating ethereum client: %s", err)
+		}
+
+		tx, err := client.RunSQL(ctx,
 			wallet.Address(),
-			stmts[0].GetTableID().ToBigInt(),
+			stmts[0].GetTableID(),
 			query)
 		if err != nil {
 			return fmt.Errorf("run sql: %s", err)
@@ -146,36 +131,9 @@ var createTableCmd = &cobra.Command{
 			return fmt.Errorf("dial: %s", err)
 		}
 
-		gasPrice, err := conn.SuggestGasPrice(ctx)
-		if err != nil {
-			return fmt.Errorf("suggest gas price: %s", err)
-		}
-
 		wallet, err := wallet.NewWallet(privateKey)
 		if err != nil {
 			return fmt.Errorf("new wallet: %s", err)
-		}
-
-		auth, err := bind.NewKeyedTransactorWithChainID(wallet.PrivateKey(), big.NewInt(int64(chainID)))
-		if err != nil {
-			return fmt.Errorf("new keyed transactor with chain id: %s", err)
-		}
-
-		nonce, err := conn.PendingNonceAt(ctx, wallet.Address())
-		if err != nil {
-			return fmt.Errorf("pending nonce at: %s", err)
-		}
-		opts := &bind.TransactOpts{
-			Context:  ctx,
-			Signer:   auth.Signer,
-			From:     auth.From,
-			Nonce:    big.NewInt(0).SetUint64(nonce),
-			GasPrice: gasPrice,
-		}
-
-		contract, err := ethereum.NewContract(common.HexToAddress(contractAddress), conn)
-		if err != nil {
-			return fmt.Errorf("new contract: %s", err)
 		}
 
 		parser, err := parserimpl.New([]string{
@@ -192,7 +150,18 @@ var createTableCmd = &cobra.Command{
 			return fmt.Errorf("validate create table: %s", err)
 		}
 
-		tx, err := contract.CreateTable(opts, wallet.Address(), stmt)
+		client, err := ethereum.NewClient(
+			conn,
+			tableland.ChainID(chainID),
+			common.HexToAddress(contractAddress),
+			wallet,
+			impl.NewSimpleTracker(wallet, conn),
+		)
+		if err != nil {
+			return fmt.Errorf("creating ethereum client: %s", err)
+		}
+
+		tx, err := client.CreateTable(ctx, wallet.Address(), stmt)
 		if err != nil {
 			return fmt.Errorf("create table: %s", err)
 		}
@@ -234,36 +203,9 @@ var setControllerCmd = &cobra.Command{
 			return fmt.Errorf("dial: %s", err)
 		}
 
-		gasPrice, err := conn.SuggestGasPrice(ctx)
-		if err != nil {
-			return fmt.Errorf("suggest gas price: %s", err)
-		}
-
 		wallet, err := wallet.NewWallet(privateKey)
 		if err != nil {
 			return fmt.Errorf("new wallet: %s", err)
-		}
-
-		auth, err := bind.NewKeyedTransactorWithChainID(wallet.PrivateKey(), big.NewInt(int64(chainID)))
-		if err != nil {
-			return fmt.Errorf("new keyed transactor with chain id: %s", err)
-		}
-
-		nonce, err := conn.PendingNonceAt(ctx, wallet.Address())
-		if err != nil {
-			return fmt.Errorf("pending nonce at: %s", err)
-		}
-		opts := &bind.TransactOpts{
-			Context:  ctx,
-			Signer:   auth.Signer,
-			From:     auth.From,
-			Nonce:    big.NewInt(0).SetUint64(nonce),
-			GasPrice: gasPrice,
-		}
-
-		contract, err := ethereum.NewContract(common.HexToAddress(contractAddress), conn)
-		if err != nil {
-			return fmt.Errorf("new contract: %s", err)
 		}
 
 		tableIDStr := args[0]
@@ -275,9 +217,21 @@ var setControllerCmd = &cobra.Command{
 			return fmt.Errorf("set string: %s", err)
 		}
 
-		tx, err := contract.SetController(opts,
+		client, err := ethereum.NewClient(
+			conn,
+			tableland.ChainID(chainID),
+			common.HexToAddress(contractAddress),
+			wallet,
+			impl.NewSimpleTracker(wallet, conn),
+		)
+		if err != nil {
+			return fmt.Errorf("creating ethereum client: %s", err)
+		}
+
+		tx, err := client.SetController(
+			ctx,
 			wallet.Address(),
-			tableID,
+			tables.TableID(*tableID),
 			common.HexToAddress(controller),
 		)
 		if err != nil {

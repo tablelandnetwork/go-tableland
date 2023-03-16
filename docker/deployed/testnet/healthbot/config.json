@@ -27,7 +27,8 @@
                 "Tablename": "${HEALTHBOT_ETHEREUM_GOERLI_TABLE}"
             },
             "OverrideClient": {
-                "SuggestedGasPriceMultiplier": 1.2
+                "SuggestedGasPriceMultiplier": 1.2,
+                "EstimatedGasLimitMultiplier": 1.1
             }
         },
         {

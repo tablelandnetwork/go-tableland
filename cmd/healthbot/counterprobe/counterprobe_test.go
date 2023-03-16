@@ -22,7 +22,7 @@ func TestProduction(t *testing.T) {
 	client, err := clientV1.NewClient(ctx, wallet, clientV1.NewClientChain(chain))
 	require.NoError(t, err)
 
-	cp, err := New("optimism-mainnet", client, "Runbook_24", time.Second, time.Second*10, 1)
+	cp, err := New("optimism-mainnet", client, "Runbook_24", time.Second, time.Second*10, 1, 1)
 	require.NoError(t, err)
 
 	value, err := cp.healthCheck(context.Background())

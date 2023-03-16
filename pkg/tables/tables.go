@@ -70,11 +70,13 @@ type RunSQLOption func(*RunSQLConfig) error
 // RunSQLConfig contains configuration attributes to call Write.
 type RunSQLConfig struct {
 	SuggestedGasPriceMultiplier float64
+	EstimatedGasLimitMultiplier float64
 }
 
 // DefaultRunSQLConfig is the default configuration for RunSQL if no options are passed.
 var DefaultRunSQLConfig = RunSQLConfig{
 	SuggestedGasPriceMultiplier: 1.0,
+	EstimatedGasLimitMultiplier: 1.0,
 }
 
 // WithSuggestedPriceMultiplier allows to modify the gas priced to be used with respect with the suggested gas price.
@@ -85,6 +87,19 @@ func WithSuggestedPriceMultiplier(m float64) RunSQLOption {
 			return fmt.Errorf("multiplier should be positive")
 		}
 		wc.SuggestedGasPriceMultiplier = m
+
+		return nil
+	}
+}
+
+// WithEstimatedGasLimitMultiplier allows to modify the gas limit to be used with respect with the estimated gas.
+// For example, if `m=1.2` then the gas limit to be used will be `estimatedGas * 1.2`.
+func WithEstimatedGasLimitMultiplier(m float64) RunSQLOption {
+	return func(wc *RunSQLConfig) error {
+		if m <= 0 {
+			return fmt.Errorf("multiplier should be positive")
+		}
+		wc.EstimatedGasLimitMultiplier = m
 
 		return nil
 	}

@@ -87,7 +87,8 @@ func (c *Client) Write(ctx context.Context, query string, opts ...WriteOption) (
 		c.wallet.Address(),
 		tables.TableID(tableID),
 		query,
-		tables.WithSuggestedPriceMultiplier(config.suggestedGasPriceMultiplier))
+		tables.WithSuggestedPriceMultiplier(config.suggestedGasPriceMultiplier),
+		tables.WithEstimatedGasLimitMultiplier(config.estimatedGasLimitMultiplier))
 	if err != nil {
 		return "", fmt.Errorf("calling RunSQL: %v", err)
 	}
@@ -100,10 +101,12 @@ type WriteOption func(*WriteConfig) error
 // WriteConfig contains configuration attributes to call Write.
 type WriteConfig struct {
 	suggestedGasPriceMultiplier float64
+	estimatedGasLimitMultiplier float64
 }
 
 var defaultWriteConfig = WriteConfig{
 	suggestedGasPriceMultiplier: 1.0,
+	estimatedGasLimitMultiplier: 1.0,
 }
 
 // WithSuggestedPriceMultiplier allows to modify the gas priced to be used with respect with the suggested gas price.
@@ -114,6 +117,19 @@ func WithSuggestedPriceMultiplier(m float64) WriteOption {
 			return fmt.Errorf("multiplier should be positive")
 		}
 		wc.suggestedGasPriceMultiplier = m
+
+		return nil
+	}
+}
+
+// WithEstimatedGasLimitMultiplier allows to modify the gas limit to be used with respect with the estimated gas.
+// For example, if `m=1.2` then the gas limit to be used will be `estimatedGas * 1.2`.
+func WithEstimatedGasLimitMultiplier(m float64) WriteOption {
+	return func(wc *WriteConfig) error {
+		if m <= 0 {
+			return fmt.Errorf("multiplier should be positive")
+		}
+		wc.estimatedGasLimitMultiplier = m
 
 		return nil
 	}
