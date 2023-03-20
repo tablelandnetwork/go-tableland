@@ -108,20 +108,20 @@
             "HashCalculationStep": 450
         },
         {
-            "Name": "Polygon Mainnet",
-            "ChainID": 137,
+            "Name": "Arbitrum Nova Mainnet",
+            "ChainID": 42170,
             "AllowTransactionRelay": false,
             "Registry": {
-                "EthEndpoint": "wss://polygon-mainnet.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_POLYGON_MAINNET_API_KEY}",
-                "ContractAddress": "0x5c4e6A9e5C1e1BF445A062006faF19EA6c49aFeA"
+                "EthEndpoint": "https://distinguished-burned-cherry.nova-mainnet.discover.quiknode.pro/${VALIDATOR_QUICKNODE_ARBITRUM_NOVA_MAINNET_API_KEY}",
+                "ContractAddress": "0x4dad9cbBeDF7934B20641F135bb1202c123AbBD5"
             },
             "Signer": {
-                "PrivateKey": "${VALIDATOR_POLYGON_MAINNET_SIGNER_PRIVATE_KEY}"
+                "PrivateKey": "${VALIDATOR_ARBITRUM_NOVA_MAINNET_SIGNER_PRIVATE_KEY}"
             },
             "EventFeed": {
                 "ChainAPIBackoff": "15s",
                 "NewBlockPollFreq": "5s",
-                "MinBlockDepth": 1,
+                "MinBlockDepth": 0,
                 "PersistEvents": true
             },
             "EventProcessor": {
@@ -129,11 +129,11 @@
                 "DedupExecutedTxns": true
             },
             "NonceTracker": {
-                "CheckInterval": "15s",
+                "CheckInterval": "20s",
                 "StuckInterval": "10m",
-                "MinBlockDepth": 1
+                "MinBlockDepth": 0
             },
-            "HashCalculationStep": 360
+            "HashCalculationStep": 450
         },
         {
             "Name": "Optimism Mainnet",
