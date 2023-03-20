@@ -139,6 +139,7 @@ var AlchemyURLs = map[ChainID]string{
 	ChainIDs.Polygon:        "https://polygon-mainnet.g.alchemy.com/v2/%s",
 }
 
+// QuickNodeURLs contains the URLs for supported chains for QuikNode.
 var QuickNodeURLs = map[ChainID]string{
 	ChainIDs.ArbitrumNova: "https://distinguished-burned-cherry.nova-mainnet.discover.quiknode.pro/%s",
 }
