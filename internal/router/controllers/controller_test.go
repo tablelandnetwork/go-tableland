@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -13,13 +14,13 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/router/middlewares"
-	systemimpl "github.com/textileio/go-tableland/internal/system/impl"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/mocks"
+	"github.com/textileio/go-tableland/pkg/sqlstore"
 )
 
 func TestQuery(t *testing.T) {
-	r := mocks.NewSQLRunner(t)
+	r := mocks.NewGateway(t)
 	r.EXPECT().RunReadQuery(mock.Anything, mock.AnythingOfType("string")).Return(
 		&tableland.TableData{
 			Columns: []tableland.Column{
@@ -48,7 +49,7 @@ func TestQuery(t *testing.T) {
 		nil,
 	)
 
-	ctrl := NewController(r, nil)
+	ctrl := NewController(r)
 
 	router := mux.NewRouter()
 	router.HandleFunc("/query", ctrl.GetTableQuery)
@@ -88,7 +89,7 @@ func TestQuery(t *testing.T) {
 }
 
 func TestQueryExtracted(t *testing.T) {
-	r := mocks.NewSQLRunner(t)
+	r := mocks.NewGateway(t)
 	r.EXPECT().RunReadQuery(mock.Anything, mock.AnythingOfType("string")).Return(
 		&tableland.TableData{
 			Columns: []tableland.Column{{Name: "name"}},
@@ -101,7 +102,7 @@ func TestQueryExtracted(t *testing.T) {
 		nil,
 	)
 
-	ctrl := NewController(r, nil)
+	ctrl := NewController(r)
 
 	router := mux.NewRouter()
 	router.HandleFunc("/query", ctrl.GetTableQuery)
@@ -137,8 +138,32 @@ func TestQueryExtracted(t *testing.T) {
 func TestGetTablesByMocked(t *testing.T) {
 	t.Parallel()
 
-	systemService := systemimpl.NewSystemMockService()
-	ctrl := NewController(nil, systemService)
+	gateway := mocks.NewGateway(t)
+	gateway.EXPECT().GetTableMetadata(mock.Anything, mock.Anything).Return(
+		sqlstore.TableMetadata{
+			Name:        "name-1",
+			ExternalURL: "https://tableland.network/tables/100",
+			Image:       "https://bafkreifhuhrjhzbj4onqgbrmhpysk2mop2jimvdvfut6taiyzt2yqzt43a.ipfs.dweb.link",
+			Attributes: []sqlstore.TableMetadataAttribute{
+				{
+					DisplayType: "date",
+					TraitType:   "created",
+					Value:       1546360800,
+				},
+			},
+			Schema: sqlstore.TableSchema{
+				Columns: []sqlstore.ColumnSchema{
+					{
+						Name: "foo",
+						Type: "text",
+					},
+				},
+			},
+		},
+		nil,
+	)
+
+	ctrl := NewController(gateway)
 
 	t.Run("get table metadata", func(t *testing.T) {
 		t.Parallel()
@@ -172,11 +197,11 @@ func TestGetTableWithInvalidID(t *testing.T) {
 	req, err := http.NewRequest("GET", path, nil)
 	require.NoError(t, err)
 
-	systemService := systemimpl.NewSystemMockService()
-	systemController := NewController(nil, systemService)
+	gateway := mocks.NewGateway(t)
+	ctrl := NewController(gateway)
 
 	router := mux.NewRouter()
-	router.HandleFunc("/tables/{id}", systemController.GetTable)
+	router.HandleFunc("/tables/{id}", ctrl.GetTable)
 
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
@@ -193,11 +218,16 @@ func TestTableNotFoundMock(t *testing.T) {
 	req, err := http.NewRequest("GET", "/tables/100", nil)
 	require.NoError(t, err)
 
-	systemService := systemimpl.NewSystemMockErrService()
-	systemController := NewController(nil, systemService)
+	gateway := mocks.NewGateway(t)
+	gateway.EXPECT().GetTableMetadata(mock.Anything, mock.Anything).Return(
+		sqlstore.TableMetadata{},
+		errors.New("failed"),
+	)
+
+	ctrl := NewController(gateway)
 
 	router := mux.NewRouter()
-	router.HandleFunc("/tables/{tableId}", systemController.GetTable)
+	router.HandleFunc("/tables/{tableId}", ctrl.GetTable)
 
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)

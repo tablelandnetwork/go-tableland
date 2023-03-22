@@ -18,7 +18,6 @@ import (
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 	rsresolver "github.com/textileio/go-tableland/pkg/readstatementresolver"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
-	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
 	"github.com/textileio/go-tableland/pkg/tables"
 	"github.com/textileio/go-tableland/pkg/tables/impl/testutil"
 	"github.com/textileio/go-tableland/tests"
@@ -373,15 +372,17 @@ func setup(t *testing.T) (
 	}
 
 	require.NoError(t, err)
-	userStore, err := user.New(
-		dbURI, rsresolver.New(map[tableland.ChainID]eventprocessor.EventProcessor{chainID: ep}))
+	store, err := system.New(
+		dbURI, 1337)
 	require.NoError(t, err)
+
+	store.SetReadResolver(rsresolver.New(map[tableland.ChainID]eventprocessor.EventProcessor{chainID: ep}))
 
 	tableReader := func(readQuery string) []int64 {
 		rq, err := parser.ValidateReadQuery(readQuery)
 		require.NoError(t, err)
 		require.NotNil(t, rq)
-		res, err := userStore.Read(ctx, rq)
+		res, err := store.Read(ctx, rq)
 		require.NoError(t, err)
 
 		ret := make([]int64, len(res.Rows))

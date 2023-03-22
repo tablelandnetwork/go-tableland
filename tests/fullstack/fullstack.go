@@ -14,23 +14,18 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/chains"
+	"github.com/textileio/go-tableland/internal/gateway"
 	"github.com/textileio/go-tableland/internal/router"
-	"github.com/textileio/go-tableland/internal/system"
-	systemimpl "github.com/textileio/go-tableland/internal/system/impl"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/internal/tableland/impl"
-	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
 	epimpl "github.com/textileio/go-tableland/pkg/eventprocessor/impl"
 	executor "github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor/impl"
-	nonceimpl "github.com/textileio/go-tableland/pkg/nonce/impl"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
-	rsresolver "github.com/textileio/go-tableland/pkg/readstatementresolver"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	sqlstoreimplsystem "github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
-	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
 	"github.com/textileio/go-tableland/pkg/tables"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/tables/impl/testutil"
@@ -54,13 +49,11 @@ type FullStack struct {
 
 // Deps holds possile dependencies that can optionally be provided to spin up the full stack.
 type Deps struct {
-	DBURI         string
-	Parser        parsing.SQLValidator
-	SystemStore   sqlstore.SystemStore
-	UserStore     sqlstore.UserStore
-	ACL           tableland.ACL
-	Tableland     tableland.Tableland
-	SystemService system.SystemService
+	DBURI          string
+	Parser         parsing.SQLValidator
+	SystemStore    sqlstore.SystemStore
+	ACL            tableland.ACL
+	GatewayService gateway.Gateway
 }
 
 // CreateFullStack creates a running validator with the provided dependencies, or defaults otherwise.
@@ -89,15 +82,6 @@ func CreateFullStack(t *testing.T, deps Deps) FullStack {
 	backend, addr, contract, transactOpts, sk := testutil.Setup(t)
 
 	wallet, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(sk)))
-	require.NoError(t, err)
-
-	registry, err := ethereum.NewClient(
-		backend,
-		ChainID,
-		addr,
-		wallet,
-		nonceimpl.NewSimpleTracker(wallet, backend),
-	)
 	require.NoError(t, err)
 
 	db, err := sql.Open("sqlite3", dbURI)
@@ -135,24 +119,8 @@ func CreateFullStack(t *testing.T, deps Deps) FullStack {
 	chainStacks := map[tableland.ChainID]chains.ChainStack{
 		1337: {
 			Store:          systemStore,
-			Registry:       registry,
 			EventProcessor: ep,
 		},
-	}
-
-	tbl := deps.Tableland
-	if tbl == nil {
-		userStore := deps.UserStore
-		if userStore == nil {
-			userStore, err = user.New(
-				dbURI,
-				rsresolver.New(map[tableland.ChainID]eventprocessor.EventProcessor{1337: ep}),
-			)
-			require.NoError(t, err)
-		}
-		tbl = impl.NewTablelandMesa(parser, userStore, chainStacks)
-		tbl, err = impl.NewInstrumentedTablelandMesa(tbl)
-		require.NoError(t, err)
 	}
 
 	stores := make(map[tableland.ChainID]sqlstore.SystemStore, len(chainStacks))
@@ -160,33 +128,33 @@ func CreateFullStack(t *testing.T, deps Deps) FullStack {
 		stores[chainID] = stack.Store
 	}
 
-	systemService := deps.SystemService
-	if systemService == nil {
-		systemService, err = systemimpl.NewSystemSQLStoreService(
+	gatewayService := deps.GatewayService
+	if gatewayService == nil {
+		gatewayService, err = gateway.NewGateway(
+			parser,
 			stores,
 			"https://testnets.tableland.network",
 			"https://render.tableland.xyz",
 			"https://render.tableland.xyz/anim",
 		)
 		require.NoError(t, err)
-		systemService, err = systemimpl.NewInstrumentedSystemSQLStoreService(systemService)
+		gatewayService, err = gateway.NewInstrumentedGateway(gatewayService)
 		require.NoError(t, err)
 	}
 
-	router, err := router.ConfiguredRouter(tbl, systemService, 10, time.Second, []tableland.ChainID{ChainID})
+	router, err := router.ConfiguredRouter(gatewayService, 10, time.Second, []tableland.ChainID{ChainID})
 	require.NoError(t, err)
 
 	server := httptest.NewServer(router.Handler())
 	t.Cleanup(server.Close)
 
 	return FullStack{
-		Backend:           backend,
-		Address:           addr,
-		Contract:          contract,
-		TransactOpts:      transactOpts,
-		Wallet:            wallet,
-		TblContractClient: registry,
-		Server:            server,
+		Backend:      backend,
+		Address:      addr,
+		Contract:     contract,
+		TransactOpts: transactOpts,
+		Wallet:       wallet,
+		Server:       server,
 	}
 }
 
@@ -201,7 +169,7 @@ func (acl *aclHalfMock) CheckPrivileges(
 	id tables.TableID,
 	op tableland.Operation,
 ) (bool, error) {
-	aclImpl := impl.NewACL(acl.sqlStore, nil)
+	aclImpl := impl.NewACL(acl.sqlStore)
 	return aclImpl.CheckPrivileges(ctx, tx, controller, id, op)
 }
 

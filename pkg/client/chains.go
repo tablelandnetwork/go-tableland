@@ -102,11 +102,6 @@ var Chains = map[ChainID]Chain{
 	},
 }
 
-// CanRelayWrites returns whether Tableland validators will relay write requests.
-func (c Chain) CanRelayWrites() bool {
-	return c.ID != ChainIDs.Ethereum && c.ID != ChainIDs.Optimism && c.ID != ChainIDs.Polygon
-}
-
 // InfuraURLs contains the URLs for supported chains for Infura.
 var InfuraURLs = map[ChainID]string{
 	ChainIDs.EthereumGoerli: "https://goerli.infura.io/v3/%s",

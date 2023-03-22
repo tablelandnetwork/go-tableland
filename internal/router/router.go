@@ -6,17 +6,16 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/textileio/go-tableland/internal/gateway"
 	"github.com/textileio/go-tableland/internal/router/controllers"
 	"github.com/textileio/go-tableland/internal/router/controllers/apiv1"
 	"github.com/textileio/go-tableland/internal/router/middlewares"
-	"github.com/textileio/go-tableland/internal/system"
 	"github.com/textileio/go-tableland/internal/tableland"
 )
 
 // ConfiguredRouter returns a fully configured Router that can be used as an http handler.
 func ConfiguredRouter(
-	tableland tableland.Tableland,
-	systemService system.SystemService,
+	gateway gateway.Gateway,
 	maxRPI uint64,
 	rateLimInterval time.Duration,
 	supportedChainIDs []tableland.ChainID,
@@ -36,7 +35,7 @@ func ConfiguredRouter(
 		return nil, fmt.Errorf("creating rate limit controller middleware: %s", err)
 	}
 
-	ctrl := controllers.NewController(tableland, systemService)
+	ctrl := controllers.NewController(gateway)
 
 	// APIs V1
 	if err := configureAPIV1Routes(router, supportedChainIDs, rateLim, ctrl); err != nil {

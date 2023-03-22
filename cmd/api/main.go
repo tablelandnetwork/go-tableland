@@ -19,8 +19,8 @@ import (
 	"github.com/textileio/cli"
 	"github.com/textileio/go-tableland/buildinfo"
 	"github.com/textileio/go-tableland/internal/chains"
+	"github.com/textileio/go-tableland/internal/gateway"
 	"github.com/textileio/go-tableland/internal/router"
-	systemimpl "github.com/textileio/go-tableland/internal/system/impl"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/internal/tableland/impl"
 	"github.com/textileio/go-tableland/pkg/backup"
@@ -37,10 +37,8 @@ import (
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 	"github.com/textileio/go-tableland/pkg/readstatementresolver"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
-	sqlstoreimpl "github.com/textileio/go-tableland/pkg/sqlstore/impl"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
-	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
-	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
+
 	"github.com/textileio/go-tableland/pkg/telemetry"
 	"github.com/textileio/go-tableland/pkg/telemetry/chainscollector"
 	"github.com/textileio/go-tableland/pkg/telemetry/publisher"
@@ -99,13 +97,9 @@ func main() {
 	for chainID, stack := range chainStacks {
 		eps[chainID] = stack.EventProcessor
 	}
-	userStore, err := user.New(databaseURL, readstatementresolver.New(eps))
-	if err != nil {
-		log.Fatal().Err(err).Msg("creating user store")
-	}
 
 	// HTTP API server.
-	closeHTTPServer, err := createAPIServer(config.HTTP, config.Gateway, parser, userStore, chainStacks)
+	closeHTTPServer, err := createAPIServer(config.HTTP, config.Gateway, parser, chainStacks)
 	if err != nil {
 		log.Fatal().Err(err).Msg("creating HTTP server")
 	}
@@ -147,11 +141,6 @@ func main() {
 			log.Error().Err(err).Msg("closing backuper")
 		}
 
-		// Close user store.
-		if err := userStore.Close(); err != nil {
-			log.Error().Err(err).Msg("closing user store")
-		}
-
 		// Close telemetry.
 		if err := closeTelemetryModule(ctx); err != nil {
 			log.Error().Err(err).Msg("closing telemetry module")
@@ -172,7 +161,7 @@ func createChainIDStack(
 		return chains.ChainStack{}, fmt.Errorf("failed initialize sqlstore: %s", err)
 	}
 
-	systemStore, err := sqlstoreimpl.NewInstrumentedSystemStore(config.ChainID, store)
+	systemStore, err := system.NewInstrumentedSystemStore(config.ChainID, store)
 	if err != nil {
 		return chains.ChainStack{}, fmt.Errorf("instrumenting system store: %s", err)
 	}
@@ -216,18 +205,8 @@ func createChainIDStack(
 	}
 
 	scAddress := common.HexToAddress(config.Registry.ContractAddress)
-	registry, err := ethereum.NewClient(
-		conn,
-		config.ChainID,
-		scAddress,
-		wallet,
-		tracker,
-	)
-	if err != nil {
-		return chains.ChainStack{}, fmt.Errorf("failed to create ethereum client: %s", err)
-	}
 
-	acl := impl.NewACL(systemStore, registry)
+	acl := impl.NewACL(systemStore)
 
 	ex, err := executor.NewExecutor(config.ChainID, executorsDB, parser, tableConstraints.MaxRowCount, acl)
 	if err != nil {
@@ -270,7 +249,6 @@ func createChainIDStack(
 	}
 	return chains.ChainStack{
 		Store:          systemStore,
-		Registry:       registry,
 		EventProcessor: ep,
 		Close: func(ctx context.Context) error {
 			log.Info().Int64("chain_id", int64(config.ChainID)).Msg("closing stack...")
@@ -394,8 +372,8 @@ func createParser(queryConstraints QueryConstraints) (parsing.SQLValidator, erro
 
 	parser, err := parserimpl.New([]string{
 		"sqlite_",
-		systemimpl.SystemTablesPrefix,
-		systemimpl.RegistryTableName,
+		parsing.SystemTablesPrefix,
+		parsing.RegistryTableName,
 	}, parserOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("new parser: %s", err)
@@ -446,6 +424,15 @@ func createChainStacks(
 		chainStacks[chainCfg.ChainID] = chainStack
 	}
 
+	epMap := make(map[tableland.ChainID]eventprocessor.EventProcessor)
+	for chainID, stack := range chainStacks {
+		epMap[chainID] = stack.EventProcessor
+	}
+
+	for _, stack := range chainStacks {
+		stack.Store.SetReadResolver(readstatementresolver.New(epMap))
+	}
+
 	closeModule := func(ctx context.Context) error {
 		// Close chains syncing.
 		var wg sync.WaitGroup
@@ -477,37 +464,26 @@ func createAPIServer(
 	httpConfig HTTPConfig,
 	gatewayConfig GatewayConfig,
 	parser parsing.SQLValidator,
-	userStore *user.UserStore,
 	chainStacks map[tableland.ChainID]chains.ChainStack,
 ) (moduleCloser, error) {
-	instrUserStore, err := sqlstoreimpl.NewInstrumentedUserStore(userStore)
-	if err != nil {
-		return nil, fmt.Errorf("creating instrumented user store: %s", err)
-	}
-
-	mesaService := impl.NewTablelandMesa(parser, instrUserStore, chainStacks)
-	mesaService, err = impl.NewInstrumentedTablelandMesa(mesaService)
-	if err != nil {
-		return nil, fmt.Errorf("instrumenting mesa: %s", err)
-	}
-
 	supportedChainIDs := make([]tableland.ChainID, 0, len(chainStacks))
 	stores := make(map[tableland.ChainID]sqlstore.SystemStore, len(chainStacks))
 	for chainID, stack := range chainStacks {
 		stores[chainID] = stack.Store
 		supportedChainIDs = append(supportedChainIDs, chainID)
 	}
-	sysStore, err := systemimpl.NewSystemSQLStoreService(
+	g, err := gateway.NewGateway(
+		parser,
 		stores,
 		gatewayConfig.ExternalURIPrefix,
 		gatewayConfig.MetadataRendererURI,
 		gatewayConfig.AnimationRendererURI)
 	if err != nil {
-		return nil, fmt.Errorf("creating system store: %s", err)
+		return nil, fmt.Errorf("creating gateway: %s", err)
 	}
-	systemService, err := systemimpl.NewInstrumentedSystemSQLStoreService(sysStore)
+	g, err = gateway.NewInstrumentedGateway(g)
 	if err != nil {
-		return nil, fmt.Errorf("instrumenting system sql store: %s", err)
+		return nil, fmt.Errorf("instrumenting gateway: %s", err)
 	}
 	rateLimInterval, err := time.ParseDuration(httpConfig.RateLimInterval)
 	if err != nil {
@@ -515,8 +491,7 @@ func createAPIServer(
 	}
 
 	router, err := router.ConfiguredRouter(
-		mesaService,
-		systemService,
+		g,
 		httpConfig.MaxRequestPerInterval,
 		rateLimInterval,
 		supportedChainIDs,

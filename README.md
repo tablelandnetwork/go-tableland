@@ -12,7 +12,6 @@ They have the following responsibilities:
 
 - Listen to on-chain events to materialize Tableland-compliant SQL queries in a database engine (currently, SQLite by default).
 - Serve read-queries (e.g: `SELECT * FROM foo_69_1`) to the external world.
-- Relay write-queries to the `Registry` SC on behalf of users.
 
 > 💡 The responsibilities of the validator will continue to change as the Tableland protocol evolves. In the future, validators will have more responsibilities in the network.
 

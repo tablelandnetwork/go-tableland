@@ -21,20 +21,17 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/go-tableland/internal/chains"
+	"github.com/textileio/go-tableland/internal/gateway"
 	"github.com/textileio/go-tableland/internal/tableland"
-	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
 	epimpl "github.com/textileio/go-tableland/pkg/eventprocessor/impl"
 	executor "github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor/impl"
-	"github.com/textileio/go-tableland/pkg/nonce/impl"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
-	rsresolver "github.com/textileio/go-tableland/pkg/readstatementresolver"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
-	"github.com/textileio/go-tableland/pkg/sqlstore/impl/user"
+
 	"github.com/textileio/go-tableland/pkg/tables"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/tables/impl/testutil"
@@ -50,7 +47,7 @@ func TestTodoAppWorkflow(t *testing.T) {
 	tablelandClient := setup.newTablelandClient(t)
 
 	ctx, backend, sc := setup.ctx, setup.ethClient, setup.contract
-	tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
+	gateway, txOpts := tablelandClient.gateway, tablelandClient.txOpts
 
 	caller := txOpts.From
 	_, err := sc.CreateTable(txOpts, caller,
@@ -62,7 +59,7 @@ func TestTodoAppWorkflow(t *testing.T) {
 		  );`)
 	require.NoError(t, err)
 
-	processCSV(ctx, t, sc, txOpts, caller, tbld, "testdata/todoapp_queries.csv", backend)
+	processCSV(ctx, t, sc, txOpts, caller, gateway, "testdata/todoapp_queries.csv", backend)
 }
 
 func TestInsertOnConflict(t *testing.T) {
@@ -76,7 +73,7 @@ func TestInsertOnConflict(t *testing.T) {
 	tablelandClient := setup.newTablelandClient(t)
 
 	ctx, backend, sc, store := setup.ctx, setup.ethClient, setup.contract, setup.systemStore
-	tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
+	gateway, txOpts := tablelandClient.gateway, tablelandClient.txOpts
 
 	caller := txOpts.From
 
@@ -102,7 +99,7 @@ func TestInsertOnConflict(t *testing.T) {
 
 	require.Eventually(
 		t,
-		jsonEq(ctx, t, tbld, "SELECT count FROM foo_1337_1", `{"columns":[{"name":"count"}],"rows":[[9]]}`),
+		jsonEq(ctx, t, gateway, "SELECT count FROM foo_1337_1", `{"columns":[{"name":"count"}],"rows":[[9]]}`),
 		time.Second*5,
 		time.Millisecond*100,
 	)
@@ -117,7 +114,7 @@ func TestMultiStatement(t *testing.T) {
 	tablelandClient := setup.newTablelandClient(t)
 
 	ctx, backend, sc, store := setup.ctx, setup.ethClient, setup.contract, setup.systemStore
-	tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
+	gateway, txOpts := tablelandClient.gateway, tablelandClient.txOpts
 	caller := txOpts.From
 
 	_, err := sc.CreateTable(txOpts, caller,
@@ -138,7 +135,7 @@ func TestMultiStatement(t *testing.T) {
 
 	require.Eventually(
 		t,
-		jsonEq(ctx, t, tbld, "SELECT name from foo_1337_1", `{"columns":[{"name":"name"}],"rows":[["zoo"]]}`),
+		jsonEq(ctx, t, gateway, "SELECT name from foo_1337_1", `{"columns":[{"name":"name"}],"rows":[["zoo"]]}`),
 		time.Second*5,
 		time.Millisecond*100,
 	)
@@ -153,13 +150,13 @@ func TestReadSystemTable(t *testing.T) {
 	tablelandClient := setup.newTablelandClient(t)
 
 	ctx, sc := setup.ctx, setup.contract
-	tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
+	gateway, txOpts := tablelandClient.gateway, tablelandClient.txOpts
 	caller := txOpts.From
 
 	_, err := sc.CreateTable(txOpts, caller, `CREATE TABLE foo_1337 (myjson TEXT);`)
 	require.NoError(t, err)
 
-	res, err := runReadQuery(ctx, t, tbld, "select * from registry")
+	res, err := runReadQuery(ctx, t, gateway, "select * from registry")
 	require.NoError(t, err)
 	_, err = json.Marshal(res)
 	require.NoError(t, err)
@@ -173,13 +170,13 @@ func TestJSON(t *testing.T) {
 	tablelandClient := setup.newTablelandClient(t)
 
 	ctx, backend, sc := setup.ctx, setup.ethClient, setup.contract
-	tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
+	gateway, txOpts := tablelandClient.gateway, tablelandClient.txOpts
 	caller := txOpts.From
 
 	_, err := sc.CreateTable(txOpts, caller, `CREATE TABLE foo_1337 (myjson TEXT);`)
 	require.NoError(t, err)
 
-	processCSV(ctx, t, sc, txOpts, caller, tbld, "testdata/json_queries.csv", backend)
+	processCSV(ctx, t, sc, txOpts, caller, gateway, "testdata/json_queries.csv", backend)
 }
 
 func TestCheckInsertPrivileges(t *testing.T) {
@@ -215,7 +212,7 @@ func TestCheckInsertPrivileges(t *testing.T) {
 
 				ctx, backend, sc, store := setup.ctx, setup.ethClient, setup.contract, setup.systemStore
 				txOptsGranter := granterSetup.txOpts
-				tbldGrantee, txOptsGrantee := granteeSetup.tableland, granteeSetup.txOpts
+				gatewayGrantee, txOptsGrantee := granteeSetup.gateway, granteeSetup.txOpts
 
 				granter := txOptsGranter.From
 				grantee := txOptsGrantee.From
@@ -246,14 +243,14 @@ func TestCheckInsertPrivileges(t *testing.T) {
 				testQuery := "SELECT * FROM foo_1337_1 WHERE bar ='Hello';"
 				if test.isAllowed {
 					require.Eventually(t,
-						runSQLCountEq(ctx, t, tbldGrantee, testQuery, 1),
+						runSQLCountEq(ctx, t, gatewayGrantee, testQuery, 1),
 						5*time.Second,
 						100*time.Millisecond,
 					)
 					successfulTxnHashes = append(successfulTxnHashes, txn.Hash().Hex())
 					requireReceipts(ctx, t, store, successfulTxnHashes, true)
 				} else {
-					require.Never(t, runSQLCountEq(ctx, t, tbldGrantee, testQuery, 1), 5*time.Second, 100*time.Millisecond)
+					require.Never(t, runSQLCountEq(ctx, t, gatewayGrantee, testQuery, 1), 5*time.Second, 100*time.Millisecond)
 					requireReceipts(ctx, t, store, successfulTxnHashes, true)
 					requireReceipts(ctx, t, store, []string{txn.Hash().Hex()}, false)
 				}
@@ -295,7 +292,7 @@ func TestCheckUpdatePrivileges(t *testing.T) {
 
 				ctx, backend, sc, store := setup.ctx, setup.ethClient, setup.contract, setup.systemStore
 				txOptsGranter := granterSetup.txOpts
-				tbldGrantee, txOptsGrantee := granteeSetup.tableland, granteeSetup.txOpts
+				gatewayGrantee, txOptsGrantee := granteeSetup.gateway, granteeSetup.txOpts
 
 				granter := txOptsGranter.From
 				grantee := txOptsGrantee.From
@@ -332,14 +329,14 @@ func TestCheckUpdatePrivileges(t *testing.T) {
 				testQuery := "SELECT * FROM foo_1337_1 WHERE bar='Hello 2';"
 				if test.isAllowed {
 					require.Eventually(t,
-						runSQLCountEq(ctx, t, tbldGrantee, testQuery, 1),
+						runSQLCountEq(ctx, t, gatewayGrantee, testQuery, 1),
 						5*time.Second,
 						100*time.Millisecond,
 					)
 					successfulTxnHashes = append(successfulTxnHashes, txn.Hash().Hex())
 					requireReceipts(ctx, t, store, successfulTxnHashes, true)
 				} else {
-					require.Never(t, runSQLCountEq(ctx, t, tbldGrantee, testQuery, 1), 5*time.Second, 100*time.Millisecond)
+					require.Never(t, runSQLCountEq(ctx, t, gatewayGrantee, testQuery, 1), 5*time.Second, 100*time.Millisecond)
 					requireReceipts(ctx, t, store, successfulTxnHashes, true)
 					requireReceipts(ctx, t, store, []string{txn.Hash().Hex()}, false)
 				}
@@ -381,7 +378,7 @@ func TestCheckDeletePrivileges(t *testing.T) {
 
 				ctx, backend, sc, store := setup.ctx, setup.ethClient, setup.contract, setup.systemStore
 				txOptsGranter := granterSetup.txOpts
-				tbldGrantee, txOptsGrantee := granteeSetup.tableland, granteeSetup.txOpts
+				gatewayGrantee, txOptsGrantee := granteeSetup.gateway, granteeSetup.txOpts
 
 				granter := txOptsGranter.From
 				grantee := txOptsGrantee.From
@@ -416,14 +413,14 @@ func TestCheckDeletePrivileges(t *testing.T) {
 				testQuery := "SELECT * FROM foo_1337_1"
 				if test.isAllowed {
 					require.Eventually(t,
-						runSQLCountEq(ctx, t, tbldGrantee, testQuery, 0),
+						runSQLCountEq(ctx, t, gatewayGrantee, testQuery, 0),
 						5*time.Second,
 						100*time.Millisecond,
 					)
 					successfulTxnHashes = append(successfulTxnHashes, txn.Hash().Hex())
 					requireReceipts(ctx, t, store, successfulTxnHashes, true)
 				} else {
-					require.Never(t, runSQLCountEq(ctx, t, tbldGrantee, testQuery, 0), 5*time.Second, 100*time.Millisecond)
+					require.Never(t, runSQLCountEq(ctx, t, gatewayGrantee, testQuery, 0), 5*time.Second, 100*time.Millisecond)
 					requireReceipts(ctx, t, store, []string{txn.Hash().Hex()}, false)
 				}
 			}
@@ -439,7 +436,7 @@ func TestOwnerRevokesItsPrivilegeInsideMultipleStatements(t *testing.T) {
 	tablelandClient := setup.newTablelandClient(t)
 
 	ctx, backend, sc, store := setup.ctx, setup.ethClient, setup.contract, setup.systemStore
-	tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
+	gateway, txOpts := tablelandClient.gateway, tablelandClient.txOpts
 	caller := txOpts.From
 
 	_, err := sc.CreateTable(txOpts, caller, `CREATE TABLE foo_1337 (bar text);`)
@@ -456,7 +453,7 @@ func TestOwnerRevokesItsPrivilegeInsideMultipleStatements(t *testing.T) {
 	backend.Commit()
 
 	testQuery := "SELECT * FROM foo_1337_1;"
-	cond := runSQLCountEq(ctx, t, tbld, testQuery, 1)
+	cond := runSQLCountEq(ctx, t, gateway, testQuery, 1)
 	require.Never(t, cond, 5*time.Second, 100*time.Millisecond)
 	requireReceipts(ctx, t, store, []string{txn.Hash().Hex()}, false)
 }
@@ -471,8 +468,8 @@ func TestTransferTable(t *testing.T) {
 	owner2Setup := setup.newTablelandClient(t)
 
 	ctx, backend, sc, store := setup.ctx, setup.ethClient, setup.contract, setup.systemStore
-	tbldOwner1, txOptsOwner1 := owner1Setup.tableland, owner1Setup.txOpts
-	tbldOwner2, txOptsOwner2 := owner2Setup.tableland, owner2Setup.txOpts
+	gatewayOwner1, txOptsOwner1 := owner1Setup.gateway, owner1Setup.txOpts
+	gatewayOwner2, txOptsOwner2 := owner2Setup.gateway, owner2Setup.txOpts
 
 	_, err := sc.CreateTable(txOptsOwner1, txOptsOwner1.From, `CREATE TABLE foo_1337 (bar text);`)
 	require.NoError(t, err)
@@ -494,7 +491,7 @@ func TestTransferTable(t *testing.T) {
 
 	// insert from owner1 will NEVER go through
 	require.Never(t,
-		runSQLCountEq(ctx, t, tbldOwner1, "SELECT * FROM foo_1337_1 WHERE bar ='Hello';", 1),
+		runSQLCountEq(ctx, t, gatewayOwner1, "SELECT * FROM foo_1337_1 WHERE bar ='Hello';", 1),
 		5*time.Second,
 		100*time.Millisecond,
 	)
@@ -502,7 +499,7 @@ func TestTransferTable(t *testing.T) {
 
 	// insert from owner2 will EVENTUALLY go through
 	require.Eventually(t,
-		runSQLCountEq(ctx, t, tbldOwner2, "SELECT * FROM foo_1337_1 WHERE bar ='Hello2';", 1),
+		runSQLCountEq(ctx, t, gatewayOwner2, "SELECT * FROM foo_1337_1 WHERE bar ='Hello2';", 1),
 		5*time.Second,
 		100*time.Millisecond,
 	)
@@ -512,7 +509,7 @@ func TestTransferTable(t *testing.T) {
 	require.Eventually(t,
 		runSQLCountEq(ctx,
 			t,
-			tbldOwner2,
+			gatewayOwner2,
 			fmt.Sprintf("SELECT * FROM registry WHERE controller = '%s' AND id = 1 AND chain_id = 1337", txOptsOwner2.From.Hex()), // nolint
 			1,
 		),
@@ -521,67 +518,13 @@ func TestTransferTable(t *testing.T) {
 	)
 }
 
-func TestQueryConstraints(t *testing.T) {
-	t.Parallel()
-
-	t.Run("read-query-size-ok", func(t *testing.T) {
-		t.Parallel()
-
-		parsingOpts := []parsing.Option{
-			parsing.WithMaxReadQuerySize(44),
-		}
-
-		setup := newTablelandSetupBuilder().
-			withParsingOpts(parsingOpts...).
-			build(t)
-		tablelandClient := setup.newTablelandClient(t)
-
-		ctx, backend, sc := setup.ctx, setup.ethClient, setup.contract
-		tbld, txOpts := tablelandClient.tableland, tablelandClient.txOpts
-		caller := txOpts.From
-
-		_, err := sc.CreateTable(txOpts, caller, `CREATE TABLE foo_1337 (bar text);`)
-		require.NoError(t, err)
-		backend.Commit()
-
-		require.Eventually(t,
-			func() bool {
-				_, err := tbld.RunReadQuery(ctx, "SELECT * FROM foo_1337_1 WHERE bar = 'hello'") // length of 44 bytes
-				return err == nil
-			},
-			5*time.Second,
-			100*time.Millisecond,
-		)
-	})
-
-	t.Run("read-query-size-nok", func(t *testing.T) {
-		t.Parallel()
-
-		parsingOpts := []parsing.Option{
-			parsing.WithMaxReadQuerySize(44),
-		}
-
-		setup := newTablelandSetupBuilder().
-			withParsingOpts(parsingOpts...).
-			build(t)
-		tablelandClient := setup.newTablelandClient(t)
-
-		ctx := setup.ctx
-		tbld := tablelandClient.tableland
-
-		_, err := tbld.RunReadQuery(ctx, "SELECT * FROM foo_1337_1 WHERE bar = 'hello2'") // length of 45 bytes
-		require.Error(t, err)
-		require.ErrorContains(t, err, "read query size is too long")
-	})
-}
-
 func processCSV(
 	ctx context.Context,
 	t *testing.T,
 	sc *ethereum.Contract,
 	txOpts *bind.TransactOpts,
 	caller common.Address,
-	tbld tableland.Tableland,
+	gateway gateway.Gateway,
 	csvPath string,
 	backend *backends.SimulatedBackend,
 ) {
@@ -590,7 +533,7 @@ func processCSV(
 	records := readCsvFile(t, csvPath)
 	for _, record := range records {
 		if record[0] == "r" {
-			require.Eventually(t, jsonEq(ctx, t, tbld, record[1], record[2]), time.Second*5, time.Millisecond*100)
+			require.Eventually(t, jsonEq(ctx, t, gateway, record[1], record[2]), time.Second*5, time.Millisecond*100)
 		} else {
 			_, err := sc.RunSQL(txOpts, caller, big.NewInt(1), record[1])
 			require.NoError(t, err)
@@ -602,12 +545,12 @@ func processCSV(
 func jsonEq(
 	ctx context.Context,
 	t *testing.T,
-	tbld tableland.Tableland,
+	gateway gateway.Gateway,
 	stm string,
 	expJSON string,
 ) func() bool {
 	return func() bool {
-		r, err := tbld.RunReadQuery(ctx, stm)
+		r, err := gateway.RunReadQuery(ctx, stm)
 		// if we get a table undefined error, try again
 		if err != nil && strings.Contains(err.Error(), "no such table") {
 			return false
@@ -716,7 +659,7 @@ func (acl *aclHalfMock) CheckPrivileges(
 	id tables.TableID,
 	op tableland.Operation,
 ) (bool, error) {
-	aclImpl := NewACL(acl.sqlStore, nil)
+	aclImpl := NewACL(acl.sqlStore)
 	return aclImpl.CheckPrivileges(ctx, tx, controller, id, op)
 }
 
@@ -804,11 +747,6 @@ func newTablelandSetupBuilder() *tablelandSetupBuilder {
 	return &tablelandSetupBuilder{}
 }
 
-func (b *tablelandSetupBuilder) withParsingOpts(opts ...parsing.Option) *tablelandSetupBuilder {
-	b.parsingOpts = opts
-	return b
-}
-
 func (b *tablelandSetupBuilder) build(t *testing.T) *tablelandSetup {
 	t.Helper()
 	dbURI := tests.Sqlite3URI(t)
@@ -847,10 +785,6 @@ func (b *tablelandSetupBuilder) build(t *testing.T) *tablelandSetup {
 	require.NoError(t, err)
 	t.Cleanup(func() { ep.Stop() })
 
-	userStore, err := user.New(
-		dbURI, rsresolver.New(map[tableland.ChainID]eventprocessor.EventProcessor{1337: ep}))
-	require.NoError(t, err)
-
 	return &tablelandSetup{
 		ctx: ctx,
 
@@ -869,7 +803,6 @@ func (b *tablelandSetupBuilder) build(t *testing.T) *tablelandSetup {
 
 		// common dependencies among mesa clients
 		parser:      parser,
-		userStore:   userStore,
 		systemStore: store,
 	}
 }
@@ -892,7 +825,6 @@ type tablelandSetup struct {
 
 	// common dependencies among tableland clients
 	parser      parsing.SQLValidator
-	userStore   *user.UserStore
 	systemStore *system.SystemStore
 }
 
@@ -914,31 +846,22 @@ func (s *tablelandSetup) newTablelandClient(t *testing.T) *tablelandClient {
 		big.NewInt(1000000000000000000),
 	)
 
-	registry, err := ethereum.NewClient(
-		s.ethClient,
-		1337,
-		s.contractAddr,
-		wallet,
-		impl.NewSimpleTracker(wallet, s.ethClient),
+	gateway, err := gateway.NewGateway(
+		s.parser,
+		map[tableland.ChainID]sqlstore.SystemStore{1337: s.systemStore},
+		"https://tableland.network/tables",
+		"https://render.tableland.xyz",
+		"https://render.tableland.xyz/anim",
 	)
 	require.NoError(t, err)
-	tbld := NewTablelandMesa(
-		s.parser,
-		s.userStore,
-		map[tableland.ChainID]chains.ChainStack{
-			1337: {
-				Store:    s.systemStore,
-				Registry: registry,
-			},
-		})
 
 	return &tablelandClient{
-		tableland: tbld,
-		txOpts:    txOpts,
+		gateway: gateway,
+		txOpts:  txOpts,
 	}
 }
 
 type tablelandClient struct {
-	tableland tableland.Tableland
-	txOpts    *bind.TransactOpts
+	gateway gateway.Gateway
+	txOpts  *bind.TransactOpts
 }

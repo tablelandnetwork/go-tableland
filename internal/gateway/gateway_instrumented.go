@@ -1,4 +1,4 @@
-package impl
+package gateway
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/textileio/go-tableland/internal/router/middlewares"
-	"github.com/textileio/go-tableland/internal/system"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/metrics"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
@@ -17,35 +16,37 @@ import (
 	"go.opentelemetry.io/otel/metric/instrument"
 )
 
-// InstrumentedSystemSQLStoreService implements the SystemService interface using SQLStore.
-type InstrumentedSystemSQLStoreService struct {
-	system           system.SystemService
+// InstrumentedGateway implements the Gateway interface using SQLStore.
+type InstrumentedGateway struct {
+	gateway          Gateway
 	callCount        instrument.Int64Counter
 	latencyHistogram instrument.Int64Histogram
 }
 
-// NewInstrumentedSystemSQLStoreService creates a new InstrumentedSystemSQLStoreService.
-func NewInstrumentedSystemSQLStoreService(system system.SystemService) (system.SystemService, error) {
+var _ (Gateway) = (*InstrumentedGateway)(nil)
+
+// NewInstrumentedGateway creates a new InstrumentedGateway.
+func NewInstrumentedGateway(gateway Gateway) (Gateway, error) {
 	meter := global.MeterProvider().Meter("tableland")
 	callCount, err := meter.Int64Counter("tableland.system.call.count")
 	if err != nil {
-		return &InstrumentedSystemSQLStoreService{}, fmt.Errorf("registering call counter: %s", err)
+		return &InstrumentedGateway{}, fmt.Errorf("registering call counter: %s", err)
 	}
 	latencyHistogram, err := meter.Int64Histogram("tableland.system.call.latency")
 	if err != nil {
-		return &InstrumentedSystemSQLStoreService{}, fmt.Errorf("registering latency histogram: %s", err)
+		return &InstrumentedGateway{}, fmt.Errorf("registering latency histogram: %s", err)
 	}
 
-	return &InstrumentedSystemSQLStoreService{system, callCount, latencyHistogram}, nil
+	return &InstrumentedGateway{gateway, callCount, latencyHistogram}, nil
 }
 
 // GetReceiptByTransactionHash implements system.SystemService.
-func (s *InstrumentedSystemSQLStoreService) GetReceiptByTransactionHash(
+func (g *InstrumentedGateway) GetReceiptByTransactionHash(
 	ctx context.Context,
 	hash common.Hash,
 ) (sqlstore.Receipt, bool, error) {
 	start := time.Now()
-	receipt, exists, err := s.system.GetReceiptByTransactionHash(ctx, hash)
+	receipt, exists, err := g.gateway.GetReceiptByTransactionHash(ctx, hash)
 	latency := time.Since(start).Milliseconds()
 	chainID, _ := ctx.Value(middlewares.ContextKeyChainID).(tableland.ChainID)
 
@@ -55,19 +56,19 @@ func (s *InstrumentedSystemSQLStoreService) GetReceiptByTransactionHash(
 		{Key: "chainID", Value: attribute.Int64Value(int64(chainID))},
 	}, metrics.BaseAttrs...)
 
-	s.callCount.Add(ctx, 1, attributes...)
-	s.latencyHistogram.Record(ctx, latency, attributes...)
+	g.callCount.Add(ctx, 1, attributes...)
+	g.latencyHistogram.Record(ctx, latency, attributes...)
 
 	return receipt, exists, err
 }
 
 // GetTableMetadata returns table's metadata fetched from SQLStore.
-func (s *InstrumentedSystemSQLStoreService) GetTableMetadata(
+func (g *InstrumentedGateway) GetTableMetadata(
 	ctx context.Context,
 	id tables.TableID,
 ) (sqlstore.TableMetadata, error) {
 	start := time.Now()
-	metadata, err := s.system.GetTableMetadata(ctx, id)
+	metadata, err := g.gateway.GetTableMetadata(ctx, id)
 	latency := time.Since(start).Milliseconds()
 	chainID, _ := ctx.Value(middlewares.ContextKeyChainID).(tableland.ChainID)
 
@@ -78,8 +79,27 @@ func (s *InstrumentedSystemSQLStoreService) GetTableMetadata(
 		{Key: "chainID", Value: attribute.Int64Value(int64(chainID))},
 	}, metrics.BaseAttrs...)
 
-	s.callCount.Add(ctx, 1, attributes...)
-	s.latencyHistogram.Record(ctx, latency, attributes...)
+	g.callCount.Add(ctx, 1, attributes...)
+	g.latencyHistogram.Record(ctx, latency, attributes...)
 
 	return metadata, err
+}
+
+// RunReadQuery allows the user to run SQL.
+func (g *InstrumentedGateway) RunReadQuery(ctx context.Context, statement string) (*tableland.TableData, error) {
+	start := time.Now()
+	data, err := g.gateway.RunReadQuery(ctx, statement)
+	latency := time.Since(start).Milliseconds()
+	chainID, _ := ctx.Value(middlewares.ContextKeyChainID).(tableland.ChainID)
+
+	attributes := append([]attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("RunReadQuery")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+		{Key: "chainID", Value: attribute.Int64Value(int64(chainID))},
+	}, metrics.BaseAttrs...)
+
+	g.callCount.Add(ctx, 1, attributes...)
+	g.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return data, err
 }
