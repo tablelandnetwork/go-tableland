@@ -111,7 +111,7 @@
             "Name": "Arbitrum Nova Mainnet",
             "ChainID": 42170,
             "Registry": {
-                "EthEndpoint": "https://skilled-yolo-mountain.nova-mainnet.discover.quiknode.pro/",
+                "EthEndpoint": "https://skilled-yolo-mountain.nova-mainnet.discover.quiknode.pro/${VALIDATOR_QUICKNODE_ARBITRUM_NOVA_MAINNET_API_KEY}",
                 "ContractAddress": "0x1A22854c5b1642760a827f20137a67930AE108d2"
             },
             "Signer": {
