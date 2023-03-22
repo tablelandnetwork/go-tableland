@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go/bigquery v1.48.0
 	cloud.google.com/go/logging v1.7.0
 	github.com/XSAM/otelsql v0.20.0
-	github.com/ethereum/go-ethereum v1.11.4
+	github.com/ethereum/go-ethereum v1.11.5
 	github.com/golang-migrate/migrate/v4 v4.15.2
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
