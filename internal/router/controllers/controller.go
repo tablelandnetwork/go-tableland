@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -14,9 +13,9 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/buildinfo"
 	"github.com/textileio/go-tableland/internal/formatter"
+	"github.com/textileio/go-tableland/internal/gateway"
 	"github.com/textileio/go-tableland/internal/router/controllers/apiv1"
 	"github.com/textileio/go-tableland/internal/router/middlewares"
-	"github.com/textileio/go-tableland/internal/system"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/errors"
 	"github.com/textileio/go-tableland/pkg/tables"
@@ -30,15 +29,13 @@ type SQLRunner interface {
 
 // Controller defines the HTTP handlers for interacting with user tables.
 type Controller struct {
-	runner        SQLRunner
-	systemService system.SystemService
+	gateway gateway.Gateway
 }
 
 // NewController creates a new Controller.
-func NewController(runner SQLRunner, svc system.SystemService) *Controller {
+func NewController(gateway gateway.Gateway) *Controller {
 	return &Controller{
-		runner:        runner,
-		systemService: svc,
+		gateway: gateway,
 	}
 }
 
@@ -118,7 +115,7 @@ func (c *Controller) GetReceiptByTransactionHash(rw http.ResponseWriter, r *http
 	}
 	txnHash := common.HexToHash(paramTxnHash)
 
-	receipt, exists, err := c.systemService.GetReceiptByTransactionHash(ctx, txnHash)
+	receipt, exists, err := c.gateway.GetReceiptByTransactionHash(ctx, txnHash)
 	if err != nil {
 		rw.Header().Set("Content-Type", "application/json")
 		rw.WriteHeader(http.StatusBadRequest)
@@ -167,16 +164,8 @@ func (c *Controller) GetTable(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	isAPIV1 := strings.HasPrefix(r.RequestURI, "/api/v1/tables")
-
-	metadata, err := c.systemService.GetTableMetadata(ctx, id)
-	if err == system.ErrTableNotFound {
-		if !isAPIV1 {
-			rw.Header().Set("Content-type", "application/json")
-			rw.WriteHeader(http.StatusOK)
-			_ = json.NewEncoder(rw).Encode(metadata)
-			return
-		}
+	metadata, err := c.gateway.GetTableMetadata(ctx, id)
+	if err == gateway.ErrTableNotFound {
 		rw.WriteHeader(http.StatusNotFound)
 		return
 	}
@@ -278,7 +267,7 @@ func (c *Controller) runReadRequest(
 	stm string,
 	rw http.ResponseWriter,
 ) (*tableland.TableData, bool) {
-	res, err := c.runner.RunReadQuery(ctx, stm)
+	res, err := c.gateway.RunReadQuery(ctx, stm)
 	if err != nil {
 		rw.WriteHeader(http.StatusBadRequest)
 		log.Ctx(ctx).

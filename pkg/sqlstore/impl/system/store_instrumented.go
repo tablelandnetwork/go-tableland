@@ -1,4 +1,4 @@
-package impl
+package system
 
 import (
 	"context"
@@ -8,10 +8,12 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog/log"
+	"github.com/tablelandnetwork/sqlparser"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/metrics"
 	"github.com/textileio/go-tableland/pkg/nonce"
+	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/tables"
 	"go.opentelemetry.io/otel/attribute"
@@ -45,6 +47,11 @@ func NewInstrumentedSystemStore(chainID tableland.ChainID, store sqlstore.System
 		callCount:        callCount,
 		latencyHistogram: latencyHistogram,
 	}, nil
+}
+
+// SetReadResolver sets the resolver for read queries.
+func (s *InstrumentedSystemStore) SetReadResolver(resolver sqlparser.ReadStatementResolver) {
+	s.store.SetReadResolver(resolver)
 }
 
 // GetTable fetchs a table from its UUID.
@@ -410,4 +417,21 @@ func (s *InstrumentedSystemStore) GetID(ctx context.Context) (string, error) {
 	s.latencyHistogram.Record(ctx, latency, attributes...)
 
 	return id, err
+}
+
+// Read executes a read statement on the db.
+func (s *InstrumentedSystemStore) Read(ctx context.Context, stmt parsing.ReadStmt) (*tableland.TableData, error) {
+	start := time.Now()
+	data, err := s.store.Read(ctx, stmt)
+	latency := time.Since(start).Milliseconds()
+
+	attributes := append([]attribute.KeyValue{
+		{Key: "method", Value: attribute.StringValue("Read")},
+		{Key: "success", Value: attribute.BoolValue(err == nil)},
+	}, metrics.BaseAttrs...)
+
+	s.callCount.Add(ctx, 1, attributes...)
+	s.latencyHistogram.Record(ctx, latency, attributes...)
+
+	return data, err
 }
