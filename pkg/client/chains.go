@@ -76,7 +76,7 @@ var Chains = map[ChainID]Chain{
 		Endpoint:     mainnetURL,
 		ID:           ChainIDs.ArbitrumNova,
 		Name:         "Arbitrum Nova",
-		ContractAddr: common.HexToAddress("0x4dad9cbBeDF7934B20641F135bb1202c123AbBD5"),
+		ContractAddr: common.HexToAddress("0x1a22854c5b1642760a827f20137a67930ae108d2"),
 	},
 	ChainIDs.EthereumGoerli: {
 		Endpoint:     testnetURL,
@@ -139,9 +139,9 @@ var AlchemyURLs = map[ChainID]string{
 	ChainIDs.Polygon:        "https://polygon-mainnet.g.alchemy.com/v2/%s",
 }
 
-// QuickNodeURLs contains the URLs for supported chains for QuikNode.
+// QuickNodeURLs contains the URLs for supported chains for QuickNode.
 var QuickNodeURLs = map[ChainID]string{
-	ChainIDs.ArbitrumNova: "https://distinguished-burned-cherry.nova-mainnet.discover.quiknode.pro/%s",
+	ChainIDs.ArbitrumNova: "https://skilled-yolo-mountain.nova-mainnet.discover.quiknode.pro/%s",
 }
 
 // LocalURLs contains the URLs for a local network.
