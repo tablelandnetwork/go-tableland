@@ -92,10 +92,13 @@ func main() {
 		log.Fatal().Err(err).Msg("creating chains stack")
 	}
 
-	// User store.
 	eps := make(map[tableland.ChainID]eventprocessor.EventProcessor, len(chainStacks))
 	for chainID, stack := range chainStacks {
 		eps[chainID] = stack.EventProcessor
+	}
+
+	for _, stack := range chainStacks {
+		stack.Store.SetReadResolver(readstatementresolver.New(eps))
 	}
 
 	// HTTP API server.
@@ -422,15 +425,6 @@ func createChainStacks(
 			return nil, nil, fmt.Errorf("creating chain_id=%d stack: %s", chainCfg.ChainID, err)
 		}
 		chainStacks[chainCfg.ChainID] = chainStack
-	}
-
-	epMap := make(map[tableland.ChainID]eventprocessor.EventProcessor)
-	for chainID, stack := range chainStacks {
-		epMap[chainID] = stack.EventProcessor
-	}
-
-	for _, stack := range chainStacks {
-		stack.Store.SetReadResolver(readstatementresolver.New(epMap))
 	}
 
 	closeModule := func(ctx context.Context) error {
