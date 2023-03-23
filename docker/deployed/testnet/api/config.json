@@ -158,6 +158,33 @@
                 "MinBlockDepth": 0
             },
             "HashCalculationStep": 1800
+        },
+        {
+            "Name": "Filecoin Hyperspace",
+            "ChainID": 10,            
+            "Registry": {
+                "EthEndpoint": "/${VALIDATOR_ANKR_FILECOIN_HYPERSPACE_API_KEY}",
+                "ContractAddress": ""
+            },
+            "Signer": {
+                "PrivateKey": "${VALIDATOR_FILECOIN_HYPERSPACE_SIGNER_PRIVATE_KEY}"
+            },
+            "EventFeed": {
+                "ChainAPIBackoff": "15s",
+                "NewBlockPollFreq": "5s",
+                "MinBlockDepth": 0,
+                "PersistEvents": true
+            },
+            "EventProcessor": {
+                "BlockFailedExecutionBackoff": "10s",
+                "DedupExecutedTxns": true
+            },
+            "NonceTracker": {
+                "CheckInterval": "15s",
+                "StuckInterval": "10m",
+                "MinBlockDepth": 0
+            },
+            "HashCalculationStep": 1800
         }
     ]
 }
