@@ -98,7 +98,7 @@ var Chains = map[ChainID]Chain{
 		Endpoint:     testnetURL,
 		ID:           ChainIDs.FilecoinHyperspace,
 		Name:         "Filecoin Hyperspace",
-		ContractAddr: common.HexToAddress(""),
+		ContractAddr: common.HexToAddress("0x86FB37A952463f3Ca5D18214300276cF3e3FeaA1"),
 	},
 	ChainIDs.PolygonMumbai: {
 		Endpoint:     testnetURL,
