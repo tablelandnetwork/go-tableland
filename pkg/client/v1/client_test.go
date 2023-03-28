@@ -114,7 +114,7 @@ func TestGetTableByID(t *testing.T) {
 		require.Equal(t, "default 'foo'", table.Schema.Columns[0].Constraints[0])
 
 		require.Len(t, table.Schema.TableConstraints, 1)
-		require.Equal(t, "check(zar > 0)", table.Schema.TableConstraints[0])
+		require.Equal(t, "check(zar>0)", table.Schema.TableConstraints[0])
 	})
 	t.Run("status 404", func(t *testing.T) {
 		calls := setup(t)
