@@ -108,6 +108,33 @@
             "HashCalculationStep": 450
         },
         {
+            "Name": "Arbitrum Nova Mainnet",
+            "ChainID": 42170,
+            "Registry": {
+                "EthEndpoint": "https://skilled-yolo-mountain.nova-mainnet.discover.quiknode.pro/${VALIDATOR_QUICKNODE_ARBITRUM_NOVA_MAINNET_API_KEY}",
+                "ContractAddress": "0x1A22854c5b1642760a827f20137a67930AE108d2"
+            },
+            "Signer": {
+                "PrivateKey": "${VALIDATOR_ARBITRUM_NOVA_MAINNET_SIGNER_PRIVATE_KEY}"
+            },
+            "EventFeed": {
+                "ChainAPIBackoff": "15s",
+                "NewBlockPollFreq": "5s",
+                "MinBlockDepth": 0,
+                "PersistEvents": true
+            },
+            "EventProcessor": {
+                "BlockFailedExecutionBackoff": "10s",
+                "DedupExecutedTxns": true
+            },
+            "NonceTracker": {
+                "CheckInterval": "20s",
+                "StuckInterval": "10m",
+                "MinBlockDepth": 0
+            },
+            "HashCalculationStep": 450
+        },
+        {
             "Name": "Polygon Mainnet",
             "ChainID": 137,
             "AllowTransactionRelay": false,

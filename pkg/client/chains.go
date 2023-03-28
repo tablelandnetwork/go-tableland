@@ -19,6 +19,7 @@ var ChainIDs = struct {
 	Optimism       ChainID
 	Polygon        ChainID
 	Arbitrum       ChainID
+	ArbitrumNova   ChainID
 	EthereumGoerli ChainID
 	OptimismGoerli ChainID
 	ArbitrumGoerli ChainID
@@ -29,6 +30,7 @@ var ChainIDs = struct {
 	Optimism:       10,
 	Polygon:        137,
 	Arbitrum:       42161,
+	ArbitrumNova:   42170,
 	EthereumGoerli: 5,
 	OptimismGoerli: 420,
 	ArbitrumGoerli: 421613,
@@ -69,6 +71,12 @@ var Chains = map[ChainID]Chain{
 		ID:           ChainIDs.Arbitrum,
 		Name:         "Arbitrum",
 		ContractAddr: common.HexToAddress("0x9aBd75E8640871A5a20d3B4eE6330a04c962aFfd"),
+	},
+	ChainIDs.ArbitrumNova: {
+		Endpoint:     mainnetURL,
+		ID:           ChainIDs.ArbitrumNova,
+		Name:         "Arbitrum Nova",
+		ContractAddr: common.HexToAddress("0x1a22854c5b1642760a827f20137a67930ae108d2"),
 	},
 	ChainIDs.EthereumGoerli: {
 		Endpoint:     testnetURL,
@@ -129,6 +137,11 @@ var AlchemyURLs = map[ChainID]string{
 	ChainIDs.Arbitrum:       "https://arb-mainnet.g.alchemy.com/v2/%s",
 	ChainIDs.PolygonMumbai:  "https://polygon-mumbai.g.alchemy.com/v2/%s",
 	ChainIDs.Polygon:        "https://polygon-mainnet.g.alchemy.com/v2/%s",
+}
+
+// QuickNodeURLs contains the URLs for supported chains for QuickNode.
+var QuickNodeURLs = map[ChainID]string{
+	ChainIDs.ArbitrumNova: "https://skilled-yolo-mountain.nova-mainnet.discover.quiknode.pro/%s",
 }
 
 // LocalURLs contains the URLs for a local network.
