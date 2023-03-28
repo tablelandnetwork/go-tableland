@@ -185,6 +185,33 @@
                 "MinBlockDepth": 0
             },
             "HashCalculationStep": 1800
+        },
+        {
+            "Name": "Filecoin Mainnet",
+            "ChainID": 314,            
+            "Registry": {
+                "EthEndpoint": "https://rpc.ankr.com/filecoin/${VALIDATOR_ANKR_FILECOIN_MAINNET_API_KEY}",
+                "ContractAddress": "0x59EF8Bf2d6c102B4c42AEf9189e1a9F0ABfD652d"
+            },
+            "Signer": {
+                "PrivateKey": "${VALIDATOR_FILECOIN_MAINNET_SIGNER_PRIVATE_KEY}"
+            },
+            "EventFeed": {
+                "ChainAPIBackoff": "15s",
+                "NewBlockPollFreq": "5s",
+                "MinBlockDepth": 0,
+                "PersistEvents": true
+            },
+            "EventProcessor": {
+                "BlockFailedExecutionBackoff": "10s",
+                "DedupExecutedTxns": true
+            },
+            "NonceTracker": {
+                "CheckInterval": "15s",
+                "StuckInterval": "10m",
+                "MinBlockDepth": 0
+            },
+            "HashCalculationStep": 1800
         }
     ]
 }

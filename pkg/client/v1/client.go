@@ -64,6 +64,13 @@ func NewClientAlchemyAPIKey(key string) NewClientOption {
 	}
 }
 
+// NewClientAnkrAPIKey specifies an Ankr API to use when creating an EVM backend.
+func NewClientAnkrAPIKey(key string) NewClientOption {
+	return func(c *config) {
+		c.alchemyAPIKey = key
+	}
+}
+
 // NewClientLocal specifies that a local EVM backend should be used.
 func NewClientLocal() NewClientOption {
 	return func(c *config) {

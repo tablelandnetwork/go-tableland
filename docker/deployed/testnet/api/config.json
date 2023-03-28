@@ -164,7 +164,7 @@
             "ChainID": 3141,            
             "Registry": {
                 "EthEndpoint": "https://rpc.ankr.com/filecoin_testnet/${VALIDATOR_ANKR_FILECOIN_HYPERSPACE_API_KEY}",
-                "ContractAddress": "0x86FB37A952463f3Ca5D18214300276cF3e3FeaA1"
+                "ContractAddress": "0x0B9737ab4B3e5303CB67dB031b509697e31c02d3"
             },
             "Signer": {
                 "PrivateKey": "${VALIDATOR_FILECOIN_HYPERSPACE_SIGNER_PRIVATE_KEY}"

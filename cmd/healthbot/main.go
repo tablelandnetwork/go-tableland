@@ -58,11 +58,22 @@ func main() {
 			chain.ContractAddr = common.HexToAddress(chainCfg.OverrideClient.ContractAddr)
 		}
 
-		client, err := clientV1.NewClient(
-			ctx, wallet,
-			clientV1.NewClientChain(chain),
-			clientV1.NewClientAlchemyAPIKey(chainCfg.AlchemyAPIKey),
-		)
+		// todo: if chain id is 3141 use Anrk endpoint
+		var client *clientV1.Client
+		if chain.ID == 3141 { 
+			client, err = clientV1.NewClient(
+				ctx, wallet,
+				clientV1.NewClientChain(chain),
+				clientV1.NewClientAnkrAPIKey(chainCfg.AnrkAPIKey),
+			)
+		} else {
+			client, err = clientV1.NewClient(
+				ctx, wallet,
+				clientV1.NewClientChain(chain),
+				clientV1.NewClientAlchemyAPIKey(chainCfg.AlchemyAPIKey),
+			)
+		}
+		
 		if err != nil {
 			log.Fatal().Err(err).Msg("error creating tbl client")
 		}

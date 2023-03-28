@@ -76,6 +76,12 @@ var Chains = map[ChainID]Chain{
 		Name:         "Arbitrum",
 		ContractAddr: common.HexToAddress("0x9aBd75E8640871A5a20d3B4eE6330a04c962aFfd"),
 	},
+	ChainIDs.Filecoin: {
+		Endpoint:     mainnetURL,
+		ID:           ChainIDs.Filecoin,
+		Name:         "Filecoin",
+		ContractAddr: common.HexToAddress("0x59EF8Bf2d6c102B4c42AEf9189e1a9F0ABfD652d"),
+	},
 	ChainIDs.EthereumGoerli: {
 		Endpoint:     testnetURL,
 		ID:           ChainIDs.EthereumGoerli,
@@ -98,7 +104,7 @@ var Chains = map[ChainID]Chain{
 		Endpoint:     testnetURL,
 		ID:           ChainIDs.FilecoinHyperspace,
 		Name:         "Filecoin Hyperspace",
-		ContractAddr: common.HexToAddress("0x86FB37A952463f3Ca5D18214300276cF3e3FeaA1"),
+		ContractAddr: common.HexToAddress("0x0B9737ab4B3e5303CB67dB031b509697e31c02d3"),
 	},
 	ChainIDs.PolygonMumbai: {
 		Endpoint:     testnetURL,
