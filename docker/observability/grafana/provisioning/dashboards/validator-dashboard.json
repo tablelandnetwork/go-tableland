@@ -64,42 +64,30 @@
           "color": {
             "mode": "thresholds"
           },
-          "decimals": 0,
-          "displayName": "${__series.name}",
           "mappings": [],
-          "max": 20,
-          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 5
-              },
-              {
-                "color": "red",
-                "value": 10
               }
             ]
           },
-          "unit": "attempts"
+          "unit": "ms"
         },
         "overrides": []
       },
       "gridPos": {
         "h": 7,
-        "w": 6,
+        "w": 2,
         "x": 0,
         "y": 1
       },
-      "id": 71,
+      "id": 85,
       "options": {
-        "colorMode": "background",
-        "graphMode": "none",
+        "colorMode": "value",
+        "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
@@ -109,26 +97,23 @@
           "fields": "",
           "values": false
         },
-        "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "9.2.2",
+      "pluginVersion": "9.3.2",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "P1809F7CD0C75ACF3"
           },
-          "exemplar": true,
-          "expr": "sum by (chain_id) (tableland_wallettracker_txn_confirmation_attempts{service_name=\"tableland:api\"})",
-          "format": "time_series",
-          "instant": false,
-          "interval": "",
-          "legendFormat": "Chain ID {{chain_id}}",
+          "editorMode": "code",
+          "expr": "runtime_uptime_milliseconds",
+          "legendFormat": "{{job}}",
+          "range": true,
           "refId": "A"
         }
       ],
-      "title": "Txn confirmation retries",
+      "title": "Uptime",
       "type": "stat"
     },
     {
@@ -166,8 +151,8 @@
       },
       "gridPos": {
         "h": 7,
-        "w": 17,
-        "x": 6,
+        "w": 22,
+        "x": 2,
         "y": 1
       },
       "id": 39,
@@ -186,7 +171,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "9.2.2",
+      "pluginVersion": "9.3.2",
       "targets": [
         {
           "datasource": {
@@ -225,43 +210,37 @@
           "color": {
             "mode": "thresholds"
           },
-          "decimals": 0,
-          "displayName": "${__series.name}",
           "mappings": [],
-          "max": 0,
-          "min": 0,
+          "max": 1,
+          "noValue": "No",
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "red",
                 "value": null
               },
               {
-                "color": "yellow",
-                "value": 3
-              },
-              {
-                "color": "red",
-                "value": 5
+                "color": "green",
+                "value": 1
               }
             ]
           },
-          "unit": "bumps"
+          "unit": "bool_yes_no"
         },
         "overrides": []
       },
       "gridPos": {
         "h": 7,
-        "w": 6,
+        "w": 5,
         "x": 0,
         "y": 8
       },
-      "id": 73,
+      "id": 64,
       "options": {
         "colorMode": "background",
         "graphMode": "none",
-        "justifyMode": "auto",
+        "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
           "calcs": [
@@ -273,7 +252,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "9.2.2",
+      "pluginVersion": "9.3.2",
       "targets": [
         {
           "datasource": {
@@ -281,15 +260,13 @@
             "uid": "P1809F7CD0C75ACF3"
           },
           "exemplar": true,
-          "expr": "sum by (chain_id) (increase(tableland_wallettracker_gas_bumps{namespace=\"$namespace\"}[1h]))",
-          "format": "time_series",
-          "instant": false,
+          "expr": "sum by (chain_id)(tableland_wallettracker_eth_client_unhealthy{service_name=\"tableland:api\"}) < BOOL 1",
           "interval": "",
-          "legendFormat": "Chain ID {{chain_id}}",
+          "legendFormat": "ChainID: {{chain_id}}",
           "refId": "A"
         }
       ],
-      "title": "Txn Gas Price Bumps",
+      "title": "Ethereum node API is healthy",
       "type": "stat"
     },
     {
@@ -328,8 +305,8 @@
       },
       "gridPos": {
         "h": 7,
-        "w": 6,
-        "x": 6,
+        "w": 8,
+        "x": 5,
         "y": 8
       },
       "id": 62,
@@ -348,7 +325,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "9.2.2",
+      "pluginVersion": "9.3.2",
       "targets": [
         {
           "datasource": {
@@ -366,175 +343,6 @@
       ],
       "title": "Wallet balances",
       "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "max": 1,
-          "noValue": "No",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "green",
-                "value": 1
-              }
-            ]
-          },
-          "unit": "bool_yes_no"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 7,
-        "w": 5,
-        "x": 12,
-        "y": 8
-      },
-      "id": 64,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "text": {},
-        "textMode": "auto"
-      },
-      "pluginVersion": "9.2.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
-          },
-          "exemplar": true,
-          "expr": "sum by (chain_id)(tableland_wallettracker_eth_client_unhealthy{service_name=\"tableland:api\"}) < BOOL 1",
-          "interval": "",
-          "legendFormat": "ChainID: {{chain_id}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Ethereum node API is healthy",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
-      },
-      "description": "",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "displayName": "${__series.name}",
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 5
-              },
-              {
-                "color": "red",
-                "value": 10
-              }
-            ]
-          },
-          "unit": "txns"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 7,
-        "w": 6,
-        "x": 17,
-        "y": 8
-      },
-      "id": 68,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "8.2.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
-          },
-          "exemplar": true,
-          "expr": "sum by (chain_id) (tableland_wallettracker_pending_txns{service_name=\"tableland:api\"})",
-          "interval": "",
-          "legendFormat": "ChainID {{chain_id}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Pending txns",
-      "type": "timeseries"
     },
     {
       "datasource": {
@@ -565,10 +373,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 5,
-        "w": 4,
-        "x": 0,
-        "y": 15
+        "h": 7,
+        "w": 3,
+        "x": 13,
+        "y": 8
       },
       "id": 82,
       "options": {
@@ -586,7 +394,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "9.2.2",
+      "pluginVersion": "9.3.2",
       "targets": [
         {
           "datasource": {
@@ -629,10 +437,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 5,
-        "w": 6,
-        "x": 4,
-        "y": 15
+        "h": 7,
+        "w": 8,
+        "x": 16,
+        "y": 8
       },
       "id": 83,
       "options": {
@@ -650,7 +458,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "9.2.2",
+      "pluginVersion": "9.3.2",
       "targets": [
         {
           "datasource": {
@@ -668,68 +476,6 @@
       "type": "stat"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "ms"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 4,
-        "x": 10,
-        "y": 15
-      },
-      "id": 85,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "9.2.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
-          },
-          "editorMode": "code",
-          "expr": "runtime_uptime_milliseconds",
-          "legendFormat": "{{job}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Uptime",
-      "type": "stat"
-    },
-    {
       "collapsed": false,
       "datasource": {
         "type": "datasource",
@@ -739,7 +485,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 20
+        "y": 15
       },
       "id": 48,
       "panels": [],
@@ -813,7 +559,7 @@
         "h": 9,
         "w": 6,
         "x": 0,
-        "y": 21
+        "y": 16
       },
       "id": 46,
       "options": {
@@ -904,7 +650,7 @@
         "h": 9,
         "w": 6,
         "x": 6,
-        "y": 21
+        "y": 16
       },
       "id": 51,
       "options": {
@@ -1000,7 +746,7 @@
         "h": 9,
         "w": 6,
         "x": 12,
-        "y": 21
+        "y": 16
       },
       "id": 49,
       "options": {
@@ -1097,7 +843,7 @@
         "h": 9,
         "w": 6,
         "x": 18,
-        "y": 21
+        "y": 16
       },
       "id": 52,
       "options": {
@@ -1163,7 +909,7 @@
         "h": 7,
         "w": 6,
         "x": 0,
-        "y": 30
+        "y": 25
       },
       "heatmap": {},
       "hideZeroBuckets": true,
@@ -1210,7 +956,7 @@
           "unit": "ms"
         }
       },
-      "pluginVersion": "9.2.2",
+      "pluginVersion": "9.3.2",
       "reverseYBuckets": false,
       "targets": [
         {
@@ -1276,7 +1022,7 @@
         "h": 7,
         "w": 6,
         "x": 6,
-        "y": 30
+        "y": 25
       },
       "heatmap": {},
       "hideZeroBuckets": true,
@@ -1323,7 +1069,7 @@
           "unit": "ms"
         }
       },
-      "pluginVersion": "9.2.2",
+      "pluginVersion": "9.3.2",
       "reverseYBuckets": false,
       "targets": [
         {
@@ -1392,7 +1138,7 @@
         "h": 7,
         "w": 4,
         "x": 12,
-        "y": 30
+        "y": 25
       },
       "id": 50,
       "options": {
@@ -1410,7 +1156,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "9.2.2",
+      "pluginVersion": "9.3.2",
       "targets": [
         {
           "datasource": {
@@ -1437,7 +1183,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 37
+        "y": 32
       },
       "id": 8,
       "panels": [],
@@ -1531,7 +1277,7 @@
         "h": 8,
         "w": 6,
         "x": 0,
-        "y": 38
+        "y": 33
       },
       "id": 37,
       "options": {
@@ -1642,7 +1388,7 @@
         "h": 8,
         "w": 6,
         "x": 6,
-        "y": 38
+        "y": 33
       },
       "id": 79,
       "options": {
@@ -1665,7 +1411,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "sum by (http_server_name) (\n  rate(http_server_request_count_total{service_name=\"tableland:api\", http_server_name!=\"rpc\"}[5m])\n)",
+          "expr": "sum by (http_server_name) (\n  rate(http_server_request_count_total{service_name=\"tableland:api\"}[5m])\n)",
           "interval": "",
           "legendFormat": "__auto",
           "range": true,
@@ -1737,7 +1483,7 @@
         "h": 8,
         "w": 6,
         "x": 12,
-        "y": 38
+        "y": 33
       },
       "id": 15,
       "options": {
@@ -1760,7 +1506,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "histogram_quantile(0.95, sum(rate(http_server_duration_bucket{http_server_name!=\"rpc\"}[5m])) by (http_server_name, le))",
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_duration_bucket{}[5m])) by (http_server_name, le))",
           "interval": "",
           "legendFormat": "__auto",
           "range": true,
@@ -1847,8 +1593,8 @@
       "gridPos": {
         "h": 8,
         "w": 6,
-        "x": 0,
-        "y": 46
+        "x": 18,
+        "y": 33
       },
       "id": 80,
       "options": {
@@ -1882,199 +1628,6 @@
       "type": "timeseries"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "reqps"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 6,
-        "x": 6,
-        "y": 46
-      },
-      "id": 6,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
-          },
-          "editorMode": "code",
-          "exemplar": true,
-          "expr": "sum by (method) (rate(tableland_mesa_call_latency_count{service_name=\"tableland:api\"}[5m]))\n",
-          "interval": "",
-          "legendFormat": "{{method}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "JSON-RPC req/s",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
-      },
-      "description": "The latency of 95% tile. Note that CreateTable is a long running request since requires sending a txn to Ethereum. The rest should have low-ish latencies.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "log": 2,
-              "type": "log"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "ms"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 6,
-        "x": 12,
-        "y": 46
-      },
-      "id": 56,
-      "maxDataPoints": 25,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
-          },
-          "exemplar": false,
-          "expr": "histogram_quantile(0.95, sum(rate(tableland_mesa_call_latency_bucket{service_name=\"tableland:api\"}[10m])) by (le, method))",
-          "format": "time_series",
-          "instant": false,
-          "interval": "",
-          "legendFormat": "{{method}}",
-          "refId": "A"
-        }
-      ],
-      "title": "JSON-RPC 95-th latency",
-      "type": "timeseries"
-    },
-    {
       "collapsed": false,
       "datasource": {
         "type": "datasource",
@@ -2084,7 +1637,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 54
+        "y": 41
       },
       "id": 12,
       "panels": [],
@@ -2161,7 +1714,7 @@
         "h": 8,
         "w": 6,
         "x": 0,
-        "y": 55
+        "y": 42
       },
       "id": 17,
       "options": {
@@ -2258,7 +1811,7 @@
         "h": 8,
         "w": 6,
         "x": 6,
-        "y": 55
+        "y": 42
       },
       "id": 57,
       "maxDataPoints": 25,
@@ -2355,8 +1908,8 @@
       "gridPos": {
         "h": 8,
         "w": 6,
-        "x": 0,
-        "y": 63
+        "x": 12,
+        "y": 42
       },
       "id": 74,
       "maxDataPoints": 25,
@@ -2466,8 +2019,8 @@
       "gridPos": {
         "h": 8,
         "w": 6,
-        "x": 6,
-        "y": 63
+        "x": 18,
+        "y": 42
       },
       "id": 75,
       "maxDataPoints": 25,
@@ -2515,120 +2068,6 @@
       "type": "timeseries"
     },
     {
-      "collapsed": true,
-      "datasource": {
-        "type": "datasource",
-        "uid": "grafana"
-      },
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 71
-      },
-      "id": 60,
-      "panels": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "displayName": "${__series.name}",
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green"
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 7,
-            "w": 6,
-            "x": 0,
-            "y": 34
-          },
-          "id": 66,
-          "options": {
-            "legend": {
-              "calcs": [],
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "mode": "single",
-              "sort": "none"
-            }
-          },
-          "pluginVersion": "8.2.0",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "P1809F7CD0C75ACF3"
-              },
-              "exemplar": true,
-              "expr": "sum by(chain_id) (tableland_wallettracker_nonce{service_name=\"tableland:api\"})",
-              "interval": "",
-              "legendFormat": "ChainID {{chain_id}}",
-              "refId": "A"
-            }
-          ],
-          "title": "Nonces",
-          "type": "timeseries"
-        }
-      ],
-      "targets": [
-        {
-          "datasource": {
-            "type": "datasource",
-            "uid": "grafana"
-          },
-          "refId": "A"
-        }
-      ],
-      "title": "Wallet",
-      "type": "row"
-    },
-    {
       "collapsed": false,
       "datasource": {
         "type": "datasource",
@@ -2638,7 +2077,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 72
+        "y": 50
       },
       "id": 4,
       "panels": [],
@@ -2717,7 +2156,7 @@
         "h": 8,
         "w": 6,
         "x": 0,
-        "y": 73
+        "y": 51
       },
       "id": 72,
       "options": {
@@ -2813,7 +2252,7 @@
         "h": 8,
         "w": 6,
         "x": 6,
-        "y": 73
+        "y": 51
       },
       "id": 76,
       "options": {
@@ -2909,7 +2348,7 @@
         "h": 8,
         "w": 6,
         "x": 12,
-        "y": 73
+        "y": 51
       },
       "id": 77,
       "options": {
@@ -3005,7 +2444,7 @@
         "h": 8,
         "w": 6,
         "x": 18,
-        "y": 73
+        "y": 51
       },
       "id": 78,
       "options": {
@@ -3054,6 +2493,6 @@
   "timezone": "",
   "title": "Validator",
   "uid": "2Le7qt_7z",
-  "version": 9,
+  "version": 8,
   "weekStart": ""
 }

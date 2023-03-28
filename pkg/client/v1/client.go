@@ -11,7 +11,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/ethclient"
-	systemimpl "github.com/textileio/go-tableland/internal/system/impl"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/client"
 	"github.com/textileio/go-tableland/pkg/nonce/impl"
@@ -109,8 +108,8 @@ func NewClient(ctx context.Context, wallet *wallet.Wallet, opts ...NewClientOpti
 
 	parser, err := parserimpl.New([]string{
 		"sqlite_",
-		systemimpl.SystemTablesPrefix,
-		systemimpl.RegistryTableName,
+		parsing.SystemTablesPrefix,
+		parsing.RegistryTableName,
 	}, parserOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("new parser: %s", err)

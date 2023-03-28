@@ -5,14 +5,18 @@ import (
 	"database/sql"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/tablelandnetwork/sqlparser"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/nonce"
+	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/tables"
 )
 
 // SystemStore defines the methods for interacting with system-wide data.
 type SystemStore interface {
+	Read(context.Context, parsing.ReadStmt) (*tableland.TableData, error)
+
 	GetTable(context.Context, tables.TableID) (Table, error)
 	GetTablesByController(context.Context, string) ([]Table, error)
 
@@ -39,5 +43,8 @@ type SystemStore interface {
 
 	Begin(context.Context) (*sql.Tx, error)
 	WithTx(tx *sql.Tx) SystemStore
+
+	SetReadResolver(resolver sqlparser.ReadStatementResolver)
+
 	Close() error
 }

@@ -9,9 +9,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/spf13/cobra"
-	systemimpl "github.com/textileio/go-tableland/internal/system/impl"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/nonce/impl"
+	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 	"github.com/textileio/go-tableland/pkg/tables"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
@@ -63,8 +63,8 @@ var runSQLCmd = &cobra.Command{
 
 		parser, err := parserimpl.New([]string{
 			"sqlite_",
-			systemimpl.SystemTablesPrefix,
-			systemimpl.RegistryTableName,
+			parsing.SystemTablesPrefix,
+			parsing.RegistryTableName,
 		})
 		if err != nil {
 			return fmt.Errorf("new parser: %s", err)
@@ -138,8 +138,8 @@ var createTableCmd = &cobra.Command{
 
 		parser, err := parserimpl.New([]string{
 			"sqlite_",
-			systemimpl.SystemTablesPrefix,
-			systemimpl.RegistryTableName,
+			parsing.SystemTablesPrefix,
+			parsing.RegistryTableName,
 		})
 		if err != nil {
 			return fmt.Errorf("new parser: %s", err)

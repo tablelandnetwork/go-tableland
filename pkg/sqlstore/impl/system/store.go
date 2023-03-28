@@ -11,6 +11,7 @@ import (
 	"github.com/XSAM/otelsql"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/google/uuid"
+
 	"github.com/rs/zerolog"
 	logger "github.com/rs/zerolog/log"
 	"github.com/tablelandnetwork/sqlparser"
@@ -24,6 +25,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/metrics"
 	"github.com/textileio/go-tableland/pkg/nonce"
+	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system/internal/db"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system/migrations"
@@ -39,6 +41,7 @@ type SystemStore struct {
 	chainID  tableland.ChainID
 	dbWithTx dbWithTx
 	db       *sql.DB
+	resolver sqlparser.ReadStatementResolver
 }
 
 // New returns a new SystemStore backed by database/sql.
@@ -77,6 +80,11 @@ func New(dbURI string, chainID tableland.ChainID) (*SystemStore, error) {
 	}
 
 	return systemStore, nil
+}
+
+// SetReadResolver sets the resolver for read queries.
+func (s *SystemStore) SetReadResolver(resolver sqlparser.ReadStatementResolver) {
+	s.resolver = resolver
 }
 
 // GetTable fetchs a table from its UUID.
@@ -301,6 +309,33 @@ func (s *SystemStore) GetID(ctx context.Context) (string, error) {
 	}
 
 	return id, err
+}
+
+// Read executes a read statement on the db.
+func (s *SystemStore) Read(ctx context.Context, rq parsing.ReadStmt) (*tableland.TableData, error) {
+	query, err := rq.GetQuery(s.resolver)
+	if err != nil {
+		return nil, fmt.Errorf("get query: %s", err)
+	}
+	ret, err := s.execReadQuery(ctx, s.db, query)
+	if err != nil {
+		return nil, fmt.Errorf("parsing result to json: %s", err)
+	}
+
+	return ret, nil
+}
+
+func (s *SystemStore) execReadQuery(ctx context.Context, tx *sql.DB, q string) (*tableland.TableData, error) {
+	rows, err := tx.QueryContext(ctx, q)
+	if err != nil {
+		return nil, fmt.Errorf("executing query: %s", err)
+	}
+	defer func() {
+		if err = rows.Close(); err != nil {
+			s.log.Warn().Err(err).Msg("closing rows")
+		}
+	}()
+	return rowsToTableData(rows)
 }
 
 // WithTx returns a copy of the current SystemStore with a tx attached.

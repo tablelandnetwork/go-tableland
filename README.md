@@ -12,7 +12,6 @@ They have the following responsibilities:
 
 - Listen to on-chain events to materialize Tableland-compliant SQL queries in a database engine (currently, SQLite by default).
 - Serve read-queries (e.g: `SELECT * FROM foo_69_1`) to the external world.
-- Relay write-queries to the `Registry` SC on behalf of users.
 
 > 💡 The responsibilities of the validator will continue to change as the Tableland protocol evolves. In the future, validators will have more responsibilities in the network.
 
@@ -36,7 +35,7 @@ To understand better the usual work mechanics of the validator, let’s go throu
 
 6- The validators will detect the new event and execute the mutating query in the corresponding table.
 
-7- The user can query the RPC endpoint of the validator to execute read-queries (e.g: `SELECT * FROM ...`), to see the materialized result of its interaction with the SC.
+7- The user can query the `/query?statement=...` REST endpoint of the validator to execute read-queries (e.g: `SELECT * FROM ...`), to see the materialized result of its interaction with the SC.
 
 > 💡 The description above is optimized to understand the general mechanics of the validator. Minting tables, and executing mutating statements also imply more work both at the SC and validator levels (e.g: ACL enforcing); we’re skipping them here.
 
@@ -63,7 +62,6 @@ The `cmd/toolkit` is a CLI which contain useful commands:
 
 - `gaspricebump`: Bumps gas price for a stuck transaction
 - `sc`: Offers smart sontract calls
-- `siwe`: SIWE utilities
 - `wallet`: Offers wallet utilites
 
 # Contributing
