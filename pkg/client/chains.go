@@ -32,7 +32,7 @@ var ChainIDs = struct {
 	Optimism:           10,
 	Polygon:            137,
 	Arbitrum:           42161,
-	ArbitrumNova:   42170,
+	ArbitrumNova:       42170,
 	Filecoin:           314,
 	EthereumGoerli:     5,
 	OptimismGoerli:     420,
@@ -75,6 +75,12 @@ var Chains = map[ChainID]Chain{
 		ID:           ChainIDs.Arbitrum,
 		Name:         "Arbitrum",
 		ContractAddr: common.HexToAddress("0x9aBd75E8640871A5a20d3B4eE6330a04c962aFfd"),
+	},
+	ChainIDs.ArbitrumNova: {
+		Endpoint:     mainnetURL,
+		ID:           ChainIDs.ArbitrumNova,
+		Name:         "Arbitrum Nova",
+		ContractAddr: common.HexToAddress("0x1a22854c5b1642760a827f20137a67930ae108d2"),
 	},
 	ChainIDs.Filecoin: {
 		Endpoint:     mainnetURL,

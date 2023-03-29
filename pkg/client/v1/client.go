@@ -140,7 +140,7 @@ func NewClient(ctx context.Context, wallet *wallet.Wallet, opts ...NewClientOpti
 	}, nil
 }
 
-func getContractBackend(ctx context.Context, config config) (bind.ContractBackend, error) {	
+func getContractBackend(ctx context.Context, config config) (bind.ContractBackend, error) {
 	if config.contractBackend != nil && config.infuraAPIKey == "" && config.alchemyAPIKey == "" {
 		return config.contractBackend, nil
 	} else if config.infuraAPIKey != "" && config.contractBackend == nil && config.alchemyAPIKey == "" {
@@ -155,7 +155,8 @@ func getContractBackend(ctx context.Context, config config) (bind.ContractBacken
 			return nil, fmt.Errorf("chain id %v not supported for Alchemy", config.chain.ID)
 		}
 		return ethclient.DialContext(ctx, fmt.Sprintf(tmpl, config.alchemyAPIKey))
-	} else if config.ankrAPIKey != "" && config.contractBackend == nil && config.infuraAPIKey == "" && config.alchemyAPIKey == "" {
+	} else if config.ankrAPIKey != "" && config.contractBackend == nil &&
+		config.infuraAPIKey == "" && config.alchemyAPIKey == "" {
 		tmpl, found := client.AnkrURLs[config.chain.ID]
 		if !found {
 			return nil, fmt.Errorf("chain id %v not supported for Ankr", config.chain.ID)

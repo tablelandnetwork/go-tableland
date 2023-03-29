@@ -73,7 +73,7 @@ func main() {
 				clientV1.NewClientAlchemyAPIKey(chainCfg.AlchemyAPIKey),
 			)
 		}
-		
+
 		if err != nil {
 			log.Fatal().Err(err).Msg("error creating tbl client")
 		}
