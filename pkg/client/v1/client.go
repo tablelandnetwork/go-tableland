@@ -143,13 +143,15 @@ func NewClient(ctx context.Context, wallet *wallet.Wallet, opts ...NewClientOpti
 func getContractBackend(ctx context.Context, config config) (bind.ContractBackend, error) {
 	if config.contractBackend != nil && config.infuraAPIKey == "" && config.alchemyAPIKey == "" {
 		return config.contractBackend, nil
-	} else if config.infuraAPIKey != "" && config.contractBackend == nil && config.alchemyAPIKey == "" {
+	} else if config.infuraAPIKey != "" && config.contractBackend == nil &&
+		config.alchemyAPIKey == "" && config.ankrAPIKey == "" {
 		tmpl, found := client.InfuraURLs[config.chain.ID]
 		if !found {
 			return nil, fmt.Errorf("chain id %v not supported for Infura", config.chain.ID)
 		}
 		return ethclient.DialContext(ctx, fmt.Sprintf(tmpl, config.infuraAPIKey))
-	} else if config.alchemyAPIKey != "" && config.contractBackend == nil && config.infuraAPIKey == "" {
+	} else if config.alchemyAPIKey != "" && config.contractBackend == nil &&
+		config.infuraAPIKey == "" && config.ankrAPIKey == "" {
 		tmpl, found := client.AlchemyURLs[config.chain.ID]
 		if !found {
 			return nil, fmt.Errorf("chain id %v not supported for Alchemy", config.chain.ID)
