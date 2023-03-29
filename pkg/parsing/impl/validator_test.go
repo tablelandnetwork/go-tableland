@@ -38,29 +38,29 @@ func TestReadRunSQL(t *testing.T) {
 		},
 		{
 			name:       "valid defined rows",
-			query:      "select row1, row2 from zoo_4321 where a = b",
+			query:      "select row1,row2 from zoo_4321 where a=b",
 			expErrType: nil,
 		},
 
 		// Allow joins and sub-queries
 		{
 			name:       "with join",
-			query:      "select * from foo_1 join bar_2 on a = b",
+			query:      "select * from foo_1 join bar_2 on a=b",
 			expErrType: nil,
 		},
 		{
 			name:       "with subselect",
-			query:      "select * from foo_1 where a in (select b from zoo_5)",
+			query:      "select * from foo_1 where a in(select b from zoo_5)",
 			expErrType: nil,
 		},
 		{
 			name:       "column with subquery",
-			query:      "select (select * from bar_2 limit 1) from foo_3",
+			query:      "select(select * from bar_2 limit 1)from foo_3",
 			expErrType: nil,
 		},
 		{
 			name:       "select with complex subqueries in function arguments",
-			query:      `select json_object('name', '#' || rigs.id, 'external_url', 'https://rigs.tableland.xyz/' || rigs.id, 'attributes', json_array(json_object('trait_type', 'Fleet', 'value', rigs.fleet), json_object('trait_type', 'Chassis', 'value', rigs.chassis), json_object('trait_type', 'Wheels', 'value', rigs.wheels), json_object('trait_type', 'Background', 'value', rigs.background), json_object('trait_type', (select name from badges_2 where badges.rig_id = rigs.id and position = 1 limit 1), 'value', (select image from badges_2 where badges.rig_id = rigs.id and position = 1 limit 1)))) from rigs_1`, // nolint
+			query:      `select json_object('name','#'||rigs.id,'external_url','https://rigs.tableland.xyz/'||rigs.id,'attributes',json_array(json_object('trait_type','Fleet','value',rigs.fleet),json_object('trait_type','Chassis','value',rigs.chassis),json_object('trait_type','Wheels','value',rigs.wheels),json_object('trait_type','Background','value',rigs.background),json_object('trait_type',(select name from badges_2 where badges.rig_id=rigs.id and position=1 limit 1),'value',(select image from badges_2 where badges.rig_id=rigs.id and position=1 limit 1))))from rigs_1`, // nolint
 			expErrType: nil,
 		},
 
@@ -574,9 +574,9 @@ func TestCreateTableResult(t *testing.T) {
 			// echo -n bar:INT | shasum -a 256
 			expStructureHash: "5d70b398f938650871dd0d6d421e8d1d0c89fe9ed6c8a817c97e951186da7172",
 			expRawQueries: []rawQueryTableID{
-				{id: 1, rawQuery: "create table my_10_nth_table_1337_1 (bar int) strict"},
-				{id: 42, rawQuery: "create table my_10_nth_table_1337_42 (bar int) strict"},
-				{id: 2929392, rawQuery: "create table my_10_nth_table_1337_2929392 (bar int) strict"},
+				{id: 1, rawQuery: "create table my_10_nth_table_1337_1(bar int)strict"},
+				{id: 42, rawQuery: "create table my_10_nth_table_1337_42(bar int)strict"},
+				{id: 2929392, rawQuery: "create table my_10_nth_table_1337_2929392(bar int)strict"},
 			},
 		},
 		{
@@ -588,8 +588,8 @@ func TestCreateTableResult(t *testing.T) {
 			// echo -n bar:INT | shasum -a 256
 			expStructureHash: "5d70b398f938650871dd0d6d421e8d1d0c89fe9ed6c8a817c97e951186da7172",
 			expRawQueries: []rawQueryTableID{
-				{id: 1, rawQuery: "create table _1337_1 (bar int) strict"},
-				{id: 42, rawQuery: "create table _1337_42 (bar int) strict"},
+				{id: 1, rawQuery: "create table _1337_1(bar int)strict"},
+				{id: 42, rawQuery: "create table _1337_42(bar int)strict"},
 			},
 		},
 		{
@@ -603,9 +603,9 @@ func TestCreateTableResult(t *testing.T) {
 			// echo -n name:TEXT,age:INT,fav_color:TEXT | shasum -a 256
 			expStructureHash: "f45023b189891ad781070ac05374d4e7d7ec7ae007cfd836791c36d609ba7ddd",
 			expRawQueries: []rawQueryTableID{
-				{id: 1, rawQuery: "create table person_1337_1 (name text, age int, fav_color text) strict"},
-				{id: 42, rawQuery: "create table person_1337_42 (name text, age int, fav_color text) strict"},
-				{id: 2929392, rawQuery: "create table person_1337_2929392 (name text, age int, fav_color text) strict"},
+				{id: 1, rawQuery: "create table person_1337_1(name text,age int,fav_color text)strict"},
+				{id: 42, rawQuery: "create table person_1337_42(name text,age int,fav_color text)strict"},
+				{id: 2929392, rawQuery: "create table person_1337_2929392(name text,age int,fav_color text)strict"},
 			},
 		},
 	}
@@ -689,16 +689,16 @@ func TestGetWriteStatements(t *testing.T) {
 			name:  "double update",
 			query: "update foo_1337_100 set a=1;update foo_1337_100 set b=2;",
 			expectedStmts: []string{
-				"update foo_1337_100 set a = 1",
-				"update foo_1337_100 set b = 2",
+				"update foo_1337_100 set a=1",
+				"update foo_1337_100 set b=2",
 			},
 		},
 		{
 			name:  "insert update",
 			query: "insert into foo_1337_1 values (1);update foo_1337_1 set b=2;",
 			expectedStmts: []string{
-				"insert into foo_1337_1 values (1)",
-				"update foo_1337_1 set b = 2",
+				"insert into foo_1337_1 values(1)",
+				"update foo_1337_1 set b=2",
 			},
 		},
 	}
@@ -737,7 +737,7 @@ func TestGetGrantStatementRolesAndPrivileges(t *testing.T) {
 			query:        "grant insert, UPDATE on a_1337_100 to '0xd43c59d5694ec111eb9e986c233200b14249558d';",
 			roles:        []common.Address{common.HexToAddress("0xd43c59d5694ec111eb9e986c233200b14249558d")},
 			privileges:   []tableland.Privilege{tableland.PrivInsert, tableland.PrivUpdate},
-			expectedStmt: "grant insert, update on a_1337_100 to '0xd43c59d5694ec111eb9e986c233200b14249558d'",
+			expectedStmt: "grant insert,update on a_1337_100 to '0xd43c59d5694ec111eb9e986c233200b14249558d'",
 		},
 
 		{
@@ -788,13 +788,13 @@ func TestWriteStatementAddWhereClause(t *testing.T) {
 			name:        "no-where-clause",
 			query:       "UPDATE foo_1337_10 SET id = 1",
 			whereClause: "bar = 1",
-			expQuery:    "update foo_1337_10 set id = 1 where bar = 1",
+			expQuery:    "update foo_1337_10 set id=1 where bar=1",
 		},
 		{
 			name:        "with-where-clause",
 			query:       "update foo_1337_10 set id = 1 where bar = 1",
 			whereClause: "c in (1, 2)",
-			expQuery:    "update foo_1337_10 set id = 1 where bar = 1 and c in (1, 2)",
+			expQuery:    "update foo_1337_10 set id=1 where bar=1 and c in(1,2)",
 		},
 	}
 
@@ -840,7 +840,7 @@ func TestWriteStatementAddReturningClause(t *testing.T) {
 
 		sql, err := ws.GetQuery(nil)
 		require.NoError(t, err)
-		require.Equal(t, "insert into foo_1337_1 values ('bar') returning (rowid)", sql)
+		require.Equal(t, "insert into foo_1337_1 values('bar')returning(rowid)", sql)
 	})
 
 	t.Run("update-add-returning", func(t *testing.T) {
@@ -859,7 +859,7 @@ func TestWriteStatementAddReturningClause(t *testing.T) {
 
 		sql, err := ws.GetQuery(nil)
 		require.NoError(t, err)
-		require.Equal(t, "update foo_1337_1 set foo = 'bar' returning (rowid)", sql)
+		require.Equal(t, "update foo_1337_1 set foo='bar' returning(rowid)", sql)
 	})
 
 	t.Run("delete-add-returning-error", func(t *testing.T) {

@@ -35,14 +35,14 @@ func TestReplayProductionHistory(t *testing.T) {
 	}
 
 	expectedStateHashes := map[tableland.ChainID]string{
-		1:      "ce4f083e256d3458a329b6cd1ba7d8e93d9703b3",
-		5:      "08af7e7055f266ea75d3b06350c47a52cfa59843",
-		10:     "2bce2d62e7f5eeadc4736f470ca2959b871e5d91",
-		69:     "643af9ad784444242c6ef415727203941a720197",
-		137:    "b5fb42f3538738ab5856abf9e3b2e38d82378ca4",
-		420:    "184800f533f4edd186853a85829fad8bc7802c4e",
-		80001:  "9336d3a3a36e57a86e4f95d3464048c954e46bc6",
-		421613: "073727932afcee9a5dba19f43c023689ca855dc2",
+		1:      "bce26781eed109b8aaae2d1f688c134831fdf061",
+		5:      "913772facb72768ccd9db2ab4411296bbe166080",
+		10:     "1aa835eec9a9ac08cc2784d9d29df7fb15409d08",
+		69:     "fd1ba648c9406c0af321cb734eb203c742fff2a3",
+		137:    "fd1da780698b394a352b59e9b0c124f9cf010b67",
+		420:    "810a86b586e5333b453810305f0eabbf0bfb6934",
+		80001:  "13672494a659c31b46a8fa3d6973b7671a1d567b",
+		421613: "d58fd380066628fa92fd8a87831ea744b9ba1d8b",
 	}
 
 	historyDBURI := getHistoryDBURI(t)
