@@ -58,13 +58,13 @@ func main() {
 			chain.ContractAddr = common.HexToAddress(chainCfg.OverrideClient.ContractAddr)
 		}
 
-		// todo: if chain id is 3141 use Anrk endpoint
+		// For Filecoin Hyperspace, we use Ankr endpoint
 		var client *clientV1.Client
-		if chain.ID == 3141 { 
+		if chain.ID == 3141 {
 			client, err = clientV1.NewClient(
 				ctx, wallet,
 				clientV1.NewClientChain(chain),
-				clientV1.NewClientAnkrAPIKey(chainCfg.AnrkAPIKey),
+				clientV1.NewClientAnkrAPIKey(chainCfg.AnkrAPIKey),
 			)
 		} else {
 			client, err = clientV1.NewClient(
