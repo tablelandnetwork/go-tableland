@@ -39,7 +39,7 @@ func TestGatewayInitialization(t *testing.T) {
 	t.Run("invalid metadata uri", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := NewGateway(nil, nil, "https://tableland.network/tables", "invalid uri", "")
+		_, err := NewGateway(nil, nil, "https://tableland.network", "invalid uri", "")
 		require.Error(t, err)
 		require.ErrorContains(t, err, "metadata renderer uri could not be parsed")
 	})
@@ -47,7 +47,7 @@ func TestGatewayInitialization(t *testing.T) {
 	t.Run("invalid animation uri", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := NewGateway(nil, nil, "https://tableland.network/tables", "https://render.tableland.xyz", "invalid uri")
+		_, err := NewGateway(nil, nil, "https://tableland.network", "https://render.tableland.xyz", "invalid uri")
 		require.Error(t, err)
 		require.ErrorContains(t, err, "animation renderer uri could not be parsed")
 	})
@@ -97,7 +97,7 @@ func TestGateway(t *testing.T) {
 	require.NoError(t, err)
 
 	stack := map[tableland.ChainID]sqlstore.SystemStore{1337: store}
-	svc, err := NewGateway(parser, stack, "https://tableland.network/tables", "https://render.tableland.xyz", "")
+	svc, err := NewGateway(parser, stack, "https://tableland.network", "https://render.tableland.xyz", "")
 	require.NoError(t, err)
 	metadata, err := svc.GetTableMetadata(ctx, id)
 	require.NoError(t, err)
@@ -161,7 +161,7 @@ func TestGetMetadata(t *testing.T) {
 		parser, err := parserimpl.New([]string{"system_", "registry", "sqlite_"})
 		require.NoError(t, err)
 
-		svc, err := NewGateway(parser, stack, "https://tableland.network/tables", "", "")
+		svc, err := NewGateway(parser, stack, "https://tableland.network", "", "")
 		require.NoError(t, err)
 
 		metadata, err := svc.GetTableMetadata(ctx, id)
@@ -180,7 +180,7 @@ func TestGetMetadata(t *testing.T) {
 		parser, err := parserimpl.New([]string{"system_", "registry", "sqlite_"})
 		require.NoError(t, err)
 
-		svc, err := NewGateway(parser, stack, "https://tableland.network/tables", "https://render.tableland.xyz", "")
+		svc, err := NewGateway(parser, stack, "https://tableland.network", "https://render.tableland.xyz", "")
 		require.NoError(t, err)
 
 		metadata, err := svc.GetTableMetadata(ctx, id)
@@ -199,7 +199,7 @@ func TestGetMetadata(t *testing.T) {
 		parser, err := parserimpl.New([]string{"system_", "registry", "sqlite_"})
 		require.NoError(t, err)
 
-		svc, err := NewGateway(parser, stack, "https://tableland.network/tables", "https://render.tableland.xyz/", "")
+		svc, err := NewGateway(parser, stack, "https://tableland.network", "https://render.tableland.xyz/", "")
 		require.NoError(t, err)
 
 		metadata, err := svc.GetTableMetadata(ctx, id)
@@ -218,7 +218,7 @@ func TestGetMetadata(t *testing.T) {
 		parser, err := parserimpl.New([]string{"system_", "registry", "sqlite_"})
 		require.NoError(t, err)
 
-		_, err = NewGateway(parser, stack, "https://tableland.network/tables", "foo", "")
+		_, err = NewGateway(parser, stack, "https://tableland.network", "foo", "")
 		require.Error(t, err)
 		require.ErrorContains(t, err, "metadata renderer uri could not be parsed")
 	})
@@ -229,7 +229,7 @@ func TestGetMetadata(t *testing.T) {
 		parser, err := parserimpl.New([]string{"system_", "registry", "sqlite_"})
 		require.NoError(t, err)
 
-		svc, err := NewGateway(parser, stack, "https://tableland.network/tables", "https://render.tableland.xyz", "")
+		svc, err := NewGateway(parser, stack, "https://tableland.network", "https://render.tableland.xyz", "")
 		require.NoError(t, err)
 
 		id, _ := tables.NewTableID("43")
@@ -251,7 +251,7 @@ func TestGetMetadata(t *testing.T) {
 		svc, err := NewGateway(
 			parser,
 			stack,
-			"https://tableland.network/tables",
+			"https://tableland.network",
 			"https://render.tableland.xyz",
 			"https://render.tableland.xyz/anim",
 		)
@@ -292,7 +292,7 @@ func TestQueryConstraints(t *testing.T) {
 		gateway, err := NewGateway(
 			parser,
 			stack,
-			"https://tableland.network/tables",
+			"https://tableland.network",
 			"https://render.tableland.xyz",
 			"https://render.tableland.xyz/anim",
 		)

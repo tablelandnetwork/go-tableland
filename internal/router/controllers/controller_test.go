@@ -167,11 +167,11 @@ func TestGetTablesByMocked(t *testing.T) {
 
 	t.Run("get table metadata", func(t *testing.T) {
 		t.Parallel()
-		req, err := http.NewRequest("GET", "/chain/1337/tables/100", nil)
+		req, err := http.NewRequest("GET", "/api/v1/tables/1337/100", nil)
 		require.NoError(t, err)
 
 		router := mux.NewRouter()
-		router.HandleFunc("/chain/{chainID}/tables/{tableId}", ctrl.GetTable)
+		router.HandleFunc("/api/v1/tables/{chainID}/{tableId}", ctrl.GetTable)
 
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
