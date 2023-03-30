@@ -12,7 +12,7 @@
             "WalletPrivateKey": "${HEALTHBOT_ARBITRUM_GOERLI_PRIVATE_KEY}",
             "AlchemyAPIKey": "${HEALTHBOT_ALCHEMY_ARBITRUM_GOERLI_API_KEY}",
             "Probe": {
-                "CheckInterval": "360s",
+                "CheckInterval": "1.5h",
                 "ReceiptTimeout": "25s",
                 "Tablename": "${HEALTHBOT_ARBITRUM_GOERLI_TABLE}"
             }
@@ -46,7 +46,7 @@
             "WalletPrivateKey": "${HEALTHBOT_OPTIMISM_GOERLI_PRIVATE_KEY}",
             "AlchemyAPIKey": "${HEALTHBOT_ALCHEMY_OPTIMISM_GOERLI_API_KEY}",
             "Probe": {
-                "CheckInterval": "1h",
+                "CheckInterval": "1.5h",
                 "ReceiptTimeout": "25s",
                 "Tablename": "${HEALTHBOT_OPTIMISM_GOERLI_TABLE}"
             }
