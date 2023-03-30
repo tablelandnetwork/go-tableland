@@ -47,3 +47,23 @@ var walletCreateCmd = &cobra.Command{
 		return nil
 	},
 }
+
+var walletAddressCmd = &cobra.Command{
+	Use:   "address",
+	Short: "Returns address of ETH wallet",
+	Long:  `Returns address of ETH wallet`,
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		privateKey, err := crypto.HexToECDSA(args[0])
+		if err != nil {
+			return fmt.Errorf("decode key: %s", err)
+		}
+
+		pubk, _ := privateKey.Public().(*ecdsa.PublicKey)
+		publicKey := common.HexToAddress(crypto.PubkeyToAddress(*pubk).Hex())
+
+		fmt.Printf("Wallet address %s\n", publicKey)
+
+		return nil
+	},
+}

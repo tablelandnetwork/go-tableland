@@ -16,7 +16,7 @@ var rootCmd = &cobra.Command{
 }
 
 func main() {
-	rootCmd.Execute() //nolint
+	rootCmd.Execute() // nolint
 }
 
 func init() {
@@ -40,6 +40,7 @@ func init() {
 
 	walletCreateCmd.Flags().String("filename", "privatekey.hex", "Filename to store hex representation of private key")
 	walletCmd.AddCommand(walletCreateCmd)
+	walletCmd.AddCommand(walletAddressCmd)
 
 	gasPriceBumperCmd.PersistentFlags().String("privatekey", "", "the private key used to make the contract calls")
 	gasPriceBumperCmd.PersistentFlags().String("gateway", "", "URL of an Ethereum node API (i.e: Alchemy/Infura)")
