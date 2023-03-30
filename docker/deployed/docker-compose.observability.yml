@@ -7,6 +7,7 @@ services:
       - ${PWD}/${ENVIRONMENT}/prometheus:/prometheus/data
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--web.enable-admin-api'
     restart: unless-stopped
     user: root
 
