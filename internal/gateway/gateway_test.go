@@ -103,7 +103,7 @@ func TestGateway(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, "foo_1337_42", metadata.Name)
-	require.Equal(t, fmt.Sprintf("https://tableland.network/tables/chain/%d/tables/%s", 1337, id), metadata.ExternalURL)
+	require.Equal(t, fmt.Sprintf("https://tableland.network/api/v1/tables/%d/%s", 1337, id), metadata.ExternalURL)
 	require.Equal(t, "https://render.tableland.xyz/1337/42", metadata.Image) //nolint
 	require.Equal(t, "date", metadata.Attributes[0].DisplayType)
 	require.Equal(t, "created", metadata.Attributes[0].TraitType)
@@ -168,7 +168,7 @@ func TestGetMetadata(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Equal(t, "foo_1337_42", metadata.Name)
-		require.Equal(t, fmt.Sprintf("https://tableland.network/tables/chain/%d/tables/%s", 1337, id), metadata.ExternalURL)
+		require.Equal(t, fmt.Sprintf("https://tableland.network/api/v1/tables/%d/%s", 1337, id), metadata.ExternalURL)
 		require.Equal(t, DefaultMetadataImage, metadata.Image)
 		require.Equal(t, "date", metadata.Attributes[0].DisplayType)
 		require.Equal(t, "created", metadata.Attributes[0].TraitType)
@@ -187,7 +187,7 @@ func TestGetMetadata(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Equal(t, "foo_1337_42", metadata.Name)
-		require.Equal(t, fmt.Sprintf("https://tableland.network/tables/chain/%d/tables/%s", 1337, id), metadata.ExternalURL)
+		require.Equal(t, fmt.Sprintf("https://tableland.network/api/v1/tables/%d/%s", 1337, id), metadata.ExternalURL)
 		require.Equal(t, "https://render.tableland.xyz/1337/42", metadata.Image)
 		require.Equal(t, "date", metadata.Attributes[0].DisplayType)
 		require.Equal(t, "created", metadata.Attributes[0].TraitType)
@@ -206,7 +206,7 @@ func TestGetMetadata(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Equal(t, "foo_1337_42", metadata.Name)
-		require.Equal(t, fmt.Sprintf("https://tableland.network/tables/chain/%d/tables/%s", 1337, id), metadata.ExternalURL)
+		require.Equal(t, fmt.Sprintf("https://tableland.network/api/v1/tables/%d/%s", 1337, id), metadata.ExternalURL)
 		require.Equal(t, "https://render.tableland.xyz/1337/42", metadata.Image)
 		require.Equal(t, "date", metadata.Attributes[0].DisplayType)
 		require.Equal(t, "created", metadata.Attributes[0].TraitType)
@@ -237,7 +237,7 @@ func TestGetMetadata(t *testing.T) {
 
 		metadata, err := svc.GetTableMetadata(ctx, id)
 		require.ErrorIs(t, err, ErrTableNotFound)
-		require.Equal(t, fmt.Sprintf("https://tableland.network/tables/chain/%d/tables/%s", 1337, id), metadata.ExternalURL)
+		require.Equal(t, fmt.Sprintf("https://tableland.network/api/v1/tables/%d/%s", 1337, id), metadata.ExternalURL)
 		require.Equal(t, "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0nNTEyJyBoZWlnaHQ9JzUxMicgeG1sbnM9J2h0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnJz48cmVjdCB3aWR0aD0nNTEyJyBoZWlnaHQ9JzUxMicgZmlsbD0nIzAwMCcvPjwvc3ZnPg==", metadata.Image) // nolint
 		require.Equal(t, "Table not found", metadata.Message)
 	})
@@ -261,7 +261,7 @@ func TestGetMetadata(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Equal(t, "foo_1337_42", metadata.Name)
-		require.Equal(t, fmt.Sprintf("https://tableland.network/tables/chain/%d/tables/%s", 1337, id), metadata.ExternalURL)
+		require.Equal(t, fmt.Sprintf("https://tableland.network/api/v1/tables/%d/%s", 1337, id), metadata.ExternalURL)
 		require.Equal(t, "https://render.tableland.xyz/1337/42", metadata.Image)
 		require.Equal(t, "https://render.tableland.xyz/anim/?chain=1337&id=42", metadata.AnimationURL)
 		require.Equal(t, "date", metadata.Attributes[0].DisplayType)

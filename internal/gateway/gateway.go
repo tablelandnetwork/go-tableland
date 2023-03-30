@@ -89,7 +89,7 @@ func (g *GatewayService) GetTableMetadata(ctx context.Context, id tables.TableID
 	chainID, store, err := g.getStore(ctx)
 	if err != nil {
 		return sqlstore.TableMetadata{
-			ExternalURL: fmt.Sprintf("%s/chain/%d/tables/%s", g.extURLPrefix, chainID, id),
+			ExternalURL: fmt.Sprintf("%s/api/v1/tables/%d/%s", g.extURLPrefix, chainID, id),
 			Image:       g.emptyMetadataImage(),
 			Message:     "Chain isn't supported",
 		}, nil
@@ -99,14 +99,14 @@ func (g *GatewayService) GetTableMetadata(ctx context.Context, id tables.TableID
 		if !errors.Is(err, sql.ErrNoRows) {
 			log.Error().Err(err).Msg("error fetching the table")
 			return sqlstore.TableMetadata{
-				ExternalURL: fmt.Sprintf("%s/chain/%d/tables/%s", g.extURLPrefix, chainID, id),
+				ExternalURL: fmt.Sprintf("%s/api/v1/tables/%d/%s", g.extURLPrefix, chainID, id),
 				Image:       g.emptyMetadataImage(),
 				Message:     "Failed to fetch the table",
 			}, nil
 		}
 
 		return sqlstore.TableMetadata{
-			ExternalURL: fmt.Sprintf("%s/chain/%d/tables/%s", g.extURLPrefix, chainID, id),
+			ExternalURL: fmt.Sprintf("%s/api/v1/tables/%d/%s", g.extURLPrefix, chainID, id),
 			Image:       g.emptyMetadataImage(),
 			Message:     "Table not found",
 		}, ErrTableNotFound
@@ -119,7 +119,7 @@ func (g *GatewayService) GetTableMetadata(ctx context.Context, id tables.TableID
 
 	return sqlstore.TableMetadata{
 		Name:         tableName,
-		ExternalURL:  fmt.Sprintf("%s/chain/%d/tables/%s", g.extURLPrefix, table.ChainID, table.ID),
+		ExternalURL:  fmt.Sprintf("%s/api/v1/tables/%d/%s", g.extURLPrefix, table.ChainID, table.ID),
 		Image:        g.getMetadataImage(table.ChainID, table.ID),
 		AnimationURL: g.getAnimationURL(table.ChainID, table.ID),
 		Attributes: []sqlstore.TableMetadataAttribute{
