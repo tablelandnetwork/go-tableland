@@ -1300,7 +1300,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "sum by (http_status_code, http_server_name) (rate(http_server_request_count_total{service_name=\"tableland:api\"}[10m]))",
+          "expr": "sum by (http_status_code) (rate(http_server_request_count_total{service_name=\"tableland:api\"}[10m]))",
           "interval": "",
           "legendFormat": "{{http_status_code}}-{{http_server_name}}",
           "range": true,
@@ -1411,7 +1411,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "sum by (http_server_name) (\n  rate(http_server_request_count_total{service_name=\"tableland:api\"}[5m])\n)",
+          "expr": "sum by (service_name) (rate(http_server_request_count_total{service_name=\"tableland:api\"}[5m]))",
           "interval": "",
           "legendFormat": "__auto",
           "range": true,
@@ -1477,7 +1477,32 @@
           },
           "unit": "ms"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "__systemRef": "hideSeriesFrom",
+            "matcher": {
+              "id": "byNames",
+              "options": {
+                "mode": "exclude",
+                "names": [
+                  "histogram_quantile(0.95, sum(rate(http_server_duration_bucket{}[5m])) by (le))"
+                ],
+                "prefix": "All except:",
+                "readOnly": true
+              }
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": true
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -1506,7 +1531,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "histogram_quantile(0.95, sum(rate(http_server_duration_bucket{}[5m])) by (http_server_name, le))",
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_duration_bucket{}[5m])) by (service_name, le))",
           "interval": "",
           "legendFormat": "__auto",
           "range": true,
@@ -1617,7 +1642,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "sum by (http_server_name)  ( rate(http_server_response_content_length_total[$__rate_interval]))",
+          "expr": "rate(http_server_response_content_length_total[$__rate_interval])",
           "interval": "",
           "legendFormat": "{{http_status_code}}",
           "range": true,
@@ -1629,28 +1654,15 @@
     },
     {
       "collapsed": false,
-      "datasource": {
-        "type": "datasource",
-        "uid": "grafana"
-      },
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
         "y": 41
       },
-      "id": 12,
+      "id": 87,
       "panels": [],
-      "targets": [
-        {
-          "datasource": {
-            "type": "datasource",
-            "uid": "grafana"
-          },
-          "refId": "A"
-        }
-      ],
-      "title": "SQL Database",
+      "title": "Gateway",
       "type": "row"
     },
     {
@@ -1737,7 +1749,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "sum by (method) (\n  rate(tableland_sqlstore_call_latency_count{service_name=\"tableland:api\"}[5m])\n)",
+          "expr": "sum by (method) (\n  rate(tableland_gateway_call_latency_count{service_name=\"tableland:api\"}[5m])\n)",
           "interval": "",
           "legendFormat": "{{method}}",
           "range": true,
@@ -1833,8 +1845,9 @@
             "type": "prometheus",
             "uid": "P1809F7CD0C75ACF3"
           },
+          "editorMode": "code",
           "exemplar": false,
-          "expr": "histogram_quantile(0.95, sum(rate(tableland_sqlstore_call_latency_bucket{service_name=\"tableland:api\"}[5m])) by (le, method))",
+          "expr": "histogram_quantile(0.95, sum(rate(tableland_gateway_call_latency_bucket{service_name=\"tableland:api\"}[5m])) by (le, method))",
           "format": "heatmap",
           "instant": false,
           "interval": "",
@@ -1843,6 +1856,216 @@
         }
       ],
       "title": "Methods 95-tile latency",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "datasource": {
+        "type": "datasource",
+        "uid": "grafana"
+      },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 50
+      },
+      "id": 12,
+      "panels": [],
+      "targets": [
+        {
+          "datasource": {
+            "type": "datasource",
+            "uid": "grafana"
+          },
+          "refId": "A"
+        }
+      ],
+      "title": "SQL Database",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P1809F7CD0C75ACF3"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 51
+      },
+      "id": 89,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P1809F7CD0C75ACF3"
+          },
+          "editorMode": "code",
+          "expr": "sum by (chainID, method) (\n  rate(tableland_eventfeed_store_call_count_total{service_name=\"tableland:api\"}[5m])\n)",
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Event Feed Store Calls",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P1809F7CD0C75ACF3"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 51
+      },
+      "id": 91,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P1809F7CD0C75ACF3"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum(rate(tableland_eventfeed_store_latency_bucket{service_name=\"tableland:api\"}[5m])) by (le, chainID, method))",
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Event Feed Store Latency",
       "type": "timeseries"
     },
     {
@@ -1908,8 +2131,8 @@
       "gridPos": {
         "h": 8,
         "w": 6,
-        "x": 12,
-        "y": 42
+        "x": 0,
+        "y": 59
       },
       "id": 74,
       "maxDataPoints": 25,
@@ -1933,24 +2156,12 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum by (chain_id, name, status) (db_sql_connection_open{name=~\"processor|systemstore\"})",
+          "expr": "sum by ( name, status) (db_sql_connection_open{database=\"main\"})",
           "format": "time_series",
           "instant": false,
           "interval": "",
           "legendFormat": "{{chain_id}}-{{name}}-{{status}}",
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
-          },
-          "editorMode": "code",
-          "expr": "sum by (name, status) (db_sql_connection_open{name=~\"userstore\"})",
-          "hide": false,
-          "legendFormat": "{{name}}-{{status}}",
-          "range": true,
-          "refId": "B"
         }
       ],
       "title": "Open connections",
@@ -2019,8 +2230,8 @@
       "gridPos": {
         "h": 8,
         "w": 6,
-        "x": 18,
-        "y": 42
+        "x": 6,
+        "y": 59
       },
       "id": 75,
       "maxDataPoints": 25,
@@ -2044,24 +2255,12 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "histogram_quantile(0.95, sum(rate(db_sql_latency_milliseconds_bucket{name=~\"processor|systemstore\"}[$__rate_interval])) by (chain_id, name, le))",
+          "expr": "histogram_quantile(0.95, sum(rate(db_sql_latency_milliseconds_bucket{database=\"main\"}[$__rate_interval])) by ( name, le))",
           "format": "heatmap",
           "instant": false,
           "interval": "",
           "legendFormat": "{{chain_id}}-{{name}}",
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
-          },
-          "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(db_sql_latency_milliseconds_bucket{name=~\"userstore\"}[$__rate_interval])) by (chain_id, name, le))",
-          "hide": false,
-          "legendFormat": "{{name}}",
-          "range": true,
-          "refId": "B"
         }
       ],
       "title": "Overall SQL query 95-th latency",
@@ -2077,7 +2276,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 50
+        "y": 67
       },
       "id": 4,
       "panels": [],
@@ -2156,7 +2355,7 @@
         "h": 8,
         "w": 6,
         "x": 0,
-        "y": 51
+        "y": 68
       },
       "id": 72,
       "options": {
@@ -2252,7 +2451,7 @@
         "h": 8,
         "w": 6,
         "x": 6,
-        "y": 51
+        "y": 68
       },
       "id": 76,
       "options": {
@@ -2348,7 +2547,7 @@
         "h": 8,
         "w": 6,
         "x": 12,
-        "y": 51
+        "y": 68
       },
       "id": 77,
       "options": {
@@ -2444,7 +2643,7 @@
         "h": 8,
         "w": 6,
         "x": 18,
-        "y": 51
+        "y": 68
       },
       "id": 78,
       "options": {
@@ -2486,13 +2685,13 @@
     "list": []
   },
   "time": {
-    "from": "now-15m",
+    "from": "now-30m",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Validator",
   "uid": "2Le7qt_7z",
-  "version": 8,
+  "version": 7,
   "weekStart": ""
 }

@@ -19,8 +19,8 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/database"
 	nonceimpl "github.com/textileio/go-tableland/pkg/nonce/impl"
-	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/tables"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum/test/controller"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum/test/erc721Enumerable"
@@ -447,13 +447,13 @@ func setupWithLocalTracker(t *testing.T) (
 
 	url := tests.Sqlite3URI(t)
 
-	systemStore, err := system.New(url, tableland.ChainID(1337))
+	db, err := database.Open(url, 1)
 	require.NoError(t, err)
 
 	tracker, err := nonceimpl.NewLocalTracker(
 		context.Background(),
 		w,
-		nonceimpl.NewNonceStore(systemStore),
+		nonceimpl.NewNonceStore(db),
 		tableland.ChainID(1337),
 		backend,
 		5*time.Second,

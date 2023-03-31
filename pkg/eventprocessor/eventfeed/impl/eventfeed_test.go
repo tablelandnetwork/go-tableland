@@ -12,9 +12,8 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/database"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
-	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/tables/impl/testutil"
 	"github.com/textileio/go-tableland/tests"
@@ -26,12 +25,12 @@ func TestRunSQLEvents(t *testing.T) {
 	t.Parallel()
 
 	dbURI := tests.Sqlite3URI(t)
-	systemStore, err := system.New(dbURI, tableland.ChainID(1337))
+	db, err := database.Open(dbURI, 1)
 	require.NoError(t, err)
 
 	backend, addr, sc, authOpts, _ := testutil.Setup(t)
 	ef, err := New(
-		systemStore,
+		NewEventFeedStore(db),
 		1337,
 		backend,
 		addr,
@@ -106,13 +105,15 @@ func TestAllEvents(t *testing.T) {
 	t.Parallel()
 
 	dbURI := tests.Sqlite3URI(t)
-	systemStore, err := system.New(dbURI, tableland.ChainID(1337))
+	db, err := database.Open(dbURI, 1)
 	require.NoError(t, err)
+
+	store := NewEventFeedStore(db)
 
 	backend, addr, sc, authOpts, _ := testutil.Setup(t)
 	fetchBlockExtraInfoDelay = time.Millisecond
 	ef, err := New(
-		systemStore,
+		store,
 		1337,
 		backend,
 		addr,
@@ -141,7 +142,7 @@ func TestAllEvents(t *testing.T) {
 	// 10 is an arbitrary choice to make it future proof if the setup stage decides to mine
 	// some extra blocks, so we make sure we're 100% clean.
 	for i := int64(0); i < 10; i++ {
-		_, err = ef.systemStore.GetBlockExtraInfo(ctx, i)
+		_, err = ef.store.GetBlockExtraInfo(ctx, ef.chainID, i)
 		require.Error(t, err)
 	}
 
@@ -182,7 +183,7 @@ func TestAllEvents(t *testing.T) {
 			require.NotEqual(t, emptyHash, bes.Txns[0].TxnHash)
 			require.IsType(t, &ethereum.ContractCreateTable{}, bes.Txns[0].Events[0])
 
-			evmEvents, err := systemStore.GetEVMEvents(ctx, bes.Txns[0].TxnHash)
+			evmEvents, err := store.GetEVMEvents(ctx, ef.chainID, bes.Txns[0].TxnHash)
 			require.NoError(t, err)
 			evmEvent := evmEvents[0]
 
@@ -204,7 +205,7 @@ func TestAllEvents(t *testing.T) {
 			require.NotEqual(t, emptyHash, bes.Txns[1].TxnHash)
 			require.IsType(t, &ethereum.ContractRunSQL{}, bes.Txns[1].Events[0])
 
-			evmEvents, err := systemStore.GetEVMEvents(ctx, bes.Txns[1].TxnHash)
+			evmEvents, err := store.GetEVMEvents(ctx, ef.chainID, bes.Txns[1].TxnHash)
 			require.NoError(t, err)
 			evmEvent := evmEvents[0]
 
@@ -225,7 +226,7 @@ func TestAllEvents(t *testing.T) {
 		{
 			require.IsType(t, &ethereum.ContractSetController{}, bes.Txns[2].Events[0])
 
-			evmEvents, err := systemStore.GetEVMEvents(ctx, bes.Txns[2].TxnHash)
+			evmEvents, err := store.GetEVMEvents(ctx, ef.chainID, bes.Txns[2].TxnHash)
 			require.NoError(t, err)
 			evmEvent := evmEvents[0]
 
@@ -246,7 +247,7 @@ func TestAllEvents(t *testing.T) {
 		{
 			require.IsType(t, &ethereum.ContractTransferTable{}, bes.Txns[3].Events[0])
 
-			evmEvents, err := systemStore.GetEVMEvents(ctx, bes.Txns[3].TxnHash)
+			evmEvents, err := store.GetEVMEvents(ctx, ef.chainID, bes.Txns[3].TxnHash)
 			require.NoError(t, err)
 			evmEvent := evmEvents[0]
 
@@ -263,9 +264,9 @@ func TestAllEvents(t *testing.T) {
 			require.Equal(t, uint(5), evmEvent.Index)
 		}
 
-		var bi tableland.EVMBlockInfo
+		var bi eventfeed.EVMBlockInfo
 		require.Eventually(t, func() bool {
-			bi, err = ef.systemStore.GetBlockExtraInfo(ctx, bes.BlockNumber)
+			bi, err = ef.store.GetBlockExtraInfo(ctx, ef.chainID, bes.BlockNumber)
 			return err == nil
 		}, time.Second*10, time.Second)
 		require.Equal(t, txn1.ChainId().Int64(), int64(bi.ChainID))
@@ -294,10 +295,10 @@ func TestInfura(t *testing.T) {
 	rinkebyContractAddr := common.HexToAddress("0x847645b7dAA32eFda757d3c10f1c82BFbB7b41D0")
 
 	dbURI := tests.Sqlite3URI(t)
-	systemStore, err := system.New(dbURI, tableland.ChainID(1337))
+	db, err := database.Open(dbURI, 1)
 	require.NoError(t, err)
 	ef, err := New(
-		systemStore,
+		NewEventFeedStore(db),
 		1337,
 		conn,
 		rinkebyContractAddr,

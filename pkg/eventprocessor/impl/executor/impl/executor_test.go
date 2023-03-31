@@ -10,11 +10,12 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/internal/tableland/impl"
+	"github.com/textileio/go-tableland/pkg/database"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
-	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/tables"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 	"github.com/textileio/go-tableland/tests"
@@ -88,6 +89,7 @@ func TestMultiEventTxnBlock(t *testing.T) {
 			Statement: "create table bar_1337 (zar text)",
 		}
 		eventInsertRow := &ethereum.ContractRunSQL{
+			Caller:    common.HexToAddress("0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF"),
 			IsOwner:   true,
 			TableId:   eventCreateTable.TableId,
 			Statement: "insert into bar_1337_100 values ('txn 1')",
@@ -116,6 +118,7 @@ func TestMultiEventTxnBlock(t *testing.T) {
 			Statement: "create table foo_1337 (fooz text)",
 		}
 		eventInsertRow := &ethereum.ContractRunSQL{
+			Caller:    common.HexToAddress("0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF"),
 			IsOwner:   true,
 			TableId:   eventCreateTable.TableId,
 			Statement: "insert into foo_1337 values ('txn 1', 'wrong # of columns')",
@@ -207,15 +210,13 @@ func newExecutor(t *testing.T, rowsLimit int) (*Executor, string) {
 	dbURI := tests.Sqlite3URI(t)
 
 	parser := newParser(t, []string{})
-	db, err := sql.Open("sqlite3", dbURI)
-	require.NoError(t, err)
-	db.SetMaxOpenConns(1)
-	exec, err := NewExecutor(1337, db, parser, rowsLimit, &aclMock{})
+
+	db, err := database.Open(dbURI, 1)
 	require.NoError(t, err)
 
-	// Boostrap system store to run the db migrations.
-	_, err = system.New(dbURI, tableland.ChainID(chainID))
+	exec, err := NewExecutor(1337, db, parser, rowsLimit, impl.NewACL(db))
 	require.NoError(t, err)
+
 	return exec, dbURI
 }
 
@@ -276,16 +277,4 @@ func newParser(t *testing.T, prefixes []string) parsing.SQLValidator {
 	p, err := parserimpl.New(prefixes)
 	require.NoError(t, err)
 	return p
-}
-
-type aclMock struct{}
-
-func (acl *aclMock) CheckPrivileges(
-	_ context.Context,
-	_ *sql.Tx,
-	_ common.Address,
-	_ tables.TableID,
-	_ tableland.Operation,
-) (bool, error) {
-	return true, nil
 }

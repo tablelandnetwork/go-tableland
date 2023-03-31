@@ -2,7 +2,6 @@ package impl
 
 import (
 	"context"
-	"database/sql"
 	"math/big"
 	"strconv"
 	"testing"
@@ -10,15 +9,16 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/go-tableland/internal/tableland"
+	gatewayimpl "github.com/textileio/go-tableland/internal/gateway/impl"
+	"github.com/textileio/go-tableland/internal/tableland/impl"
+	"github.com/textileio/go-tableland/pkg/database"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
 	executor "github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor/impl"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
-	rsresolver "github.com/textileio/go-tableland/pkg/readstatementresolver"
-	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/tables"
+
 	"github.com/textileio/go-tableland/pkg/tables/impl/testutil"
 	"github.com/textileio/go-tableland/tests"
 )
@@ -316,16 +316,17 @@ func setup(t *testing.T) (
 	parser, err := parserimpl.New([]string{"system_", "registry", "sqlite_"})
 	require.NoError(t, err)
 
-	db, err := sql.Open("sqlite3", dbURI)
-	require.NoError(t, err)
-	db.SetMaxOpenConns(1)
-	ex, err := executor.NewExecutor(chainID, db, parser, 0, &aclMock{})
+	db, err := database.Open(dbURI, 1)
 	require.NoError(t, err)
 
-	systemStore, err := system.New(dbURI, tableland.ChainID(chainID))
+	ex, err := executor.NewExecutor(chainID, db, parser, 0, impl.NewACL(db))
 	require.NoError(t, err)
+
+	db2, err := database.Open(dbURI, 1)
+	require.NoError(t, err)
+
 	ef, err := efimpl.New(
-		systemStore,
+		efimpl.NewEventFeedStore(db2),
 		chainID,
 		backend,
 		addr,
@@ -372,17 +373,14 @@ func setup(t *testing.T) (
 	}
 
 	require.NoError(t, err)
-	store, err := system.New(
-		dbURI, 1337)
+	db, err = database.Open(dbURI, 1)
 	require.NoError(t, err)
-
-	store.SetReadResolver(rsresolver.New(map[tableland.ChainID]eventprocessor.EventProcessor{chainID: ep}))
 
 	tableReader := func(readQuery string) []int64 {
 		rq, err := parser.ValidateReadQuery(readQuery)
 		require.NoError(t, err)
 		require.NotNil(t, rq)
-		res, err := store.Read(ctx, rq)
+		res, err := gatewayimpl.NewGatewayStore(db, nil).Read(ctx, rq)
 		require.NoError(t, err)
 
 		ret := make([]int64, len(res.Rows))
@@ -395,7 +393,9 @@ func setup(t *testing.T) (
 	checkReceipts := func(t *testing.T, rs ...eventprocessor.Receipt) func() bool {
 		return func() bool {
 			for _, expReceipt := range rs {
-				gotReceipt, found, err := systemStore.GetReceipt(context.Background(), expReceipt.TxnHash)
+				gotReceipt, found, err := gatewayimpl.
+					NewGatewayStore(db, nil).
+					GetReceipt(context.Background(), 1337, expReceipt.TxnHash)
 				require.NoError(t, err)
 				if !found {
 					return false
@@ -423,16 +423,4 @@ func setup(t *testing.T) (
 		setController: contractSendSetController,
 		transfer:      transferFrom,
 	}, checkReceipts, tableReader
-}
-
-type aclMock struct{}
-
-func (acl *aclMock) CheckPrivileges(
-	_ context.Context,
-	_ *sql.Tx,
-	_ common.Address,
-	_ tables.TableID,
-	_ tableland.Operation,
-) (bool, error) {
-	return true, nil
 }
