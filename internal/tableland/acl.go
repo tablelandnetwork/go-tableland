@@ -6,13 +6,14 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/textileio/go-tableland/pkg/tables"
 )
 
 // ACL is the API for access control rules check.
 type ACL interface {
 	// CheckPrivileges checks if an address can execute a specific operation on a table.
-	CheckPrivileges(context.Context, *sql.Tx, common.Address, tables.TableID, Operation) (bool, error)
+	CheckPrivileges(context.Context, *sql.Tx, ChainID, common.Address, tables.TableID, Operation) (bool, error)
 }
 
 // Privilege maps to SQL privilege and is the thing needed to execute an operation.

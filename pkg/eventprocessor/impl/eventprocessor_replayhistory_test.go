@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/database"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
@@ -24,7 +25,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 	"github.com/textileio/go-tableland/pkg/sharedmemory"
-	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
+	"github.com/textileio/go-tableland/pkg/tables"
 	"github.com/textileio/go-tableland/tests"
 )
 
@@ -79,14 +80,13 @@ func launchValidatorForAllChainsBackedByEVMHistory(t *testing.T, historyDBURI st
 	parser, err := parserimpl.New([]string{"system_", "registry", "sqlite_"})
 	require.NoError(t, err)
 
-	db, err := sql.Open("sqlite3", dbURI)
+	db, err := database.Open(dbURI, 1)
 	require.NoError(t, err)
-	db.SetMaxOpenConns(1)
 
 	chains := getChains(t, historyDBURI)
 	eps := make([]*EventProcessor, len(chains))
 	for i, chain := range chains {
-		eps[i] = spinValidatorStackForChainID(t, dbURI, historyDBURI, parser, chain.chainID, chain.scAddress, db)
+		eps[i] = spinValidatorStackForChainID(t, historyDBURI, parser, chain.chainID, chain.scAddress, db)
 	}
 
 	waitForSynced := func() {
@@ -111,24 +111,19 @@ func launchValidatorForAllChainsBackedByEVMHistory(t *testing.T, historyDBURI st
 
 func spinValidatorStackForChainID(
 	t *testing.T,
-	dbURI string,
 	historyDBURI string,
 	parser parsing.SQLValidator,
 	chainID tableland.ChainID,
 	scAddress common.Address,
-	db *sql.DB,
+	db *database.SQLiteDB,
 ) *EventProcessor {
 	ex, err := executor.NewExecutor(chainID, db, parser, 0, &aclMock{})
 	require.NoError(t, err)
-
-	systemStore, err := system.New(dbURI, chainID)
-	require.NoError(t, err)
-
 	eventBasedBackend, err := sqlitechainclient.New(historyDBURI, chainID)
 	require.NoError(t, err)
 
 	ef, err := efimpl.New(
-		systemStore,
+		efimpl.NewEventFeedStore(db),
 		chainID,
 		eventBasedBackend,
 		scAddress,
@@ -203,4 +198,17 @@ func getHistoryDBURI(t *testing.T) string {
 
 	// Return full path of prepared database.
 	return fmt.Sprintf("file:%s?", historyDBFilePath)
+}
+
+type aclMock struct{}
+
+func (acl *aclMock) CheckPrivileges(
+	_ context.Context,
+	_ *sql.Tx,
+	_ tableland.ChainID,
+	_ common.Address,
+	_ tables.TableID,
+	_ tableland.Operation,
+) (bool, error) {
+	return true, nil
 }

@@ -19,7 +19,7 @@ func (ef *EventFeed) fetchExtraBlockInfo(ctx context.Context) {
 			ef.log.Info().Msg("graceful close of extra block info fetcher")
 			return
 		}
-		blockNumbers, err := ef.systemStore.GetBlocksMissingExtraInfo(ctx, fromHeight)
+		blockNumbers, err := ef.store.GetBlocksMissingExtraInfo(ctx, ef.chainID, fromHeight)
 		if err != nil {
 			ef.log.Error().Err(err).Msg("get blocks without extra info")
 			continue
@@ -52,7 +52,7 @@ func (ef *EventFeed) fetchExtraBlockInfo(ctx context.Context) {
 						Msg("capturing new block metric")
 					return
 				}
-				if err := ef.systemStore.InsertBlockExtraInfo(ctx, blockNumber, block.Time); err != nil {
+				if err := ef.store.InsertBlockExtraInfo(ctx, ef.chainID, blockNumber, block.Time); err != nil {
 					ef.log.Error().
 						Err(err).
 						Int64("block_number", blockNumber).

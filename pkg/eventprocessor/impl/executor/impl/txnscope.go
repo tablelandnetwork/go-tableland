@@ -111,3 +111,45 @@ func (ts *txnScope) executeTxnEvents(
 
 	return executor.TxnExecutionResult{TableID: res.TableID}, nil
 }
+
+// AccessControlDTO data structure from database.
+type AccessControlDTO struct {
+	TableID    int64
+	Controller string
+	Privileges int
+	ChainID    int64
+}
+
+// AccessControl model.
+type AccessControl struct {
+	Controller string
+	ChainID    tableland.ChainID
+	TableID    tables.TableID
+	Privileges tableland.Privileges
+}
+
+// AccessControlFromDTO transforms the DTO to AccessControl model.
+func AccessControlFromDTO(dto AccessControlDTO) (AccessControl, error) {
+	id, err := tables.NewTableIDFromInt64(dto.TableID)
+	if err != nil {
+		return AccessControl{}, fmt.Errorf("parsing id to string: %s", err)
+	}
+
+	var privileges tableland.Privileges
+	if dto.Privileges&tableland.PrivInsert.Bitfield > 0 {
+		privileges = append(privileges, tableland.PrivInsert)
+	}
+	if dto.Privileges&tableland.PrivUpdate.Bitfield > 0 {
+		privileges = append(privileges, tableland.PrivUpdate)
+	}
+	if dto.Privileges&tableland.PrivDelete.Bitfield > 0 {
+		privileges = append(privileges, tableland.PrivDelete)
+	}
+
+	return AccessControl{
+		ChainID:    tableland.ChainID(dto.ChainID),
+		TableID:    id,
+		Controller: dto.Controller,
+		Privileges: privileges,
+	}, nil
+}

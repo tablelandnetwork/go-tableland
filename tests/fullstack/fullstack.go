@@ -1,8 +1,6 @@
 package fullstack
 
 import (
-	"context"
-	"database/sql"
 	"encoding/hex"
 	"net/http/httptest"
 	"testing"
@@ -13,21 +11,21 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/go-tableland/internal/chains"
 	"github.com/textileio/go-tableland/internal/gateway"
+	gatewayimpl "github.com/textileio/go-tableland/internal/gateway/impl"
 	"github.com/textileio/go-tableland/internal/router"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/internal/tableland/impl"
+	"github.com/textileio/go-tableland/pkg/database"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
 	epimpl "github.com/textileio/go-tableland/pkg/eventprocessor/impl"
 	executor "github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor/impl"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
+
 	"github.com/textileio/go-tableland/pkg/sharedmemory"
-	"github.com/textileio/go-tableland/pkg/sqlstore"
-	sqlstoreimplsystem "github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
-	"github.com/textileio/go-tableland/pkg/tables"
+
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/tables/impl/testutil"
 	"github.com/textileio/go-tableland/pkg/wallet"
@@ -52,7 +50,7 @@ type FullStack struct {
 type Deps struct {
 	DBURI          string
 	Parser         parsing.SQLValidator
-	SystemStore    sqlstore.SystemStore
+	Database       *database.SQLiteDB
 	ACL            tableland.ACL
 	GatewayService gateway.Gateway
 }
@@ -74,9 +72,9 @@ func CreateFullStack(t *testing.T, deps Deps) FullStack {
 		dbURI = tests.Sqlite3URI(t)
 	}
 
-	systemStore := deps.SystemStore
-	if systemStore == nil {
-		systemStore, err = sqlstoreimplsystem.New(dbURI, ChainID)
+	db := deps.Database
+	if db == nil {
+		db, err = database.Open(dbURI, 1)
 		require.NoError(t, err)
 	}
 
@@ -85,13 +83,9 @@ func CreateFullStack(t *testing.T, deps Deps) FullStack {
 	wallet, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(sk)))
 	require.NoError(t, err)
 
-	db, err := sql.Open("sqlite3", dbURI)
-	require.NoError(t, err)
-	db.SetMaxOpenConns(1)
-
 	acl := deps.ACL
 	if acl == nil {
-		acl = &aclHalfMock{systemStore}
+		acl = impl.NewACL(db)
 	}
 
 	ex, err := executor.NewExecutor(1337, db, parser, 0, acl)
@@ -102,7 +96,7 @@ func CreateFullStack(t *testing.T, deps Deps) FullStack {
 	// Spin up dependencies needed for the EventProcessor.
 	// i.e: Executor, Parser, and EventFeed (connected to the EVM chain)
 	ef, err := efimpl.New(
-		systemStore,
+		efimpl.NewEventFeedStore(db),
 		ChainID,
 		backend,
 		addr,
@@ -121,24 +115,13 @@ func CreateFullStack(t *testing.T, deps Deps) FullStack {
 		ep.Stop()
 	})
 
-	chainStacks := map[tableland.ChainID]chains.ChainStack{
-		1337: {
-			Store:          systemStore,
-			EventProcessor: ep,
-		},
-	}
-
-	stores := make(map[tableland.ChainID]sqlstore.SystemStore, len(chainStacks))
-	for chainID, stack := range chainStacks {
-		stack.Store.SetReadResolver(parsing.NewReadStatementResolver(sm))
-		stores[chainID] = stack.Store
-	}
-
 	gatewayService := deps.GatewayService
 	if gatewayService == nil {
 		gatewayService, err = gateway.NewGateway(
 			parser,
-			stores,
+			gatewayimpl.NewGatewayStore(
+				db, parsing.NewReadStatementResolver(sm),
+			),
 			"https://testnets.tableland.network",
 			"https://tables.tableland.xyz",
 			"https://tables.tableland.xyz",
@@ -162,23 +145,4 @@ func CreateFullStack(t *testing.T, deps Deps) FullStack {
 		Wallet:       wallet,
 		Server:       server,
 	}
-}
-
-type aclHalfMock struct {
-	sqlStore sqlstore.SystemStore
-}
-
-func (acl *aclHalfMock) CheckPrivileges(
-	ctx context.Context,
-	tx *sql.Tx,
-	controller common.Address,
-	id tables.TableID,
-	op tableland.Operation,
-) (bool, error) {
-	aclImpl := impl.NewACL(acl.sqlStore)
-	return aclImpl.CheckPrivileges(ctx, tx, controller, id, op)
-}
-
-func (acl *aclHalfMock) IsOwner(_ context.Context, _ common.Address, _ tables.TableID) (bool, error) {
-	return true, nil
 }
