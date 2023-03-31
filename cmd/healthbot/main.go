@@ -59,21 +59,13 @@ func main() {
 		}
 
 		// For Filecoin Hyperspace, we use Ankr endpoint
-		var client *clientV1.Client
+		opts := []clientV1.NewClientOption{clientV1.NewClientChain(chain)}
 		if chain.ID == 3141 {
-			client, err = clientV1.NewClient(
-				ctx, wallet,
-				clientV1.NewClientChain(chain),
-				clientV1.NewClientAnkrAPIKey(chainCfg.AnkrAPIKey),
-			)
+			opts = append(opts, clientV1.NewClientAnkrAPIKey(chainCfg.AnkrAPIKey))
 		} else {
-			client, err = clientV1.NewClient(
-				ctx, wallet,
-				clientV1.NewClientChain(chain),
-				clientV1.NewClientAlchemyAPIKey(chainCfg.AlchemyAPIKey),
-			)
+			opts = append(opts, clientV1.NewClientAlchemyAPIKey(chainCfg.AlchemyAPIKey))
 		}
-
+		client, err := clientV1.NewClient(ctx, wallet, opts...)
 		if err != nil {
 			log.Fatal().Err(err).Msg("error creating tbl client")
 		}

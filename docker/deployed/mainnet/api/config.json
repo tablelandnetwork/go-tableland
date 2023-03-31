@@ -198,8 +198,8 @@
             },
             "EventFeed": {
                 "ChainAPIBackoff": "15s",
-                "NewBlockPollFreq": "5s",
-                "MinBlockDepth": 0,
+                "NewBlockPollFreq": "30s",
+                "MinBlockDepth": 5,
                 "PersistEvents": true
             },
             "EventProcessor": {
@@ -211,7 +211,7 @@
                 "StuckInterval": "10m",
                 "MinBlockDepth": 0
             },
-            "HashCalculationStep": 1800
+            "HashCalculationStep": 30
         }
     ]
 }
