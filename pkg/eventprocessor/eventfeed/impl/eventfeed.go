@@ -166,7 +166,8 @@ func (ef *EventFeed) Start(
 				if strings.Contains(err.Error(), "read limit exceeded") ||
 					strings.Contains(err.Error(), "Log response size exceeded") ||
 					strings.Contains(err.Error(), "is greater than the limit") ||
-					strings.Contains(err.Error(), "eth_getLogs and eth_newFilter are limited to a 10,000 blocks range") {
+					strings.Contains(err.Error(), "eth_getLogs and eth_newFilter are limited to a 10,000 blocks range") ||
+					strings.Contains(err.Error(), "block range is too wide") {
 					ef.maxBlocksFetchSize = ef.maxBlocksFetchSize * 80 / 100
 				} else {
 					time.Sleep(ef.config.ChainAPIBackoff)
