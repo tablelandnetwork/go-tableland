@@ -50,16 +50,6 @@
                 "ReceiptTimeout": "25s",
                 "Tablename": "${HEALTHBOT_OPTIMISM_GOERLI_TABLE}"
             }
-        },
-        {
-            "ChainID": 3141,
-            "WalletPrivateKey": "${HEALTHBOT_FILECOIN_HYPERSPACE_PRIVATE_KEY}",
-            "AnkrAPIKey": "${HEALTHBOT_ANKR_FILECOIN_HYPERSPACE_API_KEY}",
-            "Probe": {
-                "CheckInterval": "30s",
-                "ReceiptTimeout": "25s",
-                "Tablename": "${HEALTHBOT_FILECOIN_HYPERSPACE_TABLE}"
-            }
         }
     ]
 }

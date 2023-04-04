@@ -158,33 +158,6 @@
                 "MinBlockDepth": 0
             },
             "HashCalculationStep": 1800
-        },
-        {
-            "Name": "Filecoin Hyperspace",
-            "ChainID": 3141,            
-            "Registry": {
-                "EthEndpoint": "https://rpc.ankr.com/filecoin_testnet/${VALIDATOR_ANKR_FILECOIN_HYPERSPACE_API_KEY}",
-                "ContractAddress": "0x0B9737ab4B3e5303CB67dB031b509697e31c02d3"
-            },
-            "Signer": {
-                "PrivateKey": "${VALIDATOR_FILECOIN_HYPERSPACE_SIGNER_PRIVATE_KEY}"
-            },
-            "EventFeed": {
-                "ChainAPIBackoff": "15s",
-                "NewBlockPollFreq": "30s",
-                "MinBlockDepth": 5,
-                "PersistEvents": true
-            },
-            "EventProcessor": {
-                "BlockFailedExecutionBackoff": "10s",
-                "DedupExecutedTxns": true
-            },
-            "NonceTracker": {
-                "CheckInterval": "15s",
-                "StuckInterval": "10m",
-                "MinBlockDepth": 0
-            },
-            "HashCalculationStep": 60
         }
     ]
 }

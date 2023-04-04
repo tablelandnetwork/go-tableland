@@ -36,7 +36,6 @@ type config struct {
 	chain           *client.Chain
 	infuraAPIKey    string
 	alchemyAPIKey   string
-	ankrAPIKey      string
 	local           bool
 	contractBackend bind.ContractBackend
 }
@@ -62,13 +61,6 @@ func NewClientInfuraAPIKey(key string) NewClientOption {
 func NewClientAlchemyAPIKey(key string) NewClientOption {
 	return func(c *config) {
 		c.alchemyAPIKey = key
-	}
-}
-
-// NewClientAnkrAPIKey specifies an Ankr API to use when creating an EVM backend.
-func NewClientAnkrAPIKey(key string) NewClientOption {
-	return func(c *config) {
-		c.ankrAPIKey = key
 	}
 }
 
@@ -143,27 +135,18 @@ func NewClient(ctx context.Context, wallet *wallet.Wallet, opts ...NewClientOpti
 func getContractBackend(ctx context.Context, config config) (bind.ContractBackend, error) {
 	if config.contractBackend != nil && config.infuraAPIKey == "" && config.alchemyAPIKey == "" {
 		return config.contractBackend, nil
-	} else if config.infuraAPIKey != "" && config.contractBackend == nil &&
-		config.alchemyAPIKey == "" && config.ankrAPIKey == "" {
+	} else if config.infuraAPIKey != "" && config.contractBackend == nil && config.alchemyAPIKey == "" {
 		tmpl, found := client.InfuraURLs[config.chain.ID]
 		if !found {
 			return nil, fmt.Errorf("chain id %v not supported for Infura", config.chain.ID)
 		}
 		return ethclient.DialContext(ctx, fmt.Sprintf(tmpl, config.infuraAPIKey))
-	} else if config.alchemyAPIKey != "" && config.contractBackend == nil &&
-		config.infuraAPIKey == "" && config.ankrAPIKey == "" {
+	} else if config.alchemyAPIKey != "" && config.contractBackend == nil && config.infuraAPIKey == "" {
 		tmpl, found := client.AlchemyURLs[config.chain.ID]
 		if !found {
 			return nil, fmt.Errorf("chain id %v not supported for Alchemy", config.chain.ID)
 		}
 		return ethclient.DialContext(ctx, fmt.Sprintf(tmpl, config.alchemyAPIKey))
-	} else if config.ankrAPIKey != "" && config.contractBackend == nil &&
-		config.infuraAPIKey == "" && config.alchemyAPIKey == "" {
-		tmpl, found := client.AnkrURLs[config.chain.ID]
-		if !found {
-			return nil, fmt.Errorf("chain id %v not supported for Ankr", config.chain.ID)
-		}
-		return ethclient.DialContext(ctx, fmt.Sprintf(tmpl, config.ankrAPIKey))
 	} else if config.local {
 		url, found := client.LocalURLs[config.chain.ID]
 		if !found {
