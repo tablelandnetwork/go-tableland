@@ -128,7 +128,6 @@ func (ef *EventFeed) Start(
 
 	// Listen for new blocks, and get new events.
 	for h := range chHeads {
-		ef.sm.SetLastSeenBlockNumber(ef.chainID, h.Number.Int64())
 		if h.Number.Int64()%100 == 0 {
 			ef.log.Debug().
 				Int64("height", h.Number.Int64()).
@@ -152,6 +151,8 @@ func (ef *EventFeed) Start(
 			if toHeight < fromHeight {
 				break
 			}
+
+			ef.sm.SetLastSeenBlockNumber(ef.chainID, toHeight)
 
 			if toHeight-fromHeight+1 > int64(ef.maxBlocksFetchSize) {
 				toHeight = fromHeight + int64(ef.maxBlocksFetchSize) - 1
