@@ -150,7 +150,6 @@ func TestInitialization(t *testing.T) {
 	require.NoError(t, err)
 
 	db, err := database.Open(url, 1)
-	// sqlstore, err := system.New(url, tableland.ChainID(1337))
 	require.NoError(t, err)
 
 	// initialize without pending txs

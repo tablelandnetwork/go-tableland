@@ -94,6 +94,4 @@ type SystemACL struct {
 	ChainID    tableland.ChainID
 	TableID    tables.TableID
 	Privileges tableland.Privileges
-	// CreatedAt  time.Time
-	// UpdatedAt  *time.Time
 }
