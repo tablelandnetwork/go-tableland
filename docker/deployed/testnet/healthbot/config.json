@@ -56,7 +56,7 @@
             "WalletPrivateKey": "${HEALTHBOT_FILECOIN_HYPERSPACE_PRIVATE_KEY}",
             "AnkrAPIKey": "${HEALTHBOT_ANKR_FILECOIN_HYPERSPACE_API_KEY}",
             "Probe": {
-                "CheckInterval": "30s",
+                "CheckInterval": "5m",
                 "ReceiptTimeout": "25s",
                 "Tablename": "${HEALTHBOT_FILECOIN_HYPERSPACE_TABLE}"
             }
