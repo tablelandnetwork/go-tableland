@@ -15,27 +15,31 @@ type ChainID int64
 
 // ChainIDs is all chain ids supported by Tableland.
 var ChainIDs = struct {
-	Ethereum       ChainID
-	Optimism       ChainID
-	Polygon        ChainID
-	Arbitrum       ChainID
-	ArbitrumNova   ChainID
-	EthereumGoerli ChainID
-	OptimismGoerli ChainID
-	ArbitrumGoerli ChainID
-	PolygonMumbai  ChainID
-	Local          ChainID
+	Ethereum           ChainID
+	Optimism           ChainID
+	Polygon            ChainID
+	Arbitrum           ChainID
+	ArbitrumNova       ChainID
+	Filecoin           ChainID
+	EthereumGoerli     ChainID
+	OptimismGoerli     ChainID
+	ArbitrumGoerli     ChainID
+	FilecoinHyperspace ChainID
+	PolygonMumbai      ChainID
+	Local              ChainID
 }{
-	Ethereum:       1,
-	Optimism:       10,
-	Polygon:        137,
-	Arbitrum:       42161,
-	ArbitrumNova:   42170,
-	EthereumGoerli: 5,
-	OptimismGoerli: 420,
-	ArbitrumGoerli: 421613,
-	PolygonMumbai:  80001,
-	Local:          31337,
+	Ethereum:           1,
+	Optimism:           10,
+	Polygon:            137,
+	Arbitrum:           42161,
+	ArbitrumNova:       42170,
+	Filecoin:           314,
+	EthereumGoerli:     5,
+	OptimismGoerli:     420,
+	ArbitrumGoerli:     421613,
+	FilecoinHyperspace: 3141,
+	PolygonMumbai:      80001,
+	Local:              31337,
 }
 
 // Chain is a info about a network supported by Talbleland.
@@ -78,6 +82,12 @@ var Chains = map[ChainID]Chain{
 		Name:         "Arbitrum Nova",
 		ContractAddr: common.HexToAddress("0x1a22854c5b1642760a827f20137a67930ae108d2"),
 	},
+	ChainIDs.Filecoin: {
+		Endpoint:     mainnetURL,
+		ID:           ChainIDs.Filecoin,
+		Name:         "Filecoin",
+		ContractAddr: common.HexToAddress("0x59EF8Bf2d6c102B4c42AEf9189e1a9F0ABfD652d"),
+	},
 	ChainIDs.EthereumGoerli: {
 		Endpoint:     testnetURL,
 		ID:           ChainIDs.EthereumGoerli,
@@ -95,6 +105,12 @@ var Chains = map[ChainID]Chain{
 		ID:           ChainIDs.ArbitrumGoerli,
 		Name:         "Arbitrum Goerli",
 		ContractAddr: common.HexToAddress("0x033f69e8d119205089Ab15D340F5b797732f646b"),
+	},
+	ChainIDs.FilecoinHyperspace: {
+		Endpoint:     testnetURL,
+		ID:           ChainIDs.FilecoinHyperspace,
+		Name:         "Filecoin Hyperspace",
+		ContractAddr: common.HexToAddress("0x0B9737ab4B3e5303CB67dB031b509697e31c02d3"),
 	},
 	ChainIDs.PolygonMumbai: {
 		Endpoint:     testnetURL,
@@ -142,4 +158,10 @@ var QuickNodeURLs = map[ChainID]string{
 // LocalURLs contains the URLs for a local network.
 var LocalURLs = map[ChainID]string{
 	ChainIDs.Local: "http://localhost:8545",
+}
+
+// AnkrURLs contains the URLs for supported chains on Ankr.
+var AnkrURLs = map[ChainID]string{
+	ChainIDs.FilecoinHyperspace: "https://rpc.ankr.com/filecoin_testnet/%s",
+	ChainIDs.Filecoin:           "https://rpc.ankr.com/filecoin/%s",
 }
