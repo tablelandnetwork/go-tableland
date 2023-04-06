@@ -30,7 +30,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/database"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
-	"github.com/textileio/go-tableland/pkg/readstatementresolver"
+	"github.com/textileio/go-tableland/pkg/sharedmemory"
 	"go.opentelemetry.io/otel/attribute"
 
 	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
@@ -93,10 +93,14 @@ func main() {
 		log.Fatal().Err(err).Msg("creating parser")
 	}
 
+	// Shared memory
+	sm := sharedmemory.NewSharedMemory()
+
 	// Chain stacks.
 	chainStacks, closeChainStacks, err := createChainStacks(
 		serializableDB,
 		parser,
+		sm,
 		config.Chains,
 		config.TableConstraints,
 		config.Analytics.FetchExtraBlockInfo)
@@ -105,7 +109,7 @@ func main() {
 	}
 
 	// HTTP API server.
-	closeHTTPServer, err := createAPIServer(config.HTTP, config.Gateway, parser, concurrentDB, chainStacks)
+	closeHTTPServer, err := createAPIServer(config.HTTP, config.Gateway, parser, concurrentDB, sm, chainStacks)
 	if err != nil {
 		log.Fatal().Err(err).Msg("creating HTTP server")
 	}
@@ -168,6 +172,7 @@ func createChainIDStack(
 	config ChainConfig,
 	db *database.SQLiteDB,
 	parser parsing.SQLValidator,
+	sm *sharedmemory.SharedMemory,
 	tableConstraints TableConstraints,
 	fetchExtraBlockInfo bool,
 ) (chains.ChainStack, error) {
@@ -239,6 +244,7 @@ func createChainIDStack(
 		config.ChainID,
 		conn,
 		common.HexToAddress(config.Registry.ContractAddress),
+		sm,
 		efOpts...,
 	)
 	if err != nil {
@@ -401,6 +407,7 @@ func createParser(queryConstraints QueryConstraints) (parsing.SQLValidator, erro
 func createChainStacks(
 	db *database.SQLiteDB,
 	parser parsing.SQLValidator,
+	sm *sharedmemory.SharedMemory,
 	chainsConfig []ChainConfig,
 	tableConstraintsConfig TableConstraints,
 	fetchExtraBlockInfo bool,
@@ -414,6 +421,7 @@ func createChainStacks(
 			chainCfg,
 			db,
 			parser,
+			sm,
 			tableConstraintsConfig,
 			fetchExtraBlockInfo)
 		if err != nil {
@@ -450,6 +458,7 @@ func createAPIServer(
 	gatewayConfig GatewayConfig,
 	parser parsing.SQLValidator,
 	db *database.SQLiteDB,
+	sm *sharedmemory.SharedMemory,
 	chainStacks map[tableland.ChainID]chains.ChainStack,
 ) (moduleCloser, error) {
 	supportedChainIDs := make([]tableland.ChainID, 0, len(chainStacks))
@@ -461,7 +470,7 @@ func createAPIServer(
 
 	g, err := gateway.NewGateway(
 		parser,
-		gatewayimpl.NewGatewayStore(db, readstatementresolver.New(eps)),
+		gatewayimpl.NewGatewayStore(db, parsing.NewReadStatementResolver(sm)),
 		gatewayConfig.ExternalURIPrefix,
 		gatewayConfig.MetadataRendererURI,
 		gatewayConfig.AnimationRendererURI)

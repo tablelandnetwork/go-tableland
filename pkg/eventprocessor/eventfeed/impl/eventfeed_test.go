@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/pkg/database"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
+	"github.com/textileio/go-tableland/pkg/sharedmemory"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/tables/impl/testutil"
 	"github.com/textileio/go-tableland/tests"
@@ -34,6 +35,7 @@ func TestRunSQLEvents(t *testing.T) {
 		1337,
 		backend,
 		addr,
+		sharedmemory.NewSharedMemory(),
 		eventfeed.WithNewHeadPollFreq(time.Millisecond),
 		eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
@@ -117,6 +119,7 @@ func TestAllEvents(t *testing.T) {
 		1337,
 		backend,
 		addr,
+		sharedmemory.NewSharedMemory(),
 		eventfeed.WithNewHeadPollFreq(time.Millisecond),
 		eventfeed.WithMinBlockDepth(0),
 		eventfeed.WithEventPersistence(true),
@@ -302,6 +305,7 @@ func TestInfura(t *testing.T) {
 		1337,
 		conn,
 		rinkebyContractAddr,
+		sharedmemory.NewSharedMemory(),
 		eventfeed.WithNewHeadPollFreq(time.Second),
 		eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)

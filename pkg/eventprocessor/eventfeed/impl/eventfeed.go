@@ -20,6 +20,7 @@ import (
 	logger "github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
+	"github.com/textileio/go-tableland/pkg/sharedmemory"
 	tbleth "github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/telemetry"
 	"go.opentelemetry.io/otel/attribute"
@@ -42,6 +43,9 @@ type EventFeed struct {
 	config             *eventfeed.Config
 	maxBlocksFetchSize int
 
+	// Shared memory
+	sm *sharedmemory.SharedMemory
+
 	// Metrics
 	mBaseLabels       []attribute.KeyValue
 	mEventTypeCounter instrument.Int64Counter
@@ -54,6 +58,7 @@ func New(
 	chainID tableland.ChainID,
 	ethClient eventfeed.ChainClient,
 	scAddress common.Address,
+	sm *sharedmemory.SharedMemory,
 	opts ...eventfeed.Option,
 ) (*EventFeed, error) {
 	config := eventfeed.DefaultConfig()
@@ -71,6 +76,7 @@ func New(
 		Int64("chain_id", int64(chainID)).
 		Logger()
 	ef := &EventFeed{
+		sm:                 sm,
 		log:                log,
 		store:              store,
 		chainID:            chainID,
@@ -122,6 +128,7 @@ func (ef *EventFeed) Start(
 
 	// Listen for new blocks, and get new events.
 	for h := range chHeads {
+		ef.sm.SetLastSeenBlockNumber(ef.chainID, h.Number.Int64())
 		if h.Number.Int64()%100 == 0 {
 			ef.log.Debug().
 				Int64("height", h.Number.Int64()).

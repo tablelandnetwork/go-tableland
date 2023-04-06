@@ -17,6 +17,7 @@ import (
 	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
 	executor "github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor/impl"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
+	"github.com/textileio/go-tableland/pkg/sharedmemory"
 	"github.com/textileio/go-tableland/pkg/tables"
 
 	"github.com/textileio/go-tableland/pkg/tables/impl/testutil"
@@ -330,6 +331,7 @@ func setup(t *testing.T) (
 		chainID,
 		backend,
 		addr,
+		sharedmemory.NewSharedMemory(),
 		eventfeed.WithNewHeadPollFreq(time.Millisecond),
 		eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)

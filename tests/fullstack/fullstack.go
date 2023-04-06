@@ -17,14 +17,13 @@ import (
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/internal/tableland/impl"
 	"github.com/textileio/go-tableland/pkg/database"
-	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
 	epimpl "github.com/textileio/go-tableland/pkg/eventprocessor/impl"
 	executor "github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor/impl"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
-	"github.com/textileio/go-tableland/pkg/readstatementresolver"
+	"github.com/textileio/go-tableland/pkg/sharedmemory"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/tables/impl/testutil"
 	"github.com/textileio/go-tableland/pkg/wallet"
@@ -89,6 +88,9 @@ func CreateFullStack(t *testing.T, deps Deps) FullStack {
 
 	ex, err := executor.NewExecutor(1337, db, parser, 0, acl)
 	require.NoError(t, err)
+
+	sm := sharedmemory.NewSharedMemory()
+
 	// Spin up dependencies needed for the EventProcessor.
 	// i.e: Executor, Parser, and EventFeed (connected to the EVM chain)
 	ef, err := efimpl.New(
@@ -96,6 +98,7 @@ func CreateFullStack(t *testing.T, deps Deps) FullStack {
 		ChainID,
 		backend,
 		addr,
+		sm,
 		eventfeed.WithNewHeadPollFreq(time.Millisecond),
 		eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
@@ -115,7 +118,7 @@ func CreateFullStack(t *testing.T, deps Deps) FullStack {
 		gatewayService, err = gateway.NewGateway(
 			parser,
 			gatewayimpl.NewGatewayStore(
-				db, readstatementresolver.New(map[tableland.ChainID]eventprocessor.EventProcessor{1337: ep}),
+				db, parsing.NewReadStatementResolver(sm),
 			),
 			"https://testnets.tableland.network",
 			"https://render.tableland.xyz",
