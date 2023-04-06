@@ -2,13 +2,19 @@ package impl
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"os"
 	"testing"
 	"time"
 
+	eth "github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
@@ -336,4 +342,102 @@ func TestInfura(t *testing.T) {
 			return
 		}
 	}
+}
+
+func TestDuplicateEvents(t *testing.T) {
+	t.Parallel()
+
+	dbURI := tests.Sqlite3URI(t)
+	systemStore, err := system.New(dbURI, tableland.ChainID(1337))
+	require.NoError(t, err)
+
+	backend := duplicateEventsChainClient{
+		backends.NewSimulatedBackend(make(core.GenesisAlloc), math.MaxInt64),
+	}
+
+	// Deploy address for Registry contract.
+	address := common.HexToAddress("0x0b9737ab4b3e5303cb67db031b509697e31c02d3")
+	if len(address.Bytes()) == 0 {
+		t.Error("Expected a valid deployment address. Received empty address byte array instead")
+	}
+
+	ef, err := New(
+		systemStore,
+		1337,
+		backend,
+		address,
+		eventfeed.WithNewHeadPollFreq(time.Millisecond),
+		eventfeed.WithMinBlockDepth(0),
+		eventfeed.WithEventPersistence(true),
+	)
+	require.NoError(t, err)
+
+	// Start listening to Logs for the contract from the next block.
+	currBlockNumber := backend.Blockchain().CurrentHeader().Number.Int64()
+	ch := make(chan eventfeed.BlockEvents)
+	go func() {
+		err := ef.Start(context.Background(), currBlockNumber+1, ch, []eventfeed.EventType{eventfeed.RunSQL})
+		require.NoError(t, err)
+	}()
+
+	select {
+	case bes := <-ch:
+		persistedEvents, err := systemStore.GetEVMEvents(context.Background(), bes.Txns[0].TxnHash)
+		require.NoError(t, err)
+		require.Len(t, persistedEvents, 1)
+
+		require.Len(t, bes.Txns, 1)
+		require.NotEqual(t, emptyHash, bes.Txns[0].TxnHash)
+		require.IsType(t, &ethereum.ContractRunSQL{}, bes.Txns[0].Events[0])
+	case <-time.After(time.Second):
+		t.Fatalf("didn't receive expected log")
+	}
+}
+
+type duplicateEventsChainClient struct {
+	*backends.SimulatedBackend
+}
+
+func (dec duplicateEventsChainClient) FilterLogs(_ context.Context, filter eth.FilterQuery) ([]types.Log, error) {
+	if len(filter.Addresses) != 1 {
+		return nil, fmt.Errorf("the query filter must have a single contract address filter")
+	}
+	if filter.BlockHash != nil {
+		return nil, fmt.Errorf("block_hash filter isn't supported")
+	}
+
+	logs := []types.Log{
+		{
+			Address:     common.HexToAddress("0x0b9737ab4b3e5303cb67db031b509697e31c02d3"),
+			Topics:      []common.Hash{common.HexToHash("0x6de956d2cb2e161f8c91c6ae7b286358c7458d5ad5e26ea2d55330fbe282839c")},
+			Data:        common.Hex2Bytes("0x0"),
+			BlockNumber: 0x3717e,
+			TxHash:      common.HexToHash("0x8da99ff6d93d1fb632a4dd1acdd4db0190c5d3e01a260350e7bc2409a9af58c6"),
+			TxIndex:     0x0,
+			BlockHash:   common.HexToHash("0x772684ccc34213586cb914b679051d92e147a003391020ce08dc0dac9f9310b4"),
+			Index:       0x0,
+		},
+		{
+			Address:     common.HexToAddress("0x0b9737ab4b3e5303cb67db031b509697e31c02d3"),
+			Topics:      []common.Hash{common.HexToHash("0x6de956d2cb2e161f8c91c6ae7b286358c7458d5ad5e26ea2d55330fbe282839c")},
+			Data:        common.Hex2Bytes("0x0"),
+			BlockNumber: 0x3717e,
+			TxHash:      common.HexToHash("0x8da99ff6d93d1fb632a4dd1acdd4db0190c5d3e01a260350e7bc2409a9af58c6"),
+			TxIndex:     0x0,
+			BlockHash:   common.HexToHash("0x772684ccc34213586cb914b679051d92e147a003391020ce08dc0dac9f9310b4"),
+			Index:       0x0,
+		},
+	}
+
+	return logs, nil
+}
+
+func (dec duplicateEventsChainClient) HeaderByNumber(_ context.Context, block *big.Int) (*types.Header, error) {
+	if block != nil {
+		return nil, errors.New("the current implementation only allows returning the latest block number")
+	}
+
+	return &types.Header{
+		Number: big.NewInt(1000000),
+	}, nil
 }
