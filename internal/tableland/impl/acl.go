@@ -48,7 +48,7 @@ func (acl *ACLStore) CheckPrivileges(
 		return false, fmt.Errorf("privileges lookup: %s", err)
 	}
 
-	aclRule, err := aclFromSQLtoDTO(row)
+	aclRule, err := transformToObject(row)
 	if err != nil {
 		return false, fmt.Errorf("transforming to dto: %s", err)
 	}
@@ -61,7 +61,8 @@ func (acl *ACLStore) CheckPrivileges(
 	return true, nil
 }
 
-func aclFromSQLtoDTO(acl db.SystemAcl) (SystemACL, error) {
+// transforms the ACL data transfer object to ACL object model.
+func transformToObject(acl db.SystemAcl) (SystemACL, error) {
 	id, err := tables.NewTableIDFromInt64(acl.TableID)
 	if err != nil {
 		return SystemACL{}, fmt.Errorf("parsing id to string: %s", err)

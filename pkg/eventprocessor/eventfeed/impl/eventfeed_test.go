@@ -354,10 +354,10 @@ func TestDuplicateEvents(t *testing.T) {
 	db, err := database.Open(dbURI, 1)
 	require.NoError(t, err)
 
-	efStore := NewEventFeedStore(db)
+	eventStore := NewEventFeedStore(db)
 
 	ef, err := New(
-		efStore,
+		eventStore,
 		1337,
 		duplicateEventsChainClient{},
 		common.HexToAddress("0x0b9737ab4b3e5303cb67db031b509697e31c02d3"),
@@ -377,7 +377,7 @@ func TestDuplicateEvents(t *testing.T) {
 
 	select {
 	case bes := <-ch:
-		persistedEvents, err := efStore.GetEVMEvents(context.Background(), 1337, bes.Txns[0].TxnHash)
+		persistedEvents, err := eventStore.GetEVMEvents(context.Background(), 1337, bes.Txns[0].TxnHash)
 		require.NoError(t, err)
 		require.Len(t, persistedEvents, 1)
 
