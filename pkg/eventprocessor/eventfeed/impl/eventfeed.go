@@ -235,6 +235,7 @@ func (ef *EventFeed) removeDuplicateLogs(logs []types.Log) []types.Log {
 
 		// skip duplicate logs
 		if _, ok := seenLogs[uniqueLogID]; ok {
+			ef.log.Info().Msg("removing duplicate logs")
 			continue
 		}
 

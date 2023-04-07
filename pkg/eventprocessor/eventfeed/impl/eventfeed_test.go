@@ -2,18 +2,14 @@ package impl
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"math"
 	"math/big"
 	"os"
 	"testing"
 	"time"
 
 	eth "github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	_ "github.com/mattn/go-sqlite3"
@@ -351,9 +347,7 @@ func TestDuplicateEvents(t *testing.T) {
 	systemStore, err := system.New(dbURI, tableland.ChainID(1337))
 	require.NoError(t, err)
 
-	backend := duplicateEventsChainClient{
-		backends.NewSimulatedBackend(make(core.GenesisAlloc), math.MaxInt64),
-	}
+	backend := duplicateEventsChainClient{}
 
 	// Deploy address for Registry contract.
 	address := common.HexToAddress("0x0b9737ab4b3e5303cb67db031b509697e31c02d3")
@@ -373,10 +367,9 @@ func TestDuplicateEvents(t *testing.T) {
 	require.NoError(t, err)
 
 	// Start listening to Logs for the contract from the next block.
-	currBlockNumber := backend.Blockchain().CurrentHeader().Number.Int64()
 	ch := make(chan eventfeed.BlockEvents)
 	go func() {
-		err := ef.Start(context.Background(), currBlockNumber+1, ch, []eventfeed.EventType{eventfeed.RunSQL})
+		err := ef.Start(context.Background(), 1, ch, []eventfeed.EventType{eventfeed.RunSQL})
 		require.NoError(t, err)
 	}()
 
@@ -394,18 +387,9 @@ func TestDuplicateEvents(t *testing.T) {
 	}
 }
 
-type duplicateEventsChainClient struct {
-	*backends.SimulatedBackend
-}
+type duplicateEventsChainClient struct{}
 
 func (dec duplicateEventsChainClient) FilterLogs(_ context.Context, filter eth.FilterQuery) ([]types.Log, error) {
-	if len(filter.Addresses) != 1 {
-		return nil, fmt.Errorf("the query filter must have a single contract address filter")
-	}
-	if filter.BlockHash != nil {
-		return nil, fmt.Errorf("block_hash filter isn't supported")
-	}
-
 	logs := []types.Log{
 		{
 			Address:     common.HexToAddress("0x0b9737ab4b3e5303cb67db031b509697e31c02d3"),
@@ -433,10 +417,6 @@ func (dec duplicateEventsChainClient) FilterLogs(_ context.Context, filter eth.F
 }
 
 func (dec duplicateEventsChainClient) HeaderByNumber(_ context.Context, block *big.Int) (*types.Header, error) {
-	if block != nil {
-		return nil, errors.New("the current implementation only allows returning the latest block number")
-	}
-
 	return &types.Header{
 		Number: big.NewInt(1000000),
 	}, nil
