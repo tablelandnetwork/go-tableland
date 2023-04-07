@@ -389,7 +389,7 @@ func TestDuplicateEvents(t *testing.T) {
 
 type duplicateEventsChainClient struct{}
 
-func (dec duplicateEventsChainClient) FilterLogs(_ context.Context, filter eth.FilterQuery) ([]types.Log, error) {
+func (dec duplicateEventsChainClient) FilterLogs(_ context.Context, _ eth.FilterQuery) ([]types.Log, error) {
 	logs := []types.Log{
 		{
 			Address:     common.HexToAddress("0x0b9737ab4b3e5303cb67db031b509697e31c02d3"),
@@ -416,7 +416,7 @@ func (dec duplicateEventsChainClient) FilterLogs(_ context.Context, filter eth.F
 	return logs, nil
 }
 
-func (dec duplicateEventsChainClient) HeaderByNumber(_ context.Context, block *big.Int) (*types.Header, error) {
+func (dec duplicateEventsChainClient) HeaderByNumber(_ context.Context, _ *big.Int) (*types.Header, error) {
 	return &types.Header{
 		Number: big.NewInt(1000000),
 	}, nil
