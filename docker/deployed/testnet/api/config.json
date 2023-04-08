@@ -79,6 +79,33 @@
             "HashCalculationStep": 150
         },
         {
+            "Name": "Ethereum Sepolia",
+            "ChainID": 11155111,
+            "Registry": {
+                "EthEndpoint": "wss://eth-sepolia.g.alchemy.com/v2//${VALIDATOR_ALCHEMY_ETHEREUM_SEPOLIA_API_KEY}",
+                "ContractAddress": "0xTODO"
+            },
+            "Signer": {
+                "PrivateKey": "${VALIDATOR_ETHEREUM_SEPOLIA_SIGNER_PRIVATE_KEY}"
+            },
+            "EventFeed": {
+                "ChainAPIBackoff": "15s",
+                "NewBlockPollFreq": "10s",
+                "MinBlockDepth": 1,
+                "PersistEvents": true
+            },
+            "EventProcessor": {
+                "BlockFailedExecutionBackoff": "10s",
+                "DedupExecutedTxns": true
+            },
+            "NonceTracker": {
+                "CheckInterval": "15s",
+                "StuckInterval": "10m",
+                "MinBlockDepth": 1
+            },
+            "HashCalculationStep": 150
+        },
+        {
             "Name": "Polygon Mumbai",
             "ChainID": 80001,
             "Registry": {

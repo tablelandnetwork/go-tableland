@@ -22,6 +22,7 @@ var ChainIDs = struct {
 	ArbitrumNova       ChainID
 	Filecoin           ChainID
 	EthereumGoerli     ChainID
+	EthereumSepolia    ChainID
 	OptimismGoerli     ChainID
 	ArbitrumGoerli     ChainID
 	FilecoinHyperspace ChainID
@@ -35,6 +36,7 @@ var ChainIDs = struct {
 	ArbitrumNova:       42170,
 	Filecoin:           314,
 	EthereumGoerli:     5,
+	EthereumSepolia:    11155111,
 	OptimismGoerli:     420,
 	ArbitrumGoerli:     421613,
 	FilecoinHyperspace: 3141,
@@ -94,6 +96,12 @@ var Chains = map[ChainID]Chain{
 		Name:         "Ethereum Goerli",
 		ContractAddr: common.HexToAddress("0xDA8EA22d092307874f30A1F277D1388dca0BA97a"),
 	},
+	ChainIDs.EthereumSepolia: {
+		Endpoint:     testnetURL,
+		ID:           ChainIDs.EthereumSepolia,
+		Name:         "Ethereum Sepolia",
+		ContractAddr: common.HexToAddress("0xDA8EA22d092307874f30A1F277D1388dca0BA97a"),
+	},
 	ChainIDs.OptimismGoerli: {
 		Endpoint:     testnetURL,
 		ID:           ChainIDs.OptimismGoerli,
@@ -140,14 +148,15 @@ var InfuraURLs = map[ChainID]string{
 
 // AlchemyURLs contains the URLs for supported chains for Alchemy.
 var AlchemyURLs = map[ChainID]string{
-	ChainIDs.EthereumGoerli: "https://eth-goerli.g.alchemy.com/v2/%s",
-	ChainIDs.Ethereum:       "https://eth-mainnet.g.alchemy.com/v2/%s",
-	ChainIDs.OptimismGoerli: "https://opt-goerli.g.alchemy.com/v2/%s",
-	ChainIDs.Optimism:       "https://opt-mainnet.g.alchemy.com/v2/%s",
-	ChainIDs.ArbitrumGoerli: "https://arb-goerli.g.alchemy.com/v2/%s",
-	ChainIDs.Arbitrum:       "https://arb-mainnet.g.alchemy.com/v2/%s",
-	ChainIDs.PolygonMumbai:  "https://polygon-mumbai.g.alchemy.com/v2/%s",
-	ChainIDs.Polygon:        "https://polygon-mainnet.g.alchemy.com/v2/%s",
+	ChainIDs.EthereumGoerli:  "https://eth-goerli.g.alchemy.com/v2/%s",
+	ChainIDs.EthereumSepolia: "https://eth-sepolia.g.alchemy.com/v2/%s",
+	ChainIDs.Ethereum:        "https://eth-mainnet.g.alchemy.com/v2/%s",
+	ChainIDs.OptimismGoerli:  "https://opt-goerli.g.alchemy.com/v2/%s",
+	ChainIDs.Optimism:        "https://opt-mainnet.g.alchemy.com/v2/%s",
+	ChainIDs.ArbitrumGoerli:  "https://arb-goerli.g.alchemy.com/v2/%s",
+	ChainIDs.Arbitrum:        "https://arb-mainnet.g.alchemy.com/v2/%s",
+	ChainIDs.PolygonMumbai:   "https://polygon-mumbai.g.alchemy.com/v2/%s",
+	ChainIDs.Polygon:         "https://polygon-mainnet.g.alchemy.com/v2/%s",
 }
 
 // QuickNodeURLs contains the URLs for supported chains for QuickNode.
