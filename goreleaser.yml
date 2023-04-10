@@ -1,5 +1,9 @@
 # goreleaser.yml
 
+before:
+  hooks:
+  - go mod tidy
+
 project_name: api
 
 builds:
@@ -14,7 +18,9 @@ builds:
     - arm64
   ignore:
     - goos: linux
-      goarch: arm64  
+      goarch: arm64
+  env:
+    - CGO_ENABLED=1
   ldflags: -s -w
 - binary: api-win
   id: api-win
@@ -23,6 +29,8 @@ builds:
     - windows
   goarch:
     - amd64    
+  env:
+    - CGO_ENABLED=1
   ldflags: -s -w
   
 archives:
