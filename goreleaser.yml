@@ -1,0 +1,39 @@
+# goreleaser.yml
+
+project_name: api
+
+builds:
+- binary: api
+  id: api
+  goos:
+    - linux
+    - darwin    
+  goarch:
+    - amd64
+    - arm64
+  ignore:
+    - goos: linux
+      goarch: arm64  
+  ldflags: -s -w
+- binary: api-win
+  id: api-win
+  goos:    
+    - windows
+  goarch:
+    - amd64    
+  ldflags: -s -w
+  
+archives:
+  - id: api-archive
+    format: tar.gz
+    builds:
+      - api
+    name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
+  - id: api-archive-win
+    format: zip
+    builds:
+      - api-win
+    name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"  
+
+checksum:
+  disable: true
