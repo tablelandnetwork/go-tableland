@@ -19,7 +19,7 @@ func TestProduction(t *testing.T) {
 	require.NoError(t, err)
 
 	chain := client.Chains[client.ChainIDs.Optimism]
-	client, err := clientV1.NewClient(ctx, wallet, clientV1.NewClientChain(chain))
+	client, err := clientV1.NewClient(ctx, wallet, clientV1.Alchemy, clientV1.NewClientChain(chain))
 	require.NoError(t, err)
 
 	cp, err := New("optimism-mainnet", client, "Runbook_24", time.Second, time.Second*10, 1, 1)

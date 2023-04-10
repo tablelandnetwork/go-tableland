@@ -32,6 +32,14 @@ type Client struct {
 	baseURL     *url.URL
 }
 
+type Provider int
+
+const (
+	Infura Provider = iota
+	Alchemy	
+	Ankr
+)
+
 type config struct {
 	chain           *client.Chain
 	infuraAPIKey    string
@@ -39,6 +47,7 @@ type config struct {
 	ankrAPIKey      string
 	local           bool
 	contractBackend bind.ContractBackend
+	provider 	  Provider
 }
 
 // NewClientOption controls the behavior of NewClient.
@@ -87,8 +96,9 @@ func NewClientContractBackend(backend bind.ContractBackend) NewClientOption {
 }
 
 // NewClient creates a new Client.
-func NewClient(ctx context.Context, wallet *wallet.Wallet, opts ...NewClientOption) (*Client, error) {
+func NewClient(ctx context.Context, wallet *wallet.Wallet, provider Provider, opts ...NewClientOption) (*Client, error) {
 	config := config{chain: &defaultChain}
+	config.provider = provider
 	for _, opt := range opts {
 		opt(&config)
 	}
@@ -141,37 +151,35 @@ func NewClient(ctx context.Context, wallet *wallet.Wallet, opts ...NewClientOpti
 }
 
 func getContractBackend(ctx context.Context, config config) (bind.ContractBackend, error) {
-	if config.contractBackend != nil && config.infuraAPIKey == "" && config.alchemyAPIKey == "" {
+	if config.contractBackend != nil {
 		return config.contractBackend, nil
-	} else if config.infuraAPIKey != "" && config.contractBackend == nil &&
-		config.alchemyAPIKey == "" && config.ankrAPIKey == "" {
+	} 
+		
+	var rpcURL string	
+	switch config.provider {
+	case Infura:
 		tmpl, found := client.InfuraURLs[config.chain.ID]
 		if !found {
 			return nil, fmt.Errorf("chain id %v not supported for Infura", config.chain.ID)
 		}
-		return ethclient.DialContext(ctx, fmt.Sprintf(tmpl, config.infuraAPIKey))
-	} else if config.alchemyAPIKey != "" && config.contractBackend == nil &&
-		config.infuraAPIKey == "" && config.ankrAPIKey == "" {
+		rpcURL = fmt.Sprintf(tmpl, config.infuraAPIKey)
+	case Alchemy:
 		tmpl, found := client.AlchemyURLs[config.chain.ID]
 		if !found {
 			return nil, fmt.Errorf("chain id %v not supported for Alchemy", config.chain.ID)
-		}
-		return ethclient.DialContext(ctx, fmt.Sprintf(tmpl, config.alchemyAPIKey))
-	} else if config.ankrAPIKey != "" && config.contractBackend == nil &&
-		config.infuraAPIKey == "" && config.alchemyAPIKey == "" {
+		}		
+		rpcURL = fmt.Sprintf(tmpl, config.alchemyAPIKey)
+	case Ankr:
 		tmpl, found := client.AnkrURLs[config.chain.ID]
 		if !found {
 			return nil, fmt.Errorf("chain id %v not supported for Ankr", config.chain.ID)
 		}
-		return ethclient.DialContext(ctx, fmt.Sprintf(tmpl, config.ankrAPIKey))
-	} else if config.local {
-		url, found := client.LocalURLs[config.chain.ID]
-		if !found {
-			return nil, fmt.Errorf("chain id %v not supported for Local", config.chain.ID)
-		}
-		return ethclient.DialContext(ctx, url)
+		rpcURL = fmt.Sprintf(tmpl, config.ankrAPIKey)
+	default:
+		return nil, errors.New("no provider or ETH backend specified")
 	}
-	return nil, errors.New("no provider specified, must provide an Infura API key, Alchemy API key, or an ETH backend")
+	
+	return ethclient.DialContext(ctx, rpcURL)		
 }
 
 // TableID is the ID of a Table.

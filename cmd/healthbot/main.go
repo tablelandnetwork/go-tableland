@@ -57,15 +57,23 @@ func main() {
 		if chainCfg.OverrideClient.ContractAddr != "" {
 			chain.ContractAddr = common.HexToAddress(chainCfg.OverrideClient.ContractAddr)
 		}
-
 		// For Filecoin Hyperspace, we use Ankr endpoint
-		opts := []clientV1.NewClientOption{clientV1.NewClientChain(chain)}
+		var client *clientV1.Client
 		if chain.ID == 3141 {
-			opts = append(opts, clientV1.NewClientAnkrAPIKey(chainCfg.AnkrAPIKey))
+			client, err = clientV1.NewClient(
+				ctx, wallet,
+				clientV1.Ankr,
+				clientV1.NewClientChain(chain),
+				clientV1.NewClientAnkrAPIKey(chainCfg.AlchemyAPIKey),
+			)
 		} else {
-			opts = append(opts, clientV1.NewClientAlchemyAPIKey(chainCfg.AlchemyAPIKey))
+			client, err = clientV1.NewClient(
+				ctx, wallet,
+				clientV1.Alchemy,
+				clientV1.NewClientChain(chain),
+				clientV1.NewClientAlchemyAPIKey(chainCfg.AlchemyAPIKey),
+			)
 		}
-		client, err := clientV1.NewClient(ctx, wallet, opts...)
 		if err != nil {
 			log.Fatal().Err(err).Msg("error creating tbl client")
 		}
