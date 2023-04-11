@@ -57,7 +57,7 @@
             "AnkrAPIKey": "${HEALTHBOT_ANKR_FILECOIN_HYPERSPACE_API_KEY}",
             "Probe": {
                 "CheckInterval": "5m",
-                "ReceiptTimeout": "25s",
+                "ReceiptTimeout": "75s",
                 "Tablename": "${HEALTHBOT_FILECOIN_HYPERSPACE_TABLE}"
             }
         }
