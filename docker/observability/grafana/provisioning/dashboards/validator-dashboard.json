@@ -1196,7 +1196,7 @@
           "refId": "A"
         }
       ],
-      "title": "APIs",
+      "title": "API",
       "type": "row"
     },
     {
@@ -1279,117 +1279,6 @@
         "x": 0,
         "y": 33
       },
-      "id": 37,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
-          },
-          "editorMode": "code",
-          "exemplar": true,
-          "expr": "sum by (http_status_code) (rate(http_server_request_count_total{service_name=\"tableland:api\"}[10m]))",
-          "interval": "",
-          "legendFormat": "{{http_status_code}}-{{http_server_name}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Status Code Rate",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "reqps"
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "500"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "red",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 6,
-        "x": 6,
-        "y": 33
-      },
       "id": 79,
       "options": {
         "legend": {
@@ -1411,7 +1300,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "sum by (service_name) (rate(http_server_request_count_total{service_name=\"tableland:api\"}[5m]))",
+          "expr": "sum by (http_status_code) (rate(http_server_request_count_total{service_name=\"tableland:api\"}[$__rate_interval]))",
           "interval": "",
           "legendFormat": "__auto",
           "range": true,
@@ -1507,7 +1396,7 @@
       "gridPos": {
         "h": 8,
         "w": 6,
-        "x": 12,
+        "x": 6,
         "y": 33
       },
       "id": 15,
@@ -1531,7 +1420,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "histogram_quantile(0.95, sum(rate(http_server_duration_bucket{}[5m])) by (service_name, le))",
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_duration_bucket{service_name=\"tableland:api\"}[$__rate_interval])) by (http_status_code, le))",
           "interval": "",
           "legendFormat": "__auto",
           "range": true,
@@ -1618,7 +1507,7 @@
       "gridPos": {
         "h": 8,
         "w": 6,
-        "x": 18,
+        "x": 12,
         "y": 33
       },
       "id": 80,
@@ -1649,7 +1538,7 @@
           "refId": "A"
         }
       ],
-      "title": "API Response bytes/s ",
+      "title": "Response bytes/s ",
       "type": "timeseries"
     },
     {
@@ -1749,7 +1638,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "sum by (method) (\n  rate(tableland_gateway_call_latency_count{service_name=\"tableland:api\"}[5m])\n)",
+          "expr": "sum by (method) (\n  rate(tableland_gateway_call_latency_count{service_name=\"tableland:api\"}[$__rate_interval])\n)",
           "interval": "",
           "legendFormat": "{{method}}",
           "range": true,
@@ -1847,7 +1736,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "histogram_quantile(0.95, sum(rate(tableland_gateway_call_latency_bucket{service_name=\"tableland:api\"}[5m])) by (le, method))",
+          "expr": "histogram_quantile(0.95, sum(rate(tableland_gateway_call_latency_bucket{service_name=\"tableland:api\"}[$__rate_interval])) by (le, method))",
           "format": "heatmap",
           "instant": false,
           "interval": "",
@@ -2692,6 +2581,6 @@
   "timezone": "",
   "title": "Validator",
   "uid": "2Le7qt_7z",
-  "version": 7,
+  "version": 19,
   "weekStart": ""
 }
