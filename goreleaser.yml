@@ -22,6 +22,39 @@ builds:
   env:
     - CGO_ENABLED=1
   ldflags: -s -w
+  overrides:
+    - goos: linux
+      goarch: amd64
+      goamd64: v1
+      env:
+        - CGO_ENABLED=1
+        - CC=x86_64-linux-gnu-gcc
+        - CXX=x86_64-linux-gnu-g++
+      ldflags:
+        - -s -w
+        - -extldflags "-static"
+    - goos: linux
+      goarch: arm64
+      env:
+        - CGO_ENABLED=1
+        - CC=aarch64-linux-gnu-gcc
+        - CXX=aarch64-linux-gnu-g++
+      ldflags:
+        - -s -w
+        - -extldflags "-static"
+    - goos: darwin
+      goarch: amd64
+      goamd64: v1
+      env:
+        - CGO_ENABLED=1
+        - CC=o64-clang
+        - CXX=o64-clang++
+    - goos: darwin
+      goarch: arm64
+      env:
+        - CGO_ENABLED=1
+        - CC=oa64-clang
+        - CXX=oa64-clang++
 # - binary: api-win
 #   id: api-win
 #  main: ./cmd/api
