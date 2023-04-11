@@ -71,7 +71,7 @@ archives:
     format: tar.gz
     builds:
       - api
-    name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
+    name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}-{{ .ShortCommit }}"
   #- id: api-archive-win
   #  format: zip
   #  builds:
