@@ -22,16 +22,16 @@ builds:
   env:
     - CGO_ENABLED=1
   ldflags: -s -w
-- binary: api-win
-  id: api-win
-  main: ./cmd/api
-  goos:    
-    - windows
-  goarch:
-    - amd64    
-  env:
-    - CGO_ENABLED=1
-  ldflags: -s -w
+# - binary: api-win
+#   id: api-win
+#  main: ./cmd/api
+#  goos:    
+#    - windows
+#  goarch:
+#    - amd64    
+#  env:
+#    - CGO_ENABLED=1
+#  ldflags: -s -w
   
 archives:
   - id: api-archive
@@ -39,11 +39,11 @@ archives:
     builds:
       - api
     name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
-  - id: api-archive-win
-    format: zip
-    builds:
-      - api-win
-    name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"  
+  #- id: api-archive-win
+  #  format: zip
+  #  builds:
+  #    - api-win
+  #  name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"  
 
 checksum:
   disable: true
