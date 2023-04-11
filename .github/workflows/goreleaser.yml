@@ -24,6 +24,7 @@ jobs:
           distribution: goreleaser
           version: latest
           # skip git checks for testing
-          args: release --clean --skip-validate
+          # --snapshot is used for testing; it doesn't publish artifacts
+          args: release --clean --skip-validate --snapshot
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
