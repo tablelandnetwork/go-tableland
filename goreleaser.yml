@@ -23,30 +23,6 @@ builds:
     - -trimpath
   ldflags:
     - -s -w
-  overrides:
-    - goos: linux
-      goarch: amd64
-      goamd64: v1
-      env:
-        - CGO_ENABLED=1
-        - CC=x86_64-linux-gnu-gcc
-        - CXX=x86_64-linux-gnu-g++
-      ldflags:
-        - -s -w
-        - -extldflags "-static"
-    - goos: linux
-      goarch: arm64
-      env:
-        - CGO_ENABLED=1
-        - CC=aarch64-linux-gnu-gcc
-        - CXX=aarch64-linux-gnu-g++
-      ldflags:
-        - -s -w
-        - -extldflags "-static"
-    - goos: darwin
-      goarch: arm64
-      env:
-        - CGO_ENABLED=1
 - id: api-darwin-arm64
   binary: api
   main: ./cmd/api
