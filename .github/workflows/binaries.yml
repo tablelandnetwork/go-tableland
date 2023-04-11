@@ -4,14 +4,14 @@ on:
     types:
       - created
 jobs:
-  binaries:        
+  binaries:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/goreleaser/goreleaser-cross:v1.18
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
-        with:          
+        with:
           submodules: 'true'
       - name: Fetch repo
         run: git fetch --prune --unshallow      
@@ -24,11 +24,9 @@ jobs:
         with:
           distribution: goreleaser
           version: latest
-          # skip git checks for testing
-          # --snapshot is used for testing; it doesn't publish artifacts
-          args: release --clean --skip-validate --snapshot
+          args: release --clean
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}      
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   docker:
     runs-on: ubuntu-latest
     steps:
