@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/tablelandnetwork/sqlparser"
 	"github.com/textileio/go-tableland/internal/gateway"
@@ -69,6 +70,7 @@ func (s *GatewayStore) GetTable(
 		Controller: table.Controller,
 		Prefix:     table.Prefix,
 		Structure:  table.Structure,
+		CreatedAt:  time.Unix(table.CreatedAt, 0),
 	}, nil
 }
 
