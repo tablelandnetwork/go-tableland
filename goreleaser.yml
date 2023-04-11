@@ -22,7 +22,7 @@ builds:
   flags: 
     - -trimpath
   ldflags:
-    - -s -w
+    - -s -w -X main.version={{.Version}} -X main.commit={{.FullCommit}} -X main.date={{.CommitDate}}
 - id: api-darwin-arm64
   binary: api
   main: ./cmd/api
@@ -36,7 +36,7 @@ builds:
   flags: 
     - -trimpath
   ldflags: 
-    - -s -w
+    - -s -w -X main.version={{.Version}} -X main.commit={{.FullCommit}} -X main.date={{.CommitDate}}
 - id: api-linux-amd64
   binary: api
   main: ./cmd/api
@@ -50,7 +50,7 @@ builds:
   flags:
     - -trimpath
   ldflags:
-    - -s -w
+    - -s -w -X main.version={{.Version}} -X main.commit={{.FullCommit}} -X main.date={{.CommitDate}}
 - id: api-linux-arm64
   binary: api
   main: ./cmd/api
@@ -64,7 +64,7 @@ builds:
   flags:
     - -trimpath
   ldflags:
-    - -s -w
+    - -s -w -X main.version={{.Version}} -X main.commit={{.FullCommit}} -X main.date={{.CommitDate}}
 - id: api-windows-amd64
   binary: api
   main: ./cmd/api
@@ -78,6 +78,8 @@ builds:
   flags:
     - -trimpath
     - -buildmode=exe
+  ldflags:
+    - -s -w -X main.version={{.Version}} -X main.commit={{.FullCommit}} -X main.date={{.CommitDate}}
 
 archives:
   - id: api-archive
