@@ -166,7 +166,8 @@ func (ef *EventFeed) Start(
 				if strings.Contains(err.Error(), "read limit exceeded") ||
 					strings.Contains(err.Error(), "Log response size exceeded") ||
 					strings.Contains(err.Error(), "is greater than the limit") ||
-					strings.Contains(err.Error(), "eth_getLogs and eth_newFilter are limited to a 10,000 blocks range") {
+					strings.Contains(err.Error(), "eth_getLogs and eth_newFilter are limited to a 10,000 blocks range") ||
+					strings.Contains(err.Error(), "block range is too wide") {
 					ef.maxBlocksFetchSize = ef.maxBlocksFetchSize * 80 / 100
 				} else {
 					time.Sleep(ef.config.ChainAPIBackoff)
@@ -174,9 +175,12 @@ func (ef *EventFeed) Start(
 				continue Loop
 			}
 
-			if len(logs) > 0 {
-				events := make([]interface{}, len(logs))
-				for i, l := range logs {
+			// Remove duplicated logs (needed for Filecoin based chains)
+			uniqueLogs := ef.removeDuplicateLogs(logs)
+
+			if len(uniqueLogs) > 0 {
+				events := make([]interface{}, len(uniqueLogs))
+				for i, l := range uniqueLogs {
 					events[i], err = ef.parseEvent(l)
 					if err != nil {
 						ef.log.
@@ -190,7 +194,7 @@ func (ef *EventFeed) Start(
 				}
 
 				if ef.config.PersistEvents {
-					if err := ef.persistEvents(ctx, logs, events); err != nil {
+					if err := ef.persistEvents(ctx, uniqueLogs, events); err != nil {
 						ef.log.
 							Error().
 							Err(err).
@@ -200,7 +204,7 @@ func (ef *EventFeed) Start(
 					}
 				}
 
-				blocksEvents := ef.packEvents(logs, events)
+				blocksEvents := ef.packEvents(uniqueLogs, events)
 				for i := range blocksEvents {
 					ch <- *blocksEvents[i]
 				}
@@ -216,6 +220,33 @@ func (ef *EventFeed) Start(
 		}
 	}
 	return nil
+}
+
+// removeDuplicateLogs removes duplicate logs from the list of logs
+// This is needed because some node RPC endpoints can return duplicate logs
+// for a given block range. This is a known bug in FVM and impacts Filecoin
+// and Filecoin Hyperspace nodes.
+// See: https://github.com/filecoin-project/ref-fvm/issues/1350
+func (ef *EventFeed) removeDuplicateLogs(logs []types.Log) []types.Log {
+	seenLogs := make(map[string]bool)
+	var uniqueLogs []types.Log
+	for l := range logs {
+		uniqueLogID := fmt.Sprintf("%d%s%d", logs[l].BlockNumber, logs[l].TxHash.String(), logs[l].Index)
+
+		// skip duplicate logs
+		if _, ok := seenLogs[uniqueLogID]; ok {
+			ef.log.Warn().
+				Int64("block_number", int64(logs[l].BlockNumber)).
+				Str("txn_hash", logs[l].TxHash.String()).
+				Int64("log_index", int64(logs[l].Index)).
+				Msg("removing duplicate logs")
+			continue
+		}
+
+		seenLogs[uniqueLogID] = true
+		uniqueLogs = append(uniqueLogs, logs[l])
+	}
+	return uniqueLogs
 }
 
 // packEvents packs a linear stream of events in two nested groups:
