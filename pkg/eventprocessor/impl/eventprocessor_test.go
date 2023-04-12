@@ -15,8 +15,9 @@ import (
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
 	executor "github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor/impl"
+	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
-	rsresolver "github.com/textileio/go-tableland/pkg/readstatementresolver"
+	"github.com/textileio/go-tableland/pkg/sharedmemory"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/tables"
 	"github.com/textileio/go-tableland/pkg/tables/impl/testutil"
@@ -322,6 +323,8 @@ func setup(t *testing.T) (
 	ex, err := executor.NewExecutor(chainID, db, parser, 0, &aclMock{})
 	require.NoError(t, err)
 
+	sm := sharedmemory.NewSharedMemory()
+
 	systemStore, err := system.New(dbURI, tableland.ChainID(chainID))
 	require.NoError(t, err)
 	ef, err := efimpl.New(
@@ -329,6 +332,7 @@ func setup(t *testing.T) (
 		chainID,
 		backend,
 		addr,
+		sm,
 		eventfeed.WithNewHeadPollFreq(time.Millisecond),
 		eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
@@ -376,7 +380,7 @@ func setup(t *testing.T) (
 		dbURI, 1337)
 	require.NoError(t, err)
 
-	store.SetReadResolver(rsresolver.New(map[tableland.ChainID]eventprocessor.EventProcessor{chainID: ep}))
+	store.SetReadResolver(parsing.NewReadStatementResolver(sm))
 
 	tableReader := func(readQuery string) []int64 {
 		rq, err := parser.ValidateReadQuery(readQuery)

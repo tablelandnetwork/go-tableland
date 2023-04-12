@@ -146,6 +146,25 @@ func TestHealth(t *testing.T) {
 	require.True(t, healthy)
 }
 
+func TestBlockNum(t *testing.T) {
+	// Our initial simulated blockchain setup already produces two blocks.
+	calls := setup(t)
+
+	// We create a table and do two inserts, that will increase our block number to 5.
+	tableName := requireCreate(t, calls)
+	requireReceipt(t, calls, requireWrite(t, calls, tableName), WaitFor(time.Second*10))
+	requireReceipt(t, calls, requireWrite(t, calls, tableName), WaitFor(time.Second*10))
+
+	type result struct {
+		BlockNumber int64 `json:"bn"`
+	}
+
+	res := []result{}
+	calls.query(fmt.Sprintf("select block_num(1337) as bn from %s", tableName), &res)
+	require.Len(t, res, 2)                         // it should be 2 because we inserted two rows
+	require.Equal(t, int64(5), res[0].BlockNumber) // the block number should be 5
+}
+
 func requireCreate(t *testing.T, calls clientCalls) string {
 	_, tableName := calls.create("(bar text)", WithPrefix("foo"), WithReceiptTimeout(time.Second*10))
 	require.Equal(t, "foo_1337_1", tableName)

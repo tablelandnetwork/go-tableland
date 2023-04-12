@@ -24,6 +24,7 @@ import (
 	executor "github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor/impl"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
+	"github.com/textileio/go-tableland/pkg/sharedmemory"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	sqlstoreimplsystem "github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/tables"
@@ -95,6 +96,9 @@ func CreateFullStack(t *testing.T, deps Deps) FullStack {
 
 	ex, err := executor.NewExecutor(1337, db, parser, 0, acl)
 	require.NoError(t, err)
+
+	sm := sharedmemory.NewSharedMemory()
+
 	// Spin up dependencies needed for the EventProcessor.
 	// i.e: Executor, Parser, and EventFeed (connected to the EVM chain)
 	ef, err := efimpl.New(
@@ -102,6 +106,7 @@ func CreateFullStack(t *testing.T, deps Deps) FullStack {
 		ChainID,
 		backend,
 		addr,
+		sm,
 		eventfeed.WithNewHeadPollFreq(time.Millisecond),
 		eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
@@ -125,6 +130,7 @@ func CreateFullStack(t *testing.T, deps Deps) FullStack {
 
 	stores := make(map[tableland.ChainID]sqlstore.SystemStore, len(chainStacks))
 	for chainID, stack := range chainStacks {
+		stack.Store.SetReadResolver(parsing.NewReadStatementResolver(sm))
 		stores[chainID] = stack.Store
 	}
 
