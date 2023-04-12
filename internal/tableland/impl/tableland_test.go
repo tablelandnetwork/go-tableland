@@ -29,6 +29,7 @@ import (
 	executor "github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor/impl"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
+	"github.com/textileio/go-tableland/pkg/sharedmemory"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 
@@ -773,6 +774,7 @@ func (b *tablelandSetupBuilder) build(t *testing.T) *tablelandSetup {
 		1337,
 		backend,
 		addr,
+		sharedmemory.NewSharedMemory(),
 		eventfeed.WithNewHeadPollFreq(time.Millisecond),
 		eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)

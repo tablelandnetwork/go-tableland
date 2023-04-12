@@ -35,7 +35,7 @@ import (
 	nonceimpl "github.com/textileio/go-tableland/pkg/nonce/impl"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
-	"github.com/textileio/go-tableland/pkg/readstatementresolver"
+	"github.com/textileio/go-tableland/pkg/sharedmemory"
 	"github.com/textileio/go-tableland/pkg/sqlstore"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 
@@ -81,10 +81,13 @@ func main() {
 		log.Fatal().Err(err).Msg("creating parser")
 	}
 
+	sm := sharedmemory.NewSharedMemory()
+
 	// Chain stacks.
 	chainStacks, closeChainStacks, err := createChainStacks(
 		databaseURL,
 		parser,
+		sm,
 		config.Chains,
 		config.TableConstraints,
 		config.Analytics.FetchExtraBlockInfo)
@@ -98,7 +101,7 @@ func main() {
 	}
 
 	for _, stack := range chainStacks {
-		stack.Store.SetReadResolver(readstatementresolver.New(eps))
+		stack.Store.SetReadResolver(parsing.NewReadStatementResolver(sm))
 	}
 
 	// HTTP API server.
@@ -156,6 +159,7 @@ func createChainIDStack(
 	dbURI string,
 	executorsDB *sql.DB,
 	parser parsing.SQLValidator,
+	sm *sharedmemory.SharedMemory,
 	tableConstraints TableConstraints,
 	fetchExtraBlockInfo bool,
 ) (chains.ChainStack, error) {
@@ -230,7 +234,7 @@ func createChainIDStack(
 		eventfeed.WithEventPersistence(config.EventFeed.PersistEvents),
 		eventfeed.WithFetchExtraBlockInformation(fetchExtraBlockInfo),
 	}
-	ef, err := efimpl.New(systemStore, config.ChainID, conn, scAddress, efOpts...)
+	ef, err := efimpl.New(systemStore, config.ChainID, conn, scAddress, sm, efOpts...)
 	if err != nil {
 		return chains.ChainStack{}, fmt.Errorf("creating event feed: %s", err)
 	}
@@ -393,6 +397,7 @@ func createParser(queryConstraints QueryConstraints) (parsing.SQLValidator, erro
 func createChainStacks(
 	databaseURL string,
 	parser parsing.SQLValidator,
+	sm *sharedmemory.SharedMemory,
 	chainsConfig []ChainConfig,
 	tableConstraintsConfig TableConstraints,
 	fetchExtraBlockInfo bool,
@@ -419,6 +424,7 @@ func createChainStacks(
 			databaseURL,
 			executorsDB,
 			parser,
+			sm,
 			tableConstraintsConfig,
 			fetchExtraBlockInfo)
 		if err != nil {

@@ -23,6 +23,7 @@ import (
 	executor "github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor/impl"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
+	"github.com/textileio/go-tableland/pkg/sharedmemory"
 	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/tests"
 )
@@ -131,6 +132,7 @@ func spinValidatorStackForChainID(
 		chainID,
 		eventBasedBackend,
 		scAddress,
+		sharedmemory.NewSharedMemory(),
 		eventfeed.WithMinBlockDepth(0))
 	require.NoError(t, err)
 
