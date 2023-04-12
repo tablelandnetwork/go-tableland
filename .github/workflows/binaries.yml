@@ -3,6 +3,8 @@ on:
   release:
     types:
       - created
+permissions:
+  contents: write
 jobs:
   binaries:
     runs-on: ubuntu-latest
