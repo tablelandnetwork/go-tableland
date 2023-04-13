@@ -18,20 +18,6 @@
             }
         },
         {
-            "ChainID": 5,
-            "WalletPrivateKey": "${HEALTHBOT_ETHEREUM_GOERLI_PRIVATE_KEY}",
-            "AlchemyAPIKey": "${HEALTHBOT_ALCHEMY_ETHEREUM_GOERLI_API_KEY}",
-            "Probe": {
-                "CheckInterval": "1.5h",
-                "ReceiptTimeout": "90s",
-                "Tablename": "${HEALTHBOT_ETHEREUM_GOERLI_TABLE}"
-            },
-            "OverrideClient": {
-                "SuggestedGasPriceMultiplier": 1.2,
-                "EstimatedGasLimitMultiplier": 1.1
-            }
-        },
-        {
             "ChainID": 80001,
             "WalletPrivateKey": "${HEALTHBOT_POLYGON_MUMBAI_PRIVATE_KEY}",
             "AlchemyAPIKey": "${HEALTHBOT_ALCHEMY_POLYGON_MUMBAI_API_KEY}",
