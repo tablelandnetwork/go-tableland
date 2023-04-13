@@ -84,6 +84,8 @@ builds:
 archives:
   - id: api-archive
     format: tar.gz
+    files:
+      - none*
     builds:
       - api-darwin-amd64
       - api-darwin-arm64
@@ -92,6 +94,8 @@ archives:
     name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}-{{ .ShortCommit }}"
   - id: api-archive-win
     format: zip
+    files:
+      - none*
     builds:
       - api-windows-amd64
     name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}-{{ .ShortCommit }}"
