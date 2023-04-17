@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/gorilla/mux"
+	"github.com/go-chi/chi/v5"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/errors"
 )
@@ -15,9 +15,7 @@ import (
 func RESTChainID(acceptedChainIDs []tableland.ChainID) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			vars := mux.Vars(r)
-
-			chainID, err := strconv.ParseInt(vars["chainId"], 10, 64)
+			chainID, err := strconv.ParseInt(chi.URLParam(r, "chainId") , 10, 64)
 			if err != nil {
 				w.WriteHeader(http.StatusBadRequest)
 				_ = json.NewEncoder(w).Encode(errors.ServiceError{Message: "no chain id in path"})

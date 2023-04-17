@@ -10,7 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gorilla/mux"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/router/middlewares"
@@ -51,7 +52,7 @@ func TestQuery(t *testing.T) {
 
 	ctrl := NewController(r)
 
-	router := mux.NewRouter()
+	router := chi.NewRouter()
 	router.HandleFunc("/query", ctrl.GetTableQuery)
 
 	ctx := context.WithValue(context.Background(), middlewares.ContextIPAddress, strconv.Itoa(1))
@@ -104,7 +105,7 @@ func TestQueryExtracted(t *testing.T) {
 
 	ctrl := NewController(r)
 
-	router := mux.NewRouter()
+	router := chi.NewRouter()
 	router.HandleFunc("/query", ctrl.GetTableQuery)
 
 	// Extracted object format
@@ -170,7 +171,7 @@ func TestGetTablesByMocked(t *testing.T) {
 		req, err := http.NewRequest("GET", "/api/v1/tables/1337/100", nil)
 		require.NoError(t, err)
 
-		router := mux.NewRouter()
+		router := chi.NewRouter()
 		router.HandleFunc("/api/v1/tables/{chainID}/{tableId}", ctrl.GetTable)
 
 		rr := httptest.NewRecorder()
@@ -200,7 +201,7 @@ func TestGetTableWithInvalidID(t *testing.T) {
 	gateway := mocks.NewGateway(t)
 	ctrl := NewController(gateway)
 
-	router := mux.NewRouter()
+	router := chi.NewRouter()
 	router.HandleFunc("/tables/{id}", ctrl.GetTable)
 
 	rr := httptest.NewRecorder()
@@ -226,7 +227,7 @@ func TestTableNotFoundMock(t *testing.T) {
 
 	ctrl := NewController(gateway)
 
-	router := mux.NewRouter()
+	router := chi.NewRouter()
 	router.HandleFunc("/tables/{tableId}", ctrl.GetTable)
 
 	rr := httptest.NewRecorder()

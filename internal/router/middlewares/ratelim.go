@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/sethvargo/go-limiter/httplimit"
 	"github.com/sethvargo/go-limiter/memorystore"
 )
@@ -28,7 +27,7 @@ type RateLimiterRouteConfig struct {
 // It applies a priority based rate limiting key for the rate limiting:
 // 1. If found, use an existing X-Forwarded-For IP included by a load-balancer in the infrastructure.
 // 2. If 1. isn't present, it will use the connection remote address.
-func RateLimitController(cfg RateLimiterConfig) (mux.MiddlewareFunc, error) {
+func RateLimitController(cfg RateLimiterConfig) (func(next http.Handler) http.Handler, error) {
 	keyFunc := func(r *http.Request) (string, error) {
 		ip, err := extractClientIP(r)
 		if err != nil {

@@ -7,9 +7,9 @@ require (
 	cloud.google.com/go/logging v1.7.0
 	github.com/XSAM/otelsql v0.20.0
 	github.com/ethereum/go-ethereum v1.11.4
+	github.com/go-chi/chi/v5 v5.0.8
 	github.com/golang-migrate/migrate/v4 v4.15.2
 	github.com/google/uuid v1.3.0
-	github.com/gorilla/mux v1.8.0
 	github.com/json-iterator/go v1.1.12
 	github.com/klauspost/compress v1.16.3
 	github.com/mattn/go-sqlite3 v1.14.16

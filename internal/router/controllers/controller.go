@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/gorilla/mux"
+	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/buildinfo"
 	"github.com/textileio/go-tableland/internal/formatter"
@@ -105,7 +105,7 @@ func (c *Controller) Version(rw http.ResponseWriter, _ *http.Request) {
 func (c *Controller) GetReceiptByTransactionHash(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	paramTxnHash := mux.Vars(r)["transactionHash"]
+	paramTxnHash := chi.URLParam(r, "transactionHash")
 	if _, err := common.ParseHexOrString(paramTxnHash); err != nil {
 		rw.Header().Set("Content-Type", "application/json")
 		rw.WriteHeader(http.StatusBadRequest)
@@ -149,9 +149,8 @@ func (c *Controller) GetReceiptByTransactionHash(rw http.ResponseWriter, r *http
 // GetTable handles the GET /chain/{chainID}/tables/{tableId} call.
 func (c *Controller) GetTable(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	vars := mux.Vars(r)
 
-	id, err := tables.NewTableID(vars["tableId"])
+	id, err := tables.NewTableID(chi.URLParam(r, "tableId"))
 	if err != nil {
 		rw.Header().Set("Content-type", "application/json")
 		rw.WriteHeader(http.StatusBadRequest)
