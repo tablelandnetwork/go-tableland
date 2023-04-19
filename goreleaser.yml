@@ -91,14 +91,14 @@ archives:
       - api-darwin-arm64
       - api-linux-amd64
       - api-linux-arm64
-    name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}-{{ .ShortCommit }}"
+    name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
   - id: api-archive-win
     format: zip
     files:
       - none*
     builds:
       - api-windows-amd64
-    name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}-{{ .ShortCommit }}"
+    name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
 
 checksum:
   disable: true

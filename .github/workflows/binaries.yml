@@ -16,7 +16,7 @@ jobs:
         with:
           submodules: 'true'
       - name: Fetch repo
-        run: git fetch --prune --unshallow      
+        run: git fetch --prune --unshallow
       - name: Install Go
         uses: actions/setup-go@v3
         with:
