@@ -5,7 +5,7 @@ go 1.19
 require (
 	cloud.google.com/go/bigquery v1.50.0
 	cloud.google.com/go/logging v1.7.0
-	github.com/XSAM/otelsql v0.20.0
+	github.com/XSAM/otelsql v0.21.0
 	github.com/ethereum/go-ethereum v1.11.5
 	github.com/golang-migrate/migrate/v4 v4.15.2
 	github.com/google/uuid v1.3.0
