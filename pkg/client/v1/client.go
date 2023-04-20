@@ -32,28 +32,15 @@ type Client struct {
 	baseURL     *url.URL
 }
 
-// Provider is the type of backend RPC Provider.
-type Provider int
-
-const (
-	// Infura specify the Infura RPC Provider.
-	Infura Provider = iota
-	// Alchemy specify the Alchemy RPC Provider.
-	Alchemy
-	// Ankr specify the Ankr RPC Provider.
-	Ankr
-	// Local specify use of local RPC.
-	Local
-)
+type provider struct {
+	name   string
+	apiKey string
+}
 
 type config struct {
 	chain           *client.Chain
-	infuraAPIKey    string
-	alchemyAPIKey   string
-	ankrAPIKey      string
-	local           bool
 	contractBackend bind.ContractBackend
-	provider        Provider
+	provider        provider
 }
 
 // NewClientOption controls the behavior of NewClient.
@@ -69,32 +56,28 @@ func NewClientChain(chain client.Chain) NewClientOption {
 // NewClientInfuraAPIKey specifies an Infura API to use when creating an EVM backend.
 func NewClientInfuraAPIKey(key string) NewClientOption {
 	return func(c *config) {
-		c.infuraAPIKey = key
-		c.provider = Infura
+		c.provider = provider{name: "Infura", apiKey: key}
 	}
 }
 
 // NewClientAlchemyAPIKey specifies an Alchemy API to use when creating an EVM backend.
 func NewClientAlchemyAPIKey(key string) NewClientOption {
 	return func(c *config) {
-		c.alchemyAPIKey = key
-		c.provider = Alchemy
+		c.provider = provider{name: "Alchemy", apiKey: key}
 	}
 }
 
 // NewClientAnkrAPIKey specifies an Ankr API to use when creating an EVM backend.
 func NewClientAnkrAPIKey(key string) NewClientOption {
 	return func(c *config) {
-		c.ankrAPIKey = key
-		c.provider = Ankr
+		c.provider = provider{name: "Ankr", apiKey: key}
 	}
 }
 
 // NewClientLocal specifies that a local EVM backend should be used.
 func NewClientLocal() NewClientOption {
 	return func(c *config) {
-		c.local = true
-		c.provider = Local
+		c.provider = provider{name: "Local", apiKey: ""}
 	}
 }
 
@@ -164,37 +147,34 @@ func getContractBackend(ctx context.Context, config config) (bind.ContractBacken
 		return config.contractBackend, nil
 	}
 
-	var rpcURL string
-	switch config.provider {
-	case Infura:
-		tmpl, found := client.InfuraURLs[config.chain.ID]
+	var tmpl string
+	var found bool
+	switch config.provider.name {
+	case "Infura":
+		tmpl, found = client.InfuraURLs[config.chain.ID]
 		if !found {
 			return nil, fmt.Errorf("chain id %v not supported for Infura", config.chain.ID)
 		}
-		rpcURL = fmt.Sprintf(tmpl, config.infuraAPIKey)
-	case Alchemy:
-		tmpl, found := client.AlchemyURLs[config.chain.ID]
+	case "Alchemy":
+		tmpl, found = client.AlchemyURLs[config.chain.ID]
 		if !found {
 			return nil, fmt.Errorf("chain id %v not supported for Alchemy", config.chain.ID)
 		}
-		rpcURL = fmt.Sprintf(tmpl, config.alchemyAPIKey)
-	case Ankr:
-		tmpl, found := client.AnkrURLs[config.chain.ID]
+	case "Ankr":
+		tmpl, found = client.AnkrURLs[config.chain.ID]
 		if !found {
 			return nil, fmt.Errorf("chain id %v not supported for Ankr", config.chain.ID)
 		}
-		rpcURL = fmt.Sprintf(tmpl, config.ankrAPIKey)
-	case Local:
-		tmpl, found := client.LocalURLs[config.chain.ID]
+	case "Local":
+		tmpl, found = client.LocalURLs[config.chain.ID]
 		if !found {
 			return nil, fmt.Errorf("chain id %v not supported for Local", config.chain.ID)
 		}
-		rpcURL = tmpl
 	default:
 		return nil, errors.New("no provider or ETH backend specified")
 	}
 
-	return ethclient.DialContext(ctx, rpcURL)
+	return ethclient.DialContext(ctx, fmt.Sprintf(tmpl, config.provider.apiKey))
 }
 
 // TableID is the ID of a Table.

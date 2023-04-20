@@ -57,6 +57,7 @@ func main() {
 		if chainCfg.OverrideClient.ContractAddr != "" {
 			chain.ContractAddr = common.HexToAddress(chainCfg.OverrideClient.ContractAddr)
 		}
+
 		// For Filecoin Hyperspace, we use Ankr endpoint
 		opts := []clientV1.NewClientOption{clientV1.NewClientChain(chain)}
 		if chain.ID == 3141 {
