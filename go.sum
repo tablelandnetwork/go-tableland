@@ -1297,6 +1297,8 @@ github.com/syndtr/goleveldb v1.0.1-0.20220614013038-64ee5596c38a h1:1ur3QoCqvE5f
 github.com/syndtr/goleveldb v1.0.1-0.20220614013038-64ee5596c38a/go.mod h1:RRCYJbIwD5jmqPI9XoAFR0OcDxqUctll6zUj/+B4S48=
 github.com/tablelandnetwork/sqlparser v0.0.0-20230328132500-785ebca8e351 h1:aHuHicCezduOZVQXPXFM5MJ+h73caB2OUvVjGffzIsc=
 github.com/tablelandnetwork/sqlparser v0.0.0-20230328132500-785ebca8e351/go.mod h1:S+M/v3Q8X+236kQxMQziFcLId2Cscb1LzW06IUVhljE=
+github.com/tablelandnetwork/sqlparser v0.0.0-20230420192826-7c549ca44bf8 h1:mC58HOJfkfPsqetYd4hpCp0ey5qb9/ZkIRZEx+d2b4U=
+github.com/tablelandnetwork/sqlparser v0.0.0-20230420192826-7c549ca44bf8/go.mod h1:S+M/v3Q8X+236kQxMQziFcLId2Cscb1LzW06IUVhljE=
 github.com/tchap/go-patricia v2.2.6+incompatible/go.mod h1:bmLyhP68RS6kStMGxByiQ23RP/odRBOTVjwp2cDyi6I=
 github.com/textileio/cli v1.0.2 h1:qSp/x4d/9SZ93TxhgZnE5okRKqzqHqrzAwKAPjuPw50=
 github.com/textileio/cli v1.0.2/go.mod h1:vTlCvvVyOmXXLwddCcBg3PDavfUsCkRBZoyr6Nu1lkc=
