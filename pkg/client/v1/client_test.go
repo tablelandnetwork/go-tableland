@@ -207,7 +207,6 @@ func setup(t *testing.T) clientCalls {
 	client, err := NewClient(
 		context.Background(),
 		stack.Wallet,
-		Alchemy,
 		NewClientChain(c),
 		NewClientContractBackend(stack.Backend))
 	require.NoError(t, err)

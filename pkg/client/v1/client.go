@@ -32,12 +32,18 @@ type Client struct {
 	baseURL     *url.URL
 }
 
+// Provider is the type of backend RPC Provider.
 type Provider int
 
 const (
+	// Infura specify the Infura RPC Provider.
 	Infura Provider = iota
-	Alchemy	
+	// Alchemy specify the Alchemy RPC Provider.
+	Alchemy
+	// Ankr specify the Ankr RPC Provider.
 	Ankr
+	// Local specify use of local RPC.
+	Local
 )
 
 type config struct {
@@ -47,7 +53,7 @@ type config struct {
 	ankrAPIKey      string
 	local           bool
 	contractBackend bind.ContractBackend
-	provider 	  Provider
+	provider        Provider
 }
 
 // NewClientOption controls the behavior of NewClient.
@@ -64,6 +70,7 @@ func NewClientChain(chain client.Chain) NewClientOption {
 func NewClientInfuraAPIKey(key string) NewClientOption {
 	return func(c *config) {
 		c.infuraAPIKey = key
+		c.provider = Infura
 	}
 }
 
@@ -71,6 +78,7 @@ func NewClientInfuraAPIKey(key string) NewClientOption {
 func NewClientAlchemyAPIKey(key string) NewClientOption {
 	return func(c *config) {
 		c.alchemyAPIKey = key
+		c.provider = Alchemy
 	}
 }
 
@@ -78,6 +86,7 @@ func NewClientAlchemyAPIKey(key string) NewClientOption {
 func NewClientAnkrAPIKey(key string) NewClientOption {
 	return func(c *config) {
 		c.ankrAPIKey = key
+		c.provider = Ankr
 	}
 }
 
@@ -85,6 +94,7 @@ func NewClientAnkrAPIKey(key string) NewClientOption {
 func NewClientLocal() NewClientOption {
 	return func(c *config) {
 		c.local = true
+		c.provider = Local
 	}
 }
 
@@ -96,9 +106,8 @@ func NewClientContractBackend(backend bind.ContractBackend) NewClientOption {
 }
 
 // NewClient creates a new Client.
-func NewClient(ctx context.Context, wallet *wallet.Wallet, provider Provider, opts ...NewClientOption) (*Client, error) {
+func NewClient(ctx context.Context, wallet *wallet.Wallet, opts ...NewClientOption) (*Client, error) {
 	config := config{chain: &defaultChain}
-	config.provider = provider
 	for _, opt := range opts {
 		opt(&config)
 	}
@@ -153,9 +162,9 @@ func NewClient(ctx context.Context, wallet *wallet.Wallet, provider Provider, op
 func getContractBackend(ctx context.Context, config config) (bind.ContractBackend, error) {
 	if config.contractBackend != nil {
 		return config.contractBackend, nil
-	} 
-		
-	var rpcURL string	
+	}
+
+	var rpcURL string
 	switch config.provider {
 	case Infura:
 		tmpl, found := client.InfuraURLs[config.chain.ID]
@@ -167,7 +176,7 @@ func getContractBackend(ctx context.Context, config config) (bind.ContractBacken
 		tmpl, found := client.AlchemyURLs[config.chain.ID]
 		if !found {
 			return nil, fmt.Errorf("chain id %v not supported for Alchemy", config.chain.ID)
-		}		
+		}
 		rpcURL = fmt.Sprintf(tmpl, config.alchemyAPIKey)
 	case Ankr:
 		tmpl, found := client.AnkrURLs[config.chain.ID]
@@ -175,11 +184,17 @@ func getContractBackend(ctx context.Context, config config) (bind.ContractBacken
 			return nil, fmt.Errorf("chain id %v not supported for Ankr", config.chain.ID)
 		}
 		rpcURL = fmt.Sprintf(tmpl, config.ankrAPIKey)
+	case Local:
+		tmpl, found := client.LocalURLs[config.chain.ID]
+		if !found {
+			return nil, fmt.Errorf("chain id %v not supported for Local", config.chain.ID)
+		}
+		rpcURL = tmpl
 	default:
 		return nil, errors.New("no provider or ETH backend specified")
 	}
-	
-	return ethclient.DialContext(ctx, rpcURL)		
+
+	return ethclient.DialContext(ctx, rpcURL)
 }
 
 // TableID is the ID of a Table.
