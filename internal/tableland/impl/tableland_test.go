@@ -852,8 +852,8 @@ func (s *tablelandSetup) newTablelandClient(t *testing.T) *tablelandClient {
 		s.parser,
 		map[tableland.ChainID]sqlstore.SystemStore{1337: s.systemStore},
 		"https://tableland.network/tables",
-		"https://render.tableland.xyz",
-		"https://render.tableland.xyz/anim",
+		"https://tables.tableland.xyz",
+		"https://tables.tableland.xyz",
 	)
 	require.NoError(t, err)
 

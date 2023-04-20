@@ -47,7 +47,7 @@ func TestGatewayInitialization(t *testing.T) {
 	t.Run("invalid animation uri", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := NewGateway(nil, nil, "https://tableland.network", "https://render.tableland.xyz", "invalid uri")
+		_, err := NewGateway(nil, nil, "https://tableland.network", "https://tables.tableland.xyz", "invalid uri")
 		require.Error(t, err)
 		require.ErrorContains(t, err, "animation renderer uri could not be parsed")
 	})
@@ -97,14 +97,14 @@ func TestGateway(t *testing.T) {
 	require.NoError(t, err)
 
 	stack := map[tableland.ChainID]sqlstore.SystemStore{1337: store}
-	svc, err := NewGateway(parser, stack, "https://tableland.network", "https://render.tableland.xyz", "")
+	svc, err := NewGateway(parser, stack, "https://tableland.network", "https://tables.tableland.xyz", "")
 	require.NoError(t, err)
 	metadata, err := svc.GetTableMetadata(ctx, id)
 	require.NoError(t, err)
 
 	require.Equal(t, "foo_1337_42", metadata.Name)
 	require.Equal(t, fmt.Sprintf("https://tableland.network/api/v1/tables/%d/%s", 1337, id), metadata.ExternalURL)
-	require.Equal(t, "https://render.tableland.xyz/1337/42", metadata.Image) //nolint
+	require.Equal(t, "https://tables.tableland.xyz/1337/42.svg", metadata.Image) //nolint
 	require.Equal(t, "date", metadata.Attributes[0].DisplayType)
 	require.Equal(t, "created", metadata.Attributes[0].TraitType)
 
@@ -180,7 +180,7 @@ func TestGetMetadata(t *testing.T) {
 		parser, err := parserimpl.New([]string{"system_", "registry", "sqlite_"})
 		require.NoError(t, err)
 
-		svc, err := NewGateway(parser, stack, "https://tableland.network", "https://render.tableland.xyz", "")
+		svc, err := NewGateway(parser, stack, "https://tableland.network", "https://tables.tableland.xyz", "")
 		require.NoError(t, err)
 
 		metadata, err := svc.GetTableMetadata(ctx, id)
@@ -188,7 +188,7 @@ func TestGetMetadata(t *testing.T) {
 
 		require.Equal(t, "foo_1337_42", metadata.Name)
 		require.Equal(t, fmt.Sprintf("https://tableland.network/api/v1/tables/%d/%s", 1337, id), metadata.ExternalURL)
-		require.Equal(t, "https://render.tableland.xyz/1337/42", metadata.Image)
+		require.Equal(t, "https://tables.tableland.xyz/1337/42.svg", metadata.Image)
 		require.Equal(t, "date", metadata.Attributes[0].DisplayType)
 		require.Equal(t, "created", metadata.Attributes[0].TraitType)
 	})
@@ -199,7 +199,7 @@ func TestGetMetadata(t *testing.T) {
 		parser, err := parserimpl.New([]string{"system_", "registry", "sqlite_"})
 		require.NoError(t, err)
 
-		svc, err := NewGateway(parser, stack, "https://tableland.network", "https://render.tableland.xyz/", "")
+		svc, err := NewGateway(parser, stack, "https://tableland.network", "https://tables.tableland.xyz/", "")
 		require.NoError(t, err)
 
 		metadata, err := svc.GetTableMetadata(ctx, id)
@@ -207,7 +207,7 @@ func TestGetMetadata(t *testing.T) {
 
 		require.Equal(t, "foo_1337_42", metadata.Name)
 		require.Equal(t, fmt.Sprintf("https://tableland.network/api/v1/tables/%d/%s", 1337, id), metadata.ExternalURL)
-		require.Equal(t, "https://render.tableland.xyz/1337/42", metadata.Image)
+		require.Equal(t, "https://tables.tableland.xyz/1337/42.svg", metadata.Image)
 		require.Equal(t, "date", metadata.Attributes[0].DisplayType)
 		require.Equal(t, "created", metadata.Attributes[0].TraitType)
 	})
@@ -229,7 +229,7 @@ func TestGetMetadata(t *testing.T) {
 		parser, err := parserimpl.New([]string{"system_", "registry", "sqlite_"})
 		require.NoError(t, err)
 
-		svc, err := NewGateway(parser, stack, "https://tableland.network", "https://render.tableland.xyz", "")
+		svc, err := NewGateway(parser, stack, "https://tableland.network", "https://tables.tableland.xyz", "")
 		require.NoError(t, err)
 
 		id, _ := tables.NewTableID("43")
@@ -252,8 +252,8 @@ func TestGetMetadata(t *testing.T) {
 			parser,
 			stack,
 			"https://tableland.network",
-			"https://render.tableland.xyz",
-			"https://render.tableland.xyz/anim",
+			"https://tables.tableland.xyz",
+			"https://tables.tableland.xyz",
 		)
 		require.NoError(t, err)
 
@@ -262,8 +262,8 @@ func TestGetMetadata(t *testing.T) {
 
 		require.Equal(t, "foo_1337_42", metadata.Name)
 		require.Equal(t, fmt.Sprintf("https://tableland.network/api/v1/tables/%d/%s", 1337, id), metadata.ExternalURL)
-		require.Equal(t, "https://render.tableland.xyz/1337/42", metadata.Image)
-		require.Equal(t, "https://render.tableland.xyz/anim/?chain=1337&id=42", metadata.AnimationURL)
+		require.Equal(t, "https://tables.tableland.xyz/1337/42.svg", metadata.Image)
+		require.Equal(t, "https://tables.tableland.xyz/1337/42.html", metadata.AnimationURL)
 		require.Equal(t, "date", metadata.Attributes[0].DisplayType)
 		require.Equal(t, "created", metadata.Attributes[0].TraitType)
 	})
@@ -293,8 +293,8 @@ func TestQueryConstraints(t *testing.T) {
 			parser,
 			stack,
 			"https://tableland.network",
-			"https://render.tableland.xyz",
-			"https://render.tableland.xyz/anim",
+			"https://tables.tableland.xyz",
+			"https://tables.tableland.xyz",
 		)
 		require.NoError(t, err)
 
