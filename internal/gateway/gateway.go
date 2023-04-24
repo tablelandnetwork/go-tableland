@@ -207,7 +207,7 @@ func (g *GatewayService) getMetadataImage(chainID tableland.ChainID, tableID tab
 		return DefaultMetadataImage
 	}
 
-	return fmt.Sprintf("%s/%d/%s", g.metadataRendererURI, chainID, tableID)
+	return fmt.Sprintf("%s/%d/%s.svg", g.metadataRendererURI, chainID, tableID)
 }
 
 func (g *GatewayService) getAnimationURL(chainID tableland.ChainID, tableID tables.TableID) string {
@@ -215,7 +215,7 @@ func (g *GatewayService) getAnimationURL(chainID tableland.ChainID, tableID tabl
 		return DefaultAnimationURL
 	}
 
-	return fmt.Sprintf("%s/?chain=%d&id=%s", g.animationRendererURI, chainID, tableID)
+	return fmt.Sprintf("%s/%d/%s.html", g.animationRendererURI, chainID, tableID)
 }
 
 func (g *GatewayService) emptyMetadataImage() string {
