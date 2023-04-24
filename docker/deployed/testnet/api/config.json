@@ -82,8 +82,8 @@
             "Name": "Ethereum Sepolia",
             "ChainID": 11155111,
             "Registry": {
-                "EthEndpoint": "wss://eth-sepolia.g.alchemy.com/v2//${VALIDATOR_ALCHEMY_ETHEREUM_SEPOLIA_API_KEY}",
-                "ContractAddress": "0xTODO"
+                "EthEndpoint": "wss://eth-sepolia.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_ETHEREUM_SEPOLIA_API_KEY}",
+                "ContractAddress": "0xc50C62498448ACc8dBdE43DA77f8D5D2E2c7597D"
             },
             "Signer": {
                 "PrivateKey": "${VALIDATOR_ETHEREUM_SEPOLIA_SIGNER_PRIVATE_KEY}"

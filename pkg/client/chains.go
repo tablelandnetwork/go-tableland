@@ -100,7 +100,7 @@ var Chains = map[ChainID]Chain{
 		Endpoint:     testnetURL,
 		ID:           ChainIDs.EthereumSepolia,
 		Name:         "Ethereum Sepolia",
-		ContractAddr: common.HexToAddress("0xTODO"),
+		ContractAddr: common.HexToAddress("0xc50C62498448ACc8dBdE43DA77f8D5D2E2c7597D"),
 	},
 	ChainIDs.OptimismGoerli: {
 		Endpoint:     testnetURL,
