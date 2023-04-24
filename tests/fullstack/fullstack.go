@@ -140,8 +140,8 @@ func CreateFullStack(t *testing.T, deps Deps) FullStack {
 			parser,
 			stores,
 			"https://testnets.tableland.network",
-			"https://render.tableland.xyz",
-			"https://render.tableland.xyz/anim",
+			"https://tables.tableland.xyz",
+			"https://tables.tableland.xyz",
 		)
 		require.NoError(t, err)
 		gatewayService, err = gateway.NewInstrumentedGateway(gatewayService)

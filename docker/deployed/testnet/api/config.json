@@ -9,8 +9,8 @@
     },
     "Gateway": {
         "ExternalURIPrefix": "https://testnets.tableland.network",
-        "MetadataRendererURI": "https://testnets.render.tableland.xyz",
-        "AnimationRendererURI": "https://testnets.render.tableland.xyz/anim"
+        "MetadataRendererURI": "https://testnets.tables.tableland.xyz",
+        "AnimationRendererURI": "https://testnets.tables.tableland.xyz"
     },
     "DB": {
         "Port": "5432"
@@ -161,7 +161,7 @@
         },
         {
             "Name": "Filecoin Hyperspace",
-            "ChainID": 3141,            
+            "ChainID": 3141,
             "Registry": {
                 "EthEndpoint": "https://rpc.ankr.com/filecoin_testnet/${VALIDATOR_ANKR_FILECOIN_HYPERSPACE_API_KEY}",
                 "ContractAddress": "0x0B9737ab4B3e5303CB67dB031b509697e31c02d3"
