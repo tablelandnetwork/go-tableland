@@ -32,9 +32,21 @@ type Client struct {
 	baseURL     *url.URL
 }
 
+// providerType can have possible value denoting Alchemy, Ankr, Infura etc.
+type providerType int
+
+const (
+	alchemy providerType = iota
+	infura
+	quickNode
+	ankr
+	local
+)
+
 type provider struct {
-	name   string
-	apiKey string
+	name         string
+	apiKey       string
+	providerType providerType
 }
 
 type config struct {
@@ -56,28 +68,28 @@ func NewClientChain(chain client.Chain) NewClientOption {
 // NewClientInfuraAPIKey specifies an Infura API to use when creating an EVM backend.
 func NewClientInfuraAPIKey(key string) NewClientOption {
 	return func(c *config) {
-		c.provider = provider{name: "Infura", apiKey: key}
+		c.provider = provider{name: "Infura", apiKey: key, providerType: infura}
 	}
 }
 
 // NewClientAlchemyAPIKey specifies an Alchemy API to use when creating an EVM backend.
 func NewClientAlchemyAPIKey(key string) NewClientOption {
 	return func(c *config) {
-		c.provider = provider{name: "Alchemy", apiKey: key}
+		c.provider = provider{name: "Alchemy", apiKey: key, providerType: alchemy}
 	}
 }
 
 // NewClientAnkrAPIKey specifies an Ankr API to use when creating an EVM backend.
 func NewClientAnkrAPIKey(key string) NewClientOption {
 	return func(c *config) {
-		c.provider = provider{name: "Ankr", apiKey: key}
+		c.provider = provider{name: "Ankr", apiKey: key, providerType: ankr}
 	}
 }
 
 // NewClientLocal specifies that a local EVM backend should be used.
 func NewClientLocal() NewClientOption {
 	return func(c *config) {
-		c.provider = provider{name: "Local", apiKey: ""}
+		c.provider = provider{name: "Local", apiKey: "", providerType: local}
 	}
 }
 
@@ -149,23 +161,23 @@ func getContractBackend(ctx context.Context, config config) (bind.ContractBacken
 
 	var tmpl string
 	var found bool
-	switch config.provider.name {
-	case "Infura":
+	switch config.provider.providerType {
+	case infura:
 		tmpl, found = client.InfuraURLs[config.chain.ID]
 		if !found {
 			return nil, fmt.Errorf("chain id %v not supported for Infura", config.chain.ID)
 		}
-	case "Alchemy":
+	case alchemy:
 		tmpl, found = client.AlchemyURLs[config.chain.ID]
 		if !found {
 			return nil, fmt.Errorf("chain id %v not supported for Alchemy", config.chain.ID)
 		}
-	case "Ankr":
+	case ankr:
 		tmpl, found = client.AnkrURLs[config.chain.ID]
 		if !found {
 			return nil, fmt.Errorf("chain id %v not supported for Ankr", config.chain.ID)
 		}
-	case "Local":
+	case local:
 		tmpl, found = client.LocalURLs[config.chain.ID]
 		if !found {
 			return nil, fmt.Errorf("chain id %v not supported for Local", config.chain.ID)
