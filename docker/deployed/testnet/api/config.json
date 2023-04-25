@@ -9,8 +9,8 @@
     },
     "Gateway": {
         "ExternalURIPrefix": "https://testnets.tableland.network",
-        "MetadataRendererURI": "https://testnets.tables.tableland.xyz",
-        "AnimationRendererURI": "https://testnets.tables.tableland.xyz"
+        "MetadataRendererURI": "https://tables.testnets.tableland.xyz",
+        "AnimationRendererURI": "https://tables.testnets.tableland.xyz"
     },
     "DB": {
         "Port": "5432"
