@@ -9,8 +9,8 @@
     },
     "Gateway": {
         "ExternalURIPrefix": "https://tableland.network",
-        "MetadataRendererURI": "https://render.tableland.xyz",
-        "AnimationRendererURI": "https://render.tableland.xyz/anim"
+        "MetadataRendererURI": "https://tables.tableland.xyz",
+        "AnimationRendererURI": "https://tables.tableland.xyz"
     },
     "DB": {
         "Port": "5432"
@@ -188,7 +188,7 @@
         },
         {
             "Name": "Filecoin Mainnet",
-            "ChainID": 314,            
+            "ChainID": 314,
             "Registry": {
                 "EthEndpoint": "https://rpc.ankr.com/filecoin/${VALIDATOR_ANKR_FILECOIN_MAINNET_API_KEY}",
                 "ContractAddress": "0x59EF8Bf2d6c102B4c42AEf9189e1a9F0ABfD652d"
