@@ -25,21 +25,8 @@ type SQLiteDB struct {
 	Log     zerolog.Logger
 }
 
-// OpenSerializable opens a dSQLite database with only one connection open per time.
-func OpenSerializable(path string, attributes ...attribute.KeyValue) (*SQLiteDB, error) {
-	attributes = append(attributes, attribute.String("type", "serializable"))
-	return Open(path, 1, attributes...)
-}
-
-// OpenConcurrent opens a SQLite database that allows multiple connections.
-// Should be used for reads.
-func OpenConcurrent(path string, attributes ...attribute.KeyValue) (*SQLiteDB, error) {
-	attributes = append(attributes, attribute.String("type", "concurrent"))
-	return Open(path, 0, attributes...)
-}
-
 // Open opens a new SQLite database.
-func Open(path string, maxOpenConnections int, attributes ...attribute.KeyValue) (*SQLiteDB, error) {
+func Open(path string, attributes ...attribute.KeyValue) (*SQLiteDB, error) {
 	log := logger.With().
 		Str("component", "db").
 		Logger()
@@ -49,7 +36,6 @@ func Open(path string, maxOpenConnections int, attributes ...attribute.KeyValue)
 	if err != nil {
 		return nil, fmt.Errorf("connecting to db: %s", err)
 	}
-	sqlDB.SetMaxOpenConns(maxOpenConnections)
 
 	if err := otelsql.RegisterDBStatsMetrics(sqlDB, otelsql.WithAttributes(
 		attributes...,

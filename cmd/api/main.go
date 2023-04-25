@@ -72,12 +72,7 @@ func main() {
 		path.Join(dirPath, "database.db"),
 	)
 
-	serializableDB, err := database.OpenSerializable(databaseURL, attribute.String("database", "main"))
-	if err != nil {
-		log.Fatal().Err(err).Msg("opening the database")
-	}
-
-	concurrentDB, err := database.OpenConcurrent(databaseURL, attribute.String("database", "main"))
+	db, err := database.Open(databaseURL, attribute.String("database", "main"))
 	if err != nil {
 		log.Fatal().Err(err).Msg("opening the read database")
 	}
@@ -99,7 +94,7 @@ func main() {
 
 	// Chain stacks.
 	chainStacks, closeChainStacks, err := createChainStacks(
-		serializableDB,
+		db,
 		parser,
 		sm,
 		config.Chains,
@@ -110,7 +105,7 @@ func main() {
 	}
 
 	// HTTP API server.
-	closeHTTPServer, err := createAPIServer(config.HTTP, config.Gateway, parser, concurrentDB, sm, chainStacks)
+	closeHTTPServer, err := createAPIServer(config.HTTP, config.Gateway, parser, db, sm, chainStacks)
 	if err != nil {
 		log.Fatal().Err(err).Msg("creating HTTP server")
 	}
@@ -125,7 +120,7 @@ func main() {
 	}
 
 	// Telemetry
-	closeTelemetryModule, err := configureTelemetry(dirPath, concurrentDB, chainStacks, config.TelemetryPublisher)
+	closeTelemetryModule, err := configureTelemetry(dirPath, db, chainStacks, config.TelemetryPublisher)
 	if err != nil {
 		log.Fatal().Err(err).Msg("configuring telemetry")
 	}
@@ -152,14 +147,9 @@ func main() {
 			log.Error().Err(err).Msg("closing backuper")
 		}
 
-		// Close serializable database
-		if err := serializableDB.Close(); err != nil {
-			log.Error().Err(err).Msg("closing serializable db backuper")
-		}
-
-		// Close concurrent database
-		if err := concurrentDB.Close(); err != nil {
-			log.Error().Err(err).Msg("closing concurrent db backuper")
+		// Close database
+		if err := db.Close(); err != nil {
+			log.Error().Err(err).Msg("closing db")
 		}
 
 		// Close telemetry.

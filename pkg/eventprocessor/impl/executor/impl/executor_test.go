@@ -211,7 +211,7 @@ func newExecutor(t *testing.T, rowsLimit int) (*Executor, string) {
 
 	parser := newParser(t, []string{})
 
-	db, err := database.Open(dbURI, 1)
+	db, err := database.Open(dbURI)
 	require.NoError(t, err)
 
 	exec, err := NewExecutor(1337, db, parser, rowsLimit, impl.NewACL(db))

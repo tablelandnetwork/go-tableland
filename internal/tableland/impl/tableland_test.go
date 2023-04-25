@@ -721,7 +721,7 @@ func (b *tablelandSetupBuilder) build(t *testing.T) *tablelandSetup {
 	dbURI := tests.Sqlite3URI(t)
 
 	ctx := context.Background()
-	db, err := database.Open(dbURI, 1)
+	db, err := database.Open(dbURI)
 	require.NoError(t, err)
 
 	parser, err := parserimpl.New([]string{"system_", "registry", "sqlite_"}, b.parsingOpts...)

@@ -74,7 +74,7 @@ func CreateFullStack(t *testing.T, deps Deps) FullStack {
 
 	db := deps.Database
 	if db == nil {
-		db, err = database.Open(dbURI, 1)
+		db, err = database.Open(dbURI)
 		require.NoError(t, err)
 	}
 

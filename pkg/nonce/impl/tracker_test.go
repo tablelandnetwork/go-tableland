@@ -149,7 +149,7 @@ func TestInitialization(t *testing.T) {
 	wallet, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(key)))
 	require.NoError(t, err)
 
-	db, err := database.Open(url, 1)
+	db, err := database.Open(url)
 	require.NoError(t, err)
 
 	// initialize without pending txs
@@ -224,7 +224,7 @@ func TestMinBlockDepth(t *testing.T) {
 	wallet, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(key)))
 	require.NoError(t, err)
 
-	db, err := database.Open(url, 1)
+	db, err := database.Open(url)
 	require.NoError(t, err)
 
 	testAddress := wallet.Address()
@@ -384,7 +384,7 @@ func TestCheckIfPendingTxIsStuck(t *testing.T) {
 	wallet, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(key)))
 	require.NoError(t, err)
 
-	db, err := database.Open(url, 1)
+	db, err := database.Open(url)
 	require.NoError(t, err)
 
 	testAddress := wallet.Address()
@@ -505,7 +505,7 @@ func setup(ctx context.Context, t *testing.T) (
 	wallet, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(key)))
 	require.NoError(t, err)
 
-	db, err := database.Open(url, 1)
+	db, err := database.Open(url)
 	require.NoError(t, err)
 
 	tracker, err := NewLocalTracker(

@@ -61,7 +61,7 @@ func TestGateway(t *testing.T) {
 	parser, err := parserimpl.New([]string{"system_", "registry"})
 	require.NoError(t, err)
 
-	db, err := database.Open(dbURI, 1)
+	db, err := database.Open(dbURI)
 	require.NoError(t, err)
 	// populate the registry with a table
 	ex, err := executor.NewExecutor(chainID, db, parser, 0, nil)
@@ -114,7 +114,7 @@ func TestGetMetadata(t *testing.T) {
 	parser, err := parserimpl.New([]string{"system_", "registry"})
 	require.NoError(t, err)
 
-	db, err := database.Open(dbURI, 1)
+	db, err := database.Open(dbURI)
 	require.NoError(t, err)
 
 	// populate the registry with a table
@@ -267,7 +267,7 @@ func TestQueryConstraints(t *testing.T) {
 	t.Parallel()
 
 	dbURI := tests.Sqlite3URI(t)
-	db, err := database.Open(dbURI, 1)
+	db, err := database.Open(dbURI)
 	require.NoError(t, err)
 
 	parsingOpts := []parsing.Option{

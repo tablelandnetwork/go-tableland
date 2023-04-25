@@ -80,7 +80,8 @@ func launchValidatorForAllChainsBackedByEVMHistory(t *testing.T, historyDBURI st
 	parser, err := parserimpl.New([]string{"system_", "registry", "sqlite_"})
 	require.NoError(t, err)
 
-	db, err := database.Open(dbURI, 1)
+	db, err := database.Open(dbURI)
+	db.DB.SetMaxOpenConns(1)
 	require.NoError(t, err)
 
 	chains := getChains(t, historyDBURI)

@@ -1374,7 +1374,7 @@
               "options": {
                 "mode": "exclude",
                 "names": [
-                  "histogram_quantile(0.95, sum(rate(http_server_duration_bucket{}[5m])) by (le))"
+                  "Value"
                 ],
                 "prefix": "All except:",
                 "readOnly": true
@@ -1420,9 +1420,9 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "histogram_quantile(0.95, sum(rate(http_server_duration_bucket{service_name=\"tableland:api\"}[$__rate_interval])) by (http_status_code, le))",
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_duration_bucket{service_name=\"tableland:api\"}[$__rate_interval])) by (le))",
           "interval": "",
-          "legendFormat": "__auto",
+          "legendFormat": "{{label_name}}",
           "range": true,
           "refId": "A"
         }
@@ -1531,7 +1531,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "rate(http_server_response_content_length_total[$__rate_interval])",
+          "expr": "sum (rate(http_server_response_content_length_total[$__rate_interval]))",
           "interval": "",
           "legendFormat": "{{http_status_code}}",
           "range": true,
@@ -1818,8 +1818,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1910,8 +1909,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -2004,8 +2002,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -2103,8 +2100,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -2227,8 +2223,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -2323,8 +2318,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -2419,8 +2413,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -2515,8 +2508,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -2574,13 +2566,13 @@
     "list": []
   },
   "time": {
-    "from": "now-30m",
+    "from": "now-5m",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Validator",
   "uid": "2Le7qt_7z",
-  "version": 19,
+  "version": 23,
   "weekStart": ""
 }

@@ -20,7 +20,7 @@ func TestEVMEventPersistence(t *testing.T) {
 
 	chainID := tableland.ChainID(1337)
 
-	db, err := database.Open(dbURI, 1)
+	db, err := database.Open(dbURI)
 	require.NoError(t, err)
 
 	store := NewEventFeedStore(db)

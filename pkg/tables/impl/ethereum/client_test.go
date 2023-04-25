@@ -447,7 +447,7 @@ func setupWithLocalTracker(t *testing.T) (
 
 	url := tests.Sqlite3URI(t)
 
-	db, err := database.Open(url, 1)
+	db, err := database.Open(url)
 	require.NoError(t, err)
 
 	tracker, err := nonceimpl.NewLocalTracker(

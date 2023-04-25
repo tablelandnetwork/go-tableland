@@ -319,7 +319,7 @@ func setup(t *testing.T) (
 	parser, err := parserimpl.New([]string{"system_", "registry", "sqlite_"})
 	require.NoError(t, err)
 
-	db, err := database.Open(dbURI, 1)
+	db, err := database.Open(dbURI)
 	require.NoError(t, err)
 
 	sm := sharedmemory.NewSharedMemory()
@@ -327,7 +327,7 @@ func setup(t *testing.T) (
 
 	require.NoError(t, err)
 
-	db2, err := database.Open(dbURI, 1)
+	db2, err := database.Open(dbURI)
 	require.NoError(t, err)
 
 	ef, err := efimpl.New(
@@ -379,7 +379,7 @@ func setup(t *testing.T) (
 	}
 
 	require.NoError(t, err)
-	db, err = database.Open(dbURI, 1)
+	db, err = database.Open(dbURI)
 	require.NoError(t, err)
 
 	tableReader := func(readQuery string) []int64 {

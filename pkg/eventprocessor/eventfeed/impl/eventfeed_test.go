@@ -30,7 +30,7 @@ func TestRunSQLEvents(t *testing.T) {
 	t.Parallel()
 
 	dbURI := tests.Sqlite3URI(t)
-	db, err := database.Open(dbURI, 1)
+	db, err := database.Open(dbURI)
 	require.NoError(t, err)
 
 	backend, addr, sc, authOpts, _ := testutil.Setup(t)
@@ -111,7 +111,7 @@ func TestAllEvents(t *testing.T) {
 	t.Parallel()
 
 	dbURI := tests.Sqlite3URI(t)
-	db, err := database.Open(dbURI, 1)
+	db, err := database.Open(dbURI)
 	require.NoError(t, err)
 
 	store := NewEventFeedStore(db)
@@ -302,7 +302,7 @@ func TestInfura(t *testing.T) {
 	rinkebyContractAddr := common.HexToAddress("0x847645b7dAA32eFda757d3c10f1c82BFbB7b41D0")
 
 	dbURI := tests.Sqlite3URI(t)
-	db, err := database.Open(dbURI, 1)
+	db, err := database.Open(dbURI)
 	require.NoError(t, err)
 	ef, err := New(
 		NewEventFeedStore(db),
@@ -351,7 +351,7 @@ func TestDuplicateEvents(t *testing.T) {
 	t.Parallel()
 
 	dbURI := tests.Sqlite3URI(t)
-	db, err := database.Open(dbURI, 1)
+	db, err := database.Open(dbURI)
 	require.NoError(t, err)
 
 	eventStore := NewEventFeedStore(db)
