@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/internal/gateway"
 )
 
 // Output is used to control the output format of a query specified with the "output" query param.
@@ -64,7 +64,7 @@ func WithExtract(extract bool) FormatOption {
 }
 
 // Format transforms the user rows according to the provided configuration, retuning raw json or jsonl bytes.
-func Format(userRows *tableland.TableData, opts ...FormatOption) ([]byte, FormatConfig, error) {
+func Format(userRows *gateway.TableData, opts ...FormatOption) ([]byte, FormatConfig, error) {
 	c := FormatConfig{
 		Output: Objects,
 	}
@@ -105,7 +105,7 @@ func Format(userRows *tableland.TableData, opts ...FormatOption) ([]byte, Format
 	return unwrapped, c, nil
 }
 
-func toObjects(in *tableland.TableData) []interface{} {
+func toObjects(in *gateway.TableData) []interface{} {
 	objects := make([]interface{}, len(in.Rows))
 	for i, row := range in.Rows {
 		object := make(map[string]interface{}, len(row))

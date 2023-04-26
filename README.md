@@ -19,7 +19,8 @@ They have the following responsibilities:
 
 The following is a diagram that describes at a high level the interaction between the validator, EVM-chains, and the external world:
 
-![image](https://user-images.githubusercontent.com/6136245/180085125-3093401c-5ef0-449e-93b7-c323fd0bfbce.png)
+![image](https://user-images.githubusercontent.com/5305984/234063968-f7627d29-5f4f-49c2-aa3b-e88a4799a815.png)
+
 
 To understand better the usual work mechanics of the validator, let’s go through a typical use-case where a user mints a table, adds data to the table, and reads it:
 

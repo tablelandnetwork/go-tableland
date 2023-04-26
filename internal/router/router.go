@@ -98,7 +98,7 @@ func configureAPIV1Routes(
 		router.get(
 			pathTemplate,
 			endpoint.handler,
-			append(endpoint.middlewares, middlewares.OtelHTTP(routeName))...,
+			append([]mux.MiddlewareFunc{middlewares.OtelHTTP(routeName)}, endpoint.middlewares...)...,
 		)
 		return nil
 	}); err != nil {
