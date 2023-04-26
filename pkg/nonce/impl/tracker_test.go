@@ -17,11 +17,11 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	_ "github.com/mattn/go-sqlite3" // sqlite3 driver
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/database"
+	"github.com/textileio/go-tableland/pkg/database/db"
 	noncepkg "github.com/textileio/go-tableland/pkg/nonce"
-	"github.com/textileio/go-tableland/pkg/sqlstore"
-	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/tables/impl/testutil"
 	"github.com/textileio/go-tableland/pkg/wallet"
@@ -106,7 +106,7 @@ func TestTrackerPendingTxGotStuck(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	tracker, backend, contract, txOpts, wallet, sqlstore := setup(ctx, t)
+	tracker, backend, contract, txOpts, wallet, sqlitedb := setup(ctx, t)
 	_, err := contract.CreateTable(txOpts, txOpts.From, "CREATE TABLE Foo_1337 (bar int)")
 	require.NoError(t, err)
 	backend.Commit()
@@ -128,7 +128,10 @@ func TestTrackerPendingTxGotStuck(t *testing.T) {
 	require.Equal(t, int64(0), nonce1)
 	require.Equal(t, int64(1), nonce2)
 	require.Eventually(t, func() bool {
-		txs, err := sqlstore.ListPendingTx(ctx, wallet.Address())
+		txs, err := sqlitedb.Queries.ListPendingTx(ctx, db.ListPendingTxParams{
+			Address: wallet.Address().Hex(),
+			ChainID: 1337,
+		})
 		require.NoError(t, err)
 		return tracker.GetPendingCount(ctx) == 1 && int64(1) == txs[0].Nonce
 	}, 5*time.Second, time.Second)
@@ -146,14 +149,14 @@ func TestInitialization(t *testing.T) {
 	wallet, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(key)))
 	require.NoError(t, err)
 
-	sqlstore, err := system.New(url, tableland.ChainID(1337))
+	db, err := database.Open(url)
 	require.NoError(t, err)
 
 	// initialize without pending txs
 	{
 		tracker := &LocalTracker{
 			wallet:      wallet,
-			nonceStore:  &NonceStore{sqlstore},
+			nonceStore:  NewNonceStore(db),
 			chainClient: &ChainMock{},
 		}
 
@@ -172,9 +175,10 @@ func TestInitialization(t *testing.T) {
 		testAddress := wallet.Address()
 
 		// insert two pending txs (nonce 0 and nonce 1)
-		nonceStore := &NonceStore{sqlstore}
+		nonceStore := NewNonceStore(db)
 		err := nonceStore.InsertPendingTx(
 			ctx,
+			1337,
 			testAddress,
 			0,
 			common.HexToHash("0x119f50bf7f1ff2daa4712119af9dbd429ab727690565f93193f63650b020bc30"),
@@ -183,6 +187,7 @@ func TestInitialization(t *testing.T) {
 
 		err = nonceStore.InsertPendingTx(
 			ctx,
+			1337,
 			testAddress,
 			1,
 			common.HexToHash("0x7a0edee97ea3543c279a7329665cc851a9ea53a39ad5bbce55338052808a23a9"),
@@ -191,7 +196,8 @@ func TestInitialization(t *testing.T) {
 
 		tracker := &LocalTracker{
 			wallet:      wallet,
-			nonceStore:  &NonceStore{sqlstore},
+			chainID:     1337,
+			nonceStore:  NewNonceStore(db),
 			chainClient: &ChainMock{},
 		}
 
@@ -218,15 +224,16 @@ func TestMinBlockDepth(t *testing.T) {
 	wallet, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(key)))
 	require.NoError(t, err)
 
-	sqlstore, err := system.New(url, tableland.ChainID(1337))
+	db, err := database.Open(url)
 	require.NoError(t, err)
 
 	testAddress := wallet.Address()
 
 	// insert two pending txs (nonce 0 and nonce 1)
-	nonceStore := &NonceStore{sqlstore}
+	nonceStore := NewNonceStore(db)
 	err = nonceStore.InsertPendingTx(
 		ctx,
+		1337,
 		testAddress,
 		0,
 		common.HexToHash("0x119f50bf7f1ff2daa4712119af9dbd429ab727690565f93193f63650b020bc30"),
@@ -235,6 +242,7 @@ func TestMinBlockDepth(t *testing.T) {
 
 	err = nonceStore.InsertPendingTx(
 		ctx,
+		1337,
 		testAddress,
 		1,
 		common.HexToHash("0x7a0edee97ea3543c279a7329665cc851a9ea53a39ad5bbce55338052808a23a9"),
@@ -243,8 +251,9 @@ func TestMinBlockDepth(t *testing.T) {
 
 	tracker := &LocalTracker{
 		wallet:      wallet,
-		nonceStore:  &NonceStore{sqlstore},
+		nonceStore:  NewNonceStore(db),
 		chainClient: &ChainMock{},
+		chainID:     1337,
 
 		pendingTxs: []noncepkg.PendingTx{{
 			Nonce:     0,
@@ -272,7 +281,7 @@ func TestMinBlockDepth(t *testing.T) {
 	err = tracker.checkIfPendingTxWasIncluded(ctx, tracker.pendingTxs[0], h)
 	require.NoError(t, err)
 	require.Equal(t, 1, tracker.GetPendingCount(ctx))
-	txs, err := nonceStore.ListPendingTx(ctx, testAddress)
+	txs, err := nonceStore.ListPendingTx(ctx, 1337, testAddress)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(txs))
 
@@ -281,7 +290,7 @@ func TestMinBlockDepth(t *testing.T) {
 	err = tracker.checkIfPendingTxWasIncluded(ctx, tracker.pendingTxs[0], h)
 	require.Equal(t, noncepkg.ErrBlockDiffNotEnough, err)
 	require.Equal(t, 1, tracker.GetPendingCount(ctx))
-	txs, err = nonceStore.ListPendingTx(ctx, testAddress)
+	txs, err = nonceStore.ListPendingTx(ctx, 1337, testAddress)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(txs))
 
@@ -290,7 +299,7 @@ func TestMinBlockDepth(t *testing.T) {
 	err = tracker.checkIfPendingTxWasIncluded(ctx, tracker.pendingTxs[0], h)
 	require.NoError(t, err)
 	require.Equal(t, 0, tracker.GetPendingCount(ctx))
-	txs, err = nonceStore.ListPendingTx(ctx, testAddress)
+	txs, err = nonceStore.ListPendingTx(ctx, 1337, testAddress)
 	require.NoError(t, err)
 	require.Equal(t, 0, len(txs))
 }
@@ -375,15 +384,16 @@ func TestCheckIfPendingTxIsStuck(t *testing.T) {
 	wallet, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(key)))
 	require.NoError(t, err)
 
-	sqlstore, err := system.New(url, tableland.ChainID(1337))
+	db, err := database.Open(url)
 	require.NoError(t, err)
 
 	testAddress := wallet.Address()
 
 	// insert two pending txs (nonce 0 and nonce 1)
-	nonceStore := &NonceStore{sqlstore}
+	nonceStore := NewNonceStore(db)
 	err = nonceStore.InsertPendingTx(
 		ctx,
+		1337,
 		testAddress,
 		0,
 		common.HexToHash("0xda3601329d295f03dc75bf42569f476f22995c456334c9a39a05e7cb7877dc41"),
@@ -392,8 +402,9 @@ func TestCheckIfPendingTxIsStuck(t *testing.T) {
 
 	tracker := &LocalTracker{
 		wallet:      wallet,
-		nonceStore:  &NonceStore{sqlstore},
+		nonceStore:  NewNonceStore(db),
 		chainClient: &ChainMock{},
+		chainID:     1337,
 
 		pendingTxs: []noncepkg.PendingTx{{
 			Nonce:     0,
@@ -415,7 +426,7 @@ func TestCheckIfPendingTxIsStuck(t *testing.T) {
 	err = tracker.checkIfPendingTxWasIncluded(ctx, tracker.pendingTxs[0], h)
 	require.Equal(t, noncepkg.ErrPendingTxMayBeStuck, err)
 	require.Equal(t, 1, tracker.GetPendingCount(ctx))
-	txs, err := nonceStore.ListPendingTx(ctx, testAddress)
+	txs, err := nonceStore.ListPendingTx(ctx, 1337, testAddress)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(txs))
 }
@@ -477,7 +488,7 @@ func setup(ctx context.Context, t *testing.T) (
 	*ethereum.Contract,
 	*bind.TransactOpts,
 	*wallet.Wallet,
-	sqlstore.SystemStore,
+	*database.SQLiteDB,
 ) {
 	url := tests.Sqlite3URI(t)
 
@@ -494,13 +505,13 @@ func setup(ctx context.Context, t *testing.T) (
 	wallet, err := wallet.NewWallet(hex.EncodeToString(crypto.FromECDSA(key)))
 	require.NoError(t, err)
 
-	sqlstore, err := system.New(url, tableland.ChainID(1337))
+	db, err := database.Open(url)
 	require.NoError(t, err)
 
 	tracker, err := NewLocalTracker(
 		ctx,
 		wallet,
-		&NonceStore{sqlstore},
+		NewNonceStore(db),
 		1337,
 		backend,
 		500*time.Millisecond,
@@ -508,7 +519,7 @@ func setup(ctx context.Context, t *testing.T) (
 		10*time.Minute)
 	require.NoError(t, err)
 
-	return tracker, backend, contract, txOptsTo, wallet, sqlstore
+	return tracker, backend, contract, txOptsTo, wallet, db
 }
 
 func requireTxn(

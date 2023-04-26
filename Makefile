@@ -1,5 +1,3 @@
-include .bingo/Variables.mk
-
 HEAD_SHORT ?= $(shell git rev-parse --short HEAD)
 PLATFORM ?= $(shell uname -m)
 
@@ -31,9 +29,9 @@ ethereum-testerc721a:
 	$(ABIGEN) --abi ./pkg/tables/impl/ethereum/test/erc721aQueryable/abi.json --pkg erc721aQueryable --type Contract --out pkg/tables/impl/ethereum/test/erc721aQueryable/erc721aQueryable.go --bin pkg/tables/impl/ethereum/test/erc721aQueryable/bytecode.bin
 .PHONY: ethereum-testerc721a
 
-system-sql-assets:
-	cd pkg/sqlstore/impl/system && $(GO_BINDATA) -pkg migrations -prefix migrations/ -o migrations/migrations.go -ignore=migrations.go migrations && $(SQLC) generate; cd -;
-.PHONY: system-sql-assets
+database-assets:
+	cd pkg/database && $(GO_BINDATA) -pkg migrations -prefix migrations/ -o migrations/migrations.go -ignore=migrations.go migrations && $(SQLC) generate; cd -;
+.PHONY: database-assets
 
 mocks: clean-mocks
 	go run github.com/vektra/mockery/v2@v2.14.0 --name='\b(?:Gateway)\b' --recursive --with-expecter

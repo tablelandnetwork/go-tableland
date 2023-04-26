@@ -8,25 +8,31 @@ import (
 	"fmt"
 	"net/http"
 	"path"
+	"strings"
 	"sync"
 	"time"
 
-	"github.com/XSAM/otelsql"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/google/uuid"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/rs/zerolog/log"
 	"github.com/textileio/cli"
 	"github.com/textileio/go-tableland/buildinfo"
 	"github.com/textileio/go-tableland/internal/chains"
 	"github.com/textileio/go-tableland/internal/gateway"
+	gatewayimpl "github.com/textileio/go-tableland/internal/gateway/impl"
 	"github.com/textileio/go-tableland/internal/router"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/internal/tableland/impl"
 	"github.com/textileio/go-tableland/pkg/backup"
 	"github.com/textileio/go-tableland/pkg/backup/restorer"
+	"github.com/textileio/go-tableland/pkg/database"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
+
+	"go.opentelemetry.io/otel/attribute"
+
 	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
 	epimpl "github.com/textileio/go-tableland/pkg/eventprocessor/impl"
 	executor "github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor/impl"
@@ -35,16 +41,14 @@ import (
 	nonceimpl "github.com/textileio/go-tableland/pkg/nonce/impl"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
+
 	"github.com/textileio/go-tableland/pkg/sharedmemory"
-	"github.com/textileio/go-tableland/pkg/sqlstore"
-	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 
 	"github.com/textileio/go-tableland/pkg/telemetry"
 	"github.com/textileio/go-tableland/pkg/telemetry/chainscollector"
 	"github.com/textileio/go-tableland/pkg/telemetry/publisher"
 	"github.com/textileio/go-tableland/pkg/telemetry/storage"
 	"github.com/textileio/go-tableland/pkg/wallet"
-	"go.opentelemetry.io/otel/attribute"
 )
 
 type moduleCloser func(ctx context.Context) error
@@ -68,6 +72,11 @@ func main() {
 		path.Join(dirPath, "database.db"),
 	)
 
+	db, err := database.Open(databaseURL, attribute.String("database", "main"))
+	if err != nil {
+		log.Fatal().Err(err).Msg("opening the read database")
+	}
+
 	// Restore provided backup (if configured).
 	if config.BootstrapBackupURL != "" {
 		if err := restoreBackup(databaseURL, config.BootstrapBackupURL); err != nil {
@@ -85,7 +94,7 @@ func main() {
 
 	// Chain stacks.
 	chainStacks, closeChainStacks, err := createChainStacks(
-		databaseURL,
+		db,
 		parser,
 		sm,
 		config.Chains,
@@ -95,17 +104,8 @@ func main() {
 		log.Fatal().Err(err).Msg("creating chains stack")
 	}
 
-	eps := make(map[tableland.ChainID]eventprocessor.EventProcessor, len(chainStacks))
-	for chainID, stack := range chainStacks {
-		eps[chainID] = stack.EventProcessor
-	}
-
-	for _, stack := range chainStacks {
-		stack.Store.SetReadResolver(parsing.NewReadStatementResolver(sm))
-	}
-
 	// HTTP API server.
-	closeHTTPServer, err := createAPIServer(config.HTTP, config.Gateway, parser, chainStacks)
+	closeHTTPServer, err := createAPIServer(config.HTTP, config.Gateway, parser, db, sm, chainStacks)
 	if err != nil {
 		log.Fatal().Err(err).Msg("creating HTTP server")
 	}
@@ -120,7 +120,7 @@ func main() {
 	}
 
 	// Telemetry
-	closeTelemetryModule, err := configureTelemetry(dirPath, chainStacks, config.TelemetryPublisher)
+	closeTelemetryModule, err := configureTelemetry(dirPath, db, chainStacks, config.TelemetryPublisher)
 	if err != nil {
 		log.Fatal().Err(err).Msg("configuring telemetry")
 	}
@@ -147,6 +147,11 @@ func main() {
 			log.Error().Err(err).Msg("closing backuper")
 		}
 
+		// Close database
+		if err := db.Close(); err != nil {
+			log.Error().Err(err).Msg("closing db")
+		}
+
 		// Close telemetry.
 		if err := closeTelemetryModule(ctx); err != nil {
 			log.Error().Err(err).Msg("closing telemetry module")
@@ -156,23 +161,12 @@ func main() {
 
 func createChainIDStack(
 	config ChainConfig,
-	dbURI string,
-	executorsDB *sql.DB,
+	db *database.SQLiteDB,
 	parser parsing.SQLValidator,
 	sm *sharedmemory.SharedMemory,
 	tableConstraints TableConstraints,
 	fetchExtraBlockInfo bool,
 ) (chains.ChainStack, error) {
-	store, err := system.New(dbURI, config.ChainID)
-	if err != nil {
-		return chains.ChainStack{}, fmt.Errorf("failed initialize sqlstore: %s", err)
-	}
-
-	systemStore, err := system.NewInstrumentedSystemStore(config.ChainID, store)
-	if err != nil {
-		return chains.ChainStack{}, fmt.Errorf("instrumenting system store: %s", err)
-	}
-
 	conn, err := ethclient.Dial(config.Registry.EthEndpoint)
 	if err != nil {
 		return chains.ChainStack{}, fmt.Errorf("failed to connect to ethereum endpoint: %s", err)
@@ -200,7 +194,7 @@ func createChainIDStack(
 	tracker, err := nonceimpl.NewLocalTracker(
 		ctxLocalTracker,
 		wallet,
-		nonceimpl.NewNonceStore(systemStore),
+		nonceimpl.NewNonceStore(db),
 		config.ChainID,
 		conn,
 		checkInterval,
@@ -211,11 +205,7 @@ func createChainIDStack(
 		return chains.ChainStack{}, fmt.Errorf("failed to create new tracker: %s", err)
 	}
 
-	scAddress := common.HexToAddress(config.Registry.ContractAddress)
-
-	acl := impl.NewACL(systemStore)
-
-	ex, err := executor.NewExecutor(config.ChainID, executorsDB, parser, tableConstraints.MaxRowCount, acl)
+	ex, err := executor.NewExecutor(config.ChainID, db, parser, tableConstraints.MaxRowCount, impl.NewACL(db))
 	if err != nil {
 		return chains.ChainStack{}, fmt.Errorf("creating txn processor: %s", err)
 	}
@@ -234,7 +224,20 @@ func createChainIDStack(
 		eventfeed.WithEventPersistence(config.EventFeed.PersistEvents),
 		eventfeed.WithFetchExtraBlockInformation(fetchExtraBlockInfo),
 	}
-	ef, err := efimpl.New(systemStore, config.ChainID, conn, scAddress, sm, efOpts...)
+
+	eventFeedStore, err := efimpl.NewInstrumentedEventFeedStore(db)
+	if err != nil {
+		return chains.ChainStack{}, fmt.Errorf("creating event feed store: %s", err)
+	}
+
+	ef, err := efimpl.New(
+		eventFeedStore,
+		config.ChainID,
+		conn,
+		common.HexToAddress(config.Registry.ContractAddress),
+		sm,
+		efOpts...,
+	)
 	if err != nil {
 		return chains.ChainStack{}, fmt.Errorf("creating event feed: %s", err)
 	}
@@ -255,7 +258,6 @@ func createChainIDStack(
 		return chains.ChainStack{}, fmt.Errorf("starting event processor: %s", err)
 	}
 	return chains.ChainStack{
-		Store:          systemStore,
 		EventProcessor: ep,
 		Close: func(ctx context.Context) error {
 			log.Info().Int64("chain_id", int64(config.ChainID)).Msg("closing stack...")
@@ -264,9 +266,6 @@ func createChainIDStack(
 			ep.Stop()
 			tracker.Close()
 			conn.Close()
-			if err := systemStore.Close(); err != nil {
-				return fmt.Errorf("closing system store for chain_id %d: %s", config.ChainID, err)
-			}
 			return nil
 		},
 	}, nil
@@ -274,19 +273,21 @@ func createChainIDStack(
 
 func configureTelemetry(
 	dirPath string,
+	db *database.SQLiteDB,
 	chainStacks map[tableland.ChainID]chains.ChainStack,
 	config TelemetryPublisherConfig,
 ) (moduleCloser, error) {
-	var nodeID string
-	var err error
-	for chainID := range chainStacks {
-		nodeID, err = chainStacks[chainID].Store.GetID(context.Background())
-		if err != nil {
-			return nil, fmt.Errorf("get node ID: %s", err)
+	nodeID, err := db.Queries.GetId(context.Background())
+	if err == sql.ErrNoRows {
+		nodeID = strings.Replace(uuid.NewString(), "-", "", -1)
+		if err := db.Queries.InsertId(context.Background(), nodeID); err != nil {
+			log.Fatal().Err(err).Msg("failed to insert id")
 		}
-		log.Info().Str("node_id", nodeID).Msg("node info")
-		break
+	} else if err != nil {
+		log.Fatal().Err(err).Msg("failed to get id")
 	}
+
+	log.Info().Str("node_id", nodeID).Msg("node info")
 
 	// Wiring
 	metricsDatabaseURL := fmt.Sprintf(
@@ -395,25 +396,13 @@ func createParser(queryConstraints QueryConstraints) (parsing.SQLValidator, erro
 }
 
 func createChainStacks(
-	databaseURL string,
+	db *database.SQLiteDB,
 	parser parsing.SQLValidator,
 	sm *sharedmemory.SharedMemory,
 	chainsConfig []ChainConfig,
 	tableConstraintsConfig TableConstraints,
 	fetchExtraBlockInfo bool,
 ) (map[tableland.ChainID]chains.ChainStack, moduleCloser, error) {
-	executorsDB, err := otelsql.Open("sqlite3", databaseURL)
-	if err != nil {
-		return nil, nil, fmt.Errorf("opening database: %s", err)
-	}
-	executorsDB.SetMaxOpenConns(1)
-	attrs := append([]attribute.KeyValue{attribute.String("name", "executors")}, metrics.BaseAttrs...)
-	if err := otelsql.RegisterDBStatsMetrics(
-		executorsDB,
-		otelsql.WithAttributes(attrs...)); err != nil {
-		return nil, nil, fmt.Errorf("registering executors db stats: %s", err)
-	}
-
 	chainStacks := map[tableland.ChainID]chains.ChainStack{}
 	for _, chainCfg := range chainsConfig {
 		if _, ok := chainStacks[chainCfg.ChainID]; ok {
@@ -421,8 +410,7 @@ func createChainStacks(
 		}
 		chainStack, err := createChainIDStack(
 			chainCfg,
-			databaseURL,
-			executorsDB,
+			db,
 			parser,
 			sm,
 			tableConstraintsConfig,
@@ -450,10 +438,6 @@ func createChainStacks(
 		}
 		wg.Wait()
 
-		// Close Executor DB.
-		if err := executorsDB.Close(); err != nil {
-			return fmt.Errorf("closing executors db: %s", err)
-		}
 		return nil
 	}
 
@@ -464,17 +448,20 @@ func createAPIServer(
 	httpConfig HTTPConfig,
 	gatewayConfig GatewayConfig,
 	parser parsing.SQLValidator,
+	db *database.SQLiteDB,
+	sm *sharedmemory.SharedMemory,
 	chainStacks map[tableland.ChainID]chains.ChainStack,
 ) (moduleCloser, error) {
 	supportedChainIDs := make([]tableland.ChainID, 0, len(chainStacks))
-	stores := make(map[tableland.ChainID]sqlstore.SystemStore, len(chainStacks))
+	eps := make(map[tableland.ChainID]eventprocessor.EventProcessor, len(chainStacks))
 	for chainID, stack := range chainStacks {
-		stores[chainID] = stack.Store
+		eps[chainID] = stack.EventProcessor
 		supportedChainIDs = append(supportedChainIDs, chainID)
 	}
+
 	g, err := gateway.NewGateway(
 		parser,
-		stores,
+		gatewayimpl.NewGatewayStore(db, parsing.NewReadStatementResolver(sm)),
 		gatewayConfig.ExternalURIPrefix,
 		gatewayConfig.MetadataRendererURI,
 		gatewayConfig.AnimationRendererURI)

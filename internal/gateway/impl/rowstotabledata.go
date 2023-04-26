@@ -1,13 +1,13 @@
-package system
+package impl
 
 import (
 	"database/sql"
 	"fmt"
 
-	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/internal/gateway"
 )
 
-func rowsToTableData(rows *sql.Rows) (*tableland.TableData, error) {
+func rowsToTableData(rows *sql.Rows) (*gateway.TableData, error) {
 	columns, err := getColumnsData(rows)
 	if err != nil {
 		return nil, fmt.Errorf("get columns from rows: %s", err)
@@ -17,30 +17,30 @@ func rowsToTableData(rows *sql.Rows) (*tableland.TableData, error) {
 		return nil, err
 	}
 
-	return &tableland.TableData{
+	return &gateway.TableData{
 		Columns: columns,
 		Rows:    rowsData,
 	}, nil
 }
 
-func getColumnsData(rows *sql.Rows) ([]tableland.Column, error) {
+func getColumnsData(rows *sql.Rows) ([]gateway.Column, error) {
 	cols, err := rows.Columns()
 	if err != nil {
 		return nil, fmt.Errorf("get columns from sql.Rows: %s", err)
 	}
-	columns := make([]tableland.Column, len(cols))
+	columns := make([]gateway.Column, len(cols))
 	for i := range cols {
-		columns[i] = tableland.Column{Name: cols[i]}
+		columns[i] = gateway.Column{Name: cols[i]}
 	}
 	return columns, nil
 }
 
-func getRowsData(rows *sql.Rows, numColumns int) ([][]*tableland.ColumnValue, error) {
-	rowsData := make([][]*tableland.ColumnValue, 0)
+func getRowsData(rows *sql.Rows, numColumns int) ([][]*gateway.ColumnValue, error) {
+	rowsData := make([][]*gateway.ColumnValue, 0)
 	for rows.Next() {
-		vals := make([]*tableland.ColumnValue, numColumns)
+		vals := make([]*gateway.ColumnValue, numColumns)
 		for i := range vals {
-			val := &tableland.ColumnValue{}
+			val := &gateway.ColumnValue{}
 			vals[i] = val
 		}
 		scanArgs := make([]interface{}, len(vals))
