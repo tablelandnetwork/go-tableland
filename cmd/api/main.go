@@ -30,7 +30,6 @@ import (
 	"github.com/textileio/go-tableland/pkg/database"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
-
 	"go.opentelemetry.io/otel/attribute"
 
 	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
@@ -72,16 +71,16 @@ func main() {
 		path.Join(dirPath, "database.db"),
 	)
 
-	db, err := database.Open(databaseURL, attribute.String("database", "main"))
-	if err != nil {
-		log.Fatal().Err(err).Msg("opening the read database")
-	}
-
 	// Restore provided backup (if configured).
 	if config.BootstrapBackupURL != "" {
 		if err := restoreBackup(databaseURL, config.BootstrapBackupURL); err != nil {
 			log.Fatal().Err(err).Msg("restoring backup")
 		}
+	}
+
+	db, err := database.Open(databaseURL, attribute.String("database", "main"))
+	if err != nil {
+		log.Fatal().Err(err).Msg("opening the read database")
 	}
 
 	// Parser.

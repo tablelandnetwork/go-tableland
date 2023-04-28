@@ -137,14 +137,23 @@ func (bs *blockScope) SaveTxnReceipts(ctx context.Context, rs []eventprocessor.R
 			tableID.Valid = true
 			tableID.Int64 = r.TableID.ToBigInt().Int64()
 		}
+
 		if r.Error != nil {
 			*r.Error = strings.ToValidUTF8(*r.Error, "")
 		}
+
+		tableIDs := sql.NullString{Valid: false}
+		if len(r.TableIDs) > 0 {
+			tableIDs.Valid = true
+			tableIDs.String = r.TableIDs.String()
+		}
+
 		if _, err := bs.txn.ExecContext(
 			ctx,
-			`INSERT INTO system_txn_receipts (chain_id,txn_hash,error,error_event_idx,table_id,block_number,index_in_block) 
-				 VALUES (?1,?2,?3,?4,?5,?6,?7)`,
-			r.ChainID, r.TxnHash, r.Error, r.ErrorEventIdx, tableID, r.BlockNumber, r.IndexInBlock); err != nil {
+			`INSERT INTO system_txn_receipts 
+				(chain_id,txn_hash,error,error_event_idx,table_id,block_number,index_in_block,table_ids) 
+				VALUES (?1,?2,?3,?4,?5,?6,?7,?8)`,
+			r.ChainID, r.TxnHash, r.Error, r.ErrorEventIdx, tableID, r.BlockNumber, r.IndexInBlock, tableIDs); err != nil {
 			return fmt.Errorf("insert txn receipt: %s", err)
 		}
 	}

@@ -10,7 +10,7 @@ import (
 )
 
 const getReceipt = `-- name: GetReceipt :one
-SELECT chain_id, block_number, index_in_block, txn_hash, error, table_id, error_event_idx from system_txn_receipts WHERE chain_id=?1 and txn_hash=?2
+SELECT chain_id, block_number, index_in_block, txn_hash, error, table_id, error_event_idx, table_ids from system_txn_receipts WHERE chain_id=?1 and txn_hash=?2
 `
 
 type GetReceiptParams struct {
@@ -29,6 +29,7 @@ func (q *Queries) GetReceipt(ctx context.Context, arg GetReceiptParams) (SystemT
 		&i.Error,
 		&i.TableID,
 		&i.ErrorEventIdx,
+		&i.TableIds,
 	)
 	return i, err
 }

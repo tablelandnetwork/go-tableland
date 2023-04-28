@@ -151,9 +151,12 @@ func (g *GatewayService) GetReceiptByTransactionHash(
 		BlockNumber:   receipt.BlockNumber,
 		IndexInBlock:  receipt.IndexInBlock,
 		TxnHash:       receipt.TxnHash,
-		TableID:       receipt.TableID,
+		TableIDs:      receipt.TableIDs,
 		Error:         receipt.Error,
 		ErrorEventIdx: receipt.ErrorEventIdx,
+
+		// Deprecated
+		TableID: receipt.TableID,
 	}, true, nil
 }
 
@@ -195,14 +198,17 @@ func (g *GatewayService) emptyMetadataImage() string {
 
 // Receipt represents a Tableland receipt.
 type Receipt struct {
-	ChainID      tableland.ChainID
-	BlockNumber  int64
-	IndexInBlock int64
-	TxnHash      string
-
-	TableID       *tables.TableID
+	ChainID       tableland.ChainID
+	BlockNumber   int64
+	IndexInBlock  int64
+	TxnHash       string
+	TableIDs      []tables.TableID
 	Error         *string
 	ErrorEventIdx *int
+
+	// Deprecated: the Receipt must hold information of all tables that were modified by the transaction.
+	// This field was replaced by TableIDs.
+	TableID *tables.TableID
 }
 
 // Table represents a system-wide table stored in Tableland.

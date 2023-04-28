@@ -13,6 +13,8 @@ type TransactionReceipt struct {
 
 	TableId string `json:"table_id,omitempty"`
 
+	TableIds []string `json:"table_ids,omitempty"`
+
 	TransactionHash string `json:"transaction_hash,omitempty"`
 
 	BlockNumber int64 `json:"block_number,omitempty"`

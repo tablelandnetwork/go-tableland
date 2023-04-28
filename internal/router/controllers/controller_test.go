@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -17,6 +18,7 @@ import (
 	"github.com/textileio/go-tableland/internal/router/middlewares"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/mocks"
+	"github.com/textileio/go-tableland/pkg/tables"
 )
 
 func TestQuery(t *testing.T) {
@@ -242,6 +244,40 @@ func TestTableNotFoundMock(t *testing.T) {
 
 	expJSON := `{"message": "Failed to fetch metadata"}`
 	require.JSONEq(t, expJSON, rr.Body.String())
+}
+
+func TestReceipt(t *testing.T) {
+	r := mocks.NewGateway(t)
+	r.EXPECT().GetReceiptByTransactionHash(mock.Anything, mock.Anything, mock.Anything).Return(
+		gateway.Receipt{
+			ChainID:       1337,
+			BlockNumber:   1,
+			IndexInBlock:  0,
+			TxnHash:       "0xb5c8bd9430b6cc87a0e2fe110ece6bf527fa4f170a4bc8cd032f768fc5219838",
+			TableIDs:      []tables.TableID{tables.TableID(*big.NewInt(1)), tables.TableID(*big.NewInt(2))},
+			Error:         nil,
+			ErrorEventIdx: nil,
+		},
+		true,
+		nil,
+	)
+
+	ctrl := NewController(r)
+
+	router := mux.NewRouter()
+	router.HandleFunc("/receipt/{chainId}/{transactionHash}", ctrl.GetReceiptByTransactionHash)
+
+	ctx := context.WithValue(context.Background(), middlewares.ContextKeyChainID, tableland.ChainID(1337))
+	// Table format
+	req, err := http.NewRequestWithContext(
+		ctx, "GET", "/receipt/1337/0xb5c8bd9430b6cc87a0e2fe110ece6bf527fa4f170a4bc8cd032f768fc5219838", nil,
+	)
+	require.NoError(t, err)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+	exp := `{"table_ids":["1","2"],"transaction_hash":"0xb5c8bd9430b6cc87a0e2fe110ece6bf527fa4f170a4bc8cd032f768fc5219838","block_number":1,"chain_id":1337}` // nolint
+	require.JSONEq(t, exp, rr.Body.String())
 }
 
 func parseJSONLString(val string) []string {
