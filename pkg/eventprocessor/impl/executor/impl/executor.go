@@ -11,6 +11,7 @@ import (
 	"github.com/rs/zerolog"
 	logger "github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/database"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor"
 	"github.com/textileio/go-tableland/pkg/parsing"
 )
@@ -18,7 +19,7 @@ import (
 // Executor executes chain events.
 type Executor struct {
 	log          zerolog.Logger
-	db           *sql.DB
+	db           *database.SQLiteDB
 	parser       parsing.SQLValidator
 	acl          tableland.ACL
 	chBlockScope chan struct{}
@@ -36,7 +37,7 @@ var _ executor.Executor = (*Executor)(nil)
 func NewExecutor(
 	chainID tableland.ChainID,
 	// dbURI string,
-	db *sql.DB,
+	db *database.SQLiteDB,
 	parser parsing.SQLValidator,
 	maxTableRowCount int,
 	acl tableland.ACL,
@@ -77,7 +78,7 @@ func (ex *Executor) NewBlockScope(ctx context.Context, newBlockNum int64) (execu
 	}
 	releaseBlockScope := func() { ex.chBlockScope <- struct{}{} }
 
-	txn, err := ex.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable, ReadOnly: false})
+	txn, err := ex.db.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable, ReadOnly: false})
 	if err != nil {
 		releaseBlockScope()
 		return nil, fmt.Errorf("opening db transaction: %s", err)
@@ -106,7 +107,7 @@ func (ex *Executor) NewBlockScope(ctx context.Context, newBlockNum int64) (execu
 
 // GetLastExecutedBlockNumber returns the last block number that was successfully executed.
 func (ex *Executor) GetLastExecutedBlockNumber(ctx context.Context) (int64, error) {
-	txn, err := ex.db.Begin()
+	txn, err := ex.db.DB.Begin()
 	if err != nil {
 		return 0, fmt.Errorf("opening txn: %s", err)
 	}

@@ -8,10 +8,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/go-tableland/internal/tableland"
+	gatewayimpl "github.com/textileio/go-tableland/internal/gateway/impl"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor"
-	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/tables"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 )
@@ -35,10 +34,9 @@ func TestCreateTable(t *testing.T) {
 		require.NoError(t, ex.Close(ctx))
 
 		// Check that the table was registered in the system-table.
-		systemStore, err := system.New(dbURI, tableland.ChainID(chainID))
-		require.NoError(t, err)
+
 		tableID, _ := tables.NewTableID("100")
-		table, err := systemStore.GetTable(ctx, tableID)
+		table, err := gatewayimpl.NewGatewayStore(ex.db, nil).GetTable(ctx, 1337, tableID)
 		require.NoError(t, err)
 		require.Equal(t, tableID, table.ID)
 		require.Equal(t, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", table.Controller)

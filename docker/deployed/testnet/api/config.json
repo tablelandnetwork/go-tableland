@@ -9,8 +9,8 @@
     },
     "Gateway": {
         "ExternalURIPrefix": "https://testnets.tableland.network",
-        "MetadataRendererURI": "https://testnets.render.tableland.xyz",
-        "AnimationRendererURI": "https://testnets.render.tableland.xyz/anim"
+        "MetadataRendererURI": "https://tables.testnets.tableland.xyz",
+        "AnimationRendererURI": "https://tables.testnets.tableland.xyz"
     },
     "DB": {
         "Port": "5432"
@@ -60,6 +60,33 @@
             },
             "Signer": {
                 "PrivateKey": "${VALIDATOR_ETHEREUM_GOERLI_SIGNER_PRIVATE_KEY}"
+            },
+            "EventFeed": {
+                "ChainAPIBackoff": "15s",
+                "NewBlockPollFreq": "10s",
+                "MinBlockDepth": 1,
+                "PersistEvents": true
+            },
+            "EventProcessor": {
+                "BlockFailedExecutionBackoff": "10s",
+                "DedupExecutedTxns": true
+            },
+            "NonceTracker": {
+                "CheckInterval": "15s",
+                "StuckInterval": "10m",
+                "MinBlockDepth": 1
+            },
+            "HashCalculationStep": 150
+        },
+        {
+            "Name": "Ethereum Sepolia",
+            "ChainID": 11155111,
+            "Registry": {
+                "EthEndpoint": "wss://eth-sepolia.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_ETHEREUM_SEPOLIA_API_KEY}",
+                "ContractAddress": "0xc50C62498448ACc8dBdE43DA77f8D5D2E2c7597D"
+            },
+            "Signer": {
+                "PrivateKey": "${VALIDATOR_ETHEREUM_SEPOLIA_SIGNER_PRIVATE_KEY}"
             },
             "EventFeed": {
                 "ChainAPIBackoff": "15s",
@@ -161,7 +188,7 @@
         },
         {
             "Name": "Filecoin Hyperspace",
-            "ChainID": 3141,            
+            "ChainID": 3141,
             "Registry": {
                 "EthEndpoint": "https://rpc.ankr.com/filecoin_testnet/${VALIDATOR_ANKR_FILECOIN_HYPERSPACE_API_KEY}",
                 "ContractAddress": "0x0B9737ab4B3e5303CB67dB031b509697e31c02d3"

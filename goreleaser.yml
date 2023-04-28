@@ -1,0 +1,104 @@
+# goreleaser.yml
+before:
+  hooks:
+  - go mod tidy
+
+env:
+  - CGO_ENABLED=1
+
+project_name: api
+
+builds:
+- id: api-darwin-amd64
+  binary: api
+  main: ./cmd/api
+  goarch:
+    - amd64
+  goos:
+    - darwin
+  env:
+    - CC=o64-clang
+    - CXX=o64-clang++
+  flags: 
+    - -trimpath
+  ldflags:
+    - -s -w -X main.version={{.Version}} -X main.commit={{.FullCommit}} -X main.date={{.CommitDate}}
+- id: api-darwin-arm64
+  binary: api
+  main: ./cmd/api
+  goarch:
+    - arm64
+  goos:
+    - darwin   
+  env:
+    - CC=oa64-clang
+    - CXX=oa64-clang++
+  flags: 
+    - -trimpath
+  ldflags: 
+    - -s -w -X main.version={{.Version}} -X main.commit={{.FullCommit}} -X main.date={{.CommitDate}}
+- id: api-linux-amd64
+  binary: api
+  main: ./cmd/api
+  goarch: 
+    - amd64
+  goos:
+    - linux
+  env:      
+    - CC=x86_64-linux-gnu-gcc
+    - CXX=x86_64-linux-gnu-g++
+  flags:
+    - -trimpath
+  ldflags:
+    - -s -w -X main.version={{.Version}} -X main.commit={{.FullCommit}} -X main.date={{.CommitDate}}
+- id: api-linux-arm64
+  binary: api
+  main: ./cmd/api
+  goarch: 
+    - arm64
+  goos:
+    - linux
+  env:
+    - CC=aarch64-linux-gnu-gcc
+    - CXX=aarch64-linux-gnu-g++    
+  flags:
+    - -trimpath
+  ldflags:
+    - -s -w -X main.version={{.Version}} -X main.commit={{.FullCommit}} -X main.date={{.CommitDate}}
+- id: api-windows-amd64
+  binary: api
+  main: ./cmd/api
+  goarch:
+    - amd64  
+  goos:    
+    - windows  
+  env:
+    - CC=x86_64-w64-mingw32-gcc
+    - CXX=x86_64-w64-mingw32-g++
+  flags:
+    - -trimpath
+    - -buildmode=exe
+  ldflags:
+    - -s -w -X main.version={{.Version}} -X main.commit={{.FullCommit}} -X main.date={{.CommitDate}}
+
+archives:
+  - id: api-archive
+    format: tar.gz
+    files:
+      - none*
+    builds:
+      - api-darwin-amd64
+      - api-darwin-arm64
+      - api-linux-amd64
+      - api-linux-arm64
+    name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
+  - id: api-archive-win
+    format: zip
+    files:
+      - none*
+    builds:
+      - api-windows-amd64
+    name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
+
+checksum:
+  disable: true

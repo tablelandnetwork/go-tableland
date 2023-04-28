@@ -22,11 +22,6 @@ import (
 	"github.com/textileio/go-tableland/pkg/telemetry"
 )
 
-// SQLRunner defines the run SQL interface of Tableland.
-type SQLRunner interface {
-	RunReadQuery(ctx context.Context, stmt string) (*tableland.TableData, error)
-}
-
 // Controller defines the HTTP handlers for interacting with user tables.
 type Controller struct {
 	gateway gateway.Gateway
@@ -115,7 +110,9 @@ func (c *Controller) GetReceiptByTransactionHash(rw http.ResponseWriter, r *http
 	}
 	txnHash := common.HexToHash(paramTxnHash)
 
-	receipt, exists, err := c.gateway.GetReceiptByTransactionHash(ctx, txnHash)
+	receipt, exists, err := c.gateway.GetReceiptByTransactionHash(
+		ctx, ctx.Value(middlewares.ContextKeyChainID).(tableland.ChainID), txnHash,
+	)
 	if err != nil {
 		rw.Header().Set("Content-Type", "application/json")
 		rw.WriteHeader(http.StatusBadRequest)
@@ -163,8 +160,7 @@ func (c *Controller) GetTable(rw http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Invalid id format"})
 		return
 	}
-
-	metadata, err := c.gateway.GetTableMetadata(ctx, id)
+	metadata, err := c.gateway.GetTableMetadata(ctx, ctx.Value(middlewares.ContextKeyChainID).(tableland.ChainID), id)
 	if err == gateway.ErrTableNotFound {
 		rw.WriteHeader(http.StatusNotFound)
 		return
@@ -266,7 +262,7 @@ func (c *Controller) runReadRequest(
 	ctx context.Context,
 	stm string,
 	rw http.ResponseWriter,
-) (*tableland.TableData, bool) {
+) (*gateway.TableData, bool) {
 	res, err := c.gateway.RunReadQuery(ctx, stm)
 	if err != nil {
 		rw.WriteHeader(http.StatusBadRequest)

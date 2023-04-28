@@ -31,6 +31,7 @@ func (ts *txnScope) executeRunSQLEvent(
 		err := fmt.Sprintf("query targets table id %s and not %s", targetedTableID, tableID)
 		return eventExecutionResult{Error: &err}, nil
 	}
+
 	if err := ts.execWriteQueries(ctx, e.Caller, mutatingStmts, e.IsOwner, &policy{e.Policy}); err != nil {
 		var dbErr *errQueryExecution
 		if errors.As(err, &dbErr) {
@@ -230,7 +231,7 @@ func (ts *txnScope) executeWriteStmt(
 			return fmt.Errorf("not allowed to execute stmt: %w", err)
 		}
 	} else {
-		ok, err := ts.acl.CheckPrivileges(ctx, ts.txn, addr, ws.GetTableID(), ws.Operation())
+		ok, err := ts.acl.CheckPrivileges(ctx, ts.txn, ts.scopeVars.ChainID, addr, ws.GetTableID(), ws.Operation())
 		if err != nil {
 			return fmt.Errorf("error checking acl: %s", err)
 		}

@@ -5,46 +5,46 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/internal/gateway"
 )
 
 var rawJSON = []byte("{\"city\":\"dallas\"}")
 
-var input = &tableland.TableData{
-	Columns: []tableland.Column{
+var input = &gateway.TableData{
+	Columns: []gateway.Column{
 		{Name: "name"},
 		{Name: "age"},
 		{Name: "location"},
 	},
-	Rows: [][]*tableland.ColumnValue{
-		{tableland.OtherColValue("bob"), tableland.OtherColValue(40), tableland.JSONColValue(rawJSON)},
-		{tableland.OtherColValue("jane"), tableland.OtherColValue(30), tableland.JSONColValue(rawJSON)},
+	Rows: [][]*gateway.ColumnValue{
+		{gateway.OtherColValue("bob"), gateway.OtherColValue(40), gateway.JSONColValue(rawJSON)},
+		{gateway.OtherColValue("jane"), gateway.OtherColValue(30), gateway.JSONColValue(rawJSON)},
 	},
 }
 
-var inputExtractable = &tableland.TableData{
-	Columns: []tableland.Column{
+var inputExtractable = &gateway.TableData{
+	Columns: []gateway.Column{
 		{Name: "name"},
 	},
-	Rows: [][]*tableland.ColumnValue{
-		{tableland.OtherColValue("bob")},
-		{tableland.OtherColValue("jane")},
+	Rows: [][]*gateway.ColumnValue{
+		{gateway.OtherColValue("bob")},
+		{gateway.OtherColValue("jane")},
 	},
 }
 
-var inputExtractable2 = &tableland.TableData{
-	Columns: []tableland.Column{
+var inputExtractable2 = &gateway.TableData{
+	Columns: []gateway.Column{
 		{Name: "location"},
 	},
-	Rows: [][]*tableland.ColumnValue{
-		{tableland.JSONColValue(rawJSON)},
-		{tableland.JSONColValue(rawJSON)},
+	Rows: [][]*gateway.ColumnValue{
+		{gateway.JSONColValue(rawJSON)},
+		{gateway.JSONColValue(rawJSON)},
 	},
 }
 
 func TestFormat(t *testing.T) {
 	type args struct {
-		userRows *tableland.TableData
+		userRows *gateway.TableData
 		output   Output
 		unwrap   bool
 		extract  bool

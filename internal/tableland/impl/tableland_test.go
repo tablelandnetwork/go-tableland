@@ -3,7 +3,6 @@ package impl
 import (
 	"context"
 	"crypto/ecdsa"
-	"database/sql"
 	"encoding/csv"
 	"encoding/hex"
 	"encoding/json"
@@ -22,16 +21,17 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"github.com/textileio/go-tableland/internal/gateway"
+	gatewayimpl "github.com/textileio/go-tableland/internal/gateway/impl"
 	"github.com/textileio/go-tableland/internal/tableland"
+	"github.com/textileio/go-tableland/pkg/database"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
 	epimpl "github.com/textileio/go-tableland/pkg/eventprocessor/impl"
 	executor "github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor/impl"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
+
 	"github.com/textileio/go-tableland/pkg/sharedmemory"
-	"github.com/textileio/go-tableland/pkg/sqlstore"
-	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 
 	"github.com/textileio/go-tableland/pkg/tables"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
@@ -73,7 +73,7 @@ func TestInsertOnConflict(t *testing.T) {
 		build(t)
 	tablelandClient := setup.newTablelandClient(t)
 
-	ctx, backend, sc, store := setup.ctx, setup.ethClient, setup.contract, setup.systemStore
+	ctx, backend, sc := setup.ctx, setup.ethClient, setup.contract
 	gateway, txOpts := tablelandClient.gateway, tablelandClient.txOpts
 
 	caller := txOpts.From
@@ -104,7 +104,7 @@ func TestInsertOnConflict(t *testing.T) {
 		time.Second*5,
 		time.Millisecond*100,
 	)
-	requireReceipts(ctx, t, store, txnHashes, true)
+	requireReceipts(ctx, t, gateway, txnHashes, true)
 }
 
 func TestMultiStatement(t *testing.T) {
@@ -114,7 +114,7 @@ func TestMultiStatement(t *testing.T) {
 		build(t)
 	tablelandClient := setup.newTablelandClient(t)
 
-	ctx, backend, sc, store := setup.ctx, setup.ethClient, setup.contract, setup.systemStore
+	ctx, backend, sc := setup.ctx, setup.ethClient, setup.contract
 	gateway, txOpts := tablelandClient.gateway, tablelandClient.txOpts
 	caller := txOpts.From
 
@@ -140,7 +140,7 @@ func TestMultiStatement(t *testing.T) {
 		time.Second*5,
 		time.Millisecond*100,
 	)
-	requireReceipts(ctx, t, store, []string{r.Hash().Hex()}, true)
+	requireReceipts(ctx, t, gateway, []string{r.Hash().Hex()}, true)
 }
 
 func TestReadSystemTable(t *testing.T) {
@@ -157,7 +157,7 @@ func TestReadSystemTable(t *testing.T) {
 	_, err := sc.CreateTable(txOpts, caller, `CREATE TABLE foo_1337 (myjson TEXT);`)
 	require.NoError(t, err)
 
-	res, err := runReadQuery(ctx, t, gateway, "select * from registry")
+	res, err := gateway.RunReadQuery(ctx, "select * from registry")
 	require.NoError(t, err)
 	_, err = json.Marshal(res)
 	require.NoError(t, err)
@@ -211,7 +211,7 @@ func TestCheckInsertPrivileges(t *testing.T) {
 				granterSetup := setup.newTablelandClient(t)
 				granteeSetup := setup.newTablelandClient(t)
 
-				ctx, backend, sc, store := setup.ctx, setup.ethClient, setup.contract, setup.systemStore
+				ctx, backend, sc := setup.ctx, setup.ethClient, setup.contract
 				txOptsGranter := granterSetup.txOpts
 				gatewayGrantee, txOptsGrantee := granteeSetup.gateway, granteeSetup.txOpts
 
@@ -249,11 +249,11 @@ func TestCheckInsertPrivileges(t *testing.T) {
 						100*time.Millisecond,
 					)
 					successfulTxnHashes = append(successfulTxnHashes, txn.Hash().Hex())
-					requireReceipts(ctx, t, store, successfulTxnHashes, true)
+					requireReceipts(ctx, t, gatewayGrantee, successfulTxnHashes, true)
 				} else {
 					require.Never(t, runSQLCountEq(ctx, t, gatewayGrantee, testQuery, 1), 5*time.Second, 100*time.Millisecond)
-					requireReceipts(ctx, t, store, successfulTxnHashes, true)
-					requireReceipts(ctx, t, store, []string{txn.Hash().Hex()}, false)
+					requireReceipts(ctx, t, gatewayGrantee, successfulTxnHashes, true)
+					requireReceipts(ctx, t, gatewayGrantee, []string{txn.Hash().Hex()}, false)
 				}
 			}
 		}(test))
@@ -291,7 +291,7 @@ func TestCheckUpdatePrivileges(t *testing.T) {
 				granterSetup := setup.newTablelandClient(t)
 				granteeSetup := setup.newTablelandClient(t)
 
-				ctx, backend, sc, store := setup.ctx, setup.ethClient, setup.contract, setup.systemStore
+				ctx, backend, sc := setup.ctx, setup.ethClient, setup.contract
 				txOptsGranter := granterSetup.txOpts
 				gatewayGrantee, txOptsGrantee := granteeSetup.gateway, granteeSetup.txOpts
 
@@ -335,11 +335,11 @@ func TestCheckUpdatePrivileges(t *testing.T) {
 						100*time.Millisecond,
 					)
 					successfulTxnHashes = append(successfulTxnHashes, txn.Hash().Hex())
-					requireReceipts(ctx, t, store, successfulTxnHashes, true)
+					requireReceipts(ctx, t, gatewayGrantee, successfulTxnHashes, true)
 				} else {
 					require.Never(t, runSQLCountEq(ctx, t, gatewayGrantee, testQuery, 1), 5*time.Second, 100*time.Millisecond)
-					requireReceipts(ctx, t, store, successfulTxnHashes, true)
-					requireReceipts(ctx, t, store, []string{txn.Hash().Hex()}, false)
+					requireReceipts(ctx, t, gatewayGrantee, successfulTxnHashes, true)
+					requireReceipts(ctx, t, gatewayGrantee, []string{txn.Hash().Hex()}, false)
 				}
 			}
 		}(test))
@@ -377,7 +377,7 @@ func TestCheckDeletePrivileges(t *testing.T) {
 				granterSetup := setup.newTablelandClient(t)
 				granteeSetup := setup.newTablelandClient(t)
 
-				ctx, backend, sc, store := setup.ctx, setup.ethClient, setup.contract, setup.systemStore
+				ctx, backend, sc := setup.ctx, setup.ethClient, setup.contract
 				txOptsGranter := granterSetup.txOpts
 				gatewayGrantee, txOptsGrantee := granteeSetup.gateway, granteeSetup.txOpts
 
@@ -419,10 +419,10 @@ func TestCheckDeletePrivileges(t *testing.T) {
 						100*time.Millisecond,
 					)
 					successfulTxnHashes = append(successfulTxnHashes, txn.Hash().Hex())
-					requireReceipts(ctx, t, store, successfulTxnHashes, true)
+					requireReceipts(ctx, t, gatewayGrantee, successfulTxnHashes, true)
 				} else {
 					require.Never(t, runSQLCountEq(ctx, t, gatewayGrantee, testQuery, 0), 5*time.Second, 100*time.Millisecond)
-					requireReceipts(ctx, t, store, []string{txn.Hash().Hex()}, false)
+					requireReceipts(ctx, t, gatewayGrantee, []string{txn.Hash().Hex()}, false)
 				}
 			}
 		}(test))
@@ -436,7 +436,7 @@ func TestOwnerRevokesItsPrivilegeInsideMultipleStatements(t *testing.T) {
 		build(t)
 	tablelandClient := setup.newTablelandClient(t)
 
-	ctx, backend, sc, store := setup.ctx, setup.ethClient, setup.contract, setup.systemStore
+	ctx, backend, sc := setup.ctx, setup.ethClient, setup.contract
 	gateway, txOpts := tablelandClient.gateway, tablelandClient.txOpts
 	caller := txOpts.From
 
@@ -456,7 +456,7 @@ func TestOwnerRevokesItsPrivilegeInsideMultipleStatements(t *testing.T) {
 	testQuery := "SELECT * FROM foo_1337_1;"
 	cond := runSQLCountEq(ctx, t, gateway, testQuery, 1)
 	require.Never(t, cond, 5*time.Second, 100*time.Millisecond)
-	requireReceipts(ctx, t, store, []string{txn.Hash().Hex()}, false)
+	requireReceipts(ctx, t, gateway, []string{txn.Hash().Hex()}, false)
 }
 
 func TestTransferTable(t *testing.T) {
@@ -468,7 +468,7 @@ func TestTransferTable(t *testing.T) {
 	owner1Setup := setup.newTablelandClient(t)
 	owner2Setup := setup.newTablelandClient(t)
 
-	ctx, backend, sc, store := setup.ctx, setup.ethClient, setup.contract, setup.systemStore
+	ctx, backend, sc := setup.ctx, setup.ethClient, setup.contract
 	gatewayOwner1, txOptsOwner1 := owner1Setup.gateway, owner1Setup.txOpts
 	gatewayOwner2, txOptsOwner2 := owner2Setup.gateway, owner2Setup.txOpts
 
@@ -496,7 +496,7 @@ func TestTransferTable(t *testing.T) {
 		5*time.Second,
 		100*time.Millisecond,
 	)
-	requireReceipts(ctx, t, store, []string{txn1.Hash().Hex()}, false)
+	requireReceipts(ctx, t, gatewayOwner1, []string{txn1.Hash().Hex()}, false)
 
 	// insert from owner2 will EVENTUALLY go through
 	require.Eventually(t,
@@ -504,7 +504,7 @@ func TestTransferTable(t *testing.T) {
 		5*time.Second,
 		100*time.Millisecond,
 	)
-	requireReceipts(ctx, t, store, []string{txn2.Hash().Hex()}, true)
+	requireReceipts(ctx, t, gatewayOwner2, []string{txn2.Hash().Hex()}, true)
 
 	// check registry table new ownership
 	require.Eventually(t,
@@ -582,12 +582,12 @@ func jsonEq(
 func runSQLCountEq(
 	ctx context.Context,
 	t *testing.T,
-	tbld tableland.Tableland,
+	gateway gateway.Gateway,
 	sql string,
 	expCount int,
 ) func() bool {
 	return func() bool {
-		response, err := runReadQuery(ctx, t, tbld, sql)
+		response, err := gateway.RunReadQuery(ctx, sql)
 		// if we get a table undefined error, try again
 		if err != nil && strings.Contains(err.Error(), "table not found") {
 			return false
@@ -606,17 +606,6 @@ func runSQLCountEq(
 
 		return len(r.Rows) == expCount
 	}
-}
-
-func runReadQuery(
-	ctx context.Context,
-	t *testing.T,
-	tbld tableland.Tableland,
-	sql string,
-) (interface{}, error) {
-	t.Helper()
-
-	return tbld.RunReadQuery(ctx, sql)
 }
 
 func helpTestWriteQuery(
@@ -649,38 +638,17 @@ func readCsvFile(t *testing.T, filePath string) [][]string {
 	return records
 }
 
-type aclHalfMock struct {
-	sqlStore sqlstore.SystemStore
-}
-
-func (acl *aclHalfMock) CheckPrivileges(
-	ctx context.Context,
-	tx *sql.Tx,
-	controller common.Address,
-	id tables.TableID,
-	op tableland.Operation,
-) (bool, error) {
-	aclImpl := NewACL(acl.sqlStore)
-	return aclImpl.CheckPrivileges(ctx, tx, controller, id, op)
-}
-
-func (acl *aclHalfMock) IsOwner(_ context.Context, _ common.Address, _ tables.TableID) (bool, error) {
-	return true, nil
-}
-
 func requireReceipts(
 	ctx context.Context,
 	t *testing.T,
-	store *system.SystemStore,
+	gateway gateway.Gateway,
 	txnHashes []string,
 	ok bool,
 ) {
 	t.Helper()
 
 	for _, txnHash := range txnHashes {
-		// TODO: GetReceipt is only used by the tests, we can use system service instead
-
-		receipt, found, err := store.GetReceipt(ctx, txnHash)
+		receipt, found, err := gateway.GetReceiptByTransactionHash(ctx, 1337, common.HexToHash(txnHash))
 		require.NoError(t, err)
 		require.True(t, found)
 		require.NotNil(t, receipt)
@@ -753,24 +721,22 @@ func (b *tablelandSetupBuilder) build(t *testing.T) *tablelandSetup {
 	dbURI := tests.Sqlite3URI(t)
 
 	ctx := context.Background()
-	store, err := system.New(dbURI, tableland.ChainID(1337))
+	db, err := database.Open(dbURI)
 	require.NoError(t, err)
 
 	parser, err := parserimpl.New([]string{"system_", "registry", "sqlite_"}, b.parsingOpts...)
 	require.NoError(t, err)
 
-	db, err := sql.Open("sqlite3", dbURI)
-	require.NoError(t, err)
-	db.SetMaxOpenConns(1)
-
-	ex, err := executor.NewExecutor(1337, db, parser, 0, &aclHalfMock{store})
+	acl := NewACL(db)
+	ex, err := executor.NewExecutor(1337, db, parser, 0, acl)
 	require.NoError(t, err)
 
 	backend, addr, sc, auth, sk := testutil.Setup(t)
 
 	// Spin up dependencies needed for the EventProcessor.
 	// i.e: Executor, Parser, and EventFeed (connected to the EVM chain)
-	ef, err := efimpl.New(store,
+	ef, err := efimpl.New(
+		efimpl.NewEventFeedStore(db),
 		1337,
 		backend,
 		addr,
@@ -804,8 +770,9 @@ func (b *tablelandSetupBuilder) build(t *testing.T) *tablelandSetup {
 		deployerTxOpts:     auth,
 
 		// common dependencies among mesa clients
-		parser:      parser,
-		systemStore: store,
+		parser: parser,
+
+		store: gatewayimpl.NewGatewayStore(db, nil),
 	}
 }
 
@@ -826,8 +793,8 @@ type tablelandSetup struct {
 	deployerTxOpts     *bind.TransactOpts
 
 	// common dependencies among tableland clients
-	parser      parsing.SQLValidator
-	systemStore *system.SystemStore
+	parser parsing.SQLValidator
+	store  gateway.GatewayStore
 }
 
 func (s *tablelandSetup) newTablelandClient(t *testing.T) *tablelandClient {
@@ -850,10 +817,10 @@ func (s *tablelandSetup) newTablelandClient(t *testing.T) *tablelandClient {
 
 	gateway, err := gateway.NewGateway(
 		s.parser,
-		map[tableland.ChainID]sqlstore.SystemStore{1337: s.systemStore},
+		s.store,
 		"https://tableland.network/tables",
-		"https://render.tableland.xyz",
-		"https://render.tableland.xyz/anim",
+		"https://tables.tableland.xyz",
+		"https://tables.tableland.xyz",
 	)
 	require.NoError(t, err)
 

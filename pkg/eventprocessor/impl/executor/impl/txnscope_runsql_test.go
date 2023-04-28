@@ -14,7 +14,6 @@ import (
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor"
 	"github.com/textileio/go-tableland/pkg/parsing"
-	"github.com/textileio/go-tableland/pkg/sqlstore/impl/system"
 	"github.com/textileio/go-tableland/pkg/tables"
 	"github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 )
@@ -116,7 +115,7 @@ func TestRunSQL_OneEventPerTxn(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		ex, dbURI := newExecutorWithIntegerTable(t, 0)
+		ex, _ := newExecutorWithIntegerTable(t, 0)
 
 		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
@@ -131,14 +130,22 @@ func TestRunSQL_OneEventPerTxn(t *testing.T) {
 		require.NoError(t, err)
 		ss := mustGrantStmt(t, q).(parsing.GrantStmt)
 		for _, role := range ss.GetRoles() {
-			// Check that an entry was inserted in the system_acl table for each row.
-			systemStore, err := system.New(dbURI, tableland.ChainID(chainID))
+			tx, err := ex.db.DB.Begin()
 			require.NoError(t, err)
-			aclRow, err := systemStore.GetACLOnTableByController(ctx, ss.GetTableID(), role.String())
+
+			ok, err := ex.acl.CheckPrivileges(ctx, tx, 1337, role, ss.GetTableID(), tableland.OpInsert)
 			require.NoError(t, err)
-			require.Equal(t, ss.GetTableID(), aclRow.TableID)
-			require.Equal(t, role.String(), aclRow.Controller)
-			require.ElementsMatch(t, ss.GetPrivileges(), aclRow.Privileges)
+			require.True(t, ok)
+
+			ok, err = ex.acl.CheckPrivileges(ctx, tx, 1337, role, ss.GetTableID(), tableland.OpUpdate)
+			require.NoError(t, err)
+			require.True(t, ok)
+
+			ok, err = ex.acl.CheckPrivileges(ctx, tx, 1337, role, ss.GetTableID(), tableland.OpDelete)
+			require.NoError(t, err)
+			require.True(t, ok)
+
+			require.NoError(t, tx.Commit())
 		}
 	})
 
@@ -146,7 +153,7 @@ func TestRunSQL_OneEventPerTxn(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		ex, dbURI := newExecutorWithIntegerTable(t, 0)
+		ex, _ := newExecutorWithIntegerTable(t, 0)
 
 		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
@@ -162,30 +169,79 @@ func TestRunSQL_OneEventPerTxn(t *testing.T) {
 		require.NoError(t, bs.Close())
 		require.NoError(t, ex.Close(ctx))
 
-		systemStore, err := system.New(dbURI, tableland.ChainID(chainID))
-		require.NoError(t, err)
-
 		tableID, _ := tables.NewTableID("100")
 		{
-			aclRow, err := systemStore.GetACLOnTableByController(
-				ctx,
-				tableID,
-				"0xD43C59d5694eC111Eb9e986C233200b14249558D")
+			tx, err := ex.db.DB.Begin()
 			require.NoError(t, err)
-			require.Equal(t, tableID, aclRow.TableID)
-			require.Equal(t, "0xD43C59d5694eC111Eb9e986C233200b14249558D", aclRow.Controller)
-			require.ElementsMatch(t, tableland.Privileges{tableland.PrivInsert, tableland.PrivUpdate}, aclRow.Privileges)
+
+			ok, err := ex.acl.CheckPrivileges(ctx,
+				tx,
+				1337,
+				common.HexToAddress("0xD43C59d5694eC111Eb9e986C233200b14249558D"),
+				tableID,
+				tableland.OpInsert,
+			)
+			require.NoError(t, err)
+			require.True(t, ok)
+
+			ok, err = ex.acl.CheckPrivileges(ctx,
+				tx,
+				1337,
+				common.HexToAddress("0xD43C59d5694eC111Eb9e986C233200b14249558D"),
+				tableID,
+				tableland.OpUpdate,
+			)
+			require.NoError(t, err)
+			require.True(t, ok)
+
+			ok, err = ex.acl.CheckPrivileges(ctx,
+				tx,
+				1337,
+				common.HexToAddress("0xD43C59d5694eC111Eb9e986C233200b14249558D"),
+				tableID,
+				tableland.OpDelete,
+			)
+			require.NoError(t, err)
+			require.False(t, ok)
+
+			require.NoError(t, tx.Commit())
 		}
 
 		{
-			aclRow, err := systemStore.GetACLOnTableByController(
-				ctx,
-				tableID,
-				"0x4afE8e30DB4549384b0a05bb796468B130c7D6E0")
+			tx, err := ex.db.DB.Begin()
 			require.NoError(t, err)
-			require.Equal(t, tableID, aclRow.TableID)
-			require.Equal(t, "0x4afE8e30DB4549384b0a05bb796468B130c7D6E0", aclRow.Controller)
-			require.ElementsMatch(t, tableland.Privileges{tableland.PrivInsert, tableland.PrivDelete}, aclRow.Privileges)
+
+			ok, err := ex.acl.CheckPrivileges(ctx,
+				tx,
+				1337,
+				common.HexToAddress("0x4afE8e30DB4549384b0a05bb796468B130c7D6E0"),
+				tableID,
+				tableland.OpInsert,
+			)
+			require.NoError(t, err)
+			require.True(t, ok)
+
+			ok, err = ex.acl.CheckPrivileges(ctx,
+				tx,
+				1337,
+				common.HexToAddress("0x4afE8e30DB4549384b0a05bb796468B130c7D6E0"),
+				tableID,
+				tableland.OpUpdate,
+			)
+			require.NoError(t, err)
+			require.False(t, ok)
+
+			ok, err = ex.acl.CheckPrivileges(ctx,
+				tx,
+				1337,
+				common.HexToAddress("0x4afE8e30DB4549384b0a05bb796468B130c7D6E0"),
+				tableID,
+				tableland.OpDelete,
+			)
+			require.NoError(t, err)
+			require.True(t, ok)
+
+			require.NoError(t, tx.Commit())
 		}
 	})
 
@@ -193,7 +249,7 @@ func TestRunSQL_OneEventPerTxn(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
 
-		ex, dbURI := newExecutorWithIntegerTable(t, 0)
+		ex, _ := newExecutorWithIntegerTable(t, 0)
 
 		bs, err := ex.NewBlockScope(ctx, 0)
 		require.NoError(t, err)
@@ -206,19 +262,42 @@ func TestRunSQL_OneEventPerTxn(t *testing.T) {
 		require.NoError(t, bs.Close())
 		require.NoError(t, ex.Close(ctx))
 
-		systemStore, err := system.New(dbURI, tableland.ChainID(chainID))
-		require.NoError(t, err)
-
 		tableID, _ := tables.NewTableID("100")
 		{
-			aclRow, err := systemStore.GetACLOnTableByController(
-				ctx,
-				tableID,
-				"0xD43C59d5694eC111Eb9e986C233200b14249558D")
+			tx, err := ex.db.DB.Begin()
 			require.NoError(t, err)
-			require.Equal(t, tableID, aclRow.TableID)
-			require.Equal(t, "0xD43C59d5694eC111Eb9e986C233200b14249558D", aclRow.Controller)
-			require.ElementsMatch(t, tableland.Privileges{tableland.PrivUpdate}, aclRow.Privileges)
+
+			ok, err := ex.acl.CheckPrivileges(ctx,
+				tx,
+				1337,
+				common.HexToAddress("0xD43C59d5694eC111Eb9e986C233200b14249558D"),
+				tableID,
+				tableland.OpInsert,
+			)
+			require.NoError(t, err)
+			require.False(t, ok)
+
+			ok, err = ex.acl.CheckPrivileges(ctx,
+				tx,
+				1337,
+				common.HexToAddress("0xD43C59d5694eC111Eb9e986C233200b14249558D"),
+				tableID,
+				tableland.OpUpdate,
+			)
+			require.NoError(t, err)
+			require.True(t, ok)
+
+			ok, err = ex.acl.CheckPrivileges(ctx,
+				tx,
+				1337,
+				common.HexToAddress("0xD43C59d5694eC111Eb9e986C233200b14249558D"),
+				tableID,
+				tableland.OpDelete,
+			)
+			require.NoError(t, err)
+			require.False(t, ok)
+
+			require.NoError(t, tx.Commit())
 		}
 	})
 }
@@ -550,6 +629,7 @@ func execTxnWithRunSQLEventsAndPolicy(
 	events := make([]interface{}, len(stmts))
 	for i, stmt := range stmts {
 		events[i] = &ethereum.ContractRunSQL{
+			Caller:    common.HexToAddress("0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF"),
 			IsOwner:   true,
 			TableId:   big.NewInt(100),
 			Statement: stmt,

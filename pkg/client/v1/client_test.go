@@ -98,8 +98,8 @@ func TestGetTableByID(t *testing.T) {
 		table := calls.getTableByID(id)
 		require.NotEmpty(t, fullName, table.Name)
 		require.Equal(t, "https://testnets.tableland.network/api/v1/tables/1337/1", table.ExternalUrl)
-		require.Equal(t, "https://render.tableland.xyz/anim/?chain=1337&id=1", table.AnimationUrl)
-		require.Equal(t, "https://render.tableland.xyz/1337/1", table.Image)
+		require.Equal(t, "https://tables.tableland.xyz/1337/1.html", table.AnimationUrl)
+		require.Equal(t, "https://tables.tableland.xyz/1337/1.svg", table.Image)
 
 		require.Len(t, table.Attributes, 1)
 		require.Equal(t, "date", table.Attributes[0].DisplayType)

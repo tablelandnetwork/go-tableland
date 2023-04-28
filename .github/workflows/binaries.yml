@@ -3,43 +3,32 @@ on:
   release:
     types:
       - created
+permissions:
+  contents: write
 jobs:
   binaries:
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            asset_name: api-linux-amd64.tar.gz
-            compress_cmd: tar -czvf
-            build_cmd: docker run -v $PWD:/data golang:1.19 bash -c "git config --global --add safe.directory /data && cd /data && go build ./cmd/api"
-          - os: windows-latest
-            asset_name: api-windows-amd64.zip
-            compress_cmd: tar.exe -a -c -f
-            build_cmd: go build -o api ./cmd/api
-          - os: macos-latest
-            asset_name: api-darwin-amd64.tar.gz
-            compress_cmd: tar -czvf
-            build_cmd: go build -o api ./cmd/api
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/goreleaser/goreleaser-cross:v1.18
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
+        with:
+          submodules: 'true'
+      - name: Fetch repo
+        run: git fetch --prune --unshallow
       - name: Install Go
         uses: actions/setup-go@v3
         with:
           go-version: v1.19.x
-      - name: Build binary
-        run: ${{ matrix.build_cmd }}
-      - name: Pack output
-        run: ${{ matrix.compress_cmd }} ${{ matrix.asset_name }} api
-      - name: Upload binary
-        uses: svenstaro/upload-release-action@v2
+      - name: Release
+        uses: goreleaser/goreleaser-action@v4
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ${{ matrix.asset_name }}
-          asset_name: ${{ matrix.asset_name }}
-          tag: ${{ github.ref_name }}
-          overwrite: true
+          distribution: goreleaser
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   docker:
     runs-on: ubuntu-latest
     steps:
