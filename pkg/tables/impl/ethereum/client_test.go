@@ -44,6 +44,7 @@ func TestCreateTable(t *testing.T) {
 	// TODO: How many logs and topics should there be?
 	require.Len(t, receipt.Logs, 2)
 	require.Len(t, receipt.Logs[0].Topics, 4)
+	require.Equal(t, receipt.Type, uint8(types.DynamicFeeTxType))
 }
 
 func TestIsOwner(t *testing.T) {
