@@ -530,6 +530,14 @@ func TestCreateTableChecks(t *testing.T) {
 			chainID:    1337,
 			expErrType: ptr2ErrKeywordIsNotAllowed(),
 		},
+
+		// Table name
+		{
+			name:       "enclosed table name",
+			query:      "CREATE TABLE [users_31337] (id integer NOT NULL)",
+			chainID:    31337,
+			expErrType: nil,
+		},
 	}
 
 	for _, it := range tests {
