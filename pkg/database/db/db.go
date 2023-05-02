@@ -57,12 +57,6 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getTableStmt, err = db.PrepareContext(ctx, getTable); err != nil {
 		return nil, fmt.Errorf("error preparing query GetTable: %w", err)
 	}
-	if q.getTablesByControllerStmt, err = db.PrepareContext(ctx, getTablesByController); err != nil {
-		return nil, fmt.Errorf("error preparing query GetTablesByController: %w", err)
-	}
-	if q.getTablesByStructureStmt, err = db.PrepareContext(ctx, getTablesByStructure); err != nil {
-		return nil, fmt.Errorf("error preparing query GetTablesByStructure: %w", err)
-	}
 	if q.insertBlockExtraInfoStmt, err = db.PrepareContext(ctx, insertBlockExtraInfo); err != nil {
 		return nil, fmt.Errorf("error preparing query InsertBlockExtraInfo: %w", err)
 	}
@@ -139,16 +133,6 @@ func (q *Queries) Close() error {
 	if q.getTableStmt != nil {
 		if cerr := q.getTableStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getTableStmt: %w", cerr)
-		}
-	}
-	if q.getTablesByControllerStmt != nil {
-		if cerr := q.getTablesByControllerStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing getTablesByControllerStmt: %w", cerr)
-		}
-	}
-	if q.getTablesByStructureStmt != nil {
-		if cerr := q.getTablesByStructureStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing getTablesByStructureStmt: %w", cerr)
 		}
 	}
 	if q.insertBlockExtraInfoStmt != nil {
@@ -231,8 +215,6 @@ type Queries struct {
 	getReceiptStmt                             *sql.Stmt
 	getSchemaByTableNameStmt                   *sql.Stmt
 	getTableStmt                               *sql.Stmt
-	getTablesByControllerStmt                  *sql.Stmt
-	getTablesByStructureStmt                   *sql.Stmt
 	insertBlockExtraInfoStmt                   *sql.Stmt
 	insertEVMEventStmt                         *sql.Stmt
 	insertIdStmt                               *sql.Stmt
@@ -256,8 +238,6 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getReceiptStmt:             q.getReceiptStmt,
 		getSchemaByTableNameStmt:   q.getSchemaByTableNameStmt,
 		getTableStmt:               q.getTableStmt,
-		getTablesByControllerStmt:  q.getTablesByControllerStmt,
-		getTablesByStructureStmt:   q.getTablesByStructureStmt,
 		insertBlockExtraInfoStmt:   q.insertBlockExtraInfoStmt,
 		insertEVMEventStmt:         q.insertEVMEventStmt,
 		insertIdStmt:               q.insertIdStmt,

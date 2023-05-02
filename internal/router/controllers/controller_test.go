@@ -13,36 +13,36 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"github.com/textileio/go-tableland/internal/gateway"
 	"github.com/textileio/go-tableland/internal/router/middlewares"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/mocks"
-	"github.com/textileio/go-tableland/pkg/sqlstore"
 )
 
 func TestQuery(t *testing.T) {
 	r := mocks.NewGateway(t)
 	r.EXPECT().RunReadQuery(mock.Anything, mock.AnythingOfType("string")).Return(
-		&tableland.TableData{
-			Columns: []tableland.Column{
+		&gateway.TableData{
+			Columns: []gateway.Column{
 				{Name: "id"},
 				{Name: "eyes"},
 				{Name: "mouth"},
 			},
-			Rows: [][]*tableland.ColumnValue{
+			Rows: [][]*gateway.ColumnValue{
 				{
-					tableland.OtherColValue(1),
-					tableland.OtherColValue("Big"),
-					tableland.OtherColValue("Surprised"),
+					gateway.OtherColValue(1),
+					gateway.OtherColValue("Big"),
+					gateway.OtherColValue("Surprised"),
 				},
 				{
-					tableland.OtherColValue(2),
-					tableland.OtherColValue("Medium"),
-					tableland.OtherColValue("Sad"),
+					gateway.OtherColValue(2),
+					gateway.OtherColValue("Medium"),
+					gateway.OtherColValue("Sad"),
 				},
 				{
-					tableland.OtherColValue(3),
-					tableland.OtherColValue("Small"),
-					tableland.OtherColValue("Happy"),
+					gateway.OtherColValue(3),
+					gateway.OtherColValue("Small"),
+					gateway.OtherColValue("Happy"),
 				},
 			},
 		},
@@ -91,12 +91,12 @@ func TestQuery(t *testing.T) {
 func TestQueryExtracted(t *testing.T) {
 	r := mocks.NewGateway(t)
 	r.EXPECT().RunReadQuery(mock.Anything, mock.AnythingOfType("string")).Return(
-		&tableland.TableData{
-			Columns: []tableland.Column{{Name: "name"}},
-			Rows: [][]*tableland.ColumnValue{
-				{tableland.OtherColValue("bob")},
-				{tableland.OtherColValue("jane")},
-				{tableland.OtherColValue("alex")},
+		&gateway.TableData{
+			Columns: []gateway.Column{{Name: "name"}},
+			Rows: [][]*gateway.ColumnValue{
+				{gateway.OtherColValue("bob")},
+				{gateway.OtherColValue("jane")},
+				{gateway.OtherColValue("alex")},
 			},
 		},
 		nil,
@@ -138,21 +138,21 @@ func TestQueryExtracted(t *testing.T) {
 func TestGetTablesByMocked(t *testing.T) {
 	t.Parallel()
 
-	gateway := mocks.NewGateway(t)
-	gateway.EXPECT().GetTableMetadata(mock.Anything, mock.Anything).Return(
-		sqlstore.TableMetadata{
+	g := mocks.NewGateway(t)
+	g.EXPECT().GetTableMetadata(mock.Anything, mock.Anything, mock.Anything).Return(
+		gateway.TableMetadata{
 			Name:        "name-1",
-			ExternalURL: "https://tableland.network/tables/100",
+			ExternalURL: "https://gateway.network/tables/100",
 			Image:       "https://bafkreifhuhrjhzbj4onqgbrmhpysk2mop2jimvdvfut6taiyzt2yqzt43a.ipfs.dweb.link",
-			Attributes: []sqlstore.TableMetadataAttribute{
+			Attributes: []gateway.TableMetadataAttribute{
 				{
 					DisplayType: "date",
 					TraitType:   "created",
 					Value:       1546360800,
 				},
 			},
-			Schema: sqlstore.TableSchema{
-				Columns: []sqlstore.ColumnSchema{
+			Schema: gateway.TableSchema{
+				Columns: []gateway.ColumnSchema{
 					{
 						Name: "foo",
 						Type: "text",
@@ -163,12 +163,14 @@ func TestGetTablesByMocked(t *testing.T) {
 		nil,
 	)
 
-	ctrl := NewController(gateway)
+	ctrl := NewController(g)
 
 	t.Run("get table metadata", func(t *testing.T) {
 		t.Parallel()
 		req, err := http.NewRequest("GET", "/api/v1/tables/1337/100", nil)
 		require.NoError(t, err)
+
+		req = req.WithContext(context.WithValue(req.Context(), middlewares.ContextKeyChainID, tableland.ChainID(1337)))
 
 		router := mux.NewRouter()
 		router.HandleFunc("/api/v1/tables/{chainID}/{tableId}", ctrl.GetTable)
@@ -180,7 +182,7 @@ func TestGetTablesByMocked(t *testing.T) {
 		//nolint
 		expJSON := `{
 			"name":"name-1",
-			"external_url":"https://tableland.network/tables/100",
+			"external_url":"https://gateway.network/tables/100",
 			"image":"https://bafkreifhuhrjhzbj4onqgbrmhpysk2mop2jimvdvfut6taiyzt2yqzt43a.ipfs.dweb.link",
 			"attributes":[{"display_type":"date","trait_type":"created","value":1546360800}],
 			"schema":{"columns":[{"name":"foo","type":"text"}]}
@@ -196,6 +198,8 @@ func TestGetTableWithInvalidID(t *testing.T) {
 	path := fmt.Sprintf("/tables/%s", id)
 	req, err := http.NewRequest("GET", path, nil)
 	require.NoError(t, err)
+
+	req = req.WithContext(context.WithValue(req.Context(), middlewares.ContextKeyChainID, tableland.ChainID(1337)))
 
 	gateway := mocks.NewGateway(t)
 	ctrl := NewController(gateway)
@@ -218,13 +222,15 @@ func TestTableNotFoundMock(t *testing.T) {
 	req, err := http.NewRequest("GET", "/tables/100", nil)
 	require.NoError(t, err)
 
-	gateway := mocks.NewGateway(t)
-	gateway.EXPECT().GetTableMetadata(mock.Anything, mock.Anything).Return(
-		sqlstore.TableMetadata{},
+	req = req.WithContext(context.WithValue(req.Context(), middlewares.ContextKeyChainID, tableland.ChainID(1337)))
+
+	g := mocks.NewGateway(t)
+	g.EXPECT().GetTableMetadata(mock.Anything, mock.Anything, mock.Anything).Return(
+		gateway.TableMetadata{},
 		errors.New("failed"),
 	)
 
-	ctrl := NewController(gateway)
+	ctrl := NewController(g)
 
 	router := mux.NewRouter()
 	router.HandleFunc("/tables/{tableId}", ctrl.GetTable)

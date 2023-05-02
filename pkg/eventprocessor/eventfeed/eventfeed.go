@@ -2,6 +2,7 @@ package eventfeed
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"math/big"
 	"reflect"
@@ -10,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/textileio/go-tableland/internal/tableland"
 	tbleth "github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 )
 
@@ -19,9 +21,46 @@ type ChainClient interface {
 	HeaderByNumber(ctx context.Context, block *big.Int) (*types.Header, error)
 }
 
+// EventFeedStore is the storage layer of EventFeed.
+type EventFeedStore interface {
+	Begin() (*sql.Tx, error)
+	WithTx(*sql.Tx) EventFeedStore
+
+	AreEVMEventsPersisted(context.Context, tableland.ChainID, common.Hash) (bool, error)
+	SaveEVMEvents(context.Context, tableland.ChainID, []EVMEvent) error
+	GetBlocksMissingExtraInfo(context.Context, tableland.ChainID, *int64) ([]int64, error)
+	InsertBlockExtraInfo(context.Context, tableland.ChainID, int64, uint64) error
+	GetEVMEvents(context.Context, tableland.ChainID, common.Hash) ([]EVMEvent, error)
+	GetBlockExtraInfo(context.Context, tableland.ChainID, int64) (EVMBlockInfo, error)
+}
+
 // EventFeed provides a stream of on-chain events from a smart contract.
 type EventFeed interface {
 	Start(ctx context.Context, fromHeight int64, ch chan<- BlockEvents, filterEventTypes []EventType) error
+}
+
+// EVMEvent is a Tableland on-chain event produced by the Registry SC.
+type EVMEvent struct {
+	Address     common.Address
+	Topics      []byte
+	Data        []byte
+	BlockNumber uint64
+	TxHash      common.Hash
+	TxIndex     uint
+	BlockHash   common.Hash
+	Index       uint
+
+	// Enhanced fields
+	ChainID   tableland.ChainID
+	EventJSON []byte
+	EventType string
+}
+
+// EVMBlockInfo contains information about an EVM block.
+type EVMBlockInfo struct {
+	ChainID     tableland.ChainID
+	BlockNumber int64
+	Timestamp   time.Time
 }
 
 // BlockEvents contains a set of events for a particular block height.

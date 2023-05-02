@@ -132,6 +132,7 @@ func (t *LocalTracker) GetNonce(ctx context.Context) (noncepkg.RegisterPendingTx
 
 		if err := t.nonceStore.InsertPendingTx(
 			ctx,
+			t.chainID,
 			t.wallet.Address(),
 			nonce,
 			pendingHash); err != nil {
@@ -185,7 +186,7 @@ func (t *LocalTracker) initialize(ctx context.Context) error {
 	}
 
 	// Get pending txs for the address
-	pendingTxs, err := t.nonceStore.ListPendingTx(ctx, t.wallet.Address())
+	pendingTxs, err := t.nonceStore.ListPendingTx(ctx, t.chainID, t.wallet.Address())
 	if err != nil {
 		return fmt.Errorf("get nonce for tracker initialization: %s", err)
 	}
@@ -267,7 +268,7 @@ func (t *LocalTracker) checkIfPendingTxWasIncluded(
 }
 
 func (t *LocalTracker) deletePendingTxByHash(ctx context.Context, hash common.Hash) error {
-	if err := t.nonceStore.DeletePendingTxByHash(ctx, hash); err != nil {
+	if err := t.nonceStore.DeletePendingTxByHash(ctx, t.chainID, hash); err != nil {
 		return fmt.Errorf("delete pending tx: %s", err)
 	}
 
@@ -335,7 +336,7 @@ func (t *LocalTracker) checkPendingTxns() error {
 					cls()
 					break
 				}
-				if err := t.nonceStore.ReplacePendingTxByHash(ctx, pendingTx.Hash, bumpedTxnHash); err != nil {
+				if err := t.nonceStore.ReplacePendingTxByHash(ctx, t.chainID, pendingTx.Hash, bumpedTxnHash); err != nil {
 					t.log.Error().
 						Str("hash", pendingTx.Hash.Hex()).
 						Int64("nonce", pendingTx.Nonce).

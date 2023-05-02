@@ -20,8 +20,9 @@ import (
 	logger "github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
+
 	"github.com/textileio/go-tableland/pkg/sharedmemory"
-	"github.com/textileio/go-tableland/pkg/sqlstore"
+
 	tbleth "github.com/textileio/go-tableland/pkg/tables/impl/ethereum"
 	"github.com/textileio/go-tableland/pkg/telemetry"
 	"go.opentelemetry.io/otel/attribute"
@@ -36,7 +37,7 @@ const (
 // EventFeed provides a stream of filtered events from a SC.
 type EventFeed struct {
 	log                zerolog.Logger
-	systemStore        sqlstore.SystemStore
+	store              eventfeed.EventFeedStore
 	chainID            tableland.ChainID
 	ethClient          eventfeed.ChainClient
 	scAddress          common.Address
@@ -55,7 +56,7 @@ type EventFeed struct {
 
 // New returns a new EventFeed.
 func New(
-	systemStore sqlstore.SystemStore,
+	store eventfeed.EventFeedStore,
 	chainID tableland.ChainID,
 	ethClient eventfeed.ChainClient,
 	scAddress common.Address,
@@ -79,7 +80,7 @@ func New(
 	ef := &EventFeed{
 		sm:                 sm,
 		log:                log,
-		systemStore:        systemStore,
+		store:              store,
 		chainID:            chainID,
 		ethClient:          ethClient,
 		scAddress:          scAddress,
@@ -403,7 +404,7 @@ func (ef *EventFeed) persistEvents(ctx context.Context, events []types.Log, pars
 	cfg := jsoniter.Config{}.Froze()
 	cfg.RegisterExtension(&omitRawFieldExtension{})
 
-	tx, err := ef.systemStore.Begin(ctx)
+	tx, err := ef.store.Begin()
 	if err != nil {
 		return fmt.Errorf("opening db tx: %s", err)
 	}
@@ -413,10 +414,10 @@ func (ef *EventFeed) persistEvents(ctx context.Context, events []types.Log, pars
 		}
 	}()
 
-	store := ef.systemStore.WithTx(tx)
+	store := ef.store.WithTx(tx)
 
 	persistedTxnHashEvents := map[common.Hash]bool{}
-	tblEvents := make([]tableland.EVMEvent, 0, len(events))
+	tblEvents := make([]eventfeed.EVMEvent, 0, len(events))
 	for i, e := range events {
 		// If we already have registered events for the TxHash, we skip persisting this event.
 		// This means that one of two things happened:
@@ -428,7 +429,7 @@ func (ef *EventFeed) persistEvents(ctx context.Context, events []types.Log, pars
 		//   is the event information we save to be coherent with execution. In any case, a validator config that allows
 		//   reorgs isn't safe for state coherence between validators so this should only happen in test environments.
 		if _, ok := persistedTxnHashEvents[e.TxHash]; !ok {
-			areTxnHashEventsPersisted, err := store.AreEVMEventsPersisted(ctx, e.TxHash)
+			areTxnHashEventsPersisted, err := store.AreEVMEventsPersisted(ctx, ef.chainID, e.TxHash)
 			if err != nil {
 				return fmt.Errorf("check if evm txn events are persisted: %s", err)
 			}
@@ -452,7 +453,7 @@ func (ef *EventFeed) persistEvents(ctx context.Context, events []types.Log, pars
 		}
 		// The reflect names are *ethereum.XXXXX, so we get only XXXXX.
 		eventType := strings.SplitN(reflect.TypeOf(parsedEvents[i]).String(), ".", 2)[1]
-		tblEvent := tableland.EVMEvent{
+		tblEvent := eventfeed.EVMEvent{
 			// Direct mapping from types.Log
 			Address:     e.Address,
 			Topics:      topicsJSONBytes,
@@ -474,7 +475,7 @@ func (ef *EventFeed) persistEvents(ctx context.Context, events []types.Log, pars
 		}
 	}
 
-	if err := store.SaveEVMEvents(ctx, tblEvents); err != nil {
+	if err := store.SaveEVMEvents(ctx, ef.chainID, tblEvents); err != nil {
 		return fmt.Errorf("persisting events: %s", err)
 	}
 
@@ -496,7 +497,7 @@ func (e *omitRawFieldExtension) UpdateStructDescriptor(structDescriptor *jsonite
 	}
 }
 
-func toNewTablelandEvent(e tableland.EVMEvent) telemetry.NewTablelandEventMetric {
+func toNewTablelandEvent(e eventfeed.EVMEvent) telemetry.NewTablelandEventMetric {
 	return telemetry.NewTablelandEventMetric{
 		Address:     e.Address.String(),
 		Topics:      e.Topics,
