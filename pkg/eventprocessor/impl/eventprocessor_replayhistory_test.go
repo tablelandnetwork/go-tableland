@@ -38,12 +38,12 @@ func TestReplayProductionHistory(t *testing.T) {
 
 	expectedStateHashes := map[tableland.ChainID]string{
 		1:      "bce26781eed109b8aaae2d1f688c134831fdf061",
-		5:      "f141373c03aee3a74595538abba81cd1c3755f63",
+		5:      "21684ad97813634841393a097436e397de96692f",
 		10:     "1aa835eec9a9ac08cc2784d9d29df7fb15409d08",
 		69:     "fd1ba648c9406c0af321cb734eb203c742fff2a3",
 		137:    "fd1da780698b394a352b59e9b0c124f9cf010b67",
 		420:    "639dda72b6e4a5a8ef7ceb2b734e0b6ecc241407",
-		80001:  "f5bc53afc7525e9ff1f337bad8e9d4e9cb1ad111",
+		80001:  "50d477f69179aa0b027c8df7661666c7b5676699",
 		421613: "d58fd380066628fa92fd8a87831ea744b9ba1d8b",
 	}
 
