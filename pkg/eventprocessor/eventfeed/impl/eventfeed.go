@@ -167,7 +167,8 @@ func (ef *EventFeed) Start(
 				Addresses: []common.Address{ef.scAddress},
 				Topics:    [][]common.Hash{filterTopics},
 			}
-			logs, err := ef.ethClient.FilterLogs(ctx, query)
+
+			logs, err := ef.filterLogs(ctx, query)
 			if err != nil {
 				// If we got an error here, log it but allow to be retried
 				// in the next head. Probably the API can have transient unavailability.
@@ -229,6 +230,16 @@ func (ef *EventFeed) Start(
 		}
 	}
 	return nil
+}
+
+func (ef *EventFeed) filterLogs(ctx context.Context, query ethereum.FilterQuery) ([]types.Log, error) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	logs, err := ef.ethClient.FilterLogs(ctx, query)
+	if err != nil {
+		return []types.Log{}, fmt.Errorf("filter logs: %s", err)
+	}
+	return logs, err
 }
 
 // removeDuplicateLogs removes duplicate logs from the list of logs
