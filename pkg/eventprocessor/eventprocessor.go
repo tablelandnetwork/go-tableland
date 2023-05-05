@@ -78,7 +78,10 @@ type Receipt struct {
 	IndexInBlock int64
 	TxnHash      string
 
-	TableID       *tables.TableID
+	TableIDs      tables.TableIDs
 	Error         *string
 	ErrorEventIdx *int
+
+	// Deprecated
+	TableID *tables.TableID
 }

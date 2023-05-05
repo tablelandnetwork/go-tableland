@@ -4,12 +4,25 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 )
 
 // TableID is the ID of a Table.
 type TableID big.Int
+
+// TableIDs is a list of TableID.
+type TableIDs []TableID
+
+// String transform a list of TableIds into a string.
+func (ids TableIDs) String() string {
+	tableIdsStr := make([]string, len(ids))
+	for i, tableID := range ids {
+		tableIdsStr[i] = tableID.String()
+	}
+	return strings.Join(tableIdsStr, ",")
+}
 
 // String returns a string representation of the TableID.
 func (tid TableID) String() string {

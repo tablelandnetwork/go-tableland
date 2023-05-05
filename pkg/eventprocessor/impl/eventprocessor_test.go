@@ -58,10 +58,11 @@ func TestRunSQLBlockProcessing(t *testing.T) {
 		txnHashes := contractCalls.runSQL(queries)
 
 		expReceipt := eventprocessor.Receipt{
-			ChainID: chainID,
-			TxnHash: txnHashes[0].String(),
-			Error:   nil,
-			TableID: &tableID,
+			ChainID:  chainID,
+			TxnHash:  txnHashes[0].String(),
+			Error:    nil,
+			TableID:  &tableID,
+			TableIDs: []tables.TableID{tableID},
 		}
 		require.Eventually(t, checkReceipts(t, expReceipt), time.Second*5, time.Millisecond*100)
 
@@ -76,10 +77,11 @@ func TestRunSQLBlockProcessing(t *testing.T) {
 		txnHashes := contractCalls.runSQL(queries)
 
 		expReceipt := eventprocessor.Receipt{
-			ChainID: chainID,
-			TxnHash: txnHashes[0].String(),
-			Error:   &expWrongTypeErr,
-			TableID: nil,
+			ChainID:  chainID,
+			TxnHash:  txnHashes[0].String(),
+			Error:    &expWrongTypeErr,
+			TableID:  nil,
+			TableIDs: nil,
 		}
 		require.Eventually(t, checkReceipts(t, expReceipt), time.Second*5, time.Millisecond*100)
 
@@ -101,6 +103,7 @@ func TestRunSQLBlockProcessing(t *testing.T) {
 				IndexInBlock: int64(i),
 				Error:        nil,
 				TableID:      &tableID,
+				TableIDs:     []tables.TableID{tableID},
 			}
 		}
 		require.Eventually(t, checkReceipts(t, expReceipts...), time.Second*5, time.Millisecond*100)
@@ -122,6 +125,7 @@ func TestRunSQLBlockProcessing(t *testing.T) {
 			IndexInBlock: 0,
 			Error:        &expWrongTypeErr,
 			TableID:      nil,
+			TableIDs:     nil,
 		}
 		expReceipts[1] = eventprocessor.Receipt{
 			ChainID:      chainID,
@@ -129,6 +133,7 @@ func TestRunSQLBlockProcessing(t *testing.T) {
 			IndexInBlock: 1,
 			Error:        nil,
 			TableID:      &tableID,
+			TableIDs:     []tables.TableID{tableID},
 		}
 		require.Eventually(t, checkReceipts(t, expReceipts...), time.Second*5, time.Millisecond*100)
 
@@ -148,6 +153,7 @@ func TestRunSQLBlockProcessing(t *testing.T) {
 			IndexInBlock: 0,
 			Error:        nil,
 			TableID:      &tableID,
+			TableIDs:     []tables.TableID{tableID},
 		}
 		expReceipts[1] = eventprocessor.Receipt{
 			ChainID:      chainID,
@@ -155,6 +161,7 @@ func TestRunSQLBlockProcessing(t *testing.T) {
 			IndexInBlock: 1,
 			Error:        &expWrongTypeErr,
 			TableID:      nil,
+			TableIDs:     nil,
 		}
 		require.Eventually(t, checkReceipts(t, expReceipts...), time.Second*5, time.Millisecond*100)
 
@@ -176,10 +183,11 @@ func TestCreateTableBlockProcessing(t *testing.T) {
 			tableID, err := tables.NewTableID(strconv.Itoa(i + 2))
 			require.NoError(t, err)
 			expReceipt := eventprocessor.Receipt{
-				ChainID: chainID,
-				TxnHash: txnHash.String(),
-				Error:   nil,
-				TableID: &tableID,
+				ChainID:  chainID,
+				TxnHash:  txnHash.String(),
+				Error:    nil,
+				TableID:  &tableID,
+				TableIDs: []tables.TableID{tableID},
 			}
 			require.Eventually(t, checkReceipts(t, expReceipt), time.Second*5, time.Millisecond*100)
 		}
@@ -193,10 +201,11 @@ func TestCreateTableBlockProcessing(t *testing.T) {
 		txnHash := contractCalls.createTable("CREATEZ TABLE Foo_1337 (bar int)")
 
 		expReceipt := eventprocessor.Receipt{
-			ChainID: chainID,
-			TxnHash: txnHash.String(),
-			Error:   &expWrongTypeErr,
-			TableID: nil,
+			ChainID:  chainID,
+			TxnHash:  txnHash.String(),
+			Error:    &expWrongTypeErr,
+			TableID:  nil,
+			TableIDs: nil,
 		}
 		require.Eventually(t, checkReceipts(t, expReceipt), time.Second*5, time.Millisecond*100)
 	})
@@ -214,10 +223,11 @@ func TestQueryWithWrongTableTarget(t *testing.T) {
 
 	expErr := "query targets table id 9999 and not 1"
 	expReceipt := eventprocessor.Receipt{
-		ChainID: chainID,
-		TxnHash: txnHashes[0].String(),
-		Error:   &expErr,
-		TableID: nil,
+		ChainID:  chainID,
+		TxnHash:  txnHashes[0].String(),
+		Error:    &expErr,
+		TableID:  nil,
+		TableIDs: nil,
 	}
 	require.Eventually(t, checkReceipts(t, expReceipt), time.Second*5, time.Millisecond*100)
 }
@@ -233,10 +243,11 @@ func TestSetController(t *testing.T) {
 
 		tid := tables.TableID(*big.NewInt(1))
 		expReceipt := eventprocessor.Receipt{
-			ChainID: chainID,
-			TxnHash: txnHash.Hex(),
-			Error:   nil,
-			TableID: &tid,
+			ChainID:  chainID,
+			TxnHash:  txnHash.Hex(),
+			Error:    nil,
+			TableID:  &tid,
+			TableIDs: []tables.TableID{tid},
 		}
 		require.Eventually(t, checkReceipts(t, expReceipt), time.Second*5, time.Millisecond*100)
 	})
@@ -247,10 +258,11 @@ func TestSetController(t *testing.T) {
 
 		tid := tables.TableID(*big.NewInt(1))
 		expReceipt := eventprocessor.Receipt{
-			ChainID: chainID,
-			TxnHash: txnHash.Hex(),
-			Error:   nil,
-			TableID: &tid,
+			ChainID:  chainID,
+			TxnHash:  txnHash.Hex(),
+			Error:    nil,
+			TableID:  &tid,
+			TableIDs: []tables.TableID{tid},
 		}
 		require.Eventually(t, checkReceipts(t, expReceipt), time.Second*5, time.Millisecond*100)
 	})
@@ -265,10 +277,11 @@ func TestTransfer(t *testing.T) {
 	tableID, err := tables.NewTableID("2")
 	require.NoError(t, err)
 	expReceipt := eventprocessor.Receipt{
-		ChainID: chainID,
-		TxnHash: txnHash.String(),
-		Error:   nil,
-		TableID: &tableID,
+		ChainID:  chainID,
+		TxnHash:  txnHash.String(),
+		Error:    nil,
+		TableID:  &tableID,
+		TableIDs: []tables.TableID{tableID},
 	}
 	require.Eventually(t, checkReceipts(t, expReceipt), time.Second*5, time.Millisecond*100)
 
@@ -278,10 +291,11 @@ func TestTransfer(t *testing.T) {
 
 		tid := tables.TableID(*big.NewInt(1))
 		expReceipt := eventprocessor.Receipt{
-			ChainID: chainID,
-			TxnHash: txnHash.Hex(),
-			Error:   nil,
-			TableID: &tid,
+			ChainID:  chainID,
+			TxnHash:  txnHash.Hex(),
+			Error:    nil,
+			TableID:  &tid,
+			TableIDs: []tables.TableID{tid},
 		}
 		require.Eventually(t, checkReceipts(t, expReceipt), time.Second*5, time.Millisecond*100)
 	})
@@ -411,7 +425,8 @@ func setup(t *testing.T) (
 				require.Equal(t, expReceipt.IndexInBlock, gotReceipt.IndexInBlock)
 				require.Equal(t, expReceipt.TxnHash, gotReceipt.TxnHash)
 				require.Equal(t, expReceipt.Error, gotReceipt.Error)
-				require.Equal(t, expReceipt.TableID, gotReceipt.TableID)
+				require.Equal(t, expReceipt.TableID, gotReceipt.TableID) // nolint
+				require.Equal(t, expReceipt.TableIDs, tables.TableIDs(gotReceipt.TableIDs))
 			}
 			return true
 		}

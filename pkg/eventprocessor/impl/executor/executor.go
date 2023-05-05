@@ -55,10 +55,13 @@ type BlockScope interface {
 
 // TxnExecutionResult contains the result of executing a txn with all contained events.
 type TxnExecutionResult struct {
-	TableID *tables.TableID
+	TableIDs []tables.TableID
 
 	Error         *string
 	ErrorEventIdx *int
+
+	// Deprecated
+	TableID *tables.TableID
 }
 
 // StateHash represents the state of the database at given block number for a particular chain id.

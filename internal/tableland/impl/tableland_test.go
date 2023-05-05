@@ -657,11 +657,11 @@ func requireReceipts(
 		require.NotZero(t, receipt.BlockNumber)
 		if ok {
 			require.Empty(t, receipt.Error)
-			require.NotNil(t, receipt.TableID)
-			require.NotZero(t, receipt.TableID)
+			require.NotNil(t, receipt.TableID)  // nolint
+			require.NotZero(t, receipt.TableID) // nolint
 		} else {
 			require.NotEmpty(t, receipt.Error)
-			require.Nil(t, receipt.TableID)
+			require.Nil(t, receipt.TableID) // nolint
 		}
 	}
 }

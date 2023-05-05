@@ -244,14 +244,16 @@ func (ep *EventProcessor) executeBlock(ctx context.Context, block eventfeed.Bloc
 			return fmt.Errorf("executing txn events: %s", err)
 		}
 		receipt := eventprocessor.Receipt{
-			ChainID:      ep.chainID,
-			BlockNumber:  block.BlockNumber,
-			IndexInBlock: int64(idxInBlock),
-			TxnHash:      txnEvents.TxnHash.Hex(),
-
-			TableID:       txnExecResult.TableID,
+			ChainID:       ep.chainID,
+			BlockNumber:   block.BlockNumber,
+			IndexInBlock:  int64(idxInBlock),
+			TxnHash:       txnEvents.TxnHash.Hex(),
+			TableIDs:      txnExecResult.TableIDs,
 			Error:         txnExecResult.Error,
 			ErrorEventIdx: txnExecResult.ErrorEventIdx,
+
+			// Deprecated
+			TableID: txnExecResult.TableID,
 		}
 		receipts = append(receipts, receipt)
 
