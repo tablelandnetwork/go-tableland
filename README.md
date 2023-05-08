@@ -2,7 +2,7 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/textileio/go-tableland.svg)](https://pkg.go.dev/github.com/textileio/go-tableland) [![Go Report Card](https://goreportcard.com/badge/github.com/textileio/go-tableland)](https://goreportcard.com/report/github.com/textileio/go-tableland)
 <h1 align="center">Tableland Validator</h1>
 
-This repository contains the Go implementation of a Tableland validator.
+A Go language implementation of the Tableland validator, enabling developers and service providers to run nodes on the Tableland network and host databases for web3 users and applications.
 
 # What is a validator?
 
@@ -42,10 +42,13 @@ To understand better the usual work mechanics of the validator, let’s go throu
 
 The validator detects the smart contract events using an EVM node API (e.g: `geth` node), which can be self-hosted or served by providers (e.g: Alchemy, Infura, etc).
 
-# How can I run a validator?
+# Running a validator
 
-Soon we'll be creating full documentation on how to configure and run a validator, stay tuned.
-If you're interested in running a Tableland validator, please [fill this form](https://hhueol4i6vp.typeform.com/to/gkcyeA22).
+While network growth is not our immediate focus, we're excited about its potential in the future. If you're curious about the process, eager to contribute, or interested in experimenting, we encourage you to try running a validator. To get started, follow the step-by-step instructions provided in our [validator documentation](https://www.notion.so/textile/Validator-documentation-9f0cc2abf424410c8659fa939ed5095e?pvs=4).
+
+We appreciate your interest and welcome any questions or feedback you may have during the process. As our project evolves, we'll be shifting our focus and priorities, including network expansion in the future. Stay tuned for updates and developments.
+
+For projects that want to use the validator API, Tableland [maintains a public gateway](https://docs.tableland.xyz/gateway-api).
 
 # Building from source
 
