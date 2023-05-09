@@ -84,4 +84,5 @@ type SystemTxnReceipt struct {
 	Error         sql.NullString
 	TableID       sql.NullInt64
 	ErrorEventIdx sql.NullInt64
+	TableIds      sql.NullString
 }

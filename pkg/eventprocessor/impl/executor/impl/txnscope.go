@@ -56,6 +56,7 @@ func (ts *txnScope) executeTxnEvents(
 	var res eventExecutionResult
 	var err error
 
+	tableIDs := make([]tables.TableID, 0)
 	for idx, event := range evmTxn.Events {
 		switch event := event.(type) {
 		case *ethereum.ContractRunSQL:
@@ -107,9 +108,16 @@ func (ts *txnScope) executeTxnEvents(
 				ErrorEventIdx: &idx,
 			}, nil
 		}
+
+		if res.TableID != nil {
+			tableIDs = append(tableIDs, *res.TableID)
+		}
 	}
 
-	return executor.TxnExecutionResult{TableID: res.TableID}, nil
+	return executor.TxnExecutionResult{
+		TableID:  res.TableID,
+		TableIDs: tableIDs,
+	}, nil
 }
 
 // AccessControlDTO data structure from database.

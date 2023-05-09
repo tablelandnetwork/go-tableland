@@ -8,16 +8,6 @@
     },
     "Chains": [
         {
-            "ChainID": 421613,
-            "WalletPrivateKey": "${HEALTHBOT_ARBITRUM_GOERLI_PRIVATE_KEY}",
-            "AlchemyAPIKey": "${HEALTHBOT_ALCHEMY_ARBITRUM_GOERLI_API_KEY}",
-            "Probe": {
-                "CheckInterval": "1.5h",
-                "ReceiptTimeout": "25s",
-                "Tablename": "${HEALTHBOT_ARBITRUM_GOERLI_TABLE}"
-            }
-        },
-        {
             "ChainID": 11155111,
             "WalletPrivateKey": "${HEALTHBOT_ETHEREUM_SEPOLIA_PRIVATE_KEY}",
             "AlchemyAPIKey": "${HEALTHBOT_ALCHEMY_ETHEREUM_SEPOLIA_API_KEY}",
@@ -39,16 +29,6 @@
                 "CheckInterval": "240s",
                 "ReceiptTimeout": "40s",
                 "Tablename": "${HEALTHBOT_POLYGON_MUMBAI_TABLE}"
-            }
-        },
-        {
-            "ChainID": 420,
-            "WalletPrivateKey": "${HEALTHBOT_OPTIMISM_GOERLI_PRIVATE_KEY}",
-            "AlchemyAPIKey": "${HEALTHBOT_ALCHEMY_OPTIMISM_GOERLI_API_KEY}",
-            "Probe": {
-                "CheckInterval": "1.5h",
-                "ReceiptTimeout": "25s",
-                "Tablename": "${HEALTHBOT_OPTIMISM_GOERLI_TABLE}"
             }
         },
         {

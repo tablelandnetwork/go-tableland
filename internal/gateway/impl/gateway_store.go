@@ -144,18 +144,33 @@ func (s *GatewayStore) GetReceipt(
 		IndexInBlock: res.IndexInBlock,
 		TxnHash:      txnHash,
 	}
+
 	if res.Error.Valid {
 		receipt.Error = &res.Error.String
 
 		errorEventIdx := int(res.ErrorEventIdx.Int64)
 		receipt.ErrorEventIdx = &errorEventIdx
 	}
+
 	if res.TableID.Valid {
 		id, err := tables.NewTableIDFromInt64(res.TableID.Int64)
 		if err != nil {
-			return gateway.Receipt{}, false, fmt.Errorf("parsing id to string: %s", err)
+			return gateway.Receipt{}, false, fmt.Errorf("parsing id integer: %s", err)
 		}
-		receipt.TableID = &id
+		receipt.TableID = &id // nolint
+	}
+
+	if res.TableIds.Valid {
+		tableIdsStr := strings.Split(res.TableIds.String, ",")
+		tableIds := make([]tables.TableID, len(tableIdsStr))
+		for i, idStr := range tableIdsStr {
+			tableID, err := tables.NewTableID(idStr)
+			if err != nil {
+				return gateway.Receipt{}, false, fmt.Errorf("parsing id string: %s", err)
+			}
+			tableIds[i] = tableID
+		}
+		receipt.TableIDs = tableIds
 	}
 
 	return receipt, true, nil

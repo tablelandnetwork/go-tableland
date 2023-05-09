@@ -130,13 +130,20 @@ func (c *Controller) GetReceiptByTransactionHash(rw http.ResponseWriter, r *http
 		BlockNumber:     receipt.BlockNumber,
 		ChainId:         int32(receipt.ChainID),
 	}
-	if receipt.TableID != nil {
-		receiptResponse.TableId = receipt.TableID.String()
+	if receipt.TableID != nil { // nolint
+		receiptResponse.TableId = receipt.TableID.String() // nolint
 	}
 	if receipt.Error != nil {
 		receiptResponse.Error_ = *receipt.Error
 		receiptResponse.ErrorEventIdx = int32(*receipt.ErrorEventIdx)
 	}
+
+	ids := make([]string, len(receipt.TableIDs))
+	for i, tblID := range receipt.TableIDs {
+		ids[i] = tblID.String()
+	}
+
+	receiptResponse.TableIds = ids
 
 	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusOK)
