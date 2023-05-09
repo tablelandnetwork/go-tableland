@@ -166,6 +166,9 @@ func (pp *QueryValidator) ValidateMutatingQuery(
 			if _, ok := s.(*sqlparser.Delete); ok {
 				mutatingStmt.operation = tableland.OpDelete
 			}
+			if _, ok := s.(*sqlparser.AlterTable); ok {
+				mutatingStmt.operation = tableland.OpAlter
+			}
 			ret[i] = &writeStmt{mutatingStmt}
 		case sqlparser.GrantOrRevokeStatement:
 			if _, ok := s.(*sqlparser.Grant); ok {

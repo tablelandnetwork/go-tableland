@@ -81,7 +81,7 @@ func (ts *txnScope) execWriteQueries(
 				return fmt.Errorf("executing grant stmt: %w", err)
 			}
 		case parsing.WriteStmt:
-			if err := ts.executeWriteStmt(ctx, stmt, controller, policy, beforeRowCount); err != nil {
+			if err := ts.executeWriteStmt(ctx, stmt, controller, policy, beforeRowCount, isOwner); err != nil {
 				return fmt.Errorf("executing write stmt: %w", err)
 			}
 		default:
@@ -220,7 +220,17 @@ func (ts *txnScope) executeWriteStmt(
 	addr common.Address,
 	policy tableland.Policy,
 	beforeRowCount int,
+	isOwner bool,
 ) error {
+	if ws.Operation() == tableland.OpAlter {
+		if !isOwner {
+			return &errQueryExecution{
+				Code: "ACL_NOT_OWNER",
+				Msg:  "non owner cannot execute alter stmt",
+			}
+		}
+	}
+
 	controller, err := ts.getController(ctx, ws.GetTableID())
 	if err != nil {
 		return fmt.Errorf("checking controller is set: %w", err)
