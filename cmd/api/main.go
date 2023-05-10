@@ -37,7 +37,6 @@ import (
 	executor "github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor/impl"
 	"github.com/textileio/go-tableland/pkg/logging"
 	"github.com/textileio/go-tableland/pkg/metrics"
-	nonceimpl "github.com/textileio/go-tableland/pkg/nonce/impl"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 
@@ -47,7 +46,6 @@ import (
 	"github.com/textileio/go-tableland/pkg/telemetry/chainscollector"
 	"github.com/textileio/go-tableland/pkg/telemetry/publisher"
 	"github.com/textileio/go-tableland/pkg/telemetry/storage"
-	"github.com/textileio/go-tableland/pkg/wallet"
 )
 
 type moduleCloser func(ctx context.Context) error
@@ -166,48 +164,6 @@ func createChainIDStack(
 	tableConstraints TableConstraints,
 	fetchExtraBlockInfo bool,
 ) (chains.ChainStack, error) {
-	conn, err := ethclient.Dial(config.Registry.EthEndpoint)
-	if err != nil {
-		return chains.ChainStack{}, fmt.Errorf("failed to connect to ethereum endpoint: %s", err)
-	}
-
-	wallet, err := wallet.NewWallet(config.Signer.PrivateKey)
-	if err != nil {
-		return chains.ChainStack{}, fmt.Errorf("failed to create wallet: %s", err)
-	}
-	log.Info().
-		Int64("chain_id", int64(config.ChainID)).
-		Str("wallet", wallet.Address().String()).
-		Msg("wallet public address")
-
-	checkInterval, err := time.ParseDuration(config.NonceTracker.CheckInterval)
-	if err != nil {
-		return chains.ChainStack{}, fmt.Errorf("parsing nonce tracker check interval duration: %s", err)
-	}
-	stuckInterval, err := time.ParseDuration(config.NonceTracker.StuckInterval)
-	if err != nil {
-		return chains.ChainStack{}, fmt.Errorf("parsing nonce tracker stuck interval duration: %s", err)
-	}
-	ctxLocalTracker, clsLocalTracker := context.WithTimeout(context.Background(), time.Second*15)
-	defer clsLocalTracker()
-	tracker, err := nonceimpl.NewLocalTracker(
-		ctxLocalTracker,
-		wallet,
-		nonceimpl.NewNonceStore(db),
-		config.ChainID,
-		conn,
-		checkInterval,
-		config.NonceTracker.MinBlockDepth,
-		stuckInterval,
-	)
-	if err != nil {
-		return chains.ChainStack{}, fmt.Errorf("failed to create new tracker: %s", err)
-	}
-
-	ex, err := executor.NewExecutor(config.ChainID, db, parser, tableConstraints.MaxRowCount, impl.NewACL(db))
-	if err != nil {
-		return chains.ChainStack{}, fmt.Errorf("creating txn processor: %s", err)
-	}
 	chainAPIBackoff, err := time.ParseDuration(config.EventFeed.ChainAPIBackoff)
 	if err != nil {
 		return chains.ChainStack{}, fmt.Errorf("parsing chain api backoff duration: %s", err)
@@ -227,6 +183,11 @@ func createChainIDStack(
 	eventFeedStore, err := efimpl.NewInstrumentedEventFeedStore(db)
 	if err != nil {
 		return chains.ChainStack{}, fmt.Errorf("creating event feed store: %s", err)
+	}
+
+	conn, err := ethclient.Dial(config.Registry.EthEndpoint)
+	if err != nil {
+		return chains.ChainStack{}, fmt.Errorf("failed to connect to ethereum endpoint: %s", err)
 	}
 
 	ef, err := efimpl.New(
@@ -249,6 +210,12 @@ func createChainIDStack(
 		eventprocessor.WithDedupExecutedTxns(config.EventProcessor.DedupExecutedTxns),
 		eventprocessor.WithHashCalcStep(config.HashCalculationStep),
 	}
+
+	ex, err := executor.NewExecutor(config.ChainID, db, parser, tableConstraints.MaxRowCount, impl.NewACL(db))
+	if err != nil {
+		return chains.ChainStack{}, fmt.Errorf("creating txn processor: %s", err)
+	}
+
 	ep, err := epimpl.New(parser, ex, ef, config.ChainID, epOpts...)
 	if err != nil {
 		return chains.ChainStack{}, fmt.Errorf("creating event processor: %s", err)
@@ -263,7 +230,6 @@ func createChainIDStack(
 			defer log.Info().Int64("chain_id", int64(config.ChainID)).Msg("stack closed")
 
 			ep.Stop()
-			tracker.Close()
 			conn.Close()
 			return nil
 		},
