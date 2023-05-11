@@ -16,9 +16,6 @@
         "EthEndpoint": "ws://host.docker.internal:8545",
         "ContractAddress": "[FILL ME]"
       },
-      "Signer": {
-        "PrivateKey": "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-      },
       "EventFeed": {
         "ChainAPIBackoff": "15s",
         "NewBlockPollFreq": "1s",
@@ -26,11 +23,6 @@
       },
       "EventProcessor": {
         "BlockFailedExecutionBackoff": "10s"
-      },
-      "NonceTracker": {
-        "CheckInterval": "10s",
-        "StuckInterval": "10m",
-        "MinBlockDepth": 1
       },
       "HashCalculationStep": 100
     }

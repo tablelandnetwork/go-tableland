@@ -30,91 +30,16 @@
   "panels": [
     {
       "collapsed": false,
-      "datasource": {
-        "type": "datasource",
-        "uid": "grafana"
-      },
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
         "y": 0
       },
-      "id": 25,
+      "id": 93,
       "panels": [],
-      "targets": [
-        {
-          "datasource": {
-            "type": "datasource",
-            "uid": "grafana"
-          },
-          "refId": "A"
-        }
-      ],
-      "title": "Is everything ok?",
+      "title": "Healthbot",
       "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P1809F7CD0C75ACF3"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "ms"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 7,
-        "w": 2,
-        "x": 0,
-        "y": 1
-      },
-      "id": 85,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "9.3.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P1809F7CD0C75ACF3"
-          },
-          "editorMode": "code",
-          "expr": "runtime_uptime_milliseconds",
-          "legendFormat": "{{job}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Uptime",
-      "type": "stat"
     },
     {
       "datasource": {
@@ -152,7 +77,7 @@
       "gridPos": {
         "h": 7,
         "w": 22,
-        "x": 2,
+        "x": 0,
         "y": 1
       },
       "id": 39,
@@ -231,8 +156,8 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 7,
-        "w": 5,
+        "h": 6,
+        "w": 11,
         "x": 0,
         "y": 8
       },
@@ -260,7 +185,7 @@
             "uid": "P1809F7CD0C75ACF3"
           },
           "exemplar": true,
-          "expr": "sum by (chain_id)(tableland_wallettracker_eth_client_unhealthy{service_name=\"tableland:api\"}) < BOOL 1",
+          "expr": "sum by (chain_id)(tableland_wallettracker_eth_client_unhealthy{service_name=\"tableland:healthbot\"}) < BOOL 1",
           "interval": "",
           "legendFormat": "ChainID: {{chain_id}}",
           "refId": "A"
@@ -304,9 +229,9 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 7,
-        "w": 8,
-        "x": 5,
+        "h": 6,
+        "w": 11,
+        "x": 11,
         "y": 8
       },
       "id": 62,
@@ -333,7 +258,7 @@
             "uid": "P1809F7CD0C75ACF3"
           },
           "exemplar": true,
-          "expr": "sum by (chain_id) (tableland_wallettracker_balance_wei{service_name=\"tableland:api\"})/1000000000",
+          "expr": "sum by (chain_id) (tableland_wallettracker_balance_wei{service_name=\"tableland:healthbot\"})/1000000000",
           "format": "time_series",
           "instant": false,
           "interval": "",
@@ -342,6 +267,94 @@
         }
       ],
       "title": "Wallet balances",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "datasource": {
+        "type": "datasource",
+        "uid": "grafana"
+      },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 14
+      },
+      "id": 25,
+      "panels": [],
+      "targets": [
+        {
+          "datasource": {
+            "type": "datasource",
+            "uid": "grafana"
+          },
+          "refId": "A"
+        }
+      ],
+      "title": "Stats",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P1809F7CD0C75ACF3"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 5,
+        "x": 0,
+        "y": 15
+      },
+      "id": 85,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "9.3.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P1809F7CD0C75ACF3"
+          },
+          "editorMode": "code",
+          "expr": "runtime_uptime_milliseconds",
+          "legendFormat": "{{job}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Uptime",
       "type": "stat"
     },
     {
@@ -373,10 +386,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 7,
-        "w": 3,
-        "x": 13,
-        "y": 8
+        "h": 5,
+        "w": 6,
+        "x": 5,
+        "y": 15
       },
       "id": 82,
       "options": {
@@ -437,10 +450,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 7,
-        "w": 8,
-        "x": 16,
-        "y": 8
+        "h": 5,
+        "w": 11,
+        "x": 11,
+        "y": 15
       },
       "id": 83,
       "options": {
@@ -485,7 +498,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 15
+        "y": 20
       },
       "id": 48,
       "panels": [],
@@ -559,7 +572,7 @@
         "h": 9,
         "w": 6,
         "x": 0,
-        "y": 16
+        "y": 21
       },
       "id": 46,
       "options": {
@@ -650,7 +663,7 @@
         "h": 9,
         "w": 6,
         "x": 6,
-        "y": 16
+        "y": 21
       },
       "id": 51,
       "options": {
@@ -746,7 +759,7 @@
         "h": 9,
         "w": 6,
         "x": 12,
-        "y": 16
+        "y": 21
       },
       "id": 49,
       "options": {
@@ -843,7 +856,7 @@
         "h": 9,
         "w": 6,
         "x": 18,
-        "y": 16
+        "y": 21
       },
       "id": 52,
       "options": {
@@ -909,7 +922,7 @@
         "h": 7,
         "w": 6,
         "x": 0,
-        "y": 25
+        "y": 30
       },
       "heatmap": {},
       "hideZeroBuckets": true,
@@ -1022,7 +1035,7 @@
         "h": 7,
         "w": 6,
         "x": 6,
-        "y": 25
+        "y": 30
       },
       "heatmap": {},
       "hideZeroBuckets": true,
@@ -1138,7 +1151,7 @@
         "h": 7,
         "w": 4,
         "x": 12,
-        "y": 25
+        "y": 30
       },
       "id": 50,
       "options": {
@@ -1183,7 +1196,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 32
+        "y": 37
       },
       "id": 8,
       "panels": [],
@@ -1277,7 +1290,7 @@
         "h": 8,
         "w": 6,
         "x": 0,
-        "y": 33
+        "y": 38
       },
       "id": 79,
       "options": {
@@ -1397,7 +1410,7 @@
         "h": 8,
         "w": 6,
         "x": 6,
-        "y": 33
+        "y": 38
       },
       "id": 15,
       "options": {
@@ -1508,7 +1521,7 @@
         "h": 8,
         "w": 6,
         "x": 12,
-        "y": 33
+        "y": 38
       },
       "id": 80,
       "options": {
@@ -1547,7 +1560,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 41
+        "y": 46
       },
       "id": 87,
       "panels": [],
@@ -1615,7 +1628,7 @@
         "h": 8,
         "w": 6,
         "x": 0,
-        "y": 42
+        "y": 47
       },
       "id": 17,
       "options": {
@@ -1712,7 +1725,7 @@
         "h": 8,
         "w": 6,
         "x": 6,
-        "y": 42
+        "y": 47
       },
       "id": 57,
       "maxDataPoints": 25,
@@ -1757,7 +1770,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 50
+        "y": 55
       },
       "id": 12,
       "panels": [],
@@ -1833,7 +1846,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 51
+        "y": 56
       },
       "id": 89,
       "options": {
@@ -1924,7 +1937,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 51
+        "y": 56
       },
       "id": 91,
       "options": {
@@ -2018,7 +2031,7 @@
         "h": 8,
         "w": 6,
         "x": 0,
-        "y": 59
+        "y": 64
       },
       "id": 74,
       "maxDataPoints": 25,
@@ -2116,7 +2129,7 @@
         "h": 8,
         "w": 6,
         "x": 6,
-        "y": 59
+        "y": 64
       },
       "id": 75,
       "maxDataPoints": 25,
@@ -2161,7 +2174,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 67
+        "y": 72
       },
       "id": 4,
       "panels": [],
@@ -2239,7 +2252,7 @@
         "h": 8,
         "w": 6,
         "x": 0,
-        "y": 68
+        "y": 73
       },
       "id": 72,
       "options": {
@@ -2334,7 +2347,7 @@
         "h": 8,
         "w": 6,
         "x": 6,
-        "y": 68
+        "y": 73
       },
       "id": 76,
       "options": {
@@ -2429,7 +2442,7 @@
         "h": 8,
         "w": 6,
         "x": 12,
-        "y": 68
+        "y": 73
       },
       "id": 77,
       "options": {
@@ -2524,7 +2537,7 @@
         "h": 8,
         "w": 6,
         "x": 18,
-        "y": 68
+        "y": 73
       },
       "id": 78,
       "options": {
@@ -2573,6 +2586,6 @@
   "timezone": "",
   "title": "Validator",
   "uid": "2Le7qt_7z",
-  "version": 23,
+  "version": 31,
   "weekStart": ""
 }

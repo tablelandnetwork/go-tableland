@@ -58,9 +58,6 @@
                 "EthEndpoint": "wss://eth-mainnet.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_ETHEREUM_MAINNET_API_KEY}",
                 "ContractAddress": "0x012969f7e3439a9B04025b5a049EB9BAD82A8C12"
             },
-            "Signer": {
-                "PrivateKey": "${VALIDATOR_ETHEREUM_MAINNET_SIGNER_PRIVATE_KEY}"
-            },
             "EventFeed": {
                 "ChainAPIBackoff": "15s",
                 "NewBlockPollFreq": "10s",
@@ -71,11 +68,6 @@
                 "BlockFailedExecutionBackoff": "10s",
                 "DedupExecutedTxns": true
             },
-            "NonceTracker": {
-                "CheckInterval": "20s",
-                "StuckInterval": "10m",
-                "MinBlockDepth": 4
-            },
             "HashCalculationStep": 150
         },
         {
@@ -84,9 +76,6 @@
             "Registry": {
                 "EthEndpoint": "https://arb-mainnet.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_ARBITRUM_MAINNET_API_KEY}",
                 "ContractAddress": "0x9aBd75E8640871A5a20d3B4eE6330a04c962aFfd"
-            },
-            "Signer": {
-                "PrivateKey": "${VALIDATOR_ARBITRUM_MAINNET_SIGNER_PRIVATE_KEY}"
             },
             "EventFeed": {
                 "ChainAPIBackoff": "15s",
@@ -97,11 +86,6 @@
             "EventProcessor": {
                 "BlockFailedExecutionBackoff": "10s",
                 "DedupExecutedTxns": true
-            },
-            "NonceTracker": {
-                "CheckInterval": "20s",
-                "StuckInterval": "10m",
-                "MinBlockDepth": 0
             },
             "HashCalculationStep": 450
         },
@@ -112,9 +96,6 @@
                 "EthEndpoint": "https://skilled-yolo-mountain.nova-mainnet.discover.quiknode.pro/${VALIDATOR_QUICKNODE_ARBITRUM_NOVA_MAINNET_API_KEY}",
                 "ContractAddress": "0x1A22854c5b1642760a827f20137a67930AE108d2"
             },
-            "Signer": {
-                "PrivateKey": "${VALIDATOR_ARBITRUM_NOVA_MAINNET_SIGNER_PRIVATE_KEY}"
-            },
             "EventFeed": {
                 "ChainAPIBackoff": "15s",
                 "NewBlockPollFreq": "5s",
@@ -125,11 +106,6 @@
                 "BlockFailedExecutionBackoff": "10s",
                 "DedupExecutedTxns": true
             },
-            "NonceTracker": {
-                "CheckInterval": "20s",
-                "StuckInterval": "10m",
-                "MinBlockDepth": 0
-            },
             "HashCalculationStep": 450
         },
         {
@@ -138,9 +114,6 @@
             "Registry": {
                 "EthEndpoint": "wss://polygon-mainnet.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_POLYGON_MAINNET_API_KEY}",
                 "ContractAddress": "0x5c4e6A9e5C1e1BF445A062006faF19EA6c49aFeA"
-            },
-            "Signer": {
-                "PrivateKey": "${VALIDATOR_POLYGON_MAINNET_SIGNER_PRIVATE_KEY}"
             },
             "EventFeed": {
                 "ChainAPIBackoff": "15s",
@@ -152,11 +125,6 @@
                 "BlockFailedExecutionBackoff": "10s",
                 "DedupExecutedTxns": true
             },
-            "NonceTracker": {
-                "CheckInterval": "15s",
-                "StuckInterval": "10m",
-                "MinBlockDepth": 1
-            },
             "HashCalculationStep": 360
         },
         {
@@ -165,9 +133,6 @@
             "Registry": {
                 "EthEndpoint": "wss://opt-mainnet.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_OPTIMISM_MAINNET_API_KEY}",
                 "ContractAddress": "0xfad44BF5B843dE943a09D4f3E84949A11d3aa3e6"
-            },
-            "Signer": {
-                "PrivateKey": "${VALIDATOR_OPTIMISM_MAINNET_SIGNER_PRIVATE_KEY}"
             },
             "EventFeed": {
                 "ChainAPIBackoff": "15s",
@@ -179,11 +144,6 @@
                 "BlockFailedExecutionBackoff": "10s",
                 "DedupExecutedTxns": true
             },
-            "NonceTracker": {
-                "CheckInterval": "15s",
-                "StuckInterval": "10m",
-                "MinBlockDepth": 0
-            },
             "HashCalculationStep": 1800
         },
         {
@@ -192,9 +152,6 @@
             "Registry": {
                 "EthEndpoint": "https://rpc.ankr.com/filecoin/${VALIDATOR_ANKR_FILECOIN_MAINNET_API_KEY}",
                 "ContractAddress": "0x59EF8Bf2d6c102B4c42AEf9189e1a9F0ABfD652d"
-            },
-            "Signer": {
-                "PrivateKey": "${VALIDATOR_FILECOIN_MAINNET_SIGNER_PRIVATE_KEY}"
             },
             "EventFeed": {
                 "ChainAPIBackoff": "15s",
@@ -205,11 +162,6 @@
             "EventProcessor": {
                 "BlockFailedExecutionBackoff": "10s",
                 "DedupExecutedTxns": true
-            },
-            "NonceTracker": {
-                "CheckInterval": "15s",
-                "StuckInterval": "10m",
-                "MinBlockDepth": 0
             },
             "HashCalculationStep": 60
         }

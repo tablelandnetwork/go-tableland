@@ -92,10 +92,24 @@ func main() {
 			log.Fatal().Err(err).Msg("initializing counter-probe")
 		}
 
-		wg.Add(1)
+		balanceTracker, err := NewBalanceTracker(
+			chainCfg,
+			wallet,
+			15*time.Second,
+		)
+		if err != nil {
+			log.Fatal().Err(err).Msg("initializing balance tracker")
+		}
+
+		wg.Add(2)
 		go func() {
 			defer wg.Done()
 			cp.Run(ctx)
+		}()
+
+		go func() {
+			defer wg.Done()
+			balanceTracker.Run(ctx)
 		}()
 	}
 	wg.Wait()
