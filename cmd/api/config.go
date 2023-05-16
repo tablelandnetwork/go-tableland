@@ -102,9 +102,6 @@ type ChainConfig struct {
 		EthEndpoint     string `default:"eth_endpoint"`
 		ContractAddress string `default:"contract_address"`
 	}
-	Signer struct {
-		PrivateKey string `default:""`
-	}
 	EventFeed struct {
 		ChainAPIBackoff  string `default:"15s"`
 		MinBlockDepth    int    `default:"5"`
@@ -114,11 +111,6 @@ type ChainConfig struct {
 	EventProcessor struct {
 		BlockFailedExecutionBackoff string `default:"10s"`
 		DedupExecutedTxns           bool   `default:"false"`
-	}
-	NonceTracker struct {
-		CheckInterval string `default:"10s"`
-		StuckInterval string `default:"10m"`
-		MinBlockDepth int    `default:"5"`
 	}
 	HashCalculationStep int64 `default:"1000"`
 }
