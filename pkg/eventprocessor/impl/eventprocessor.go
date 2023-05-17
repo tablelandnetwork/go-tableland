@@ -38,6 +38,8 @@ type EventProcessor struct {
 	config   *eventprocessor.Config
 	chainID  tableland.ChainID
 
+	webhook Webhook
+
 	nextHashCalcBlockNumber int64
 
 	lock           sync.Mutex
@@ -85,6 +87,15 @@ func New(
 	}
 	if err := ep.initMetrics(chainID); err != nil {
 		return nil, fmt.Errorf("initializing metric instruments: %s", err)
+	}
+
+	if config.Webhook.Enabled {
+		whe, err := NewWebhook(config.Webhook.EndpointType, config.Webhook.URL)
+		if err != nil {
+			return nil, fmt.Errorf("webhook endpoint cannot be initialized: %s", err)
+		}
+
+		ep.webhook = whe
 	}
 
 	return ep, nil
@@ -285,6 +296,12 @@ func (ep *EventProcessor) executeBlock(ctx context.Context, block eventfeed.Bloc
 	if err := bs.Commit(); err != nil {
 		return fmt.Errorf("committing changes: %s", err)
 	}
+
+	// Send a webhook for each receipt, if enabled for a current chain.
+	if ep.webhook != nil {
+		ep.executeWebhook(ctx, receipts)
+	}
+
 	ep.log.Debug().
 		Int64("height", block.BlockNumber).
 		Int64("exec_ms", time.Since(start).Milliseconds()).
@@ -294,6 +311,43 @@ func (ep *EventProcessor) executeBlock(ctx context.Context, block eventfeed.Bloc
 	ep.mBlockExecutionLatency.Record(ctx, time.Since(start).Milliseconds(), ep.mBaseLabels...)
 
 	return nil
+}
+
+// executeWebhook will iterate over the receipts and send a webhook for each
+// receipt. We do this in a separate goroutine to avoid blocking.
+func (ep *EventProcessor) executeWebhook(ctx context.Context, receipts []eventprocessor.Receipt) {
+	for _, r := range receipts {
+		go func(r eventprocessor.Receipt) {
+			successTmpl := "**Error processing Tableland event:**\n\n" +
+				"Chain ID: %d\n" +
+				"Block number: %d\n" +
+				"Transaction hash: %s\n" +
+				"Table IDs: %s\n" +
+				"Error: **%s**\n" +
+				"Error event index: %d\n\n"
+			failureTmpl := "**Tableland event processed successfully:**\n\n" +
+				"Chain ID: %d\n" +
+				"Block number: %d\n" +
+				"Transaction hash: %s\n" +
+				"Table IDs: %s\n\n"
+			content := ""
+			if r.Error != nil {
+				content = fmt.Sprintf(
+					successTmpl, r.ChainID, r.BlockNumber,
+					r.TxnHash, r.TableIDs, *r.Error, *r.ErrorEventIdx,
+				)
+			} else {
+				content = fmt.Sprintf(
+					failureTmpl, r.ChainID, r.BlockNumber,
+					r.TxnHash, r.TableIDs.String(),
+				)
+			}
+			err := ep.webhook.Send(ctx, content)
+			if err != nil {
+				ep.log.Error().Err(err).Msg("sending webhook")
+			}
+		}(r)
+	}
 }
 
 func (ep *EventProcessor) calculateHash(ctx context.Context, bs executor.BlockScope) error {

@@ -53,6 +53,13 @@ type HTTPConfig struct {
 	MaxRequestPerInterval uint64 `default:"10"`
 }
 
+// WebhookConfig contains configuration for the Table events Webhook.
+type WebhookConfig struct {
+	Enabled      bool   `default:"false"`
+	URL          string `default:""`
+	EndpointType string `default:""`
+}
+
 // GatewayConfig contains configuration for the Gateway.
 type GatewayConfig struct {
 	ExternalURIPrefix    string `default:"https://testnets.tableland.network"`
@@ -111,6 +118,7 @@ type ChainConfig struct {
 	EventProcessor struct {
 		BlockFailedExecutionBackoff string `default:"10s"`
 		DedupExecutedTxns           bool   `default:"false"`
+		Webhook                     WebhookConfig
 	}
 	HashCalculationStep int64 `default:"1000"`
 }

@@ -8,11 +8,18 @@ import (
 	"github.com/textileio/go-tableland/pkg/tables"
 )
 
+type webhook struct {
+	Enabled      bool
+	URL          string
+	EndpointType string
+}
+
 // Config contains configuration attributes for an event processor.
 type Config struct {
 	BlockFailedExecutionBackoff time.Duration
 	DedupExecutedTxns           bool
 	HashCalcStep                int64
+	Webhook                     webhook
 }
 
 // DefaultConfig returns the default configuration.
@@ -60,6 +67,17 @@ func WithHashCalcStep(step int64) Option {
 			return fmt.Errorf("step cannot be less than 1")
 		}
 		c.HashCalcStep = step
+		return nil
+	}
+}
+
+// WithWebhook is set when we want send table update notifications
+// to an external webhook.
+func WithWebhook(endpointType string, url string) Option {
+	return func(c *Config) error {
+		c.Webhook.Enabled = true
+		c.Webhook.URL = url
+		c.Webhook.EndpointType = endpointType
 		return nil
 	}
 }
