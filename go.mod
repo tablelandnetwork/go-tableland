@@ -23,10 +23,10 @@ require (
 	github.com/tablelandnetwork/sqlparser v0.0.0-20230516213554-c251484b2141
 	github.com/textileio/cli v1.0.2
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.37.0
-	go.opentelemetry.io/otel v1.14.0
+	go.opentelemetry.io/otel v1.15.1
 	go.opentelemetry.io/otel/exporters/prometheus v0.37.0
-	go.opentelemetry.io/otel/metric v0.37.0
-	go.opentelemetry.io/otel/sdk/metric v0.37.0
+	go.opentelemetry.io/otel/metric v0.38.1
+	go.opentelemetry.io/otel/sdk/metric v0.38.1
 	go.uber.org/atomic v1.10.0
 	golang.org/x/sync v0.1.0
 )
@@ -58,7 +58,7 @@ require (
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/gballet/go-libpcsclite v0.0.0-20190607065134-2772fd86a8ff // indirect
 	github.com/getsentry/sentry-go v0.18.0 // indirect
-	github.com/go-logr/logr v1.2.3 // indirect
+	github.com/go-logr/logr v1.2.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.2.1 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
@@ -119,8 +119,8 @@ require (
 	github.com/tyler-smith/go-bip39 v1.1.0 // indirect
 	github.com/zeebo/xxh3 v1.0.2 // indirect
 	go.opencensus.io v0.24.0 // indirect
-	go.opentelemetry.io/otel/sdk v1.14.0 // indirect
-	go.opentelemetry.io/otel/trace v1.14.0 // indirect
+	go.opentelemetry.io/otel/sdk v1.15.1 // indirect
+	go.opentelemetry.io/otel/trace v1.15.1 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.19.0 // indirect
 	golang.org/x/crypto v0.6.0 // indirect
@@ -128,7 +128,7 @@ require (
 	golang.org/x/mod v0.9.0 // indirect
 	golang.org/x/net v0.8.0 // indirect
 	golang.org/x/oauth2 v0.6.0 // indirect
-	golang.org/x/sys v0.6.0 // indirect
+	golang.org/x/sys v0.7.0 // indirect
 	golang.org/x/text v0.8.0 // indirect
 	golang.org/x/tools v0.7.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
