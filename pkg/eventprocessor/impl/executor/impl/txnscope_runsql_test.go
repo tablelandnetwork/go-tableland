@@ -423,6 +423,48 @@ func TestRunSQL_WriteQueriesWithPolicies(t *testing.T) {
 	})
 }
 
+func TestRunSQL_AlterTable(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	ex, _ := newExecutorWithStringTable(t, 0)
+
+	bs, err := ex.NewBlockScope(ctx, 0)
+	require.NoError(t, err)
+
+	policy := ethereum.ITablelandControllerPolicy{
+		AllowInsert:      true,
+		AllowUpdate:      true,
+		AllowDelete:      true,
+		WhereClause:      "",
+		WithCheck:        "",
+		UpdatableColumns: nil,
+	}
+
+	// create an event where isOwner is false
+	event := &ethereum.ContractRunSQL{
+		Caller:    common.HexToAddress("0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF"),
+		IsOwner:   false,
+		TableId:   big.NewInt(100),
+		Statement: "ALTER TABLE foo_1337_100 ADD COLUMN bar text",
+		Policy:    policy,
+	}
+
+	var hashBytes [common.HashLength]byte
+	binary.LittleEndian.PutUint64(hashBytes[:], rand.Uint64())
+	txnHash := common.BytesToHash(hashBytes[:])
+
+	txnResult, err := bs.ExecuteTxnEvents(
+		context.Background(),
+		eventfeed.TxnEvents{
+			TxnHash: txnHash,
+			Events:  []interface{}{event},
+		},
+	)
+	require.NoError(t, err)
+	require.Contains(t, *txnResult.Error, "non owner cannot execute alter stmt")
+}
+
 func TestRunSQL_RowCountLimit(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

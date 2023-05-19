@@ -20,14 +20,15 @@ func TestCreate(t *testing.T) {
 func TestWrite(t *testing.T) {
 	calls := setup(t)
 	tableName := requireCreate(t, calls)
-	requireWrite(t, calls, tableName)
+	requireReceipt(t, calls, requireInsert(t, calls, tableName), WaitFor(time.Second*10))
+	requireReceipt(t, calls, requireAlter(t, calls, tableName), WaitFor(time.Second*10))
 }
 
 func TestRead(t *testing.T) {
 	t.Run("status 200", func(t *testing.T) {
 		calls := setup(t)
 		tableName := requireCreate(t, calls)
-		hash := requireWrite(t, calls, tableName)
+		hash := requireInsert(t, calls, tableName)
 		requireReceipt(t, calls, hash, WaitFor(time.Second*10))
 
 		type result struct {
@@ -68,7 +69,7 @@ func TestGetReceipt(t *testing.T) {
 	t.Run("status 200", func(t *testing.T) {
 		calls := setup(t)
 		tableName := requireCreate(t, calls)
-		hash := requireWrite(t, calls, tableName)
+		hash := requireInsert(t, calls, tableName)
 		requireReceipt(t, calls, hash, WaitFor(time.Second*10))
 	})
 
@@ -152,8 +153,8 @@ func TestBlockNum(t *testing.T) {
 
 	// We create a table and do two inserts, that will increase our block number to 5.
 	tableName := requireCreate(t, calls)
-	requireReceipt(t, calls, requireWrite(t, calls, tableName), WaitFor(time.Second*10))
-	requireReceipt(t, calls, requireWrite(t, calls, tableName), WaitFor(time.Second*10))
+	requireReceipt(t, calls, requireInsert(t, calls, tableName), WaitFor(time.Second*10))
+	requireReceipt(t, calls, requireInsert(t, calls, tableName), WaitFor(time.Second*10))
 
 	type result struct {
 		BlockNumber int64 `json:"bn"`
@@ -171,8 +172,14 @@ func requireCreate(t *testing.T, calls clientCalls) string {
 	return tableName
 }
 
-func requireWrite(t *testing.T, calls clientCalls, table string) string {
+func requireInsert(t *testing.T, calls clientCalls, table string) string {
 	hash := calls.write(fmt.Sprintf("insert into %s (bar) values('baz')", table))
+	require.NotEmpty(t, hash)
+	return hash
+}
+
+func requireAlter(t *testing.T, calls clientCalls, table string) string {
+	hash := calls.write(fmt.Sprintf("alter table %s rename bar to foo", table))
 	require.NotEmpty(t, hash)
 	return hash
 }
