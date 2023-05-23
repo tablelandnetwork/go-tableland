@@ -56,7 +56,7 @@ func (ts *txnScope) executeTxnEvents(
 	var res eventExecutionResult
 	var err error
 
-	tableIDs := make([]tables.TableID, 0)
+	tableIDs, tableIDsMap := make([]tables.TableID, 0), make(map[string]struct{})
 	for idx, event := range evmTxn.Events {
 		switch event := event.(type) {
 		case *ethereum.ContractRunSQL:
@@ -110,7 +110,10 @@ func (ts *txnScope) executeTxnEvents(
 		}
 
 		if res.TableID != nil {
-			tableIDs = append(tableIDs, *res.TableID)
+			if _, ok := tableIDsMap[(*res.TableID).String()]; !ok {
+				tableIDs = append(tableIDs, *res.TableID)
+				tableIDsMap[(*res.TableID).String()] = struct{}{}
+			}
 		}
 	}
 

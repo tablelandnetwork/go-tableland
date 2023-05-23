@@ -109,6 +109,7 @@ func TestMultiEventTxnBlock(t *testing.T) {
 		require.Nil(t, res.Error)
 		require.Nil(t, res.ErrorEventIdx)
 		require.Equal(t, eventCreateTable.TableId.Int64(), res.TableID.ToBigInt().Int64())
+		require.Equal(t, []tables.TableID{tables.TableID(*big.NewInt(100))}, res.TableIDs)
 	}
 	// Txn 2
 	{

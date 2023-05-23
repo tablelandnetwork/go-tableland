@@ -88,6 +88,8 @@ const (
 	OpRevoke
 	// OpCreate is represents a CREATE query.
 	OpCreate
+	// OpAlter is represents a ALTER query.
+	OpAlter
 )
 
 // String returns the string representation of the operation.
@@ -107,6 +109,8 @@ func (op Operation) String() string {
 		return "OpRevoke"
 	case OpCreate:
 		return "OpCreate"
+	case OpAlter:
+		return "OpAlter"
 	}
 
 	return ""

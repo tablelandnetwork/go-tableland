@@ -151,6 +151,10 @@ func (ef *EventFeed) Start(
 			// sideffects.
 			toHeight := h.Number.Int64() - int64(ef.config.MinBlockChainDepth)
 			if toHeight < fromHeight {
+				ef.log.Warn().
+					Int64("from_height", fromHeight).
+					Int64("to_height", toHeight).
+					Msgf("from_height bigger than to_height")
 				break
 			}
 

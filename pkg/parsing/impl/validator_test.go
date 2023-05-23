@@ -218,6 +218,34 @@ func TestWriteQuery(t *testing.T) {
 			expErrType: nil,
 		},
 
+		// ALTER TABLE
+		{
+			name:       "valid alter table",
+			query:      "ALTER TABLE a_4_10 RENAME COLUMN a to b",
+			tableID:    big.NewInt(10),
+			chainID:    4,
+			namePrefix: "a",
+			expErrType: nil,
+		},
+
+		{
+			name:       "valid alter table",
+			query:      "ALTER TABLE a_4_10 ADD COLUMN a int",
+			tableID:    big.NewInt(10),
+			chainID:    4,
+			namePrefix: "a",
+			expErrType: nil,
+		},
+
+		{
+			name:       "valid alter table",
+			query:      "ALTER TABLE a_4_10 DROP COLUMN a",
+			tableID:    big.NewInt(10),
+			chainID:    4,
+			namePrefix: "a",
+			expErrType: nil,
+		},
+
 		// Only reference a single table
 		{
 			name:       "update different tables",
