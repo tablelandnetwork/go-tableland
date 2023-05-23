@@ -41,11 +41,11 @@ func TestExecuteWebhook(t *testing.T) {
 				},
 			},
 			expectedOutput: []string{
-				"**Tableland event processed successfully:**\n\n" +
+				"\n\n**Tableland event processed successfully:**\n\n" +
 					"Chain ID: 1\n" +
 					"Block number: 1\n" +
 					"Transaction hash: hash1\n" +
-					"Table IDs: 0\n\n",
+					"Table IDs: 0\n\n\n",
 			},
 		},
 		{
@@ -69,16 +69,16 @@ func TestExecuteWebhook(t *testing.T) {
 				},
 			},
 			expectedOutput: []string{
-				"**Tableland event processed successfully:**\n\n" +
+				"\n\n**Tableland event processed successfully:**\n\n" +
 					"Chain ID: 1\n" +
 					"Block number: 1\n" +
 					"Transaction hash: hash1\n" +
-					"Table IDs: 0,1\n\n",
-				"**Tableland event processed successfully:**\n\n" +
+					"Table IDs: 0,1\n\n\n",
+				"\n\n**Tableland event processed successfully:**\n\n" +
 					"Chain ID: 1\n" +
 					"Block number: 2\n" +
 					"Transaction hash: hash2\n" +
-					"Table IDs: 0,1,2\n\n",
+					"Table IDs: 0,1,2\n\n\n",
 			},
 		},
 		{
@@ -94,13 +94,13 @@ func TestExecuteWebhook(t *testing.T) {
 				},
 			},
 			expectedOutput: []string{
-				"**Error processing Tableland event:**\n\n" +
+				"\n\n**Error processing Tableland event:**\n\n" +
 					"Chain ID: 1\n" +
 					"Block number: 1\n" +
 					"Transaction hash: hash1\n" +
 					"Table IDs: 0\n" +
 					"Error: **error1**\n" +
-					"Error event index: 1\n\n",
+					"Error event index: 1\n\n\n",
 			},
 		},
 	}
@@ -141,8 +141,12 @@ type mockWebhook struct {
 }
 
 // Send writes the webhook content to a channel instead of sending it to a real webhook.
-func (m *mockWebhook) Send(_ context.Context, content string) error {
-	m.ch <- content
+func (m *mockWebhook) Send(_ context.Context, r eventprocessor.Receipt) error {
+	whContent, err := content(r)
+	if err != nil {
+		return fmt.Errorf("error creating webhook content: %v", err)
+	}
+	m.ch <- whContent
 	return nil
 }
 
@@ -183,12 +187,12 @@ func TestSendWebhookRequest(t *testing.T) {
 
 func TestNewWebhook(t *testing.T) {
 	// Test Discord webhook
-	discordWebhook, err := NewWebhook("discord", "https://discord.com/api/webhooks/1234567890/abcdefg")
+	discordWebhook, err := NewWebhook("https://discord.com/api/webhooks/1234567890/abcdefg")
 	assert.NoError(t, err)
 	assert.IsType(t, &DiscordWebhook{}, discordWebhook)
 
 	// Test invalid webhook
-	invalidWebhook, err := NewWebhook("invalid", "https://example.com/webhook")
+	invalidWebhook, err := NewWebhook("https://example.com/webhook")
 	assert.Error(t, err)
 	assert.Nil(t, invalidWebhook)
 }

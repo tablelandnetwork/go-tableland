@@ -212,11 +212,11 @@ func createChainIDStack(
 	}
 
 	// Add the webhook config if it is enabled for this chain.
-	if config.EventProcessor.Webhook.Enabled {
-		whConf := config.EventProcessor.Webhook
+	if config.EventProcessor.WebhookURL != "" {
+		whURL := config.EventProcessor.WebhookURL
 		epOpts = append(
 			epOpts,
-			eventprocessor.WithWebhook(whConf.EndpointType, whConf.URL))
+			eventprocessor.WithWebhook(whURL))
 	}
 
 	ex, err := executor.NewExecutor(config.ChainID, db, parser, tableConstraints.MaxRowCount, impl.NewACL(db))
