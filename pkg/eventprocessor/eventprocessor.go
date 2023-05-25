@@ -13,6 +13,7 @@ type Config struct {
 	BlockFailedExecutionBackoff time.Duration
 	DedupExecutedTxns           bool
 	HashCalcStep                int64
+	WebhookURL                  string
 }
 
 // DefaultConfig returns the default configuration.
@@ -60,6 +61,15 @@ func WithHashCalcStep(step int64) Option {
 			return fmt.Errorf("step cannot be less than 1")
 		}
 		c.HashCalcStep = step
+		return nil
+	}
+}
+
+// WithWebhook is set when we want send table update notifications
+// to an external webhook.
+func WithWebhook(url string) Option {
+	return func(c *Config) error {
+		c.WebhookURL = url
 		return nil
 	}
 }

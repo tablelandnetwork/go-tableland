@@ -211,6 +211,14 @@ func createChainIDStack(
 		eventprocessor.WithHashCalcStep(config.HashCalculationStep),
 	}
 
+	// Add the webhook config if it is enabled for this chain.
+	if config.EventProcessor.WebhookURL != "" {
+		whURL := config.EventProcessor.WebhookURL
+		epOpts = append(
+			epOpts,
+			eventprocessor.WithWebhook(whURL))
+	}
+
 	ex, err := executor.NewExecutor(config.ChainID, db, parser, tableConstraints.MaxRowCount, impl.NewACL(db))
 	if err != nil {
 		return chains.ChainStack{}, fmt.Errorf("creating txn processor: %s", err)

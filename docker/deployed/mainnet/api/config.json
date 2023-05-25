@@ -66,7 +66,8 @@
             },
             "EventProcessor": {
                 "BlockFailedExecutionBackoff": "10s",
-                "DedupExecutedTxns": true
+                "DedupExecutedTxns": true,
+                "WebhookURL": "https://discord.com/api/webhooks/${VALIDATOR_DISCORD_WEBHOOK_ID}/${VALIDATOR_DISCORD_WEBHOOK_TOKEN}"
             },
             "HashCalculationStep": 150
         },
@@ -85,7 +86,8 @@
             },
             "EventProcessor": {
                 "BlockFailedExecutionBackoff": "10s",
-                "DedupExecutedTxns": true
+                "DedupExecutedTxns": true,
+                "WebhookURL": "https://discord.com/api/webhooks/${VALIDATOR_DISCORD_WEBHOOK_ID}/${VALIDATOR_DISCORD_WEBHOOK_TOKEN}"
             },
             "HashCalculationStep": 450
         },
@@ -104,7 +106,8 @@
             },
             "EventProcessor": {
                 "BlockFailedExecutionBackoff": "10s",
-                "DedupExecutedTxns": true
+                "DedupExecutedTxns": true,
+                "WebhookURL": "https://discord.com/api/webhooks/${VALIDATOR_DISCORD_WEBHOOK_ID}/${VALIDATOR_DISCORD_WEBHOOK_TOKEN}"
             },
             "HashCalculationStep": 450
         },
@@ -123,7 +126,8 @@
             },
             "EventProcessor": {
                 "BlockFailedExecutionBackoff": "10s",
-                "DedupExecutedTxns": true
+                "DedupExecutedTxns": true,
+                "WebhookURL": "https://discord.com/api/webhooks/${VALIDATOR_DISCORD_WEBHOOK_ID}/${VALIDATOR_DISCORD_WEBHOOK_TOKEN}"
             },
             "HashCalculationStep": 360
         },
@@ -142,7 +146,8 @@
             },
             "EventProcessor": {
                 "BlockFailedExecutionBackoff": "10s",
-                "DedupExecutedTxns": true
+                "DedupExecutedTxns": true,
+                "WebhookURL": "https://discord.com/api/webhooks/${VALIDATOR_DISCORD_WEBHOOK_ID}/${VALIDATOR_DISCORD_WEBHOOK_TOKEN}"
             },
             "HashCalculationStep": 1800
         },
