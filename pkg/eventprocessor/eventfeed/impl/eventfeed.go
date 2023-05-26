@@ -194,7 +194,7 @@ func (ef *EventFeed) Start(
 						fromHeight = h.Number.Int64() - 1995
 						ef.log.Warn().
 							Err(err).
-							Msgf("encountered lookbacks error, moving forward to", fromHeight)
+							Msgf("encountered lookbacks error, moving forward to %d", fromHeight)
 						break
 					}
 
