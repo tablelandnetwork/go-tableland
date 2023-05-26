@@ -151,10 +151,6 @@ func (ef *EventFeed) Start(
 			// sideffects.
 			toHeight := h.Number.Int64() - int64(ef.config.MinBlockChainDepth)
 			if toHeight < fromHeight {
-				ef.log.Warn().
-					Int64("from_height", fromHeight).
-					Int64("to_height", toHeight).
-					Msgf("from_height bigger than to_height")
 				break
 			}
 
@@ -184,7 +180,7 @@ func (ef *EventFeed) Start(
 					strings.Contains(err.Error(), "block range is too wide") {
 					ef.maxBlocksFetchSize = ef.maxBlocksFetchSize * 80 / 100
 				} else {
-					// If we get a "looksback" error it means that history is not available
+					// If we get a "lookbacks" error it means that history is not available
 					// for this chain. It happens in Filecoin based chains, where the
 					// history is not available in non archive nodes.
 					// In this case, we just move the fromHeight
