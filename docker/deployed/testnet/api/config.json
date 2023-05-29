@@ -147,11 +147,11 @@
             "HashCalculationStep": 1800
         },
         {
-            "Name": "Filecoin Hyperspace",
-            "ChainID": 3141,
+            "Name": "Filecoin Calibration",
+            "ChainID": 314159,
             "Registry": {
-                "EthEndpoint": "https://rpc.ankr.com/filecoin_testnet/${VALIDATOR_ANKR_FILECOIN_HYPERSPACE_API_KEY}",
-                "ContractAddress": "0x0B9737ab4B3e5303CB67dB031b509697e31c02d3"
+                "EthEndpoint": "https://api.calibration.node.glif.io/rpc/v1",
+                "ContractAddress": "0x030BCf3D50cad04c2e57391B12740982A9308621"
             },
             "EventFeed": {
                 "ChainAPIBackoff": "15s",

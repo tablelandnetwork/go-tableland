@@ -58,10 +58,11 @@ func main() {
 			chain.ContractAddr = common.HexToAddress(chainCfg.OverrideClient.ContractAddr)
 		}
 
-		// For Filecoin Hyperspace, we use Ankr endpoint
+		// For Filecoin Calibration, we use Glif endpoint
 		opts := []clientV1.NewClientOption{clientV1.NewClientChain(chain)}
-		if chain.ID == 3141 {
-			opts = append(opts, clientV1.NewClientAnkrAPIKey(chainCfg.AnkrAPIKey))
+		if chain.ID == 314159 {
+			// Glif API key is empty string because currently we are using the free tier (public node)
+			opts = append(opts, clientV1.NewClientGlifAPIKey(""))
 		} else {
 			opts = append(opts, clientV1.NewClientAlchemyAPIKey(chainCfg.AlchemyAPIKey))
 		}

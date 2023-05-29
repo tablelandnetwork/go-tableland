@@ -151,10 +151,6 @@ func (ef *EventFeed) Start(
 			// sideffects.
 			toHeight := h.Number.Int64() - int64(ef.config.MinBlockChainDepth)
 			if toHeight < fromHeight {
-				ef.log.Warn().
-					Int64("from_height", fromHeight).
-					Int64("to_height", toHeight).
-					Msgf("from_height bigger than to_height")
 				break
 			}
 
@@ -184,6 +180,20 @@ func (ef *EventFeed) Start(
 					strings.Contains(err.Error(), "block range is too wide") {
 					ef.maxBlocksFetchSize = ef.maxBlocksFetchSize * 80 / 100
 				} else {
+					// If we get a "lookbacks" error it means that history is not available
+					// for this chain. It happens in Filecoin based chains, where the
+					// history is not available in non archive nodes.
+					// In this case, we just move the fromHeight
+					// to the current head minus 1995 blocks and ignore the past events.
+					// This is temporary until we have a better access to archive nodes.
+					if strings.Contains(err.Error(), "lookbacks of more than") {
+						fromHeight = h.Number.Int64() - 1995
+						ef.log.Warn().
+							Err(err).
+							Msgf("encountered lookbacks error, moving forward to %d", fromHeight)
+						break
+					}
+
 					time.Sleep(ef.config.ChainAPIBackoff)
 				}
 				continue Loop
@@ -249,7 +259,7 @@ func (ef *EventFeed) filterLogs(ctx context.Context, query ethereum.FilterQuery)
 // removeDuplicateLogs removes duplicate logs from the list of logs
 // This is needed because some node RPC endpoints can return duplicate logs
 // for a given block range. This is a known bug in FVM and impacts Filecoin
-// and Filecoin Hyperspace nodes.
+// and Filecoin Calibration nodes.
 // See: https://github.com/filecoin-project/ref-fvm/issues/1350
 func (ef *EventFeed) removeDuplicateLogs(logs []types.Log) []types.Log {
 	seenLogs := make(map[string]bool)

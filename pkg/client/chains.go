@@ -15,33 +15,33 @@ type ChainID int64
 
 // ChainIDs is all chain ids supported by Tableland.
 var ChainIDs = struct {
-	Ethereum           ChainID
-	Optimism           ChainID
-	Polygon            ChainID
-	Arbitrum           ChainID
-	ArbitrumNova       ChainID
-	Filecoin           ChainID
-	EthereumGoerli     ChainID
-	EthereumSepolia    ChainID
-	OptimismGoerli     ChainID
-	ArbitrumGoerli     ChainID
-	FilecoinHyperspace ChainID
-	PolygonMumbai      ChainID
-	Local              ChainID
+	Ethereum            ChainID
+	Optimism            ChainID
+	Polygon             ChainID
+	Arbitrum            ChainID
+	ArbitrumNova        ChainID
+	Filecoin            ChainID
+	EthereumGoerli      ChainID
+	EthereumSepolia     ChainID
+	OptimismGoerli      ChainID
+	ArbitrumGoerli      ChainID
+	FilecoinCalibration ChainID
+	PolygonMumbai       ChainID
+	Local               ChainID
 }{
-	Ethereum:           1,
-	Optimism:           10,
-	Polygon:            137,
-	Arbitrum:           42161,
-	ArbitrumNova:       42170,
-	Filecoin:           314,
-	EthereumGoerli:     5,
-	EthereumSepolia:    11155111,
-	OptimismGoerli:     420,
-	ArbitrumGoerli:     421613,
-	FilecoinHyperspace: 3141,
-	PolygonMumbai:      80001,
-	Local:              31337,
+	Ethereum:            1,
+	Optimism:            10,
+	Polygon:             137,
+	Arbitrum:            42161,
+	ArbitrumNova:        42170,
+	Filecoin:            314,
+	EthereumGoerli:      5,
+	EthereumSepolia:     11155111,
+	OptimismGoerli:      420,
+	ArbitrumGoerli:      421613,
+	FilecoinCalibration: 314159,
+	PolygonMumbai:       80001,
+	Local:               31337,
 }
 
 // Chain is a info about a network supported by Talbleland.
@@ -114,11 +114,11 @@ var Chains = map[ChainID]Chain{
 		Name:         "Arbitrum Goerli",
 		ContractAddr: common.HexToAddress("0x033f69e8d119205089Ab15D340F5b797732f646b"),
 	},
-	ChainIDs.FilecoinHyperspace: {
+	ChainIDs.FilecoinCalibration: {
 		Endpoint:     testnetURL,
-		ID:           ChainIDs.FilecoinHyperspace,
-		Name:         "Filecoin Hyperspace",
-		ContractAddr: common.HexToAddress("0x0B9737ab4B3e5303CB67dB031b509697e31c02d3"),
+		ID:           ChainIDs.FilecoinCalibration,
+		Name:         "Filecoin Calibration",
+		ContractAddr: common.HexToAddress("0x030BCf3D50cad04c2e57391B12740982A9308621"),
 	},
 	ChainIDs.PolygonMumbai: {
 		Endpoint:     testnetURL,
@@ -171,6 +171,10 @@ var LocalURLs = map[ChainID]string{
 
 // AnkrURLs contains the URLs for supported chains on Ankr.
 var AnkrURLs = map[ChainID]string{
-	ChainIDs.FilecoinHyperspace: "https://rpc.ankr.com/filecoin_testnet/%s",
-	ChainIDs.Filecoin:           "https://rpc.ankr.com/filecoin/%s",
+	ChainIDs.Filecoin: "https://rpc.ankr.com/filecoin/%s",
+}
+
+// GlifURLs contains the URLs for supported chains on Glif.
+var GlifURLs = map[ChainID]string{
+	ChainIDs.FilecoinCalibration: "https://api.calibration.node.glif.io/rpc/v1%s",
 }
