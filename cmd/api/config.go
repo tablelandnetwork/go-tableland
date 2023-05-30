@@ -111,6 +111,7 @@ type ChainConfig struct {
 	EventProcessor struct {
 		BlockFailedExecutionBackoff string `default:"10s"`
 		DedupExecutedTxns           bool   `default:"false"`
+		WebhookURL                  string `default:""`
 	}
 	HashCalculationStep int64 `default:"1000"`
 }

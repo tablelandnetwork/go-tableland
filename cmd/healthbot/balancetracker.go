@@ -162,9 +162,9 @@ func (t *BalanceTracker) initMetrics(chainID int, addr common.Address) error {
 func getEthClient(config ChainConfig) (*ethclient.Client, error) {
 	var url, key string
 	var ok bool
-	if config.ChainID == 3141 {
-		url, ok = client.AnkrURLs[client.ChainID(config.ChainID)]
-		key = config.AnkrAPIKey
+	if config.ChainID == 314159 {
+		url, ok = client.GlifURLs[client.ChainID(config.ChainID)]
+		key = ""
 	} else {
 		url, ok = client.AlchemyURLs[client.ChainID(config.ChainID)]
 		key = config.AlchemyAPIKey

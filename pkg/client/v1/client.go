@@ -41,6 +41,7 @@ const (
 	quickNode
 	ankr
 	local
+	glif
 )
 
 type provider struct {
@@ -83,6 +84,13 @@ func NewClientAlchemyAPIKey(key string) NewClientOption {
 func NewClientAnkrAPIKey(key string) NewClientOption {
 	return func(c *config) {
 		c.provider = provider{name: "Ankr", apiKey: key, providerType: ankr}
+	}
+}
+
+// NewClientGlifAPIKey specifies a Glif API to use when creating an EVM backend.
+func NewClientGlifAPIKey(key string) NewClientOption {
+	return func(c *config) {
+		c.provider = provider{name: "Glif", apiKey: key, providerType: glif}
 	}
 }
 
@@ -176,6 +184,11 @@ func getContractBackend(ctx context.Context, config config) (bind.ContractBacken
 		tmpl, found = client.AnkrURLs[config.chain.ID]
 		if !found {
 			return nil, fmt.Errorf("chain id %v not supported for Ankr", config.chain.ID)
+		}
+	case glif:
+		tmpl, found = client.GlifURLs[config.chain.ID]
+		if !found {
+			return nil, fmt.Errorf("chain id %v not supported for Glif", config.chain.ID)
 		}
 	case local:
 		tmpl, found = client.LocalURLs[config.chain.ID]
