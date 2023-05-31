@@ -62,7 +62,7 @@ func main() {
 		opts := []clientV1.NewClientOption{clientV1.NewClientChain(chain)}
 		if chain.ID == 314159 {
 			// Glif API key is empty string because currently we are using the free tier (public node)
-			opts = append(opts, clientV1.NewClientGlifAPIKey(""))
+			opts = append(opts, clientV1.NewClientGlifAPIKey(chainCfg.GlifAPIKey))
 		} else {
 			opts = append(opts, clientV1.NewClientAlchemyAPIKey(chainCfg.AlchemyAPIKey))
 		}
