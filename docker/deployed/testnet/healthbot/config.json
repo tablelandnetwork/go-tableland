@@ -30,6 +30,16 @@
                 "ReceiptTimeout": "40s",
                 "Tablename": "${HEALTHBOT_POLYGON_MUMBAI_TABLE}"
             }
+        },
+        {
+            "ChainID": 314159,
+            "WalletPrivateKey": "${HEALTHBOT_FILECOIN_CALIBRATION_PRIVATE_KEY}",
+            "GlifAPIKey": "${HEALTHBOT_GLIF_FILECOIN_CALIBRATION_API_KEY}",
+            "Probe": {
+                "CheckInterval": "5m",
+                "ReceiptTimeout": "300s",
+                "Tablename": "${HEALTHBOT_FILECOIN_CALIBRATION_TABLE}"
+            }
         }
     ]
 }
