@@ -1301,6 +1301,10 @@ github.com/tablelandnetwork/sqlparser v0.0.0-20230518143735-838d223866f6 h1:f8TR
 github.com/tablelandnetwork/sqlparser v0.0.0-20230518143735-838d223866f6/go.mod h1:S+M/v3Q8X+236kQxMQziFcLId2Cscb1LzW06IUVhljE=
 github.com/tablelandnetwork/sqlparser v0.0.0-20230602174101-e27f9a12da58 h1:vEdQ9rJs5vwJfrwg4HIpVVrXRVJqEzyA2MM9oUehnhc=
 github.com/tablelandnetwork/sqlparser v0.0.0-20230602174101-e27f9a12da58/go.mod h1:S+M/v3Q8X+236kQxMQziFcLId2Cscb1LzW06IUVhljE=
+github.com/tablelandnetwork/sqlparser v0.0.0-20230605150512-1cb695cd5627 h1:ctGSX+KFDNvMYX25ooerc3saOcfPF6i56oAe+mo1l20=
+github.com/tablelandnetwork/sqlparser v0.0.0-20230605150512-1cb695cd5627/go.mod h1:S+M/v3Q8X+236kQxMQziFcLId2Cscb1LzW06IUVhljE=
+github.com/tablelandnetwork/sqlparser v0.0.0-20230605164749-c0e6862c37f6 h1:goeC/kQXlqRod2rPwqrVxvEgF3I5S3f0fa538k+Evbw=
+github.com/tablelandnetwork/sqlparser v0.0.0-20230605164749-c0e6862c37f6/go.mod h1:S+M/v3Q8X+236kQxMQziFcLId2Cscb1LzW06IUVhljE=
 github.com/tchap/go-patricia v2.2.6+incompatible/go.mod h1:bmLyhP68RS6kStMGxByiQ23RP/odRBOTVjwp2cDyi6I=
 github.com/textileio/cli v1.0.2 h1:qSp/x4d/9SZ93TxhgZnE5okRKqzqHqrzAwKAPjuPw50=
 github.com/textileio/cli v1.0.2/go.mod h1:vTlCvvVyOmXXLwddCcBg3PDavfUsCkRBZoyr6Nu1lkc=
