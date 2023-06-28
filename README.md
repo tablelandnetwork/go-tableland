@@ -189,9 +189,9 @@ VALIDATOR_ANKR_FILECOIN_MAINNET_API_KEY=<your filecoin mainnet ankr key>
 VALIDATOR_QUICKNODE_ARBITRUM_NOVA_MAINNET_API_KEY=<your arbitrum nova mainnet quicknode key>
 ```
 
-> Note: the `METRICS_HUB_API_KEY` variable is optional and can be left empty. It's a service (`cmd/metricshub`) that aggregates metrics like `git summary` pushes them to your own hosted setup, such as [GCP Cloud Run](https://cloud.google.com/run).
+> Note: the `METRICS_HUB_API_KEY` variable is optional and can be left empty. It's a service (`cmd/metricshub`) that aggregates metrics like `git summary` and pushes them to centralized infrastructure ([GCP Cloud Run](https://cloud.google.com/run)) managed by the core team. If you'd like to have your validator push metrics to this hub, please reach out to the Tableland team, and we may make it available to you. However, this process will further be decentralized in the future and remove this dependency entirely.
 
-3.  Tune the `docker/deployed/mainnet/api/config.json` :
+1.  Tune the `docker/deployed/mainnet/api/config.json` :
 
     1.  Change the `ExternalURIPrefix` configuration attribute into the DNS (or IP) where your validator will be serving external requests.
     2.  In the `Chains` section, only leave the chains you’ll be running; remove any chain entries you do not wish to support.
@@ -224,8 +224,8 @@ VALIDATOR_QUICKNODE_ARBITRUM_NOVA_MAINNET_API_KEY=<your arbitrum nova mainnet qu
 
         </details>
 
-4.  Create a `.env_grafana` file in the `docker/deployed/mainnet/grafana` folder—an example is provided with `.env_grafana.example`.
-5.  Add the following to `.env_grafana`:
+2.  Create a `.env_grafana` file in the `docker/deployed/mainnet/grafana` folder—an example is provided with `.env_grafana.example`.
+3.  Add the following to `.env_grafana`:
 
 ```txt
 GF_SECURITY_ADMIN_USER=<user name you'd like to login intro grafana>
