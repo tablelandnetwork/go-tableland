@@ -128,7 +128,7 @@ We do this for two reasons:
 - The `mainnet` network is the most stable one and is also where we want the most number of validators.
 - We can provide concrete file paths related to `mainnet` and avoid being abstract.
 
-We’ll also explain how to run a validator using Alchemy as a provider for the EVM node API the validator will use. The configuration will be analogous if you use self-hosted nodes or other providers.
+We’ll also explain how to run a validator using Alchemy as a provider for the EVM node API the validator will use. The configuration will be analogous if you use self-hosted nodes or other providers. Note that if you _do_ want to support testnets, you can, generally, replace this documentation's `mainnet` reference with `testnet` (e.g., an environment variable with `MAINNET` would be `TESTNET`; `docker/deployed/mainnet` would shift to `docker/deployed/testnet`).
 
 #### Install host-level dependencies
 
@@ -141,17 +141,12 @@ Note that there’s no need for a particular `Go` installation since binaries ar
 
 #### Create EVM node API keys
 
-The current setup needs one API key per supported chain. The default setup expects Alchemy keys for the following: Ethereum, Optimism, Arbitrum One, and Polygon. Ankr is used for Filecoin, and QuickNode for Arbitrum Nova. But, you are free to use a self-hosted node or another provider that supports the targeted chains.
+The current setup needs one API key per supported chain. The default setup expects Alchemy keys for the following: Ethereum, Optimism, Arbitrum One, and Polygon; QuickNode for Arbitrum Nova. But, you are free to use a self-hosted node or another provider that supports the targeted chains.
 
 To get your Alchemy keys, create an [Alchemy](https://alchemy.com) account, log in, and follow these steps:
 
 1. Create one app for each chain using the `+ Create App` button.
 2. You’ll see one row per chain—click the `View Key` button and copy/save the `API KEY`.
-
-To get your Ankr Filecoin Keys, create an [Ankr](http://ankr.com) account, log in, and do the following:
-
-1. Create a Filecoin endpoint.
-2. You should be able to have access to your API key.
 
 To get your QuickNode Arbitrum Nova key, create a [QuickNode](https://quicknode.com) account, log in, and follow these steps:
 
@@ -159,9 +154,11 @@ To get your QuickNode Arbitrum Nova key, create a [QuickNode](https://quicknode.
 2. Select Arbitrum Nova Mainnet.
 3. When you finish the wizard, you should be able to have access to your API key.
 
+> Note: Tableland is not live on the Filecoin mainnet yet but does have support for the Filecoin Calibration testnet. We recommend [Glif.io](https://api.calibration.node.glif.io/rpc/v1) RPC support, which does not require authentication.
+
 ### Run the validator
 
-Now that you have installed the host-level dependencies, have one wallet per chain, and provider (Alchemy, Ankr, and/or QuickNode) API keys, you’re ready to configure the validator and run it.
+Now that you have installed the host-level dependencies, have one wallet per chain, and provider (Alchemy, QuickNode, etc.) API keys, you’re ready to configure the validator and run it.
 
 #### 1. Clone the `go-tableland` repository
 
@@ -180,52 +177,51 @@ You must configure each EVM account's private keys and EVM node provider API key
 1. Create a `.env_validator` file in `docker/deployed/mainnet/api` folder—an example is provided with `.env_validator.example`.
 2. Add the following to `.env_validator` (as noted, this focuses on mainnet configurations but could be generally replicated for testnet support):
 
-```txt
-VALIDATOR_ALCHEMY_ETHEREUM_MAINNET_API_KEY=<your ethereum mainnet alchemy key>
-VALIDATOR_ALCHEMY_OPTIMISM_MAINNET_API_KEY=<your optimism mainnet alchemy key>
-VALIDATOR_ALCHEMY_ARBITRUM_MAINNET_API_KEY=<your arbitrum mainnet alchemy key>
-VALIDATOR_ALCHEMY_POLYGON_MAINNET_API_KEY=<your polygon mainnet alchemy key>
-VALIDATOR_ANKR_FILECOIN_MAINNET_API_KEY=<your filecoin mainnet ankr key>
-VALIDATOR_QUICKNODE_ARBITRUM_NOVA_MAINNET_API_KEY=<your arbitrum nova mainnet quicknode key>
-```
+   ```txt
+   VALIDATOR_ALCHEMY_ETHEREUM_MAINNET_API_KEY=<your ethereum mainnet alchemy key>
+   VALIDATOR_ALCHEMY_OPTIMISM_MAINNET_API_KEY=<your optimism mainnet alchemy key>
+   VALIDATOR_ALCHEMY_ARBITRUM_MAINNET_API_KEY=<your arbitrum mainnet alchemy key>
+   VALIDATOR_ALCHEMY_POLYGON_MAINNET_API_KEY=<your polygon mainnet alchemy key>
+   VALIDATOR_QUICKNODE_ARBITRUM_NOVA_MAINNET_API_KEY=<your arbitrum nova mainnet quicknode key>
+   ```
 
-> Note: the `METRICS_HUB_API_KEY` variable is optional and can be left empty. It's a service (`cmd/metricshub`) that aggregates metrics like `git summary` and pushes them to centralized infrastructure ([GCP Cloud Run](https://cloud.google.com/run)) managed by the core team. If you'd like to have your validator push metrics to this hub, please reach out to the Tableland team, and we may make it available to you. However, this process will further be decentralized in the future and remove this dependency entirely.
+   > Note: there is also an optional `METRICS_HUB_API_KEY` variable; this can be left empty. It's a service (`cmd/metricshub`) that aggregates metrics like `git summary` and pushes them to centralized infrastructure ([GCP Cloud Run](https://cloud.google.com/run)) managed by the core team. If you'd like to have your validator push metrics to this hub, please reach out to the Tableland team, and we may make it available to you. However, this process will further be decentralized in the future and remove this dependency entirely. Additionally, if you'd like to run a validator for the Filecoin Calibration testnet, use the `VALIDATOR_GLIF_FILECOIN_CALIBRATION_API_KEY` key with an empty value, placed in the `docker/deployed/testnet` config since it allows for unauthenticated requests.
 
-1.  Tune the `docker/deployed/mainnet/api/config.json` :
+3. Tune the `docker/deployed/mainnet/api/config.json` :
 
-    1.  Change the `ExternalURIPrefix` configuration attribute into the DNS (or IP) where your validator will be serving external requests.
-    2.  In the `Chains` section, only leave the chains you’ll be running; remove any chain entries you do not wish to support.
+   1. Change the `ExternalURIPrefix` configuration attribute into the DNS (or IP) where your validator will be serving external requests.
+   2. In the `Chains` section, only leave the chains you’ll be running; remove any chain entries you do not wish to support.
 
-        <details> 
-          <summary>Reference: example entry</summary>
+      <details> 
+        <summary>Reference: example entry</summary>
 
-        ```json
-        {
-          "Name": "Ethereum Mainnet",
-          "ChainID": 1,
-          "Registry": {
-            "EthEndpoint": "wss://eth-mainnet.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_ETHEREUM_MAINNET_API_KEY}",
-            "ContractAddress": "0x012969f7e3439a9B04025b5a049EB9BAD82A8C12"
-          },
-          "EventFeed": {
-            "ChainAPIBackoff": "15s",
-            "NewBlockPollFreq": "10s",
-            "MinBlockDepth": 1,
-            "PersistEvents": true
-          },
-          "EventProcessor": {
-            "BlockFailedExecutionBackoff": "10s",
-            "DedupExecutedTxns": true,
-            "WebhookURL": "https://discord.com/api/webhooks/${VALIDATOR_DISCORD_WEBHOOK_ID}/${VALIDATOR_DISCORD_WEBHOOK_TOKEN}"
-          },
-          "HashCalculationStep": 150
-        }
-        ```
+      ```json
+      {
+        "Name": "Ethereum Mainnet",
+        "ChainID": 1,
+        "Registry": {
+          "EthEndpoint": "wss://eth-mainnet.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_ETHEREUM_MAINNET_API_KEY}",
+          "ContractAddress": "0x012969f7e3439a9B04025b5a049EB9BAD82A8C12"
+        },
+        "EventFeed": {
+          "ChainAPIBackoff": "15s",
+          "NewBlockPollFreq": "10s",
+          "MinBlockDepth": 1,
+          "PersistEvents": true
+        },
+        "EventProcessor": {
+          "BlockFailedExecutionBackoff": "10s",
+          "DedupExecutedTxns": true,
+          "WebhookURL": "https://discord.com/api/webhooks/${VALIDATOR_DISCORD_WEBHOOK_ID}/${VALIDATOR_DISCORD_WEBHOOK_TOKEN}"
+        },
+        "HashCalculationStep": 150
+      }
+      ```
 
-        </details>
+      </details>
 
-2.  Create a `.env_grafana` file in the `docker/deployed/mainnet/grafana` folder—an example is provided with `.env_grafana.example`.
-3.  Add the following to `.env_grafana`:
+4. Create a `.env_grafana` file in the `docker/deployed/mainnet/grafana` folder—an example is provided with `.env_grafana.example`.
+5. Add the following to `.env_grafana`:
 
 ```txt
 GF_SECURITY_ADMIN_USER=<user name you'd like to login intro grafana>
