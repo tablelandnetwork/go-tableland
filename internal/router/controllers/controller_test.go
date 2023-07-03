@@ -90,6 +90,46 @@ func TestQuery(t *testing.T) {
 	}
 }
 
+func TestQueryEmptyTable(t *testing.T) {
+	r := mocks.NewGateway(t)
+	r.EXPECT().RunReadQuery(mock.Anything, mock.AnythingOfType("string")).Return(
+		&gateway.TableData{
+			Columns: []gateway.Column{
+				{Name: "id"},
+				{Name: "name"},
+			},
+			Rows: [][]*gateway.ColumnValue{},
+		},
+		nil,
+	)
+
+	ctrl := NewController(r)
+
+	router := mux.NewRouter()
+	router.HandleFunc("/query", ctrl.GetTableQuery)
+
+	ctx := context.WithValue(context.Background(), middlewares.ContextIPAddress, strconv.Itoa(1))
+	// Table format
+	req, err := http.NewRequestWithContext(ctx, "GET", "/query?statement=select%20*%20from%20foo%3B&format=table", nil)
+	require.NoError(t, err)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+	exp := `{"columns":[{"name":"id"},{"name":"name"}],"rows":[]}` // nolint
+	require.JSONEq(t, exp, rr.Body.String())
+
+	// Unwrapped object format
+	req, err = http.NewRequest("GET", "/query?statement=select%20*%20from%20foo%3B&format=objects&unwrap=true", nil)
+	require.NoError(t, err)
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+	exp = ""
+	wantString := parseJSONLString(exp)
+	gotString := parseJSONLString(rr.Body.String())
+	require.Equal(t, wantString, gotString)
+}
+
 func TestQueryExtracted(t *testing.T) {
 	r := mocks.NewGateway(t)
 	r.EXPECT().RunReadQuery(mock.Anything, mock.AnythingOfType("string")).Return(
