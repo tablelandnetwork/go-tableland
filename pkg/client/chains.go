@@ -177,4 +177,5 @@ var AnkrURLs = map[ChainID]string{
 // GlifURLs contains the URLs for supported chains on Glif.
 var GlifURLs = map[ChainID]string{
 	ChainIDs.FilecoinCalibration: "https://api.calibration.node.glif.io/rpc/v1%s",
+	ChainIDs.Filecoin:            "https://api.node.glif.io/rpc/v1%s",
 }
