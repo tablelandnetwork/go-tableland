@@ -282,11 +282,7 @@ func (c *Controller) runReadRequest(
 		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: err.Error()})
 		return nil, false
 	}
-	if len(res.Rows) == 0 {
-		rw.WriteHeader(http.StatusNotFound)
-		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "Row not found"})
-		return nil, false
-	}
+
 	return res, true
 }
 
