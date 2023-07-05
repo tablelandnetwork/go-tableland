@@ -99,8 +99,9 @@ type ChainConfig struct {
 	Name     string            `default:""`
 	ChainID  tableland.ChainID `default:"0"`
 	Registry struct {
-		EthEndpoint     string `default:"eth_endpoint"`
-		ContractAddress string `default:"contract_address"`
+		EthEndpoint       string `default:"eth_endpoint"`
+		ContractAddress   string `default:"contract_address"`
+		ProviderAuthToken string `default:"provider_auth_token"`
 	}
 	EventFeed struct {
 		ChainAPIBackoff  string `default:"15s"`
