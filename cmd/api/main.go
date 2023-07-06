@@ -193,7 +193,7 @@ func createChainIDStack(
 
 	// For the Filecoin (314) chain, we need to set the auth token
 	// in the header of the request.
-	if config.ChainID == 314 {
+	if config.ChainID == 314 && config.Registry.ProviderAuthToken != "" {
 		authToken := fmt.Sprintf("Bearer %s", config.Registry.ProviderAuthToken)
 		ethRPCClient.SetHeader("Authorization", authToken)
 	}
