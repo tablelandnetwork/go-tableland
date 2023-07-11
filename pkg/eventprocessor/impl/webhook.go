@@ -13,7 +13,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	logger "github.com/rs/zerolog/log"
-	"github.com/textileio/go-tableland/internal/tableland"	
+	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
 )
 
