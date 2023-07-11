@@ -154,7 +154,7 @@ To get your QuickNode Arbitrum Nova key, create a [QuickNode](https://quicknode.
 2. Select Arbitrum Nova Mainnet.
 3. When you finish the wizard, you should be able to have access to your API key.
 
-> Note: Tableland is not live on the Filecoin mainnet yet but does have support for the Filecoin Calibration testnet. We recommend [Glif.io](https://api.calibration.node.glif.io/rpc/v1) RPC support, which does not require authentication.
+> Note: For Filecoin, we recommend [Glif.io](https://api.calibration.node.glif.io/rpc/v1) RPC support, which does not require authentication; the `.env` variable's value (shown below) can be left empty.
 
 ### Run the validator
 
@@ -183,9 +183,10 @@ You must configure each EVM account's private keys and EVM node provider API key
    VALIDATOR_ALCHEMY_ARBITRUM_MAINNET_API_KEY=<your arbitrum mainnet alchemy key>
    VALIDATOR_ALCHEMY_POLYGON_MAINNET_API_KEY=<your polygon mainnet alchemy key>
    VALIDATOR_QUICKNODE_ARBITRUM_NOVA_MAINNET_API_KEY=<your arbitrum nova mainnet quicknode key>
+   VALIDATOR_GLIF_FILECOIN_MAINNET_API_KEY=
    ```
 
-   > Note: there is also an optional `METRICS_HUB_API_KEY` variable; this can be left empty. It's a service (`cmd/metricshub`) that aggregates metrics like `git summary` and pushes them to centralized infrastructure ([GCP Cloud Run](https://cloud.google.com/run)) managed by the core team. If you'd like to have your validator push metrics to this hub, please reach out to the Tableland team, and we may make it available to you. However, this process will further be decentralized in the future and remove this dependency entirely. Additionally, if you'd like to run a validator for the Filecoin Calibration testnet, use the `VALIDATOR_GLIF_FILECOIN_CALIBRATION_API_KEY` key with an empty value, placed in the `docker/deployed/testnet` config since it allows for unauthenticated requests.
+   > Note: there is also an optional `METRICS_HUB_API_KEY` variable; this can be left empty. It's a service (`cmd/metricshub`) that aggregates metrics like `git summary` and pushes them to centralized infrastructure ([GCP Cloud Run](https://cloud.google.com/run)) managed by the core team. If you'd like to have your validator push metrics to this hub, please reach out to the Tableland team, and we may make it available to you. However, this process will further be decentralized in the future and remove this dependency entirely.
 
 3. Tune the `docker/deployed/mainnet/api/config.json` :
 
@@ -343,7 +344,7 @@ This would result in having four tables—one per chain:
 You should create a file `.env_healthbot` in the `docker/deployed/testnet/healthbot` folder with the following content (an example is provided with `.env_healthbot.example`):
 
 ```txt
-HEALTHBOT_ETHEREUM_GOERLI_TABLE=healthbot_5_{tableID}
+HEALTHBOT_ETHEREUM_SEPOLIA_TABLE=healthbot_11155111_{tableID}
 HEALTHBOT_OPTIMISM_GOERLI_TABLE=healthbot_420_{tableID}
 HEALTHBOT_ARBITRUM_GOERLI_TABLE=healthbot_421613_{tableID}
 HEALTHBOT_POLYGON_MUMBAI_TABLE=healthbot_80001_{tableID}
