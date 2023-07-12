@@ -15,6 +15,7 @@ import (
 	logger "github.com/rs/zerolog/log"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/eventprocessor"
+	"github.com/textileio/go-tableland/pkg/tables"
 )
 
 // webhookTemplate is the template used to generate the webhook content.
@@ -185,27 +186,30 @@ type webhookContentData struct {
 	ErrorEventIdx *int
 }
 
+// getNFTViews returns the NFT views for the given table IDs.
+func getNFTViews(tableIDs tables.TableIDs, chainID tableland.ChainID) string {
+	var tableNFTURLs []string
+	for _, tableID := range tableIDs {
+		// No NFT view available for Filecoin explorers just return the table ID
+		if chainID == 314 || chainID == 314159 {
+			tableNFTURLs = append(tableNFTURLs, tableID.String())
+		} else {
+			blockExplorerURL := chains[int64(chainID)].BlockExplorerURL
+			contractAddr := chains[int64(chainID)].ContractAddr
+			tableNFTURLs = append(tableNFTURLs,
+				fmt.Sprintf("[%s](%s/nft/%s/%s)", tableID.String(),
+					blockExplorerURL, contractAddr, tableID.String()))
+		}
+	}
+	return strings.Join(tableNFTURLs, ", ")
+}
+
 // Content function to return the formatted content for the webhook.
 func content(r eventprocessor.Receipt) (string, error) {
 	var c bytes.Buffer
 	tmpl, err := template.New("content").Parse(contentTemplate)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse template: %v", err)
-	}
-
-	// TODO: refactor into a function
-	var tableNFTURLs []string
-	for _, tableID := range r.TableIDs {
-		// No NFT view available for Filecoin explorers
-		if r.ChainID == 314 || r.ChainID == 314159 {
-			tableNFTURLs = append(tableNFTURLs, tableID.String())
-		} else {
-			blockExplorerURL := chains[int64(r.ChainID)].BlockExplorerURL
-			contractAddr := chains[int64(r.ChainID)].ContractAddr
-			tableNFTURLs = append(tableNFTURLs,
-				fmt.Sprintf("[%s](%s/nft/%s/%s)", tableID.String(),
-					blockExplorerURL, contractAddr, tableID.String()))
-		}
 	}
 
 	txnURL := chains[int64(r.ChainID)].BlockExplorerURL + "/tx/" + r.TxnHash
@@ -216,7 +220,7 @@ func content(r eventprocessor.Receipt) (string, error) {
 		BlockNumber:   r.BlockNumber,
 		TxnHash:       r.TxnHash,
 		TxnURL:        txnURL,
-		TableIDs:      strings.Join(tableNFTURLs, ", "),
+		TableIDs:      getNFTViews(r.TableIDs, r.ChainID),
 		Error:         r.Error,
 		ErrorEventIdx: r.ErrorEventIdx,
 	})
