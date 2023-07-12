@@ -14,6 +14,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
+	ethrpc "github.com/ethereum/go-ethereum/rpc"
 	"github.com/google/uuid"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/rs/zerolog/log"
@@ -185,10 +186,19 @@ func createChainIDStack(
 		return chains.ChainStack{}, fmt.Errorf("creating event feed store: %s", err)
 	}
 
-	conn, err := ethclient.Dial(config.Registry.EthEndpoint)
+	ethRPCClient, err := ethrpc.Dial(config.Registry.EthEndpoint)
 	if err != nil {
 		return chains.ChainStack{}, fmt.Errorf("failed to connect to ethereum endpoint: %s", err)
 	}
+
+	// For the Filecoin (314) chain, we need to set the auth token
+	// in the header of the request.
+	if config.ChainID == 314 && config.Registry.ProviderAuthToken != "" {
+		authToken := fmt.Sprintf("Bearer %s", config.Registry.ProviderAuthToken)
+		ethRPCClient.SetHeader("Authorization", authToken)
+	}
+
+	conn := ethclient.NewClient(ethRPCClient)
 
 	ef, err := efimpl.New(
 		eventFeedStore,

@@ -155,8 +155,9 @@
             "Name": "Filecoin Mainnet",
             "ChainID": 314,
             "Registry": {
-                "EthEndpoint": "https://rpc.ankr.com/filecoin/${VALIDATOR_ANKR_FILECOIN_MAINNET_API_KEY}",
-                "ContractAddress": "0x59EF8Bf2d6c102B4c42AEf9189e1a9F0ABfD652d"
+                "EthEndpoint": "https://node.glif.io/fvm-archive/lotus/rpc/v1",
+                "ContractAddress": "0x59EF8Bf2d6c102B4c42AEf9189e1a9F0ABfD652d",
+                "ProviderAuthToken": "${VALIDATOR_GLIF_FILECOIN_MAINNET_API_KEY}"
             },
             "EventFeed": {
                 "ChainAPIBackoff": "15s",
@@ -166,7 +167,8 @@
             },
             "EventProcessor": {
                 "BlockFailedExecutionBackoff": "10s",
-                "DedupExecutedTxns": true
+                "DedupExecutedTxns": true,
+                "WebhookURL": "https://discord.com/api/webhooks/${VALIDATOR_DISCORD_WEBHOOK_ID}/${VALIDATOR_DISCORD_WEBHOOK_TOKEN}"
             },
             "HashCalculationStep": 60
         }
