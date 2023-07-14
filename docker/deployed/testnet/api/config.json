@@ -85,8 +85,7 @@
             },
             "EventProcessor": {
                 "BlockFailedExecutionBackoff": "10s",
-                "DedupExecutedTxns": true,
-                "WebhookURL": "https://discord.com/api/webhooks/${VALIDATOR_DISCORD_WEBHOOK_ID}/${VALIDATOR_DISCORD_WEBHOOK_TOKEN}"
+                "DedupExecutedTxns": true
             },
             "HashCalculationStep": 150
         },
@@ -162,8 +161,7 @@
             },
             "EventProcessor": {
                 "BlockFailedExecutionBackoff": "10s",
-                "DedupExecutedTxns": true,
-                "WebhookURL": "https://discord.com/api/webhooks/${VALIDATOR_DISCORD_WEBHOOK_ID}/${VALIDATOR_DISCORD_WEBHOOK_TOKEN}"
+                "DedupExecutedTxns": true
             },
             "HashCalculationStep": 60
         }
