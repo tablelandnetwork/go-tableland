@@ -203,7 +203,6 @@ type webhookContentData struct {
 func getTableNFTViews(tableIDs tables.TableIDs, chainID tableland.ChainID) string {
 	var tableNFTURLs []string
 	for _, tableID := range tableIDs {
-		// No NFT view available for Filecoin explorers just return the table ID
 		if !chains[int64(chainID)].SupportsNFTView {
 			tableNFTURLs = append(tableNFTURLs, tableID.String())
 		} else {
