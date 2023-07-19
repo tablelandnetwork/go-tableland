@@ -23,6 +23,10 @@ func TestExecuteWebhook(t *testing.T) {
 		mockTableIDs = append(mockTableIDs, tID)
 	}
 
+	ethChain := chains[1]
+	filChain := chains[314]
+	filCalibChain := chains[314159]
+
 	testCases := []struct {
 		name           string
 		receipts       []eventprocessor.Receipt
@@ -41,11 +45,64 @@ func TestExecuteWebhook(t *testing.T) {
 				},
 			},
 			expectedOutput: []string{
-				"\n\n**Tableland event processed successfully:**\n\n" +
-					"Chain ID: 1\n" +
-					"Block number: 1\n" +
-					"Transaction hash: hash1\n" +
-					"Table IDs: 0\n\n\n",
+				fmt.Sprintf(
+					"\n\n**Tableland event processed successfully:**\n\n"+
+						"Chain ID: [1](%s)\n"+
+						"Block number: 1\n"+
+						"Transaction hash: [hash1](%s)\n"+
+						"Table IDs: [0](%s)\n\n\n",
+					ethChain.TBLDocsURL,
+					ethChain.BlockExplorerURL+"/tx/hash1",
+					ethChain.BlockExplorerURL+"/nft/"+ethChain.ContractAddr.String()+"/0",
+				),
+			},
+		},
+		{
+			name: "single receipt Filecoin",
+			receipts: []eventprocessor.Receipt{
+				{
+					BlockNumber:   1,
+					ChainID:       314,
+					TxnHash:       "hash1",
+					Error:         nil,
+					ErrorEventIdx: nil,
+					TableIDs:      mockTableIDs[:1],
+				},
+			},
+			expectedOutput: []string{
+				fmt.Sprintf(
+					"\n\n**Tableland event processed successfully:**\n\n"+
+						"Chain ID: [314](%s)\n"+
+						"Block number: 1\n"+
+						"Transaction hash: [hash1](%s)\n"+
+						"Table IDs: 0\n\n\n",
+					filChain.TBLDocsURL,
+					filChain.BlockExplorerURL+"/tx/hash1",
+				),
+			},
+		},
+		{
+			name: "single receipt Filecoin Testnet",
+			receipts: []eventprocessor.Receipt{
+				{
+					BlockNumber:   1,
+					ChainID:       314159,
+					TxnHash:       "hash1",
+					Error:         nil,
+					ErrorEventIdx: nil,
+					TableIDs:      mockTableIDs[:1],
+				},
+			},
+			expectedOutput: []string{
+				fmt.Sprintf(
+					"\n\n**Tableland event processed successfully:**\n\n"+
+						"Chain ID: [314159](%s)\n"+
+						"Block number: 1\n"+
+						"Transaction hash: [hash1](%s)\n"+
+						"Table IDs: 0\n\n\n",
+					filCalibChain.TBLDocsURL,
+					filCalibChain.BlockExplorerURL+"/tx/hash1",
+				),
 			},
 		},
 		{
@@ -69,16 +126,29 @@ func TestExecuteWebhook(t *testing.T) {
 				},
 			},
 			expectedOutput: []string{
-				"\n\n**Tableland event processed successfully:**\n\n" +
-					"Chain ID: 1\n" +
-					"Block number: 1\n" +
-					"Transaction hash: hash1\n" +
-					"Table IDs: 0,1\n\n\n",
-				"\n\n**Tableland event processed successfully:**\n\n" +
-					"Chain ID: 1\n" +
-					"Block number: 2\n" +
-					"Transaction hash: hash2\n" +
-					"Table IDs: 0,1,2\n\n\n",
+				fmt.Sprintf(
+					"\n\n**Tableland event processed successfully:**\n\n"+
+						"Chain ID: [1](%s)\n"+
+						"Block number: 1\n"+
+						"Transaction hash: [hash1](%s)\n"+
+						"Table IDs: [0](%s), [1](%s)\n\n\n",
+					ethChain.TBLDocsURL,
+					ethChain.BlockExplorerURL+"/tx/hash1",
+					ethChain.BlockExplorerURL+"/nft/"+ethChain.ContractAddr.String()+"/0",
+					ethChain.BlockExplorerURL+"/nft/"+ethChain.ContractAddr.String()+"/1",
+				),
+				fmt.Sprintf(
+					"\n\n**Tableland event processed successfully:**\n\n"+
+						"Chain ID: [1](%s)\n"+
+						"Block number: 2\n"+
+						"Transaction hash: [hash2](%s)\n"+
+						"Table IDs: [0](%s), [1](%s), [2](%s)\n\n\n",
+					ethChain.TBLDocsURL,
+					ethChain.BlockExplorerURL+"/tx/hash2",
+					ethChain.BlockExplorerURL+"/nft/"+ethChain.ContractAddr.String()+"/0",
+					ethChain.BlockExplorerURL+"/nft/"+ethChain.ContractAddr.String()+"/1",
+					ethChain.BlockExplorerURL+"/nft/"+ethChain.ContractAddr.String()+"/2",
+				),
 			},
 		},
 		{
@@ -94,13 +164,18 @@ func TestExecuteWebhook(t *testing.T) {
 				},
 			},
 			expectedOutput: []string{
-				"\n\n**Error processing Tableland event:**\n\n" +
-					"Chain ID: 1\n" +
-					"Block number: 1\n" +
-					"Transaction hash: hash1\n" +
-					"Table IDs: 0\n" +
-					"Error: **error1**\n" +
-					"Error event index: 1\n\n\n",
+				fmt.Sprintf(
+					"\n\n**Error processing Tableland event:**\n\n"+
+						"Chain ID: [1](%s)\n"+
+						"Block number: 1\n"+
+						"Transaction hash: [hash1](%s)\n"+
+						"Table IDs: [0](%s)\n"+
+						"Error: **error1**\n"+
+						"Error event index: 1\n\n\n",
+					ethChain.TBLDocsURL,
+					ethChain.BlockExplorerURL+"/tx/hash1",
+					ethChain.BlockExplorerURL+"/nft/"+ethChain.ContractAddr.String()+"/0",
+				),
 			},
 		},
 	}
