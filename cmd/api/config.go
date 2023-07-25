@@ -51,6 +51,7 @@ type HTTPConfig struct {
 
 	RateLimInterval       string `default:"1s"`
 	MaxRequestPerInterval uint64 `default:"10"`
+	AllowList             string `default:""`
 }
 
 // GatewayConfig contains configuration for the Gateway.

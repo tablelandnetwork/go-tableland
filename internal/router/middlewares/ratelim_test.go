@@ -20,6 +20,7 @@ func TestLimit1IP(t *testing.T) {
 		callRPS      int
 		limitRPS     int
 		forwardedFor bool
+		allow        bool
 	}
 
 	tests := []testCase{
@@ -28,6 +29,9 @@ func TestLimit1IP(t *testing.T) {
 
 		{name: "success", callRPS: 100, limitRPS: 500, forwardedFor: false},
 		{name: "block-me", callRPS: 1000, limitRPS: 500, forwardedFor: false},
+
+		{name: "allow-me", callRPS: 1000, limitRPS: 500, forwardedFor: false, allow: true},
+		{name: "forwareded-allow-me", callRPS: 1000, limitRPS: 500, forwardedFor: true, allow: true},
 	}
 
 	for _, tc := range tests {
@@ -41,19 +45,25 @@ func TestLimit1IP(t *testing.T) {
 						Interval: time.Second,
 					},
 				}
-				rlcm, err := RateLimitController(cfg)
-				require.NoError(t, err)
-				rlc := rlcm(dummyHandler{})
 
 				ctx := context.Background()
 				r, err := http.NewRequestWithContext(ctx, "", "", nil)
 				require.NoError(t, err)
 
+				ip := uuid.NewString()
 				if tc.forwardedFor {
-					r.Header.Set("X-Forwarded-For", uuid.NewString())
+					r.Header.Set("X-Forwarded-For", ip)
 				} else {
-					r.RemoteAddr = uuid.NewString() + ":1234"
+					r.RemoteAddr = ip + ":1234"
 				}
+
+				if tc.allow {
+					cfg.Default.AllowList = []string{ip}
+				}
+
+				rlcm, err := RateLimitController(cfg)
+				require.NoError(t, err)
+				rlc := rlcm(dummyHandler{})
 
 				res := httptest.NewRecorder()
 
@@ -62,7 +72,7 @@ func TestLimit1IP(t *testing.T) {
 				// - If callRPS < limitRPS, we never get a 429.
 				// - If callRPS > limitRPS, we eventually should see a 429.
 				assertFunc := require.Eventually
-				if tc.callRPS < tc.limitRPS {
+				if tc.callRPS < tc.limitRPS || tc.allow {
 					assertFunc = require.Never
 				}
 				assertFunc(t, func() bool {
