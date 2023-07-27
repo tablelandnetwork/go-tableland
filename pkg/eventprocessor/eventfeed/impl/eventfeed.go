@@ -248,7 +248,7 @@ func (ef *EventFeed) Start(
 }
 
 func (ef *EventFeed) filterLogs(ctx context.Context, query ethereum.FilterQuery) ([]types.Log, error) {
-	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 90*time.Second)
 	defer cancel()
 	logs, err := ef.ethClient.FilterLogs(ctx, query)
 	if err != nil {
