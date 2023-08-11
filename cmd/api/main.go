@@ -460,14 +460,12 @@ func createAPIServer(
 		return nil, fmt.Errorf("parsing http ratelimiter interval: %s", err)
 	}
 
-	allowList := strings.Split(httpConfig.AllowList, ",")
-
 	router, err := router.ConfiguredRouter(
 		g,
 		httpConfig.MaxRequestPerInterval,
 		rateLimInterval,
 		supportedChainIDs,
-		allowList,
+		httpConfig.APIKey,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("configuring router: %s", err)

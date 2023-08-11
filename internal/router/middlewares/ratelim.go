@@ -22,9 +22,9 @@ type RateLimiterConfig struct {
 // RateLimiterRouteConfig specifies the maximum request per interval, and
 // interval length for a rate limiting rule.
 type RateLimiterRouteConfig struct {
-	MaxRPI    uint64
-	Interval  time.Duration
-	AllowList []string
+	MaxRPI   uint64
+	Interval time.Duration
+	APIKey   string
 }
 
 // RateLimitController creates a new middleware to rate limit requests.
@@ -60,9 +60,9 @@ func createRateLimiter(cfg RateLimiterRouteConfig, kf httplimit.KeyFunc) (*middl
 	}
 
 	return &middleware{
-		store:     defaultStore,
-		keyFunc:   kf,
-		allowlist: cfg.AllowList,
+		store:   defaultStore,
+		keyFunc: kf,
+		apiKey:  cfg.APIKey,
 	}, nil
 }
 
@@ -86,8 +86,8 @@ type middleware struct {
 	store   limiter.Store
 	keyFunc httplimit.KeyFunc
 
-	// list of ip addresses not affected by rate limiter
-	allowlist []string
+	// clients with key are not affected by rate limiter
+	apiKey string
 }
 
 // Handle returns the HTTP handler as a middleware. This handler calls Take() on
@@ -106,9 +106,9 @@ func (m *middleware) Handle(next http.Handler) http.Handler {
 			return
 		}
 
-		// skip rate limiting checks if key is in allowlist
-		for _, ip := range m.allowlist {
-			if strings.EqualFold(key, ip) {
+		// skip rate limiting checks if secret key is provided
+		if key := r.Header.Get("Secret-Key"); key != "" && m.apiKey != "" {
+			if strings.EqualFold(key, m.apiKey) {
 				next.ServeHTTP(w, r)
 				return
 			}

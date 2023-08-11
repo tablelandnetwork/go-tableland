@@ -31,7 +31,7 @@ func TestLimit1IP(t *testing.T) {
 		{name: "block-me", callRPS: 1000, limitRPS: 500, forwardedFor: false},
 
 		{name: "allow-me", callRPS: 1000, limitRPS: 500, forwardedFor: false, allow: true},
-		{name: "forwareded-allow-me", callRPS: 1000, limitRPS: 500, forwardedFor: true, allow: true},
+		{name: "forwarded-allow-me", callRPS: 1000, limitRPS: 500, forwardedFor: true, allow: true},
 	}
 
 	for _, tc := range tests {
@@ -58,7 +58,8 @@ func TestLimit1IP(t *testing.T) {
 				}
 
 				if tc.allow {
-					cfg.Default.AllowList = []string{ip}
+					r.Header.Set("Secret-Key", "MYSECRETKEY")
+					cfg.Default.APIKey = "MYSECRETKEY"
 				}
 
 				rlcm, err := RateLimitController(cfg)
