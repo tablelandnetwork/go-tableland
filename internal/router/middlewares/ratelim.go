@@ -106,8 +106,8 @@ func (m *middleware) Handle(next http.Handler) http.Handler {
 			return
 		}
 
-		// skip rate limiting checks if secret key is provided
-		if key := r.Header.Get("Secret-Key"); key != "" && m.apiKey != "" {
+		// skip rate limiting checks if api key is provided
+		if key := r.Header.Get("Api-Key"); key != "" && m.apiKey != "" {
 			if strings.EqualFold(key, m.apiKey) {
 				next.ServeHTTP(w, r)
 				return

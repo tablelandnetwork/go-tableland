@@ -58,7 +58,7 @@ func TestLimit1IP(t *testing.T) {
 				}
 
 				if tc.allow {
-					r.Header.Set("Secret-Key", "MYSECRETKEY")
+					r.Header.Set("Api-Key", "MYSECRETKEY")
 					cfg.Default.APIKey = "MYSECRETKEY"
 				}
 
