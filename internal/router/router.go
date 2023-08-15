@@ -19,6 +19,7 @@ func ConfiguredRouter(
 	maxRPI uint64,
 	rateLimInterval time.Duration,
 	supportedChainIDs []tableland.ChainID,
+	apiKey string,
 ) (*Router, error) {
 	// General router configuration.
 	router := newRouter()
@@ -28,6 +29,7 @@ func ConfiguredRouter(
 		Default: middlewares.RateLimiterRouteConfig{
 			MaxRPI:   maxRPI,
 			Interval: rateLimInterval,
+			APIKey:   apiKey,
 		},
 	}
 	rateLim, err := middlewares.RateLimitController(cfg)

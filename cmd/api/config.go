@@ -51,6 +51,7 @@ type HTTPConfig struct {
 
 	RateLimInterval       string `default:"1s"`
 	MaxRequestPerInterval uint64 `default:"10"`
+	APIKey                string `default:""` // if client passes the key it will not be affected by rate limiter
 }
 
 // GatewayConfig contains configuration for the Gateway.

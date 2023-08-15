@@ -465,6 +465,7 @@ func createAPIServer(
 		httpConfig.MaxRequestPerInterval,
 		rateLimInterval,
 		supportedChainIDs,
+		httpConfig.APIKey,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("configuring router: %s", err)
