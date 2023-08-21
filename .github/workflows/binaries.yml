@@ -46,14 +46,14 @@ jobs:
         with:
           file: ./cmd/api/Dockerfile
           push: true
-          tags: textile/tableland:latest,textile/tableland:${{ github.ref_name }}
+          tags: textile/tableland:latest,textile/tableland:${{ github.event.release.tag_name }}
           platforms: linux/amd64, linux/arm64
   js-release:
     runs-on: ubuntu-latest
     if: ${{ success() }}
     needs: [binaries]
     steps:
-      - run: echo "validator_version ${{ github.ref_name }}"
+      - run: echo 'validator_version ${{ github.event.release.tag_name }}'
 
       - name: PR to publish this release via the npm package
         uses: actions/github-script@v6
@@ -68,7 +68,7 @@ jobs:
 
               // if the tag/release has a preceeding "v" we want to remove
               // it and match standard symantics in the js ecosystem
-              let version = '${{ github.ref_name }}';
+              let version = '${{ github.event.release.tag_name }}';
               if (/^v[0-9]/.test(version)) {
                 version = version.slice(1);
               }
