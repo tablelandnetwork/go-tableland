@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/sethvargo/go-limiter"
 	"github.com/sethvargo/go-limiter/httplimit"
 	"github.com/sethvargo/go-limiter/memorystore"
 )
@@ -22,6 +24,7 @@ type RateLimiterConfig struct {
 type RateLimiterRouteConfig struct {
 	MaxRPI   uint64
 	Interval time.Duration
+	APIKey   string
 }
 
 // RateLimitController creates a new middleware to rate limit requests.
@@ -47,7 +50,7 @@ func RateLimitController(cfg RateLimiterConfig) (mux.MiddlewareFunc, error) {
 	}, nil
 }
 
-func createRateLimiter(cfg RateLimiterRouteConfig, kf httplimit.KeyFunc) (*httplimit.Middleware, error) {
+func createRateLimiter(cfg RateLimiterRouteConfig, kf httplimit.KeyFunc) (*middleware, error) {
 	defaultStore, err := memorystore.New(&memorystore.Config{
 		Tokens:   cfg.MaxRPI,
 		Interval: cfg.Interval,
@@ -55,11 +58,12 @@ func createRateLimiter(cfg RateLimiterRouteConfig, kf httplimit.KeyFunc) (*httpl
 	if err != nil {
 		return nil, fmt.Errorf("creating default memory: %s", err)
 	}
-	m, err := httplimit.NewMiddleware(defaultStore, kf)
-	if err != nil {
-		return nil, fmt.Errorf("creating default httplimiter: %s", err)
-	}
-	return m, nil
+
+	return &middleware{
+		store:   defaultStore,
+		keyFunc: kf,
+		apiKey:  cfg.APIKey,
+	}, nil
 }
 
 func extractClientIP(r *http.Request) (string, error) {
@@ -76,4 +80,63 @@ func extractClientIP(r *http.Request) (string, error) {
 		return "", fmt.Errorf("getting ip from remote addr: %s", err)
 	}
 	return ip, nil
+}
+
+type middleware struct {
+	store   limiter.Store
+	keyFunc httplimit.KeyFunc
+
+	// clients with key are not affected by rate limiter
+	apiKey string
+}
+
+// Handle returns the HTTP handler as a middleware. This handler calls Take() on
+// the store and sets the common rate limiting headers. If the take is
+// successful, the remaining middleware is called. If take is unsuccessful, the
+// middleware chain is halted and the function renders a 429 to the caller with
+// metadata about when it's safe to retry.
+func (m *middleware) Handle(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+
+		// Call the key function - if this fails, it's an internal server error.
+		key, err := m.keyFunc(r)
+		if err != nil {
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
+
+		// skip rate limiting checks if api key is provided
+		if key := r.Header.Get("Api-Key"); key != "" && m.apiKey != "" {
+			if strings.EqualFold(key, m.apiKey) {
+				next.ServeHTTP(w, r)
+				return
+			}
+		}
+
+		// Take from the store.
+		limit, remaining, reset, ok, err := m.store.Take(ctx, key)
+		if err != nil {
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
+
+		resetTime := time.Unix(0, int64(reset)).UTC().Format(time.RFC1123)
+
+		// Set headers (we do this regardless of whether the request is permitted).
+		w.Header().Set("X-RateLimit-Limit", strconv.FormatUint(limit, 10))
+		w.Header().Set("X-RateLimit-Remaining", strconv.FormatUint(remaining, 10))
+		w.Header().Set("X-RateLimit-Reset", resetTime)
+
+		// Fail if there were no tokens remaining.
+		if !ok {
+			w.Header().Set("Retry-After", resetTime)
+			http.Error(w, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests)
+			return
+		}
+
+		// If we got this far, we're allowed to continue, so call the next middleware
+		// in the stack to continue processing.
+		next.ServeHTTP(w, r)
+	})
 }
