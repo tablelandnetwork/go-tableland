@@ -4,7 +4,7 @@
         "Port": "8080",
         "RateLimInterval": "1s",
         "MaxRequestPerInterval": 10,
-        "ApiKey" : "${HTTP_RATE_LIMITER_API_KEY}", 
+        "ApiKey": "${HTTP_RATE_LIMITER_API_KEY}",
         "TLSCert": "${VALIDATOR_TLS_CERT}",
         "TLSKey": "${VALIDATOR_TLS_KEY}"
     },
@@ -52,6 +52,25 @@
         "ChainStackCollectFrequency": "15m"
     },
     "Chains": [
+        {
+            "Name": "Ethereum Goerli",
+            "ChainID": 5,
+            "Registry": {
+                "EthEndpoint": "wss://eth-goerli.alchemyapi.io/v2/${VALIDATOR_ALCHEMY_ETHEREUM_GOERLI_API_KEY}",
+                "ContractAddress": "0xDA8EA22d092307874f30A1F277D1388dca0BA97a"
+            },
+            "EventFeed": {
+                "ChainAPIBackoff": "15s",
+                "NewBlockPollFreq": "10s",
+                "MinBlockDepth": 1,
+                "PersistEvents": true
+            },
+            "EventProcessor": {
+                "BlockFailedExecutionBackoff": "10s",
+                "DedupExecutedTxns": true
+            },
+            "HashCalculationStep": 150
+        },
         {
             "Name": "Ethereum Sepolia",
             "ChainID": 11155111,
