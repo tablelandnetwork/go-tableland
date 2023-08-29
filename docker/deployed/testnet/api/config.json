@@ -4,7 +4,7 @@
         "Port": "8080",
         "RateLimInterval": "1s",
         "MaxRequestPerInterval": 10,
-        "ApiKey" : "${HTTP_RATE_LIMITER_API_KEY}",
+        "ApiKey": "${HTTP_RATE_LIMITER_API_KEY}",
         "TLSCert": "${VALIDATOR_TLS_CERT}",
         "TLSKey": "${VALIDATOR_TLS_KEY}"
     },
