@@ -388,7 +388,7 @@ func (ef *EventFeed) getTopicsForEventTypes(ets []eventfeed.EventType) ([]common
 // When this happens the provided channel will be closed.
 func (ef *EventFeed) notifyNewBlocks(ctx context.Context, clientCh chan *types.Header) error {
 	// Always push as fast as possible the latest block.
-	ctx2, cls := context.WithTimeout(ctx, time.Second*10)
+	ctx2, cls := context.WithTimeout(ctx, time.Second*30)
 	defer cls()
 	h, err := ef.ethClient.HeaderByNumber(ctx2, nil)
 	if err != nil {
@@ -405,7 +405,7 @@ func (ef *EventFeed) notifyNewBlocks(ctx context.Context, clientCh chan *types.H
 				ef.log.Info().Msg("gracefully closing new blocks polling")
 				return
 			case <-time.After(ef.config.NewHeadPollFreq):
-				ctx, cls := context.WithTimeout(ctx, time.Second*10)
+				ctx, cls := context.WithTimeout(ctx, time.Second*30)
 				h, err := ef.ethClient.HeaderByNumber(ctx, nil)
 				if err != nil {
 					ef.log.Error().Err(err).Msg("get latest block")
