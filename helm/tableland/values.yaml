@@ -298,3 +298,9 @@ ingress:
   tls: []
 
 lifecycle: {}
+
+serviceMonitor:
+  enabled: false
+  path: /metrics
+  port: mon-http
+  interval: 30s
