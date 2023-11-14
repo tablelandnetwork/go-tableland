@@ -110,6 +110,25 @@
             "HashCalculationStep": 360
         },
         {
+            "Name": "Arbitrum Goerli",
+            "ChainID": 421613,
+            "Registry": {
+                "EthEndpoint": "wss://arb-goerli.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_ARBITRUM_GOERLI_API_KEY}",
+                "ContractAddress": "0x033f69e8d119205089Ab15D340F5b797732f646b"
+            },
+            "EventFeed": {
+                "ChainAPIBackoff": "15s",
+                "NewBlockPollFreq": "5s",
+                "MinBlockDepth": 0,
+                "PersistEvents": true
+            },
+            "EventProcessor": {
+                "BlockFailedExecutionBackoff": "10s",
+                "DedupExecutedTxns": true
+            },
+            "HashCalculationStep": 360
+        },
+        {
             "Name": "Arbitrum Sepolia",
             "ChainID": 421614,
             "Registry": {
