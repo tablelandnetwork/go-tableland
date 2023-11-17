@@ -119,7 +119,7 @@ There are two prerequisites for running a validator:
 Tableland has two separate networks:
 
 - `mainnet`: this network syncs mainnet EVM chains (e.g., Ethereum mainnet, Arbitrum mainnet, etc.).
-- `testnet`: this network is syncing testnet EVM chains (e.g., Ethereum Sepolia, Arbitrum Goerli, etc.).
+- `testnet`: this network is syncing testnet EVM chains (e.g., Ethereum Sepolia, Arbitrum Sepolia, etc.).
 
 This guide will focus on running the validator in the `mainnet` network.
 
@@ -337,7 +337,7 @@ This would result in having four tables—one per chain:
 
 - `healthbot_11155111_{tableID}` (Ethereum Sepolia)
 - `healthbot_420_{tableID}` (Optimism Goerli)
-- `healthbot_421613_{tableID}` (Arbitrum Goerli)
+- `healthbot_421614_{tableID}` (Arbitrum Sepolia)
 - `healthbot_80001_{tableID}` (Polygon Mumbai)
 - `healthbot_314159_{tableID}` (Filecoin Calibration)
 
@@ -346,7 +346,7 @@ You should create a file `.env_healthbot` in the `docker/deployed/testnet/health
 ```txt
 HEALTHBOT_ETHEREUM_SEPOLIA_TABLE=healthbot_11155111_{tableID}
 HEALTHBOT_OPTIMISM_GOERLI_TABLE=healthbot_420_{tableID}
-HEALTHBOT_ARBITRUM_GOERLI_TABLE=healthbot_421613_{tableID}
+HEALTHBOT_ARBITRUM_SEPOLIA_TABLE=healthbot_421614_{tableID}
 HEALTHBOT_POLYGON_MUMBAI_TABLE=healthbot_80001_{tableID}
 HEALTHBOT_FILECOIN_CALIBRATION_TABLE=healthbot_314159_{tableID}
 ```
