@@ -150,7 +150,7 @@ func (c *Controller) GetReceiptByTransactionHash(rw http.ResponseWriter, r *http
 	_ = json.NewEncoder(rw).Encode(receiptResponse)
 }
 
-// GetTable handles the GET /chain/{chainID}/tables/{tableId} call.
+// GetTable handles the GET /tables/{chainID}/{tableId} call.
 func (c *Controller) GetTable(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
@@ -256,7 +256,71 @@ func (c *Controller) GetTableQuery(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if len(formatted) == 0 {
+		rw.WriteHeader(http.StatusNotFound)
+		return
+	}
+
 	collectReadQueryMetric(r.Context(), stm, config, took)
+
+	rw.WriteHeader(http.StatusOK)
+	if config.Unwrap && len(res.Rows) > 1 {
+		rw.Header().Set("Content-Type", "application/jsonl+json")
+	}
+	_, _ = rw.Write(formatted)
+}
+
+// PostTableQuery handles the POST /query call.
+func (c *Controller) PostTableQuery(rw http.ResponseWriter, r *http.Request) {
+	rw.Header().Set("Content-Type", "application/json")
+
+	// setting a default body because these options could be missing from JSON
+	body := &apiv1.Query{
+		Format:  string(formatter.Objects),
+		Extract: false,
+		Unwrap:  false,
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		rw.WriteHeader(http.StatusBadRequest)
+		msg := fmt.Sprintf("Error parsing the body request: %v", err)
+		log.Ctx(r.Context()).Error().Err(err).Msg(msg)
+		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: msg})
+		return
+	}
+	_ = r.Body.Close()
+
+	start := time.Now()
+	res, ok := c.runReadRequest(r.Context(), body.Statement, rw)
+	if !ok {
+		return
+	}
+	took := time.Since(start)
+
+	var opts []formatter.FormatOption
+	output, ok := formatter.OutputFromString(body.Format)
+	if !ok {
+		log.Ctx(r.Context()).Error().Msg("bad output query parameter")
+		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: "bad output query parameter"})
+	}
+	opts = append(opts, formatter.WithOutput(output))
+	opts = append(opts, formatter.WithExtract(body.Extract))
+	opts = append(opts, formatter.WithUnwrap(body.Unwrap))
+
+	formatted, config, err := formatter.Format(res, opts...)
+	if err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		msg := fmt.Sprintf("Error formatting data: %v", err)
+		_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: msg})
+		log.Ctx(r.Context()).Error().Err(err).Msg(msg)
+		return
+	}
+
+	if len(formatted) == 0 {
+		rw.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	collectReadQueryMetric(r.Context(), body.Statement, config, took)
 
 	rw.WriteHeader(http.StatusOK)
 	if config.Unwrap && len(res.Rows) > 1 {
