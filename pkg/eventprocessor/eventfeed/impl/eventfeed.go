@@ -181,6 +181,7 @@ func (ef *EventFeed) Start(
 					strings.Contains(err.Error(), "range between to and from blocks is too large") ||
 					strings.Contains(err.Error(), "getMultipleAccounts, eth_getLogs, and eth_newFilter are limited to a 5 range") ||
 					strings.Contains(err.Error(), "eth_getLogs is limited to a 5 range") ||
+					strings.Contains(err.Error(), "eth_getLogs is limited to a 10,000 range") ||
 					strings.Contains(err.Error(), "block range is too wide") {
 					ef.maxBlocksFetchSize = ef.maxBlocksFetchSize * 80 / 100
 				} else {
