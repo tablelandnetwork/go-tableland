@@ -24,6 +24,7 @@ var ChainIDs = struct {
 	EthereumGoerli      ChainID
 	EthereumSepolia     ChainID
 	OptimismGoerli      ChainID
+	OptimismSepolia     ChainID
 	ArbitrumGoerli      ChainID
 	ArbitrumSepolia     ChainID
 	FilecoinCalibration ChainID
@@ -38,6 +39,7 @@ var ChainIDs = struct {
 	Filecoin:            314,
 	EthereumSepolia:     11155111,
 	OptimismGoerli:      420,
+	OptimismSepolia:     11155420,
 	ArbitrumSepolia:     421614,
 	FilecoinCalibration: 314159,
 	PolygonMumbai:       80001,
@@ -102,6 +104,12 @@ var Chains = map[ChainID]Chain{
 		Name:         "Optimism Goerli",
 		ContractAddr: common.HexToAddress("0xC72E8a7Be04f2469f8C2dB3F1BdF69A7D516aBbA"),
 	},
+	ChainIDs.OptimismSepolia: {
+		Endpoint:     testnetURL,
+		ID:           ChainIDs.OptimismSepolia,
+		Name:         "Optimism Sepolia",
+		ContractAddr: common.HexToAddress("0x68A2f4423ad3bf5139Db563CF3bC80aA09ed7079"),
+	},
 	ChainIDs.ArbitrumSepolia: {
 		Endpoint:     testnetURL,
 		ID:           ChainIDs.ArbitrumSepolia,
@@ -143,6 +151,7 @@ var AlchemyURLs = map[ChainID]string{
 	ChainIDs.EthereumSepolia: "https://eth-sepolia.g.alchemy.com/v2/%s",
 	ChainIDs.Ethereum:        "https://eth-mainnet.g.alchemy.com/v2/%s",
 	ChainIDs.OptimismGoerli:  "https://opt-goerli.g.alchemy.com/v2/%s",
+	ChainIDs.OptimismSepolia: "https://opt-sepolia.g.alchemy.com/v2/%s",
 	ChainIDs.Optimism:        "https://opt-mainnet.g.alchemy.com/v2/%s",
 	ChainIDs.ArbitrumSepolia: "https://arb-sepolia.g.alchemy.com/v2/%s",
 	ChainIDs.Arbitrum:        "https://arb-mainnet.g.alchemy.com/v2/%s",

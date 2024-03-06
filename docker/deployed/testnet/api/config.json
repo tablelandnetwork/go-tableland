@@ -129,6 +129,25 @@
             "HashCalculationStep": 1800
         },
         {
+            "Name": "Optimism Sepolia",
+            "ChainID": 11155420,
+            "Registry": {
+                "EthEndpoint": "wss://opt-sepolia.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_OPTIMISM_SEPOLIA_API_KEY}",
+                "ContractAddress": "0x68A2f4423ad3bf5139Db563CF3bC80aA09ed7079"
+            },
+            "EventFeed": {
+                "ChainAPIBackoff": "15s",
+                "NewBlockPollFreq": "5s",
+                "MinBlockDepth": 0,
+                "PersistEvents": true
+            },
+            "EventProcessor": {
+                "BlockFailedExecutionBackoff": "10s",
+                "DedupExecutedTxns": true
+            },
+            "HashCalculationStep": 1800
+        },
+        {
             "Name": "Filecoin Calibration",
             "ChainID": 314159,
             "Registry": {
