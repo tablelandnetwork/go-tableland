@@ -9,12 +9,12 @@
     "Chains": [
         {
             "ChainID": 420,
-            "WalletPrivateKey": "${HEALTHBOT_OPTIMISM_GOERLI_PRIVATE_KEY}",
-            "AlchemyAPIKey": "${HEALTHBOT_OPTIMISM_GOERLI_API_KEY}",
+            "WalletPrivateKey": "${HEALTHBOT_OPTIMISM_SEPOLIA_PRIVATE_KEY}",
+            "AlchemyAPIKey": "${HEALTHBOT_OPTIMISM_SEPOLIA_API_KEY}",
             "Probe": {
                 "CheckInterval": "360s",
                 "ReceiptTimeout": "20s",
-                "Tablename": "${HEALTHBOT_OPTIMISM_GOERLI_TABLE}"
+                "Tablename": "${HEALTHBOT_OPTIMISM_SEPOLIA_TABLE}"
             },
             "OverrideClient" : {
                 "GatewayEndpoint": "https://staging.tableland.network",

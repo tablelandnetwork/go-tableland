@@ -21,11 +21,8 @@ var ChainIDs = struct {
 	Arbitrum            ChainID
 	ArbitrumNova        ChainID
 	Filecoin            ChainID
-	EthereumGoerli      ChainID
 	EthereumSepolia     ChainID
-	OptimismGoerli      ChainID
 	OptimismSepolia     ChainID
-	ArbitrumGoerli      ChainID
 	ArbitrumSepolia     ChainID
 	FilecoinCalibration ChainID
 	PolygonMumbai       ChainID
@@ -38,7 +35,6 @@ var ChainIDs = struct {
 	ArbitrumNova:        42170,
 	Filecoin:            314,
 	EthereumSepolia:     11155111,
-	OptimismGoerli:      420,
 	OptimismSepolia:     11155420,
 	ArbitrumSepolia:     421614,
 	FilecoinCalibration: 314159,
@@ -98,12 +94,6 @@ var Chains = map[ChainID]Chain{
 		Name:         "Ethereum Sepolia",
 		ContractAddr: common.HexToAddress("0xc50C62498448ACc8dBdE43DA77f8D5D2E2c7597D"),
 	},
-	ChainIDs.OptimismGoerli: {
-		Endpoint:     testnetURL,
-		ID:           ChainIDs.OptimismGoerli,
-		Name:         "Optimism Goerli",
-		ContractAddr: common.HexToAddress("0xC72E8a7Be04f2469f8C2dB3F1BdF69A7D516aBbA"),
-	},
 	ChainIDs.OptimismSepolia: {
 		Endpoint:     testnetURL,
 		ID:           ChainIDs.OptimismSepolia,
@@ -138,19 +128,17 @@ var Chains = map[ChainID]Chain{
 
 // InfuraURLs contains the URLs for supported chains for Infura.
 var InfuraURLs = map[ChainID]string{
-	ChainIDs.Ethereum:       "https://mainnet.infura.io/v3/%s",
-	ChainIDs.OptimismGoerli: "https://optimism-goerli.infura.io/v3/%s",
-	ChainIDs.Optimism:       "https://optimism-mainnet.infura.io/v3/%s",
-	ChainIDs.Arbitrum:       "https://arbitrum-mainnet.infura.io/v3/%s",
-	ChainIDs.PolygonMumbai:  "https://polygon-mumbai.infura.io/v3/%s",
-	ChainIDs.Polygon:        "https://polygon-mainnet.infura.io/v3/%s",
+	ChainIDs.Ethereum:      "https://mainnet.infura.io/v3/%s",
+	ChainIDs.Optimism:      "https://optimism-mainnet.infura.io/v3/%s",
+	ChainIDs.Arbitrum:      "https://arbitrum-mainnet.infura.io/v3/%s",
+	ChainIDs.PolygonMumbai: "https://polygon-mumbai.infura.io/v3/%s",
+	ChainIDs.Polygon:       "https://polygon-mainnet.infura.io/v3/%s",
 }
 
 // AlchemyURLs contains the URLs for supported chains for Alchemy.
 var AlchemyURLs = map[ChainID]string{
 	ChainIDs.EthereumSepolia: "https://eth-sepolia.g.alchemy.com/v2/%s",
 	ChainIDs.Ethereum:        "https://eth-mainnet.g.alchemy.com/v2/%s",
-	ChainIDs.OptimismGoerli:  "https://opt-goerli.g.alchemy.com/v2/%s",
 	ChainIDs.OptimismSepolia: "https://opt-sepolia.g.alchemy.com/v2/%s",
 	ChainIDs.Optimism:        "https://opt-mainnet.g.alchemy.com/v2/%s",
 	ChainIDs.ArbitrumSepolia: "https://arb-sepolia.g.alchemy.com/v2/%s",
