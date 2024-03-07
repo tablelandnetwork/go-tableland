@@ -298,7 +298,7 @@ The validator configuration is done via a JSON file located at `deployed/mainnet
 
 This file contains general and chain-specific configuration, such as desired listening ports, gateway configuration, log level configuration, and chain-specific configuration, including name, chain ID, contract address, wallet private keys, and EVM node API endpoints.
 
-The provided configurations in each `deployed/<environment>` already have everything needed for the environment and other recommended values. The environment variable expansion parts of the `config.json` file, such as secrets and other attributes in the `.env_validator` file, were explained in the [secret configuration section](2-configure-your-secrets-in-env-files) above. For example, the `VALIDATOR_ALCHEMY_ETHEREUM_MAINNET_API_KEY` variable configured in `.env_validator` expands a `${VALIDATOR_ALCHEMY_ETHEREUM_MAINNET_API_KEY}` present in the `config.json` file. If you want to use a self-hosted Ethereum mainnet node API or another provider, you can edit the `config.json` file in the `EthEndpoint` endpoint. This same logic applies to every possible configuration in the validator.
+The provided configurations in each `deployed/<environment>` already have everything needed for the environment and other recommended values. The environment variable expansion parts of the `config.json` file, such as secrets and other attributes in the `.env_validator` file, were explained in the [secret configuration section](#2-configure-your-secrets-in-env-files) above. For example, the `VALIDATOR_ALCHEMY_ETHEREUM_MAINNET_API_KEY` variable configured in `.env_validator` expands a `${VALIDATOR_ALCHEMY_ETHEREUM_MAINNET_API_KEY}` present in the `config.json` file. If you want to use a self-hosted Ethereum mainnet node API or another provider, you can edit the `config.json` file in the `EthEndpoint` endpoint. This same logic applies to every possible configuration in the validator.
 
 #### Observability stack
 
@@ -473,4 +473,4 @@ Small note: If editing the README, please conform to the
 
 ## License
 
-MIT AND Apache-2.0, © 2021-2023 Tableland Network Contributors
+MIT AND Apache-2.0, © 2021-2024 Tableland Network Contributors
