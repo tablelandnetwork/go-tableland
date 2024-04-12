@@ -338,7 +338,6 @@ This would result in having four tables—one per chain:
 - `healthbot_11155111_{tableID}` (Ethereum Sepolia)
 - `healthbot_11155420_{tableID}` (Optimism Sepolia)
 - `healthbot_421614_{tableID}` (Arbitrum Sepolia)
-- `healthbot_80001_{tableID}` (Polygon Mumbai)
 - `healthbot_314159_{tableID}` (Filecoin Calibration)
 
 You should create a file `.env_healthbot` in the `docker/deployed/testnet/healthbot` folder with the following content (an example is provided with `.env_healthbot.example`):
@@ -347,7 +346,6 @@ You should create a file `.env_healthbot` in the `docker/deployed/testnet/health
 HEALTHBOT_ETHEREUM_SEPOLIA_TABLE=healthbot_11155111_{tableID}
 HEALTHBOT_OPTIMISM_SEPOLIA_TABLE=healthbot_11155420_{tableID}
 HEALTHBOT_ARBITRUM_SEPOLIA_TABLE=healthbot_421614_{tableID}
-HEALTHBOT_POLYGON_MUMBAI_TABLE=healthbot_80001_{tableID}
 HEALTHBOT_FILECOIN_CALIBRATION_TABLE=healthbot_314159_{tableID}
 ```
 

@@ -25,7 +25,6 @@ var ChainIDs = struct {
 	OptimismSepolia     ChainID
 	ArbitrumSepolia     ChainID
 	FilecoinCalibration ChainID
-	PolygonMumbai       ChainID
 	Local               ChainID
 }{
 	Ethereum:            1,
@@ -38,7 +37,6 @@ var ChainIDs = struct {
 	OptimismSepolia:     11155420,
 	ArbitrumSepolia:     421614,
 	FilecoinCalibration: 314159,
-	PolygonMumbai:       80001,
 	Local:               31337,
 }
 
@@ -112,12 +110,6 @@ var Chains = map[ChainID]Chain{
 		Name:         "Filecoin Calibration",
 		ContractAddr: common.HexToAddress("0x030BCf3D50cad04c2e57391B12740982A9308621"),
 	},
-	ChainIDs.PolygonMumbai: {
-		Endpoint:     testnetURL,
-		ID:           ChainIDs.PolygonMumbai,
-		Name:         "Polygon Mumbai",
-		ContractAddr: common.HexToAddress("0x4b48841d4b32C4650E4ABc117A03FE8B51f38F68"),
-	},
 	ChainIDs.Local: {
 		Endpoint:     localURL,
 		ID:           ChainIDs.Local,
@@ -128,11 +120,10 @@ var Chains = map[ChainID]Chain{
 
 // InfuraURLs contains the URLs for supported chains for Infura.
 var InfuraURLs = map[ChainID]string{
-	ChainIDs.Ethereum:      "https://mainnet.infura.io/v3/%s",
-	ChainIDs.Optimism:      "https://optimism-mainnet.infura.io/v3/%s",
-	ChainIDs.Arbitrum:      "https://arbitrum-mainnet.infura.io/v3/%s",
-	ChainIDs.PolygonMumbai: "https://polygon-mumbai.infura.io/v3/%s",
-	ChainIDs.Polygon:       "https://polygon-mainnet.infura.io/v3/%s",
+	ChainIDs.Ethereum: "https://mainnet.infura.io/v3/%s",
+	ChainIDs.Optimism: "https://optimism-mainnet.infura.io/v3/%s",
+	ChainIDs.Arbitrum: "https://arbitrum-mainnet.infura.io/v3/%s",
+	ChainIDs.Polygon:  "https://polygon-mainnet.infura.io/v3/%s",
 }
 
 // AlchemyURLs contains the URLs for supported chains for Alchemy.
@@ -143,7 +134,6 @@ var AlchemyURLs = map[ChainID]string{
 	ChainIDs.Optimism:        "https://opt-mainnet.g.alchemy.com/v2/%s",
 	ChainIDs.ArbitrumSepolia: "https://arb-sepolia.g.alchemy.com/v2/%s",
 	ChainIDs.Arbitrum:        "https://arb-mainnet.g.alchemy.com/v2/%s",
-	ChainIDs.PolygonMumbai:   "https://polygon-mumbai.g.alchemy.com/v2/%s",
 	ChainIDs.Polygon:         "https://polygon-mainnet.g.alchemy.com/v2/%s",
 }
 
