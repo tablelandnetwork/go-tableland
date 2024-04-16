@@ -162,16 +162,28 @@ func (g *GatewayService) GetReceiptByTransactionHash(
 
 // RunReadQuery allows the user to run SQL.
 func (g *GatewayService) RunReadQuery(ctx context.Context, statement string) (*TableData, error) {
-	readStmt, err := g.parser.ValidateReadQuery(statement)
+	_, err := g.parser.ValidateReadQuery(statement)
 	if err != nil {
 		return nil, fmt.Errorf("validating read query: %s", err)
 	}
 
-	queryResult, err := g.store.Read(ctx, readStmt)
+	qe, err := NewQueryEngine()
+	if err != nil {
+		return nil, fmt.Errorf("new query engine: %s", err)
+	}
+	defer qe.Close()
+
+	queryResult, err := qe.Query(ctx, statement)
 	if err != nil {
 		return nil, fmt.Errorf("running read statement: %s", err)
 	}
 	return queryResult, nil
+
+	// queryResult, err := g.store.Read(ctx, readStmt)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("running read statement: %s", err)
+	// }
+	// return queryResult, nil
 }
 
 func (g *GatewayService) getMetadataImage(chainID tableland.ChainID, tableID tables.TableID) string {

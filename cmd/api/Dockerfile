@@ -1,6 +1,6 @@
-FROM golang:1.19.6-alpine as builder
+FROM golang:1.19.6 as builder
 
-RUN apk --no-cache add make build-base git
+RUN apt-get install make git
 
 RUN mkdir /app
 WORKDIR /app
@@ -11,7 +11,7 @@ COPY . .
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
   BIN_BUILD_FLAGS="GOOS=linux" make build-api
 
-FROM alpine
+FROM debian
 
 COPY --from=builder /app/api /app/api
 WORKDIR /app
