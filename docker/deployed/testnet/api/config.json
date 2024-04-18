@@ -72,6 +72,25 @@
             "HashCalculationStep": 150
         },
         {
+            "Name": "Polygon Amoy",
+            "ChainID": 80002,
+            "Registry": {
+                "EthEndpoint": "wss://polygon-amoy.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_POLYGON_AMOY_API_KEY}",
+                "ContractAddress": "0x170fb206132b693e38adFc8727dCfa303546Cec1"
+            },
+            "EventFeed": {
+                "ChainAPIBackoff": "15s",
+                "NewBlockPollFreq": "5s",
+                "MinBlockDepth": 1,
+                "PersistEvents": true
+            },
+            "EventProcessor": {
+                "BlockFailedExecutionBackoff": "10s",
+                "DedupExecutedTxns": true
+            },
+            "HashCalculationStep": 360
+        },
+        {
             "Name": "Arbitrum Sepolia",
             "ChainID": 421614,
             "Registry": {
