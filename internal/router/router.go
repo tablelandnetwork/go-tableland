@@ -61,6 +61,10 @@ func configureAPIV1Routes(
 			userCtrl.GetTableQuery,
 			[]mux.MiddlewareFunc{middlewares.WithLogging, rateLim},
 		},
+		"QueryByStatementPost": {
+			userCtrl.PostTableQuery,
+			[]mux.MiddlewareFunc{middlewares.WithLogging, rateLim},
+		},
 		"ReceiptByTransactionHash": {
 			userCtrl.GetReceiptByTransactionHash,
 			[]mux.MiddlewareFunc{middlewares.WithLogging, middlewares.RESTChainID(supportedChainIDs), rateLim},
@@ -97,11 +101,30 @@ func configureAPIV1Routes(
 			return fmt.Errorf("get path template: %s", err)
 		}
 
-		router.get(
-			pathTemplate,
-			endpoint.handler,
-			append([]mux.MiddlewareFunc{middlewares.OtelHTTP(routeName)}, endpoint.middlewares...)...,
-		)
+		methods, err := route.GetMethods()
+		if err != nil {
+			return fmt.Errorf("get method: %s", err)
+		}
+
+		for _, method := range methods {
+			switch method {
+			case "GET":
+				router.get(
+					pathTemplate,
+					endpoint.handler,
+					append([]mux.MiddlewareFunc{middlewares.OtelHTTP(routeName)}, endpoint.middlewares...)...,
+				)
+			case "POST":
+				router.post(
+					pathTemplate,
+					endpoint.handler,
+					append([]mux.MiddlewareFunc{middlewares.OtelHTTP(routeName)}, endpoint.middlewares...)...,
+				)
+			default:
+				return fmt.Errorf("unknown method")
+			}
+		}
+
 		return nil
 	}); err != nil {
 		return fmt.Errorf("configuring api v1 router: %s", err)
@@ -129,6 +152,13 @@ func newRouter() *Router {
 func (r *Router) get(uri string, f http.HandlerFunc, mid ...mux.MiddlewareFunc) {
 	sub := r.r.Path(uri).Subrouter()
 	sub.HandleFunc("", f).Methods(http.MethodGet)
+	sub.Use(mid...)
+}
+
+// post creates a subroute on the specified URI that only accepts POST. You can provide specific middlewares.
+func (r *Router) post(uri string, f http.HandlerFunc, mid ...mux.MiddlewareFunc) {
+	sub := r.r.Path(uri).Subrouter()
+	sub.HandleFunc("", f).Methods(http.MethodPost)
 	sub.Use(mid...)
 }
 

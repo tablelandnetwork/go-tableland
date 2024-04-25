@@ -119,7 +119,7 @@ There are two prerequisites for running a validator:
 Tableland has two separate networks:
 
 - `mainnet`: this network syncs mainnet EVM chains (e.g., Ethereum mainnet, Arbitrum mainnet, etc.).
-- `testnet`: this network is syncing testnet EVM chains (e.g., Ethereum Sepolia, Arbitrum Goerli, etc.).
+- `testnet`: this network is syncing testnet EVM chains (e.g., Ethereum Sepolia, Arbitrum Sepolia, etc.).
 
 This guide will focus on running the validator in the `mainnet` network.
 
@@ -298,7 +298,7 @@ The validator configuration is done via a JSON file located at `deployed/mainnet
 
 This file contains general and chain-specific configuration, such as desired listening ports, gateway configuration, log level configuration, and chain-specific configuration, including name, chain ID, contract address, wallet private keys, and EVM node API endpoints.
 
-The provided configurations in each `deployed/<environment>` already have everything needed for the environment and other recommended values. The environment variable expansion parts of the `config.json` file, such as secrets and other attributes in the `.env_validator` file, were explained in the [secret configuration section](2-configure-your-secrets-in-env-files) above. For example, the `VALIDATOR_ALCHEMY_ETHEREUM_MAINNET_API_KEY` variable configured in `.env_validator` expands a `${VALIDATOR_ALCHEMY_ETHEREUM_MAINNET_API_KEY}` present in the `config.json` file. If you want to use a self-hosted Ethereum mainnet node API or another provider, you can edit the `config.json` file in the `EthEndpoint` endpoint. This same logic applies to every possible configuration in the validator.
+The provided configurations in each `deployed/<environment>` already have everything needed for the environment and other recommended values. The environment variable expansion parts of the `config.json` file, such as secrets and other attributes in the `.env_validator` file, were explained in the [secret configuration section](#2-configure-your-secrets-in-env-files) above. For example, the `VALIDATOR_ALCHEMY_ETHEREUM_MAINNET_API_KEY` variable configured in `.env_validator` expands a `${VALIDATOR_ALCHEMY_ETHEREUM_MAINNET_API_KEY}` present in the `config.json` file. If you want to use a self-hosted Ethereum mainnet node API or another provider, you can edit the `config.json` file in the `EthEndpoint` endpoint. This same logic applies to every possible configuration in the validator.
 
 #### Observability stack
 
@@ -336,18 +336,16 @@ CREATE TABLE healthbot_{chainID} (counter INTEGER);
 This would result in having four tables—one per chain:
 
 - `healthbot_11155111_{tableID}` (Ethereum Sepolia)
-- `healthbot_420_{tableID}` (Optimism Goerli)
-- `healthbot_421613_{tableID}` (Arbitrum Goerli)
-- `healthbot_80001_{tableID}` (Polygon Mumbai)
+- `healthbot_11155420_{tableID}` (Optimism Sepolia)
+- `healthbot_421614_{tableID}` (Arbitrum Sepolia)
 - `healthbot_314159_{tableID}` (Filecoin Calibration)
 
 You should create a file `.env_healthbot` in the `docker/deployed/testnet/healthbot` folder with the following content (an example is provided with `.env_healthbot.example`):
 
 ```txt
 HEALTHBOT_ETHEREUM_SEPOLIA_TABLE=healthbot_11155111_{tableID}
-HEALTHBOT_OPTIMISM_GOERLI_TABLE=healthbot_420_{tableID}
-HEALTHBOT_ARBITRUM_GOERLI_TABLE=healthbot_421613_{tableID}
-HEALTHBOT_POLYGON_MUMBAI_TABLE=healthbot_80001_{tableID}
+HEALTHBOT_OPTIMISM_SEPOLIA_TABLE=healthbot_11155420_{tableID}
+HEALTHBOT_ARBITRUM_SEPOLIA_TABLE=healthbot_421614_{tableID}
 HEALTHBOT_FILECOIN_CALIBRATION_TABLE=healthbot_314159_{tableID}
 ```
 
@@ -473,4 +471,4 @@ Small note: If editing the README, please conform to the
 
 ## License
 
-MIT AND Apache-2.0, © 2021-2023 Tableland Network Contributors
+MIT AND Apache-2.0, © 2021-2024 Tableland Network Contributors

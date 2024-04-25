@@ -22,16 +22,6 @@
             }
         },
         {
-            "ChainID": 80001,
-            "WalletPrivateKey": "${HEALTHBOT_POLYGON_MUMBAI_PRIVATE_KEY}",
-            "AlchemyAPIKey": "${HEALTHBOT_ALCHEMY_POLYGON_MUMBAI_API_KEY}",
-            "Probe": {
-                "CheckInterval": "240s",
-                "ReceiptTimeout": "40s",
-                "Tablename": "${HEALTHBOT_POLYGON_MUMBAI_TABLE}"
-            }
-        },
-        {
             "ChainID": 314159,
             "WalletPrivateKey": "${HEALTHBOT_FILECOIN_CALIBRATION_PRIVATE_KEY}",
             "GlifAPIKey": "${HEALTHBOT_GLIF_FILECOIN_CALIBRATION_API_KEY}",

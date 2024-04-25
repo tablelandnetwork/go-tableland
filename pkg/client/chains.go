@@ -21,12 +21,11 @@ var ChainIDs = struct {
 	Arbitrum            ChainID
 	ArbitrumNova        ChainID
 	Filecoin            ChainID
-	EthereumGoerli      ChainID
 	EthereumSepolia     ChainID
-	OptimismGoerli      ChainID
-	ArbitrumGoerli      ChainID
+	OptimismSepolia     ChainID
+	ArbitrumSepolia     ChainID
 	FilecoinCalibration ChainID
-	PolygonMumbai       ChainID
+	PolygonAmoy         ChainID
 	Local               ChainID
 }{
 	Ethereum:            1,
@@ -35,12 +34,11 @@ var ChainIDs = struct {
 	Arbitrum:            42161,
 	ArbitrumNova:        42170,
 	Filecoin:            314,
-	EthereumGoerli:      5,
 	EthereumSepolia:     11155111,
-	OptimismGoerli:      420,
-	ArbitrumGoerli:      421613,
+	OptimismSepolia:     11155420,
+	ArbitrumSepolia:     421614,
 	FilecoinCalibration: 314159,
-	PolygonMumbai:       80001,
+	PolygonAmoy:         80002,
 	Local:               31337,
 }
 
@@ -90,29 +88,23 @@ var Chains = map[ChainID]Chain{
 		Name:         "Filecoin",
 		ContractAddr: common.HexToAddress("0x59EF8Bf2d6c102B4c42AEf9189e1a9F0ABfD652d"),
 	},
-	ChainIDs.EthereumGoerli: {
-		Endpoint:     testnetURL,
-		ID:           ChainIDs.EthereumGoerli,
-		Name:         "Ethereum Goerli",
-		ContractAddr: common.HexToAddress("0xDA8EA22d092307874f30A1F277D1388dca0BA97a"),
-	},
 	ChainIDs.EthereumSepolia: {
 		Endpoint:     testnetURL,
 		ID:           ChainIDs.EthereumSepolia,
 		Name:         "Ethereum Sepolia",
 		ContractAddr: common.HexToAddress("0xc50C62498448ACc8dBdE43DA77f8D5D2E2c7597D"),
 	},
-	ChainIDs.OptimismGoerli: {
+	ChainIDs.OptimismSepolia: {
 		Endpoint:     testnetURL,
-		ID:           ChainIDs.OptimismGoerli,
-		Name:         "Optimism Goerli",
-		ContractAddr: common.HexToAddress("0xC72E8a7Be04f2469f8C2dB3F1BdF69A7D516aBbA"),
+		ID:           ChainIDs.OptimismSepolia,
+		Name:         "Optimism Sepolia",
+		ContractAddr: common.HexToAddress("0x68A2f4423ad3bf5139Db563CF3bC80aA09ed7079"),
 	},
-	ChainIDs.ArbitrumGoerli: {
+	ChainIDs.ArbitrumSepolia: {
 		Endpoint:     testnetURL,
-		ID:           ChainIDs.ArbitrumGoerli,
-		Name:         "Arbitrum Goerli",
-		ContractAddr: common.HexToAddress("0x033f69e8d119205089Ab15D340F5b797732f646b"),
+		ID:           ChainIDs.ArbitrumSepolia,
+		Name:         "Arbitrum Sepolia",
+		ContractAddr: common.HexToAddress("0x223A74B8323914afDC3ff1e5005564dC17231d6e"),
 	},
 	ChainIDs.FilecoinCalibration: {
 		Endpoint:     testnetURL,
@@ -120,11 +112,11 @@ var Chains = map[ChainID]Chain{
 		Name:         "Filecoin Calibration",
 		ContractAddr: common.HexToAddress("0x030BCf3D50cad04c2e57391B12740982A9308621"),
 	},
-	ChainIDs.PolygonMumbai: {
+	ChainIDs.PolygonAmoy: {
 		Endpoint:     testnetURL,
-		ID:           ChainIDs.PolygonMumbai,
-		Name:         "Polygon Mumbai",
-		ContractAddr: common.HexToAddress("0x4b48841d4b32C4650E4ABc117A03FE8B51f38F68"),
+		ID:           ChainIDs.PolygonAmoy,
+		Name:         "Polygon Amoy",
+		ContractAddr: common.HexToAddress("0x170fb206132b693e38adFc8727dCfa303546Cec1"),
 	},
 	ChainIDs.Local: {
 		Endpoint:     localURL,
@@ -136,26 +128,21 @@ var Chains = map[ChainID]Chain{
 
 // InfuraURLs contains the URLs for supported chains for Infura.
 var InfuraURLs = map[ChainID]string{
-	ChainIDs.EthereumGoerli: "https://goerli.infura.io/v3/%s",
-	ChainIDs.Ethereum:       "https://mainnet.infura.io/v3/%s",
-	ChainIDs.OptimismGoerli: "https://optimism-goerli.infura.io/v3/%s",
-	ChainIDs.Optimism:       "https://optimism-mainnet.infura.io/v3/%s",
-	ChainIDs.ArbitrumGoerli: "https://arbitrum-goerli.infura.io/v3/%s",
-	ChainIDs.Arbitrum:       "https://arbitrum-mainnet.infura.io/v3/%s",
-	ChainIDs.PolygonMumbai:  "https://polygon-mumbai.infura.io/v3/%s",
-	ChainIDs.Polygon:        "https://polygon-mainnet.infura.io/v3/%s",
+	ChainIDs.Ethereum: "https://mainnet.infura.io/v3/%s",
+	ChainIDs.Optimism: "https://optimism-mainnet.infura.io/v3/%s",
+	ChainIDs.Arbitrum: "https://arbitrum-mainnet.infura.io/v3/%s",
+	ChainIDs.Polygon:  "https://polygon-mainnet.infura.io/v3/%s",
 }
 
 // AlchemyURLs contains the URLs for supported chains for Alchemy.
 var AlchemyURLs = map[ChainID]string{
-	ChainIDs.EthereumGoerli:  "https://eth-goerli.g.alchemy.com/v2/%s",
 	ChainIDs.EthereumSepolia: "https://eth-sepolia.g.alchemy.com/v2/%s",
 	ChainIDs.Ethereum:        "https://eth-mainnet.g.alchemy.com/v2/%s",
-	ChainIDs.OptimismGoerli:  "https://opt-goerli.g.alchemy.com/v2/%s",
+	ChainIDs.OptimismSepolia: "https://opt-sepolia.g.alchemy.com/v2/%s",
 	ChainIDs.Optimism:        "https://opt-mainnet.g.alchemy.com/v2/%s",
-	ChainIDs.ArbitrumGoerli:  "https://arb-goerli.g.alchemy.com/v2/%s",
+	ChainIDs.ArbitrumSepolia: "https://arb-sepolia.g.alchemy.com/v2/%s",
 	ChainIDs.Arbitrum:        "https://arb-mainnet.g.alchemy.com/v2/%s",
-	ChainIDs.PolygonMumbai:   "https://polygon-mumbai.g.alchemy.com/v2/%s",
+	ChainIDs.PolygonAmoy:     "https://polygon-amoy.g.alchemy.com/v2/%s",
 	ChainIDs.Polygon:         "https://polygon-mainnet.g.alchemy.com/v2/%s",
 }
 
