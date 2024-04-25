@@ -29,9 +29,9 @@ config:
         "ApiKey": "${HTTP_RATE_LIMITER_API_KEY}"
       },
       "Gateway": {
-        "ExternalURIPrefix": "https://testnets.tableland.network",
-        "MetadataRendererURI": "https://tables.testnets.tableland.xyz",
-        "AnimationRendererURI": "https://tables.testnets.tableland.xyz"
+        "ExternalURIPrefix": "https://tableland.network",
+        "MetadataRendererURI": "https://tables.tableland.xyz",
+        "AnimationRendererURI": "https://tables.tableland.xyz"
       },
       "DB": {
         "Port": "5432"
@@ -66,18 +66,18 @@ config:
       },
       "TelemetryPublisher": {
         "Enabled": true,
-        "MetricsHubURL": "https://metricshub-testnet-v2-mrgr43cf5q-uw.a.run.app",
+        "MetricsHubURL": "https://metricshub-mainnet-mrgr43cf5q-uw.a.run.app",
         "MetricsHubApiKey": "${METRICS_HUB_API_KEY}",
         "PublishingInterval": "10s",
         "ChainStackCollectFrequency": "15m"
       },
       "Chains": [
         {
-          "Name": "Ethereum Sepolia",
-          "ChainID": 11155111,
+          "Name": "Ethereum Mainnet",
+          "ChainID": 1,
           "Registry": {
-            "EthEndpoint": "wss://eth-sepolia.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_ETHEREUM_SEPOLIA_API_KEY}",
-            "ContractAddress": "0xc50C62498448ACc8dBdE43DA77f8D5D2E2c7597D"
+            "EthEndpoint": "wss://eth-mainnet.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_ETHEREUM_MAINNET_API_KEY}",
+            "ContractAddress": "0x012969f7e3439a9B04025b5a049EB9BAD82A8C12"
           },
           "EventFeed": {
             "ChainAPIBackoff": "15s",
@@ -87,16 +87,17 @@ config:
           },
           "EventProcessor": {
             "BlockFailedExecutionBackoff": "10s",
-            "DedupExecutedTxns": true
+            "DedupExecutedTxns": true,
+            "WebhookURL": "https://discord.com/api/webhooks/${VALIDATOR_DISCORD_WEBHOOK_ID}/${VALIDATOR_DISCORD_WEBHOOK_TOKEN}"
           },
           "HashCalculationStep": 150
         },
         {
-          "Name": "Polygon Amoy",
-          "ChainID": 80002,
+          "Name": "Polygon Mainnet",
+          "ChainID": 137,
           "Registry": {
-            "EthEndpoint": "wss://polygon-amoy.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_POLYGON_AMOY_API_KEY}",
-            "ContractAddress": "0x170fb206132b693e38adFc8727dCfa303546Cec1"
+            "EthEndpoint": "wss://polygon-mainnet.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_POLYGON_MAINNET_API_KEY}",
+            "ContractAddress": "0x5c4e6A9e5C1e1BF445A062006faF19EA6c49aFeA"
           },
           "EventFeed": {
             "ChainAPIBackoff": "15s",
@@ -106,7 +107,8 @@ config:
           },
           "EventProcessor": {
             "BlockFailedExecutionBackoff": "10s",
-            "DedupExecutedTxns": true
+            "DedupExecutedTxns": true,
+            "WebhookURL": "https://discord.com/api/webhooks/${VALIDATOR_DISCORD_WEBHOOK_ID}/${VALIDATOR_DISCORD_WEBHOOK_TOKEN}"
           },
           "HashCalculationStep": 360
         }
@@ -115,9 +117,9 @@ config:
 
 
 extraEnvs: 
-  - name: VALIDATOR_ALCHEMY_ETHEREUM_SEPOLIA_API_KEY
+  - name: VALIDATOR_ALCHEMY_ETHEREUM_MAINNET_API_KEY
     value: secret-value
-  - name: VALIDATOR_ALCHEMY_POLYGON_AMOY_API_KEY
+  - name: VALIDATOR_ALCHEMY_POLYGON_MAINNET_API_KEY
     value: secret-value
   - name: HTTP_RATE_LIMITER_API_KEY
     value: very-secret
