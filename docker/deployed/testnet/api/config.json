@@ -129,6 +129,25 @@
             "HashCalculationStep": 1800
         },
         {
+            "Name": "Base Sepolia",
+            "ChainID": 84532,
+            "Registry": {
+                "EthEndpoint": "wss://base-sepolia.g.alchemy.com/v2/{VALIDATOR_ALCHEMY_BASE_SEPOLIA_API_KEY}",
+                "ContractAddress": "TODO"
+            },
+            "EventFeed": {
+                "ChainAPIBackoff": "15s",
+                "NewBlockPollFreq": "5s",
+                "MinBlockDepth": 0,
+                "PersistEvents": true
+            },
+            "EventProcessor": {
+                "BlockFailedExecutionBackoff": "10s",
+                "DedupExecutedTxns": true
+            },
+            "HashCalculationStep": 1800
+        },
+        {
             "Name": "Filecoin Calibration",
             "ChainID": 314159,
             "Registry": {
