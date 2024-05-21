@@ -24,6 +24,7 @@ var ChainIDs = struct {
 	EthereumSepolia     ChainID
 	OptimismSepolia     ChainID
 	ArbitrumSepolia     ChainID
+	BaseSepolia         ChainID
 	FilecoinCalibration ChainID
 	PolygonAmoy         ChainID
 	Local               ChainID
@@ -37,6 +38,7 @@ var ChainIDs = struct {
 	EthereumSepolia:     11155111,
 	OptimismSepolia:     11155420,
 	ArbitrumSepolia:     421614,
+	BaseSepolia:         84532,
 	FilecoinCalibration: 314159,
 	PolygonAmoy:         80002,
 	Local:               31337,
@@ -106,6 +108,12 @@ var Chains = map[ChainID]Chain{
 		Name:         "Arbitrum Sepolia",
 		ContractAddr: common.HexToAddress("0x223A74B8323914afDC3ff1e5005564dC17231d6e"),
 	},
+	ChainIDs.BaseSepolia: {
+		Endpoint:     testnetURL,
+		ID:           ChainIDs.BaseSepolia,
+		Name:         "Base Sepolia",
+		ContractAddr: common.HexToAddress("TODO"),
+	},
 	ChainIDs.FilecoinCalibration: {
 		Endpoint:     testnetURL,
 		ID:           ChainIDs.FilecoinCalibration,
@@ -142,6 +150,7 @@ var AlchemyURLs = map[ChainID]string{
 	ChainIDs.Optimism:        "https://opt-mainnet.g.alchemy.com/v2/%s",
 	ChainIDs.ArbitrumSepolia: "https://arb-sepolia.g.alchemy.com/v2/%s",
 	ChainIDs.Arbitrum:        "https://arb-mainnet.g.alchemy.com/v2/%s",
+	ChainIDs.BaseSepolia:     "https://base-sepolia.g.alchemy.com/v2/%s",
 	ChainIDs.PolygonAmoy:     "https://polygon-amoy.g.alchemy.com/v2/%s",
 	ChainIDs.Polygon:         "https://polygon-mainnet.g.alchemy.com/v2/%s",
 }
