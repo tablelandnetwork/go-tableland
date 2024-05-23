@@ -61,7 +61,9 @@ func ReadUnwrap() ReadOption {
 var queryURL, _ = url.Parse("/api/v1/query")
 
 // Read runs a read query with the provided opts and unmarshals the results into target.
-func (c *Client) Read(ctx context.Context, query string, target interface{}, opts ...ReadOption) error {
+func (c *Client) Read(
+	ctx context.Context, query string, queryParams []string, target interface{}, opts ...ReadOption,
+) error {
 	params := defaultReadQueryParameters
 	for _, opt := range opts {
 		opt(&params)
@@ -77,12 +79,20 @@ func (c *Client) Read(ctx context.Context, query string, target interface{}, opt
 	if params.unwrap {
 		values.Set("unwrap", "true")
 	}
+	for _, param := range queryParams {
+		values.Add("params", param)
+	}
 	url.RawQuery = values.Encode()
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url.String(), nil)
 	if err != nil {
 		return fmt.Errorf("creating request: %s", err)
 	}
+	q := req.URL.Query()
+	for _, param := range queryParams {
+		q.Add("params", param)
+	}
+
 	response, err := c.tblHTTP.Do(req)
 	if err != nil {
 		return fmt.Errorf("calling query: %s", err)

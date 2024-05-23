@@ -36,31 +36,31 @@ func TestRead(t *testing.T) {
 		}
 
 		res0 := []result{}
-		calls.query(fmt.Sprintf("select * from %s", tableName), &res0)
+		calls.query(fmt.Sprintf("select * from %s", tableName), []string{}, &res0)
 		require.Len(t, res0, 1)
 		require.Equal(t, "baz", res0[0].Bar)
 
 		res1 := map[string]interface{}{}
-		calls.query(fmt.Sprintf("select * from %s", tableName), &res1, ReadFormat(Table))
+		calls.query(fmt.Sprintf("select * from %s", tableName), []string{}, &res1, ReadFormat(Table))
 		require.Len(t, res1, 2)
 
 		res2 := result{}
-		calls.query(fmt.Sprintf("select * from %s", tableName), &res2, ReadUnwrap())
+		calls.query(fmt.Sprintf("select * from %s", tableName), []string{}, &res2, ReadUnwrap())
 		require.Equal(t, "baz", res2.Bar)
 
 		res3 := []string{}
-		calls.query(fmt.Sprintf("select * from %s", tableName), &res3, ReadExtract())
+		calls.query(fmt.Sprintf("select * from %s", tableName), []string{}, &res3, ReadExtract())
 		require.Len(t, res3, 1)
 		require.Equal(t, "baz", res3[0])
 
 		res4 := ""
-		calls.query(fmt.Sprintf("select * from %s", tableName), &res4, ReadUnwrap(), ReadExtract())
+		calls.query(fmt.Sprintf("select * from %s", tableName), []string{}, &res4, ReadUnwrap(), ReadExtract())
 		require.Equal(t, "baz", res4)
 	})
 
 	t.Run("status 400", func(t *testing.T) {
 		calls := setup(t)
-		err := calls.client.Read(context.Background(), "SELECTZ * FROM foo_1", struct{}{})
+		err := calls.client.Read(context.Background(), "SELECTZ * FROM foo_1", []string{}, struct{}{})
 		require.Error(t, err)
 	})
 }
@@ -161,9 +161,28 @@ func TestBlockNum(t *testing.T) {
 	}
 
 	res := []result{}
-	calls.query(fmt.Sprintf("select block_num(1337) as bn from %s", tableName), &res)
+	calls.query(fmt.Sprintf("select block_num(1337) as bn from %s", tableName), []string{}, &res)
 	require.Len(t, res, 2)                         // it should be 2 because we inserted two rows
 	require.Equal(t, int64(5), res[0].BlockNumber) // the block number should be 5
+}
+
+func TestQueryParams(t *testing.T) {
+	// Our initial simulated blockchain setup already produces two blocks.
+	calls := setup(t)
+
+	// We create a table and do two inserts, that will increase our block number to 5.
+	tableName := requireCreate(t, calls)
+	requireReceipt(t, calls, requireInsert(t, calls, tableName), WaitFor(time.Second*10))
+	requireReceipt(t, calls, requireInsert(t, calls, tableName), WaitFor(time.Second*10))
+
+	type result struct {
+		Bar string `json:"bar"`
+	}
+
+	res := []result{}
+	calls.query(fmt.Sprintf("select bar from %s where bar = ? or ? != ?", tableName), []string{"'baz'", "1", "null"}, &res)
+	require.Len(t, res, 2)              // it should be 2 because we inserted two rows
+	require.Equal(t, "baz", res[0].Bar) // the block number should be 5
 }
 
 func requireCreate(t *testing.T, calls clientCalls) string {
@@ -195,7 +214,7 @@ type clientCalls struct {
 	client       *Client
 	create       func(schema string, opts ...CreateOption) (TableID, string)
 	write        func(query string) string
-	query        func(query string, target interface{}, opts ...ReadOption)
+	query        func(query string, params []string, target interface{}, opts ...ReadOption)
 	receipt      func(txnHash string, options ...ReceiptOption) (*apiv1.TransactionReceipt, bool)
 	getTableByID func(tableID TableID) *apiv1.Table
 	version      func() (*apiv1.VersionInfo, error)
@@ -230,8 +249,8 @@ func setup(t *testing.T) clientCalls {
 			require.NoError(t, err)
 			return id, table
 		},
-		query: func(query string, target interface{}, opts ...ReadOption) {
-			err := client.Read(ctx, query, target, opts...)
+		query: func(query string, params []string, target interface{}, opts ...ReadOption) {
+			err := client.Read(ctx, query, params, target, opts...)
 			require.NoError(t, err)
 		},
 		write: func(query string) string {

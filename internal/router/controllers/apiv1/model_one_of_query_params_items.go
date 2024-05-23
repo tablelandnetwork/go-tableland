@@ -9,15 +9,5 @@
  */
 package apiv1
 
-type Query struct {
-	// The SQL read query statement
-	Statement string `json:"statement,omitempty"`
-	// The values of query parameters
-	Params []interface{} `json:"params,omitempty"`
-	// The requested response format: * `objects` - Returns the query results as a JSON array of JSON objects. * `table` - Return the query results as a JSON object with columns and rows properties. 
-	Format string `json:"format,omitempty"`
-	// Whether to extract the JSON object from the single property of the surrounding JSON object.
-	Extract bool `json:"extract,omitempty"`
-	// Whether to unwrap the returned JSON objects from their surrounding array.
-	Unwrap bool `json:"unwrap,omitempty"`
+type OneOfQueryParamsItems struct {
 }

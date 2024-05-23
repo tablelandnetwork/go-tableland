@@ -16,6 +16,7 @@ import (
 	"github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed"
 	efimpl "github.com/textileio/go-tableland/pkg/eventprocessor/eventfeed/impl"
 	executor "github.com/textileio/go-tableland/pkg/eventprocessor/impl/executor/impl"
+	"github.com/textileio/go-tableland/pkg/parsing"
 	parserimpl "github.com/textileio/go-tableland/pkg/parsing/impl"
 
 	"github.com/textileio/go-tableland/pkg/sharedmemory"
@@ -400,7 +401,7 @@ func setup(t *testing.T) (
 		rq, err := parser.ValidateReadQuery(readQuery)
 		require.NoError(t, err)
 		require.NotNil(t, rq)
-		res, err := gatewayimpl.NewGatewayStore(db, nil).Read(ctx, rq)
+		res, err := gatewayimpl.NewGatewayStore(db).Read(ctx, rq, parsing.NewReadStatementResolver(nil))
 		require.NoError(t, err)
 
 		ret := make([]int64, len(res.Rows))
@@ -414,7 +415,7 @@ func setup(t *testing.T) (
 		return func() bool {
 			for _, expReceipt := range rs {
 				gotReceipt, found, err := gatewayimpl.
-					NewGatewayStore(db, nil).
+					NewGatewayStore(db).
 					GetReceipt(context.Background(), 1337, expReceipt.TxnHash)
 				require.NoError(t, err)
 				if !found {

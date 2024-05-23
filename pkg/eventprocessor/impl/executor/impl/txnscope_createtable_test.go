@@ -36,7 +36,7 @@ func TestCreateTable(t *testing.T) {
 		// Check that the table was registered in the system-table.
 
 		tableID, _ := tables.NewTableID("100")
-		table, err := gatewayimpl.NewGatewayStore(ex.db, nil).GetTable(ctx, 1337, tableID)
+		table, err := gatewayimpl.NewGatewayStore(ex.db).GetTable(ctx, 1337, tableID)
 		require.NoError(t, err)
 		require.Equal(t, tableID, table.ID)
 		require.Equal(t, "0xb451cee4A42A652Fe77d373BAe66D42fd6B8D8FF", table.Controller)

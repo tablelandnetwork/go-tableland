@@ -442,9 +442,12 @@ func createAPIServer(
 		supportedChainIDs = append(supportedChainIDs, chainID)
 	}
 
+	resolver := parsing.NewReadStatementResolver(sm)
+
 	g, err := gateway.NewGateway(
 		parser,
-		gatewayimpl.NewGatewayStore(db, parsing.NewReadStatementResolver(sm)),
+		gatewayimpl.NewGatewayStore(db),
+		resolver,
 		gatewayConfig.ExternalURIPrefix,
 		gatewayConfig.MetadataRendererURI,
 		gatewayConfig.AnimationRendererURI)

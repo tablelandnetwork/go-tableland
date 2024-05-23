@@ -18,21 +18,21 @@ import (
 
 // GatewayStore is the storage layer of the gateway.
 type GatewayStore struct {
-	db       *database.SQLiteDB
-	resolver sqlparser.ReadStatementResolver
+	db *database.SQLiteDB
 }
 
 // NewGatewayStore creates a new GatewayStore.
-func NewGatewayStore(db *database.SQLiteDB, resolver sqlparser.ReadStatementResolver) *GatewayStore {
+func NewGatewayStore(db *database.SQLiteDB) *GatewayStore {
 	return &GatewayStore{
-		db:       db,
-		resolver: resolver,
+		db: db,
 	}
 }
 
 // Read executes a parsed read statement.
-func (s *GatewayStore) Read(ctx context.Context, stmt parsing.ReadStmt) (*gateway.TableData, error) {
-	query, err := stmt.GetQuery(s.resolver)
+func (s *GatewayStore) Read(
+	ctx context.Context, stmt parsing.ReadStmt, resolver sqlparser.ReadStatementResolver,
+) (*gateway.TableData, error) {
+	query, err := stmt.GetQuery(resolver)
 	if err != nil {
 		return nil, fmt.Errorf("get query: %s", err)
 	}

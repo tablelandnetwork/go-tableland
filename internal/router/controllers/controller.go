@@ -231,9 +231,14 @@ func (c *Controller) GetTableQuery(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-Type", "application/json")
 
 	stm := r.URL.Query().Get("statement")
+	params := []string{}
+
+	if r.URL.Query().Has("params") {
+		params = r.URL.Query()["params"]
+	}
 
 	start := time.Now()
-	res, ok := c.runReadRequest(r.Context(), stm, rw)
+	res, ok := c.runReadRequest(r.Context(), stm, params, rw)
 	if !ok {
 		return
 	}
@@ -276,6 +281,7 @@ func (c *Controller) PostTableQuery(rw http.ResponseWriter, r *http.Request) {
 
 	// setting a default body because these options could be missing from JSON
 	body := &apiv1.Query{
+		Params:  []any{},
 		Format:  string(formatter.Objects),
 		Extract: false,
 		Unwrap:  false,
@@ -289,8 +295,31 @@ func (c *Controller) PostTableQuery(rw http.ResponseWriter, r *http.Request) {
 	}
 	_ = r.Body.Close()
 
+	params := make([]string, len(body.Params))
+	for i, p := range body.Params {
+		switch v := p.(type) {
+		case int:
+			params[i] = fmt.Sprint(v)
+		case string:
+			params[i] = v
+		case nil:
+			params[i] = "null"
+		case bool:
+			params[i] = "false"
+			if v {
+				params[i] = "true"
+			}
+		default:
+			rw.WriteHeader(http.StatusBadRequest)
+			msg := fmt.Sprintf("invalid type (%T) of parameter", v)
+			log.Ctx(r.Context()).Error().Msg(msg)
+			_ = json.NewEncoder(rw).Encode(errors.ServiceError{Message: msg})
+			return
+		}
+	}
+
 	start := time.Now()
-	res, ok := c.runReadRequest(r.Context(), body.Statement, rw)
+	res, ok := c.runReadRequest(r.Context(), body.Statement, params, rw)
 	if !ok {
 		return
 	}
@@ -332,9 +361,10 @@ func (c *Controller) PostTableQuery(rw http.ResponseWriter, r *http.Request) {
 func (c *Controller) runReadRequest(
 	ctx context.Context,
 	stm string,
+	params []string,
 	rw http.ResponseWriter,
 ) (*gateway.TableData, bool) {
-	res, err := c.gateway.RunReadQuery(ctx, stm)
+	res, err := c.gateway.RunReadQuery(ctx, stm, params)
 	if err != nil {
 		rw.WriteHeader(http.StatusBadRequest)
 		log.Ctx(ctx).

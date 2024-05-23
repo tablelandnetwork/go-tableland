@@ -31,7 +31,7 @@ func TestGatewayInitialization(t *testing.T) {
 	t.Run("invalid external uri", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := gateway.NewGateway(nil, nil, "invalid uri", "", "")
+		_, err := gateway.NewGateway(nil, nil, nil, "invalid uri", "", "")
 		require.Error(t, err)
 		require.ErrorContains(t, err, "invalid external url prefix")
 	})
@@ -39,7 +39,7 @@ func TestGatewayInitialization(t *testing.T) {
 	t.Run("invalid metadata uri", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := gateway.NewGateway(nil, nil, "https://tableland.network", "invalid uri", "")
+		_, err := gateway.NewGateway(nil, nil, nil, "https://tableland.network", "invalid uri", "")
 		require.Error(t, err)
 		require.ErrorContains(t, err, "metadata renderer uri could not be parsed")
 	})
@@ -47,7 +47,9 @@ func TestGatewayInitialization(t *testing.T) {
 	t.Run("invalid animation uri", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := gateway.NewGateway(nil, nil, "https://tableland.network", "https://tables.tableland.xyz", "invalid uri")
+		_, err := gateway.NewGateway(
+			nil, nil, nil, "https://tableland.network", "https://tables.tableland.xyz", "invalid uri",
+		)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "animation renderer uri could not be parsed")
 	})
@@ -93,7 +95,7 @@ func TestGateway(t *testing.T) {
 	require.NoError(t, err)
 
 	svc, err := gateway.NewGateway(
-		parser, NewGatewayStore(db, nil), "https://tableland.network", "https://tables.tableland.xyz", "",
+		parser, NewGatewayStore(db), nil, "https://tableland.network", "https://tables.tableland.xyz", "",
 	)
 	require.NoError(t, err)
 	metadata, err := svc.GetTableMetadata(ctx, chainID, id)
@@ -148,7 +150,7 @@ func TestGetMetadata(t *testing.T) {
 		parser, err := parserimpl.New([]string{"system_", "registry", "sqlite_"})
 		require.NoError(t, err)
 
-		svc, err := gateway.NewGateway(parser, NewGatewayStore(db, nil), "https://tableland.network", "", "")
+		svc, err := gateway.NewGateway(parser, NewGatewayStore(db), nil, "https://tableland.network", "", "")
 		require.NoError(t, err)
 
 		metadata, err := svc.GetTableMetadata(context.Background(), chainID, id)
@@ -168,7 +170,7 @@ func TestGetMetadata(t *testing.T) {
 		require.NoError(t, err)
 
 		svc, err := gateway.NewGateway(
-			parser, NewGatewayStore(db, nil), "https://tableland.network", "https://tables.tableland.xyz", "",
+			parser, NewGatewayStore(db), nil, "https://tableland.network", "https://tables.tableland.xyz", "",
 		)
 		require.NoError(t, err)
 
@@ -189,7 +191,7 @@ func TestGetMetadata(t *testing.T) {
 		require.NoError(t, err)
 
 		svc, err := gateway.NewGateway(
-			parser, NewGatewayStore(db, nil), "https://tableland.network", "https://tables.tableland.xyz/", "",
+			parser, NewGatewayStore(db), nil, "https://tableland.network", "https://tables.tableland.xyz/", "",
 		)
 		require.NoError(t, err)
 
@@ -210,7 +212,7 @@ func TestGetMetadata(t *testing.T) {
 		parser, err := parserimpl.New([]string{"system_", "registry", "sqlite_"})
 		require.NoError(t, err)
 
-		_, err = gateway.NewGateway(parser, NewGatewayStore(db, nil), "https://tableland.network", "foo", "")
+		_, err = gateway.NewGateway(parser, NewGatewayStore(db), nil, "https://tableland.network", "foo", "")
 		require.Error(t, err)
 		require.ErrorContains(t, err, "metadata renderer uri could not be parsed")
 	})
@@ -222,7 +224,7 @@ func TestGetMetadata(t *testing.T) {
 		require.NoError(t, err)
 
 		svc, err := gateway.NewGateway(
-			parser, NewGatewayStore(db, nil), "https://tableland.network", "https://tables.tableland.xyz", "",
+			parser, NewGatewayStore(db), nil, "https://tableland.network", "https://tables.tableland.xyz", "",
 		)
 		require.NoError(t, err)
 
@@ -244,7 +246,8 @@ func TestGetMetadata(t *testing.T) {
 
 		svc, err := gateway.NewGateway(
 			parser,
-			NewGatewayStore(db, nil),
+			NewGatewayStore(db),
+			nil,
 			"https://tableland.network",
 			"https://tables.tableland.xyz",
 			"https://tables.tableland.xyz",
@@ -282,7 +285,8 @@ func TestQueryConstraints(t *testing.T) {
 
 		gateway, err := gateway.NewGateway(
 			parser,
-			NewGatewayStore(db, nil),
+			NewGatewayStore(db),
+			nil,
 			"https://tableland.network",
 			"https://tables.tableland.xyz",
 			"https://tables.tableland.xyz",
@@ -290,7 +294,7 @@ func TestQueryConstraints(t *testing.T) {
 		require.NoError(t, err)
 
 		_, err = gateway.RunReadQuery(
-			context.Background(), "SELECT * FROM foo_1337_1 WHERE bar = 'hello2'",
+			context.Background(), "SELECT * FROM foo_1337_1 WHERE bar = 'hello2'", []string{},
 		) // length of 45 bytes
 		require.Error(t, err)
 		require.ErrorContains(t, err, "read query size is too long")

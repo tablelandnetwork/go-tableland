@@ -171,6 +171,7 @@ func (cp *CounterProbe) getCurrentCounterValue(ctx context.Context) (int64, erro
 	if err := cp.client.Read(
 		ctx,
 		fmt.Sprintf("select counter from %s", cp.tableName),
+		[]string{},
 		&counter,
 		clientV1.ReadExtract(),
 		clientV1.ReadUnwrap()); err != nil {
