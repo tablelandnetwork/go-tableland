@@ -132,8 +132,8 @@
             "Name": "Base Sepolia",
             "ChainID": 84532,
             "Registry": {
-                "EthEndpoint": "wss://base-sepolia.g.alchemy.com/v2/{VALIDATOR_ALCHEMY_BASE_SEPOLIA_API_KEY}",
-                "ContractAddress": "TODO"
+                "EthEndpoint": "wss://base-sepolia.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_BASE_SEPOLIA_API_KEY}",
+                "ContractAddress": "0xA85aAE9f0Aec5F5638E5F13840797303Ab29c9f9"
             },
             "EventFeed": {
                 "ChainAPIBackoff": "15s",
