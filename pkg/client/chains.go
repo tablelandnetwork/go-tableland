@@ -112,7 +112,7 @@ var Chains = map[ChainID]Chain{
 		Endpoint:     testnetURL,
 		ID:           ChainIDs.BaseSepolia,
 		Name:         "Base Sepolia",
-		ContractAddr: common.HexToAddress("TODO"),
+		ContractAddr: common.HexToAddress("0xA85aAE9f0Aec5F5638E5F13840797303Ab29c9f9"),
 	},
 	ChainIDs.FilecoinCalibration: {
 		Endpoint:     testnetURL,
