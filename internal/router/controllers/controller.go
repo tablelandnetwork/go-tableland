@@ -298,10 +298,10 @@ func (c *Controller) PostTableQuery(rw http.ResponseWriter, r *http.Request) {
 	params := make([]string, len(body.Params))
 	for i, p := range body.Params {
 		switch v := p.(type) {
-		case int:
+		case float64:
 			params[i] = fmt.Sprint(v)
 		case string:
-			params[i] = v
+			params[i] = fmt.Sprintf("\"%s\"", v)
 		case nil:
 			params[i] = "null"
 		case bool:
