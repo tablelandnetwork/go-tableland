@@ -80,8 +80,7 @@ lint:
 .PHONY: lint
 
 # OpenAPI
-#SPEC_URL=https://raw.githubusercontent.com/tablelandnetwork/docs/main/specs/validator/tableland-openapi-spec.yaml
-SPEC_URL=https://raw.githubusercontent.com/tablelandnetwork/docs/8ec1d2f5137d4372b493cf6c64707ae21b5ba19b/specs/validator/tableland-openapi-spec.yaml
+SPEC_URL=https://raw.githubusercontent.com/tablelandnetwork/docs/main/specs/validator/tableland-openapi-spec.yaml
 APIV1=${PWD}/internal/router/controllers/apiv1
 gen-api-v1:
 	mkdir -p ${APIV1}
