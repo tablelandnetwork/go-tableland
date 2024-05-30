@@ -128,13 +128,13 @@ func (_c *Gateway_GetTableMetadata_Call) Return(_a0 gateway.TableMetadata, _a1 e
 	return _c
 }
 
-// RunReadQuery provides a mock function with given fields: ctx, stmt
-func (_m *Gateway) RunReadQuery(ctx context.Context, stmt string) (*gateway.TableData, error) {
-	ret := _m.Called(ctx, stmt)
+// RunReadQuery provides a mock function with given fields: ctx, stmt, params
+func (_m *Gateway) RunReadQuery(ctx context.Context, stmt string, params []string) (*gateway.TableData, error) {
+	ret := _m.Called(ctx, stmt, params)
 
 	var r0 *gateway.TableData
-	if rf, ok := ret.Get(0).(func(context.Context, string) *gateway.TableData); ok {
-		r0 = rf(ctx, stmt)
+	if rf, ok := ret.Get(0).(func(context.Context, string, []string) *gateway.TableData); ok {
+		r0 = rf(ctx, stmt, params)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*gateway.TableData)
@@ -142,8 +142,8 @@ func (_m *Gateway) RunReadQuery(ctx context.Context, stmt string) (*gateway.Tabl
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, stmt)
+	if rf, ok := ret.Get(1).(func(context.Context, string, []string) error); ok {
+		r1 = rf(ctx, stmt, params)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -159,13 +159,14 @@ type Gateway_RunReadQuery_Call struct {
 // RunReadQuery is a helper method to define mock.On call
 //   - ctx context.Context
 //   - stmt string
-func (_e *Gateway_Expecter) RunReadQuery(ctx interface{}, stmt interface{}) *Gateway_RunReadQuery_Call {
-	return &Gateway_RunReadQuery_Call{Call: _e.mock.On("RunReadQuery", ctx, stmt)}
+//   - params []string
+func (_e *Gateway_Expecter) RunReadQuery(ctx interface{}, stmt interface{}, params interface{}) *Gateway_RunReadQuery_Call {
+	return &Gateway_RunReadQuery_Call{Call: _e.mock.On("RunReadQuery", ctx, stmt, params)}
 }
 
-func (_c *Gateway_RunReadQuery_Call) Run(run func(ctx context.Context, stmt string)) *Gateway_RunReadQuery_Call {
+func (_c *Gateway_RunReadQuery_Call) Run(run func(ctx context.Context, stmt string, params []string)) *Gateway_RunReadQuery_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string))
+		run(args[0].(context.Context), args[1].(string), args[2].([]string))
 	})
 	return _c
 }

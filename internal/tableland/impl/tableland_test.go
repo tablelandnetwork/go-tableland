@@ -157,7 +157,7 @@ func TestReadSystemTable(t *testing.T) {
 	_, err := sc.CreateTable(txOpts, caller, `CREATE TABLE foo_1337 (myjson TEXT);`)
 	require.NoError(t, err)
 
-	res, err := gateway.RunReadQuery(ctx, "select * from registry")
+	res, err := gateway.RunReadQuery(ctx, "select * from registry", []string{})
 	require.NoError(t, err)
 	_, err = json.Marshal(res)
 	require.NoError(t, err)
@@ -551,7 +551,7 @@ func jsonEq(
 	expJSON string,
 ) func() bool {
 	return func() bool {
-		r, err := gateway.RunReadQuery(ctx, stm)
+		r, err := gateway.RunReadQuery(ctx, stm, []string{})
 		// if we get a table undefined error, try again
 		if err != nil && strings.Contains(err.Error(), "no such table") {
 			return false
@@ -587,7 +587,7 @@ func runSQLCountEq(
 	expCount int,
 ) func() bool {
 	return func() bool {
-		response, err := gateway.RunReadQuery(ctx, sql)
+		response, err := gateway.RunReadQuery(ctx, sql, []string{})
 		// if we get a table undefined error, try again
 		if err != nil && strings.Contains(err.Error(), "table not found") {
 			return false
@@ -772,7 +772,7 @@ func (b *tablelandSetupBuilder) build(t *testing.T) *tablelandSetup {
 		// common dependencies among mesa clients
 		parser: parser,
 
-		store: gatewayimpl.NewGatewayStore(db, nil),
+		store: gatewayimpl.NewGatewayStore(db),
 	}
 }
 
@@ -818,6 +818,7 @@ func (s *tablelandSetup) newTablelandClient(t *testing.T) *tablelandClient {
 	gateway, err := gateway.NewGateway(
 		s.parser,
 		s.store,
+		parsing.NewReadStatementResolver(nil),
 		"https://tableland.network/tables",
 		"https://tables.tableland.xyz",
 		"https://tables.tableland.xyz",

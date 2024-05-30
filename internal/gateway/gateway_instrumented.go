@@ -81,9 +81,9 @@ func (g *InstrumentedGateway) GetTableMetadata(
 }
 
 // RunReadQuery allows the user to run SQL.
-func (g *InstrumentedGateway) RunReadQuery(ctx context.Context, statement string) (*TableData, error) {
+func (g *InstrumentedGateway) RunReadQuery(ctx context.Context, statement string, params []string) (*TableData, error) {
 	start := time.Now()
-	data, err := g.gateway.RunReadQuery(ctx, statement)
+	data, err := g.gateway.RunReadQuery(ctx, statement, params)
 	latency := time.Since(start).Milliseconds()
 
 	attributes := append([]attribute.KeyValue{

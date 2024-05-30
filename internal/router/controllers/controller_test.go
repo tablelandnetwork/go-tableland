@@ -25,7 +25,7 @@ import (
 
 func TestQuery(t *testing.T) {
 	r := mocks.NewGateway(t)
-	r.EXPECT().RunReadQuery(mock.Anything, mock.AnythingOfType("string")).Return(
+	r.EXPECT().RunReadQuery(mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("[]string")).Return(
 		&gateway.TableData{
 			Columns: []gateway.Column{
 				{Name: "id"},
@@ -94,7 +94,7 @@ func TestQuery(t *testing.T) {
 
 func TestPostQuery(t *testing.T) {
 	r := mocks.NewGateway(t)
-	r.EXPECT().RunReadQuery(mock.Anything, mock.AnythingOfType("string")).Return(
+	r.EXPECT().RunReadQuery(mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("[]string")).Return(
 		&gateway.TableData{
 			Columns: []gateway.Column{
 				{Name: "id"},
@@ -193,7 +193,7 @@ func TestPostQuery(t *testing.T) {
 
 func TestQueryEmptyTable(t *testing.T) {
 	r := mocks.NewGateway(t)
-	r.EXPECT().RunReadQuery(mock.Anything, mock.AnythingOfType("string")).Return(
+	r.EXPECT().RunReadQuery(mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("[]string")).Return(
 		&gateway.TableData{
 			Columns: []gateway.Column{
 				{Name: "id"},
@@ -229,7 +229,7 @@ func TestQueryEmptyTable(t *testing.T) {
 
 func TestQueryExtracted(t *testing.T) {
 	r := mocks.NewGateway(t)
-	r.EXPECT().RunReadQuery(mock.Anything, mock.AnythingOfType("string")).Return(
+	r.EXPECT().RunReadQuery(mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("[]string")).Return(
 		&gateway.TableData{
 			Columns: []gateway.Column{{Name: "name"}},
 			Rows: [][]*gateway.ColumnValue{
@@ -276,7 +276,7 @@ func TestQueryExtracted(t *testing.T) {
 
 func TestPostQueryExtracted(t *testing.T) {
 	r := mocks.NewGateway(t)
-	r.EXPECT().RunReadQuery(mock.Anything, mock.AnythingOfType("string")).Return(
+	r.EXPECT().RunReadQuery(mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("[]string")).Return(
 		&gateway.TableData{
 			Columns: []gateway.Column{{Name: "name"}},
 			Rows: [][]*gateway.ColumnValue{
