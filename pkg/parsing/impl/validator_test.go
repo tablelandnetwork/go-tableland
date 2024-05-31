@@ -100,9 +100,56 @@ func TestReadRunSQL(t *testing.T) {
 				if tc.expErrType == nil {
 					require.NoError(t, err)
 					require.NotNil(t, rs)
-					q, err := rs.GetQuery(nil)
+					q, err := rs.GetQuery(parsing.NewReadStatementResolver(nil))
 					require.NoError(t, err)
 					require.Equal(t, tc.query, q)
+					return
+				}
+				require.ErrorAs(t, err, tc.expErrType)
+			}
+		}(it))
+	}
+}
+
+func TestReadQueryWithParams(t *testing.T) {
+	t.Parallel()
+
+	type testCase struct {
+		name       string
+		query      string
+		params     []string
+		expQuery   string
+		expErrType interface{}
+	}
+
+	tests := []testCase{
+		{
+			name:       "query all valid types",
+			query:      "select * from foo where a = ? and b = ? and c = ? and d = ? and e = ? and f = ?",
+			params:     []string{"1", "'str'", "\"str2\"", "null", "true", "false"},
+			expQuery:   "select * from foo where a=1 and b='str' and c='str2' and d=null and e=true and f=false",
+			expErrType: nil,
+		},
+	}
+
+	for _, it := range tests {
+		t.Run(it.name, func(tc testCase) func(t *testing.T) {
+			return func(t *testing.T) {
+				t.Parallel()
+
+				parser := newParser(t, []string{"system_", "registry"})
+				rs, err := parser.ValidateReadQuery(tc.query)
+				require.NoError(t, err)
+
+				resolver := parsing.NewReadStatementResolver(nil)
+				err = resolver.PrepareParams(tc.params)
+				require.NoError(t, err)
+				if tc.expErrType == nil {
+					require.NoError(t, err)
+					require.NotNil(t, rs)
+					q, err := rs.GetQuery(resolver)
+					require.NoError(t, err)
+					require.Equal(t, tc.expQuery, q)
 					return
 				}
 				require.ErrorAs(t, err, tc.expErrType)

@@ -13,6 +13,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	logger "github.com/rs/zerolog/log"
+	"github.com/tablelandnetwork/sqlparser"
 	"github.com/textileio/go-tableland/internal/tableland"
 	"github.com/textileio/go-tableland/pkg/parsing"
 	"github.com/textileio/go-tableland/pkg/tables"
@@ -33,14 +34,14 @@ const (
 
 // Gateway defines the gateway operations.
 type Gateway interface {
-	RunReadQuery(ctx context.Context, stmt string) (*TableData, error)
+	RunReadQuery(ctx context.Context, stmt string, params []string) (*TableData, error)
 	GetTableMetadata(context.Context, tableland.ChainID, tables.TableID) (TableMetadata, error)
 	GetReceiptByTransactionHash(context.Context, tableland.ChainID, common.Hash) (Receipt, bool, error)
 }
 
 // GatewayStore is the storage layer of the Gateway.
 type GatewayStore interface {
-	Read(context.Context, parsing.ReadStmt) (*TableData, error)
+	Read(context.Context, parsing.ReadStmt, sqlparser.ReadStatementResolver) (*TableData, error)
 	GetTable(context.Context, tableland.ChainID, tables.TableID) (Table, error)
 	GetSchemaByTableName(context.Context, string) (TableSchema, error)
 	GetReceipt(context.Context, tableland.ChainID, string) (Receipt, bool, error)
@@ -53,6 +54,8 @@ type GatewayService struct {
 	metadataRendererURI  string
 	animationRendererURI string
 	store                GatewayStore
+
+	resolver *parsing.ReadStatementResolver
 }
 
 var _ (Gateway) = (*GatewayService)(nil)
@@ -61,6 +64,7 @@ var _ (Gateway) = (*GatewayService)(nil)
 func NewGateway(
 	parser parsing.SQLValidator,
 	store GatewayStore,
+	resolver *parsing.ReadStatementResolver,
 	extURLPrefix string,
 	metadataRendererURI string,
 	animationRendererURI string,
@@ -89,6 +93,7 @@ func NewGateway(
 		metadataRendererURI:  metadataRendererURI,
 		animationRendererURI: animationRendererURI,
 		store:                store,
+		resolver:             resolver,
 	}, nil
 }
 
@@ -161,13 +166,17 @@ func (g *GatewayService) GetReceiptByTransactionHash(
 }
 
 // RunReadQuery allows the user to run SQL.
-func (g *GatewayService) RunReadQuery(ctx context.Context, statement string) (*TableData, error) {
+func (g *GatewayService) RunReadQuery(ctx context.Context, statement string, params []string) (*TableData, error) {
 	readStmt, err := g.parser.ValidateReadQuery(statement)
 	if err != nil {
 		return nil, fmt.Errorf("validating read query: %s", err)
 	}
 
-	queryResult, err := g.store.Read(ctx, readStmt)
+	if err := g.resolver.PrepareParams(params); err != nil {
+		return nil, fmt.Errorf("prepare params: %s", err)
+	}
+
+	queryResult, err := g.store.Read(ctx, readStmt, g.resolver)
 	if err != nil {
 		return nil, fmt.Errorf("running read statement: %s", err)
 	}

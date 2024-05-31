@@ -91,6 +91,7 @@ gen-api-v1:
 		&& mv go/* . \
 		&& rm -rf go main.go Dockerfile README.md api .swagger-codegen .swagger-codegen-ignore *.yaml \
 		&& sed -i 's/\*OneOfTableAttributesValue/interface{}/' model_table_attributes.go \
+		&& sed -i 's/\OneOfQueryParamsItems/interface{}/' model_query.go \
 	"
 	sudo chown -R ${USER} ${APIV1} 
 .PHONY: gen-api-v1
