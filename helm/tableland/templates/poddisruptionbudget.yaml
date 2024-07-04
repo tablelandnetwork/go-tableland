@@ -1,0 +1,11 @@
+{{- if .Values.maxUnavailable }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: "{{ template "tableland.uname" . }}-pdb"
+spec:
+  maxUnavailable: {{ .Values.maxUnavailable }}
+  selector:
+    matchLabels:
+      app: "{{ template "tableland.uname" . }}"
+{{- end }}
