@@ -337,16 +337,6 @@ func TestWriteQuery(t *testing.T) {
 			query:      "update foo set a=1 from bar",
 			expErrType: ptr2ErrInvalidSyntax(),
 		},
-		{
-			name:       "update where subquery",
-			query:      "update foo set a=1 where a=(select a from bar limit 1) and b=1",
-			expErrType: ptr2ErrSubquery(),
-		},
-		{
-			name:       "delete where subquery",
-			query:      "delete from foo where a=(select a from bar limit 1)",
-			expErrType: ptr2ErrSubquery(),
-		},
 
 		// Disallow RETURNING clauses
 		{
@@ -991,11 +981,6 @@ func ptr2ErrNonDeterministicFunction() **sqlparser.ErrKeywordIsNotAllowed {
 
 func ptr2ErrKeywordIsNotAllowed() **sqlparser.ErrKeywordIsNotAllowed {
 	var e *sqlparser.ErrKeywordIsNotAllowed
-	return &e
-}
-
-func ptr2ErrSubquery() **sqlparser.ErrStatementContainsSubquery {
-	var e *sqlparser.ErrStatementContainsSubquery
 	return &e
 }
 
