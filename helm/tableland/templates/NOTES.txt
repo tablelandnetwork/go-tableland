@@ -1,0 +1,6 @@
+1. Watch the tableland node come up .
+  $ kubectl get pods --namespace={{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "tableland.name" . }} -w
+2. Watch the node logs .
+  $ kubectl logs  --namespace={{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "tableland.name" . }} -c tableland -f
+2. Port forward the pod to your local pc .
+  $ kubectl port-forward --namespace={{ .Release.Namespace }} svc/{{ template "tableland.uname" . }} {{ .Values.httpPort }}
