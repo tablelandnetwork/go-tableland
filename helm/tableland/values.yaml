@@ -1,0 +1,215 @@
+fullnameOverride: ""
+image: textile/tableland
+imageTag: "v1.10.2"
+imagePullPolicy: "IfNotPresent"
+imagePullSecrets: []
+
+podAnnotations: {}
+resources: {}
+  # requests:
+  #   cpu: "1000m"
+  #   memory: "2Gi"
+  # limits:
+  #   cpu: "1000m"
+  #   memory: "2Gi"
+volumeClaimTemplate:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 30Gi
+
+config: 
+  config.json: |-
+    {
+      "Impl": "mesa",
+      "HTTP": {
+        "Port": "8080",
+        "RateLimInterval": "1s",
+        "MaxRequestPerInterval": 10,
+        "ApiKey": "${HTTP_RATE_LIMITER_API_KEY}"
+      },
+      "Gateway": {
+        "ExternalURIPrefix": "https://testnets.tableland.network",
+        "MetadataRendererURI": "https://tables.testnets.tableland.xyz",
+        "AnimationRendererURI": "https://tables.testnets.tableland.xyz"
+      },
+      "DB": {
+        "Port": "5432"
+      },
+      "TableConstraints": {
+        "MaxRowCount": 500000
+      },
+      "QueryConstraints": {
+        "MaxWriteQuerySize": 35000,
+        "MaxReadQuerySize": 35000
+      },
+      "Metrics": {
+        "Port": "9090"
+      },
+      "Log": {
+        "Human": false,
+        "Debug": true
+      },
+      "Analytics": {
+        "FetchExtraBlockInfo": true
+      },
+      "Backup": {
+        "Enabled": true,
+        "Dir": "backups",
+        "Frequency": 240,
+        "EnableVacuum": true,
+        "EnableCompression": true,
+        "Pruning": {
+          "Enabled": true,
+          "KeepFiles": 5
+        }
+      },
+      "TelemetryPublisher": {
+        "Enabled": true,
+        "MetricsHubURL": "https://metricshub-testnet-v2-mrgr43cf5q-uw.a.run.app",
+        "MetricsHubApiKey": "${METRICS_HUB_API_KEY}",
+        "PublishingInterval": "10s",
+        "ChainStackCollectFrequency": "15m"
+      },
+      "Chains": [
+        {
+          "Name": "Ethereum Sepolia",
+          "ChainID": 11155111,
+          "Registry": {
+            "EthEndpoint": "wss://eth-sepolia.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_ETHEREUM_SEPOLIA_API_KEY}",
+            "ContractAddress": "0xc50C62498448ACc8dBdE43DA77f8D5D2E2c7597D"
+          },
+          "EventFeed": {
+            "ChainAPIBackoff": "15s",
+            "NewBlockPollFreq": "10s",
+            "MinBlockDepth": 1,
+            "PersistEvents": true
+          },
+          "EventProcessor": {
+            "BlockFailedExecutionBackoff": "10s",
+            "DedupExecutedTxns": true
+          },
+          "HashCalculationStep": 150
+        },
+        {
+          "Name": "Polygon Amoy",
+          "ChainID": 80002,
+          "Registry": {
+            "EthEndpoint": "wss://polygon-amoy.g.alchemy.com/v2/${VALIDATOR_ALCHEMY_POLYGON_AMOY_API_KEY}",
+            "ContractAddress": "0x170fb206132b693e38adFc8727dCfa303546Cec1"
+          },
+          "EventFeed": {
+            "ChainAPIBackoff": "15s",
+            "NewBlockPollFreq": "5s",
+            "MinBlockDepth": 1,
+            "PersistEvents": true
+          },
+          "EventProcessor": {
+            "BlockFailedExecutionBackoff": "10s",
+            "DedupExecutedTxns": true
+          },
+          "HashCalculationStep": 360
+        }
+      ]
+    }
+
+
+extraEnvs: 
+  - name: VALIDATOR_ALCHEMY_ETHEREUM_SEPOLIA_API_KEY
+    value: secret-value
+  - name: VALIDATOR_ALCHEMY_POLYGON_AMOY_API_KEY
+    value: secret-value
+  - name: HTTP_RATE_LIMITER_API_KEY
+    value: very-secret
+  - name: METRICS_HUB_API_KEY
+    value: api-key
+   
+envFrom: []
+# - secretRef:
+#     name: env-secret
+# - configMapRef:
+#     name: config-map
+
+secretMounts: []
+#  - name: tls-certificates
+#    secretName: tls-certificates
+#    path: /.tableland//certs
+#    defaultMode: 0755
+
+rbac:
+  create: true
+  serviceAccountAnnotations: {}
+  serviceAccountName: ""
+  automountToken: true
+
+persistence:
+  enabled: true
+  annotations: {}
+
+extraVolumeMounts: []
+# - name: extras
+#   mountPath: /usr/share/extras
+#   readOnly: true
+
+extraContainers: []
+# - name: do-something
+#   image: busybox
+#   command: ['do', 'something']
+
+priorityClassName: ""
+enableServiceLinks: false
+
+# Http port of the application
+httpPort: 8080
+# Https port of the application
+httpsPort: 8443
+# Metrics port of the application
+metricsPort: 8888
+
+service:
+  annotations: {}
+  httpPortName: http
+  httpsPortName: https
+  monHttpsPortName: mon-http
+
+updateStrategy: RollingUpdate
+
+#if you change this number to 0, rolling upgrades will no longer be possible.
+maxUnavailable: 1
+
+podSecurityContext:
+  fsGroup: 1000
+  runAsUser: 1000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #     - ALL
+  # # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+terminationGracePeriod: 120
+
+nodeSelector:  {}
+
+tolerations: []
+
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+  hosts:
+    - host: tableland.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+
+lifecycle: {}
+
+serviceMonitor:
+  enabled: false
+  path: /metrics
+  port: mon-http
+  interval: 30s
