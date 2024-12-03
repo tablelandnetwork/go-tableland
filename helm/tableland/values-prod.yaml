@@ -25,7 +25,7 @@ config:
       "HTTP": {
         "Port": "8080",
         "RateLimInterval": "1s",
-        "MaxRequestPerInterval": 10,
+        "MaxRequestPerInterval": 30,
         "ApiKey": "${HTTP_RATE_LIMITER_API_KEY}"
       },
       "Gateway": {
