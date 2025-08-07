@@ -269,6 +269,14 @@ func (ts *txnScope) executeWriteStmt(
 					Msg:  err.Error(),
 				}
 			}
+
+			if strings.Contains(err.Error(), "not enough args to execute query") {
+				return &errQueryExecution{
+					Code: "SQLITE_DRIVER_NOT_ENOUGH_ARGS",
+					Msg:  err.Error(),
+				}
+			}
+
 			return fmt.Errorf("exec query: %s", err)
 		}
 

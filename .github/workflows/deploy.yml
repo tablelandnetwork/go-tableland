@@ -86,7 +86,6 @@ jobs:
           username: validator
           key: ${{ env.vm_ssh_key }}
           port: 22
-          script_stop: true
           command_timeout: 30m
           script: |
             cd go-tableland
