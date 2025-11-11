@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "tableland.uname" . }}-config
+  labels:
+    heritage: {{ .Release.Service | quote }}
+    release: {{ .Release.Name | quote }}
+    chart: "{{ .Chart.Name }}"
+    app: "{{ template "tableland.uname" . }}"
+data:
+{{- range $path, $config := .Values.config }}
+  {{ $path }}: |-
+{{ $config | indent 4 -}}
+{{- end -}}

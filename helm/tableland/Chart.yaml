@@ -1,0 +1,9 @@
+apiVersion: v1
+description: Official Tableland helm chart for 
+home: https://github.com/tablelandnetwork/go-tableland
+maintainers:
+  - email: developer@tableland.com
+    name: Tableland
+name: tableland
+version: 0.5.0
+appVersion: v1.8.1

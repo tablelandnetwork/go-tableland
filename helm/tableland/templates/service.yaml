@@ -1,0 +1,22 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: {{ template "tableland.uname" . }}
+  labels:
+    {{- include "tableland.labels" . | nindent 4 }}
+{{- if .Values.service.labels }}
+{{ toYaml .Values.service.labels | indent 4 }}
+{{- end }}
+  annotations:
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+spec:
+  publishNotReadyAddresses: true
+  selector:
+    {{- include "tableland.selectorLabels" . | nindent 4 }}
+  ports:
+  - name: {{ .Values.service.httpPortName | default "http" }}
+    port: {{ .Values.httpPort }}
+  - name: {{ .Values.service.httpsPortName | default "https" }}
+    port: {{ .Values.httpsPort }}
+  - name: {{ .Values.service.monHttpsPortName | default "mon-http" }}
+    port: {{ .Values.metricsPort }}
